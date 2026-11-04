@@ -15,7 +15,7 @@ import { CASCADE_ACTIONS, ENABLED_ACTIONS, ENABLED_KEYS, MAX_TIER } from './regi
 import { ACTION_RUNNERS } from './actions/index.js';
 import { upsertStep, upsertAsset, rollupSummary } from './store';
 import { caseUrl, qrDataUrl } from './render/qr.js';
-import { loadPetImageDataUrl } from './render/photo.js';
+import { loadPetPhoto } from './render/photo.js';
 import { buildFlyerMapSpec } from './render/staticMap.js';
 import { broadcastActivation } from '../sse/cascadeStream';
 import { piggybackDrain } from './followups';
@@ -67,18 +67,21 @@ export function makeGetShared(caseData) {
         petPhotos = [];
       }
       const urls = [...new Set([caseData.petPhotoUrl, ...petPhotos].filter(Boolean))].slice(0, 3);
-      const dataUrls = (await Promise.all(urls.map((u) => loadPetImageDataUrl(u)))).filter(Boolean);
+      const photos = (await Promise.all(urls.map((u) => loadPetPhoto(u)))).filter(Boolean);
+      const dataUrls = photos.map((p) => p.dataUrl);
       // Voyager tiles + z15 match the poster design system. Best-effort: null
       // on any failure and the layouts render mapless.
       const map = await buildFlyerMapSpec(caseData.lastSeenLatitude, caseData.lastSeenLongitude, {
+        // Tall enough for the poster's map column (render/flyers/layout.js).
         width: 680,
-        height: 220,
+        height: 480,
         zoom: 15,
         style: 'voyager',
       }).catch(() => null);
       return {
         caseUrl: url,
         qrDataUrl: await qrDataUrl(url),
+        photos,
         photoDataUrls: dataUrls,
         photoDataUrl: dataUrls[0] || null,
         map,

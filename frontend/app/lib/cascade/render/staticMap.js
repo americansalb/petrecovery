@@ -13,7 +13,7 @@
 import { tileUrl, TILE_ATTRIBUTION_TEXT } from '@/app/lib/maps/tiles';
 
 const TILE_PT = 128; // one 256px @2x tile drawn at 128pt
-const MAX_TILES = 24;
+const MAX_TILES = 36;
 const FETCH_TIMEOUT_MS = 4000;
 
 /** Species-aware zoom: a lost cat's world is a few houses; a dog's is a mile. */

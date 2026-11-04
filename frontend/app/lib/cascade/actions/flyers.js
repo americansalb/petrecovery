@@ -12,6 +12,7 @@ export async function runFlyers(ctx) {
 
   const flyerShared = {
     qrDataUrl: shared.qrDataUrl,
+    photos: shared.photos,
     photoDataUrls: shared.photoDataUrls,
     photoDataUrl: shared.photoDataUrl,
     headline: ctx.results.ai_copy?.headline,

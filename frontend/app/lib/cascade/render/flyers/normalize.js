@@ -1,11 +1,12 @@
 /**
  * Pure display-shape normalizer shared by the flyer PDFs and the social cards.
- * Imports nothing heavy (no react-pdf / satori / resvg) so both render paths
- * reuse it without dragging native deps into each other's webpack trace.
+ * Imports nothing heavy (no react-pdf / satori / resvg / sharp) so both render
+ * paths reuse it without dragging native deps into each other's webpack trace.
  *
- * Computes the best-in-class flyer content: emotional hook, reward, multi-photo,
- * "look for" markings, an approach/safety line, microchip trust badge, and a
- * prominent scan CTA - the elements that actually drive sightings.
+ * What the flyer says, in the order it is read: LOST DOG, the photo, the
+ * phone; then the name, what to look for, what to do if you see the pet,
+ * where and when, the QR code. Everything here is a fact from the report
+ * or the owner's own words; nothing is invented to fill a box.
  */
 
 import { format } from 'date-fns';
@@ -42,10 +43,17 @@ function cap(str, n) {
   return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t;
 }
 
+const sentence = (s) => {
+  const t = String(s || '').trim().replace(/\s+/g, ' ');
+  if (!t) return '';
+  const first = t.charAt(0).toUpperCase() + t.slice(1);
+  return /[.!?]$/.test(first) ? first : `${first}.`;
+};
+
 /**
- * Read intrinsic pixel dimensions from a PNG/JPEG data URL so the flyer can
- * size the photo frame to the photo's real shape and show the WHOLE pet,
- * never a letterboxed crop. Returns {w,h} or null (unknown format).
+ * Read intrinsic pixel dimensions from a PNG/JPEG data URL so a photo that
+ * came without them still gets a frame of its own shape.
+ * Returns {w,h} or null (unknown format).
  */
 export function imageDimsFromDataUrl(dataUrl) {
   try {
@@ -86,19 +94,91 @@ export function imageDimsFromDataUrl(dataUrl) {
   }
 }
 
+/** Photos as objects with their shape and focal point, from either shared shape. */
+function photosFrom(shared) {
+  const out = [];
+  const objs = Array.isArray(shared.photos) ? shared.photos.filter((p) => p && p.dataUrl) : [];
+  for (const p of objs) {
+    const dims = p.w > 0 && p.h > 0 ? { w: p.w, h: p.h } : imageDimsFromDataUrl(p.dataUrl);
+    out.push({
+      src: p.dataUrl,
+      dataUrl: p.dataUrl,
+      w: dims?.w || 0,
+      h: dims?.h || 0,
+      aspect: dims && dims.w > 0 && dims.h > 0 ? dims.w / dims.h : null,
+      focal: p.focal || { x: 0.5, y: 0.45 },
+    });
+  }
+  if (!out.length) {
+    const urls = (shared.photoDataUrls && shared.photoDataUrls.filter(Boolean)) || [];
+    if (!urls.length && shared.photoDataUrl) urls.push(shared.photoDataUrl);
+    for (const u of urls) {
+      const dims = imageDimsFromDataUrl(u);
+      out.push({
+        src: u,
+        dataUrl: u,
+        w: dims?.w || 0,
+        h: dims?.h || 0,
+        aspect: dims && dims.w > 0 && dims.h > 0 ? dims.w / dims.h : null,
+        focal: { x: 0.5, y: 0.45 },
+      });
+    }
+  }
+  return out.slice(0, 3);
+}
+
+/** "Golden Retriever · Large · 4 years old · Microchipped" */
+function factsLine(caseData, pet) {
+  const sizeWord = caseData.petSize ? String(caseData.petSize).toLowerCase() : '';
+  const age = Number(pet?.age);
+  const bits = [
+    caseData.petBreed && caseData.petBreed !== 'Unknown' ? caseData.petBreed : null,
+    sizeWord ? sizeWord.charAt(0).toUpperCase() + sizeWord.slice(1) : null,
+    Number.isFinite(age) && age > 0 ? `${age} ${age === 1 ? 'year' : 'years'} old` : null,
+    pet?.microchipId || caseData.microchipId ? 'Microchipped' : null,
+  ].filter(Boolean);
+  return bits.join(' · ');
+}
+
+/** What to look for: the color, the markings, the collar, in the owner's words. */
+function lookFor(caseData, pet) {
+  const marks = String(caseData.distinctiveMarks || pet?.distinctiveMarks || '').trim();
+  const collar = String(pet?.collarInfo || '').trim();
+  const color = String(caseData.petColor || '').trim();
+  const parts = [];
+  if (color) parts.push(sentence(/\b(coat|fur|colou?r)\b/i.test(color) ? color : `${color} coat`));
+  if (marks) parts.push(sentence(marks));
+  if (collar) parts.push(sentence(/collar|harness|tag/i.test(collar) ? collar : `${collar} collar`));
+  if (parts.length < 2 && caseData.petDescription) parts.push(sentence(cap(caseData.petDescription, 140)));
+  return cap(parts.join(' '), 180);
+}
+
+/** "If you see Max": the scenario's guidance with the real contact action. */
+function ifYouSee(copy, { ownerFirstName, hasPhone }) {
+  let s = String(copy.approachLine || '').trim();
+  const verb = hasPhone ? (ownerFirstName ? `call or text ${ownerFirstName}` : 'call or text') : 'report it with the QR code';
+  s = s.replace(/,?\s*and trying to get home/i, '');
+  s = s.replace(/get in touch right away\.?/i, `${verb} right away.`);
+  s = s.replace(/get in touch\.?/i, `${verb}.`);
+  s = s.replace(/\s+/g, ' ').trim();
+  return cap(s, 170);
+}
+
 /**
- * @param {object} caseData a Case row (may include petPhotos:string[] and overrides)
+ * @param {object} caseData a Case row (+ pet, + optional overrides)
  * @param {object} shared render inputs
- * @param {string} [shared.photoDataUrl] primary photo data url
- * @param {string[]} [shared.photoDataUrls] up to 3 photo data urls (face, body, markings)
+ * @param {Array<{dataUrl:string,w:number,h:number,focal:object}>} [shared.photos]
+ * @param {string} [shared.photoDataUrl] primary photo data url (older shape)
+ * @param {string[]} [shared.photoDataUrls] up to 3 photo data urls (older shape)
  * @param {string} [shared.qrDataUrl]
- * @param {string} [shared.headline] AI emotional headline (PR4); falls back to a template
- * @param {string} [shared.description] AI description (PR4); falls back to petDescription
+ * @param {string} [shared.headline] AI headline; falls back to a template
+ * @param {string} [shared.description] AI description; falls back to petDescription
  */
 export function normalizeFlyerData(caseData, shared = {}) {
   const theme = FLYER_THEME[caseData.reportType === 'FOUND' ? 'found' : 'lost'];
   const speciesLabel = SPECIES_LABEL[caseData.petSpecies] || 'PET';
   const name = caseData.petName || 'Unknown';
+  const pet = caseData.pet || null;
 
   const sizeWord = caseData.petSize ? String(caseData.petSize).toLowerCase() : '';
   const chips = [
@@ -107,15 +187,16 @@ export function normalizeFlyerData(caseData, shared = {}) {
     sizeWord ? sizeWord.charAt(0).toUpperCase() + sizeWord.slice(1) : null,
   ].filter(Boolean);
 
-  // The human behind the number: "CALL OR TEXT SARAH" reads like a family,
+  // The human behind the number: "call or text Sarah" reads like a family,
   // not a call center.
   const ownerFirstName = (caseData.ownerName || '').trim().split(/\s+/)[0] || '';
 
-  const hasPhone = caseData.ownerPhone && caseData.ownerPhone !== 'Not provided';
-  const hasEmail =
-    caseData.ownerEmail && !isPlaceholderEmail(caseData.ownerEmail) && caseData.ownerEmail !== 'Not provided';
+  const hasPhone = Boolean(caseData.ownerPhone && caseData.ownerPhone !== 'Not provided');
+  const hasEmail = Boolean(
+    caseData.ownerEmail && !isPlaceholderEmail(caseData.ownerEmail) && caseData.ownerEmail !== 'Not provided'
+  );
 
-  // Display URL for the microfooter + the no-contact fallback (the QR encodes
+  // Display URL for the footer + the no-contact fallback (the QR encodes
   // the real absolute URL; this is the human-readable line).
   const caseUrlLabel = `reunitepets.org/cases/${caseData.caseNumber}`;
 
@@ -137,24 +218,24 @@ export function normalizeFlyerData(caseData, shared = {}) {
   }
 
   let lastSeenWhen = '';
+  let lastSeenDate = '';
   try {
-    if (caseData.lastSeenAt) lastSeenWhen = format(new Date(caseData.lastSeenAt), 'MMM d, yyyy');
+    if (caseData.lastSeenAt) {
+      const d = new Date(caseData.lastSeenAt);
+      lastSeenDate = format(d, 'MMM d, yyyy');
+      const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0;
+      lastSeenWhen = hasTime ? format(d, 'EEE MMM d, h:mm a').replace(/ AM$/, ' am').replace(/ PM$/, ' pm') : format(d, 'EEE MMM d');
+    }
   } catch {
     /* leave blank */
   }
 
-  // photos: prefer an explicit array, else the single primary.
-  const photos = (shared.photoDataUrls && shared.photoDataUrls.filter(Boolean)) || [];
-  if (!photos.length && shared.photoDataUrl) photos.push(shared.photoDataUrl);
+  const photos = photosFrom(shared);
+  const photoAspect = photos[0]?.aspect ? photos[0].h / photos[0].w : null; // h/w, the older field
 
-  // aspect (h/w) of the primary photo so layouts can frame the full image.
-  const dims = photos.length ? imageDimsFromDataUrl(photos[0]) : null;
-  const photoAspect = dims && dims.w > 0 && dims.h > 0 ? dims.h / dims.w : null;
+  const markings = cap(caseData.distinctiveMarks || pet?.distinctiveMarks || '', 120);
+  const microchipped = Boolean(caseData.microchipId || pet?.microchipId);
 
-  const markings = cap(caseData.distinctiveMarks || '', 120);
-  const microchipped = Boolean(caseData.microchipId);
-
-  // First-person emotional copy (pet voice + family), scenario-aware.
   const copy = resolveFlyerCopy(caseData, shared);
 
   return {
@@ -163,31 +244,37 @@ export function normalizeFlyerData(caseData, shared = {}) {
     accent: theme.accent,
     accentBg: theme.stampBg,
     speciesLabel,
-    // emotional copy - the "cannot say no" heart of the flyer
+    headlineBig: `${theme.stamp} ${speciesLabel}`, // LOST DOG
+    // copy
     headline: copy.headline, // "Have you seen {name}?"
-    plea: copy.plea, // one species-true supporting sentence
-    pleaShort: copy.pleaShort, // shorter, for social cards
-    approachLine: copy.approachLine, // scenario-aware "if you see them" guidance
+    plea: copy.plea,
+    pleaShort: copy.pleaShort,
+    approachLine: copy.approachLine,
     shareNudge: copy.shareNudge,
     scanCta: copy.scanCta,
+    ifYouSee: ifYouSee(copy, { ownerFirstName, hasPhone }),
+    lookFor: lookFor(caseData, pet),
+    factsLine: factsLine(caseData, pet),
     petName: name,
     chips,
     description: cap(shared.description || caseData.petDescription, 240),
-    markings, // "LOOK FOR" line
+    markings,
     microchipped,
     lastSeenArea: areaFromAddress(caseData.lastSeenAddress),
-    lastSeenWhen,
-    reward, // e.g. "$500" or "REWARD" or null
+    lastSeenWhen, // "Sun Nov 2, 6:30 pm"
+    lastSeenDate, // "Nov 2, 2026"
+    reward, // "$500", "REWARD" or null
     contactVerb,
     contactValue,
+    hasPhone,
     ownerFirstName,
     contactSecondary: cap(contactSecondary, 48),
     caseNumber: caseData.caseNumber,
     caseUrlLabel,
-    map: shared.map || null, // stitched last-seen map spec (see render/staticMap.js)
+    map: shared.map || null, // stitched last-seen map spec (render/staticMap.js)
     photoAspect,
-    photos: photos.slice(0, 3),
-    photoDataUrl: photos[0] || null, // back-compat for social card
+    photos, // [{src, w, h, aspect (w/h), focal}]
+    photoDataUrl: photos[0]?.src || null,
     qrDataUrl: shared.qrDataUrl || null,
   };
 }

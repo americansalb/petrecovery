@@ -1,420 +1,255 @@
 import React from 'react';
 
 /**
- * Social share cards in the owner's poster design system (Lost Pet
- * Posters.dc.html, artboard 1c): Archivo/Archivo Black, yellow strip,
- * yellow LOST {SPECIES} display on a navy header band, framed photo,
- * HAVE YOU SEEN {NAME}?, reward block, info rows, last-seen map with the
- * navy halo, QR box, and a navy phone footer. One design, laid out for
- * three sizes (og 1200x630, square 1080x1080, story 1080x1920).
+ * Share images, from the Claude Design canvas "Lost Pet Flyers" (the three
+ * Share boards): the same bones as the printed flyer. LOST DOG in flash on
+ * a navy band, the photo filling its frame (cut to the frame's shape around
+ * the pet before it gets here), HAVE YOU SEEN + the name, what to look for,
+ * last seen, and the phone, huge, on navy. One design, three sizes:
+ * og 1200×630, square 1080×1080, story 1080×1920 (SOCIAL_FRAMES in
+ * ../flyers/layout.js holds each photo frame).
  *
  * satori only understands inline styles and needs display:flex on every
- * element with >1 child - hence the verbosity.
+ * element with more than one child, hence the verbosity.
  */
 
-const INK = '#0A0D26';
-const NAVY = '#0B1133';
-const CREAM = '#FFF9EE';
-const YELLOW = '#F2D21B';
-const CELL = '#F3EFE7';
-const MUTE = '#8A8377';
+const INK = '#0f172a';
+const NAVY = '#0f172a';
+const FLASH = '#facc15';
+const WASH = '#fefce8';
+const CELL = '#f1f5f9';
+const SOFT = '#475569';
+const ON_NAVY = '#cbd5e1';
+const PAPER = '#ffffff';
 
-function Row(props) {
-  return <div style={{ display: 'flex', flexDirection: 'row', ...props.style }}>{props.children}</div>;
-}
-function Col(props) {
-  return <div style={{ display: 'flex', flexDirection: 'column', ...props.style }}>{props.children}</div>;
+const Row = ({ style, children }) => <div style={{ display: 'flex', flexDirection: 'row', ...style }}>{children}</div>;
+const Col = ({ style, children }) => <div style={{ display: 'flex', flexDirection: 'column', ...style }}>{children}</div>;
+const Txt = ({ style, children }) => <div style={{ display: 'flex', ...style }}>{children}</div>;
+
+const label = (size, color = SOFT) => ({
+  fontFamily: 'Archivo',
+  fontWeight: 800,
+  fontSize: size,
+  letterSpacing: size * 0.16,
+  textTransform: 'uppercase',
+  color,
+});
+const black = (size, color = INK) => ({ fontFamily: 'Archivo Black', fontSize: size, lineHeight: 0.95, color });
+const body = (size, color = INK, weight = 600) => ({ fontFamily: 'Inter', fontWeight: weight, fontSize: size, lineHeight: 1.35, color });
+
+/** Width estimate for Archivo Black so a long phone or name shrinks instead of wrapping. */
+function fit(text, maxW, base, min) {
+  let em = 0;
+  for (const ch of String(text || '')) {
+    if ("iljI1.,:;!|'".includes(ch)) em += 0.36;
+    else if ('mwMW@'.includes(ch)) em += 1.02;
+    else if (ch === ' ') em += 0.32;
+    else if (ch >= 'a' && ch <= 'z') em += 0.62;
+    else if (ch >= 'A' && ch <= 'Z') em += 0.78;
+    else if (ch >= '0' && ch <= '9') em += 0.66;
+    else em += 0.64;
+  }
+  return Math.max(min, Math.min(base, maxW / (em * 1.06 || 1)));
 }
 
-function Label({ size, children, color = MUTE }) {
+function whereLine(data) {
+  return data.lastSeenArea || 'this neighborhood';
+}
+
+function contactLabel(data) {
+  if (data.hasPhone) return 'Call or text';
+  if (/EMAIL/i.test(data.contactVerb || '')) return 'Email';
+  return 'Report a sighting at';
+}
+
+/** The navy band: PLEASE HELP · the town, LOST DOG, the reward. */
+function Band({ data, padTop, padBottom, padX, eyebrow, headSize, rewardSize, width }) {
+  const rewardW = data.reward ? (data.reward === 'REWARD' ? rewardSize * 4.4 : rewardSize * 3) : 0;
+  const big = fit(data.headlineBig, width - padX * 2 - rewardW - 24, headSize, headSize * 0.5);
   return (
-    <div
-      style={{
-        display: 'flex',
-        fontFamily: 'Archivo',
-        fontWeight: 800,
-        fontSize: size,
-        letterSpacing: size * 0.14,
-        textTransform: 'uppercase',
-        color,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** Yellow-on-navy header band: strip, urgent row, LOST {SPECIES}. */
-function Header({ data, k, headSize, showSeenLine }) {
-  return (
-    <Col style={{ width: '100%' }}>
-      <div style={{ display: 'flex', height: 12 * k, backgroundColor: YELLOW, width: '100%' }} />
-      <Col style={{ backgroundColor: NAVY, padding: `${26 * k}px ${44 * k}px ${24 * k}px` }}>
-        <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 * k }}>
-          <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 15 * k, fontWeight: 800, letterSpacing: 3 * k, color: CREAM }}>
-            URGENT · PLEASE HELP
-          </div>
-          <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 15 * k, fontWeight: 800, color: 'rgba(255,249,238,0.6)' }}>
-            reunitepets.org
-          </div>
-        </Row>
-        <div
-          style={{
-            display: 'flex',
-            fontFamily: 'Archivo Black',
-            fontSize: headSize,
-            lineHeight: 0.95,
-            letterSpacing: -headSize * 0.01,
-            color: YELLOW,
-          }}
-        >
-          {data.stamp} {data.speciesLabel}
-        </div>
-        {showSeenLine ? (
-          <div
-            style={{
-              display: 'flex',
-              fontFamily: 'Archivo',
-              fontSize: 22 * k,
-              fontWeight: 800,
-              letterSpacing: 2 * k,
-              marginTop: 10 * k,
-              color: CREAM,
-            }}
-          >
-            HAVE YOU SEEN {data.petName.toUpperCase()}?
-          </div>
-        ) : null}
+    <Row style={{ width: '100%', backgroundColor: NAVY, padding: `${padTop}px ${padX}px ${padBottom}px`, justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <Col style={{ minWidth: 0 }}>
+        <Txt style={{ ...label(eyebrow, ON_NAVY), marginBottom: eyebrow * 0.5 }}>Please help · {data.lastSeenArea.split(',').pop().trim() || 'near you'}</Txt>
+        <Txt style={{ ...black(big, FLASH), letterSpacing: -big * 0.01 }}>{data.headlineBig}</Txt>
       </Col>
-    </Col>
+      {data.reward ? (
+        <Col style={{ alignItems: 'flex-end', flexShrink: 0 }}>
+          <Txt style={{ ...label(eyebrow, ON_NAVY), marginBottom: eyebrow * 0.3 }}>Reward</Txt>
+          <Txt style={black(data.reward === 'REWARD' ? rewardSize * 0.6 : rewardSize, FLASH)}>{data.reward === 'REWARD' ? 'OFFERED' : data.reward}</Txt>
+        </Col>
+      ) : null}
+    </Row>
   );
 }
 
-/** Bordered photo (design slot: cover crop, gentle face bias). */
-function Photo({ data, style, k }) {
+function Photo({ src, w, h, border, data }) {
   return (
-    <div style={{ display: 'flex', border: `${4 * k}px solid ${INK}`, backgroundColor: CELL, overflow: 'hidden', ...style }}>
-      {data.photoDataUrl ? (
-        // Contain, never crop: the whole pet always shows, matted on the warm
-        // cell ground inside the ink frame.
-        <img
-          src={data.photoDataUrl}
-          width="100%"
-          height="100%"
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-        />
+    <div style={{ display: 'flex', width: w, height: h, border: `${border}px solid ${INK}`, backgroundColor: CELL, overflow: 'hidden', boxSizing: 'border-box' }}>
+      {src ? (
+        <img src={src} width={w - border * 2} height={h - border * 2} style={{ width: w - border * 2, height: h - border * 2, objectFit: 'cover' }} />
       ) : (
-        <Col style={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 20 * k }}>
-          <div style={{ display: 'flex', fontFamily: 'Archivo', fontWeight: 700, fontSize: 20 * k, color: MUTE, textAlign: 'center' }}>
-            No photo yet. Please go by the description.
-          </div>
+        <Col style={{ width: '100%', justifyContent: 'center', padding: Math.round(w * 0.06) }}>
+          <Txt style={{ ...label(Math.round(w * 0.028)), marginBottom: 12 }}>No photo yet. Please go by this.</Txt>
+          <Txt style={{ ...body(Math.round(w * 0.05), INK, 700), lineHeight: 1.2 }}>{data.description || data.lookFor}</Txt>
         </Col>
       )}
     </div>
   );
 }
 
-/** Last-seen map crop with navy halo + dot (the design's Leaflet look). */
-function MapPanel({ data, w, h, k }) {
-  const m = data.map;
-  if (!m) return null;
-  // Tile spec is in pt (128pt tiles); scale into this panel's px space.
-  const s = 2 * k; // 1pt -> 2px at k=1 keeps ~z15 street legibility
-  const ox = (w - m.width * s) / 2;
-  const oy = (h - m.height * s) / 2;
-  const px = ox + m.pin.x * s;
-  const py = oy + m.pin.y * s;
-  const haloR = Math.min((m.halo?.r || 25) * s, Math.min(w, h) * 0.42);
-  return (
-    <div style={{ display: 'flex', width: w, height: h, border: `${4 * k}px solid ${INK}`, overflow: 'hidden', position: 'relative', backgroundColor: '#E8E4DB' }}>
-      {m.tiles.map((t, i) => (
-        <img
-          key={i}
-          src={t.src}
-          width={128 * s}
-          height={128 * s}
-          style={{ position: 'absolute', left: ox + t.left * s, top: oy + t.top * s, width: 128 * s, height: 128 * s }}
-        />
-      ))}
-      <div
-        style={{
-          display: 'flex',
-          position: 'absolute',
-          left: px - haloR,
-          top: py - haloR,
-          width: haloR * 2,
-          height: haloR * 2,
-          borderRadius: haloR,
-          backgroundColor: 'rgba(11,17,51,0.22)',
-          border: `${3 * k}px solid ${NAVY}`,
-        }}
-      />
-      <div
-        style={{
-          display: 'flex',
-          position: 'absolute',
-          left: px - 8 * k,
-          top: py - 8 * k,
-          width: 16 * k,
-          height: 16 * k,
-          borderRadius: 8 * k,
-          backgroundColor: NAVY,
-          border: `${3 * k}px solid #ffffff`,
-        }}
-      />
-      <div
-        style={{
-          display: 'flex',
-          position: 'absolute',
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(255,255,255,0.85)',
-          padding: `${2 * k}px ${6 * k}px`,
-          fontFamily: 'Archivo',
-          fontSize: 9 * k,
-          color: '#6B6459',
-        }}
-      >
-        {m.attribution}
-      </div>
-    </div>
-  );
-}
-
-function QrPanel({ data, k, qrSize, caption }) {
+function Qr({ data, size, caption, border = 5, capSize = 15, width }) {
   if (!data.qrDataUrl) return null;
   return (
-    <Row style={{ border: `${4 * k}px solid ${INK}`, padding: `${10 * k}px ${12 * k}px`, alignItems: 'center', backgroundColor: '#ffffff' }}>
-      <img src={data.qrDataUrl} width={qrSize} height={qrSize} style={{ width: qrSize, height: qrSize }} />
-      <div
-        style={{
-          display: 'flex',
-          marginLeft: 12 * k,
-          fontFamily: 'Archivo',
-          fontSize: 11 * k,
-          fontWeight: 700,
-          letterSpacing: 1 * k,
-          textTransform: 'uppercase',
-          color: MUTE,
-          lineHeight: 1.4,
-          maxWidth: 160 * k,
-        }}
-      >
-        {caption}
-      </div>
+    <Row style={{ width, border: `${border}px solid ${INK}`, backgroundColor: PAPER, padding: `${Math.round(size * 0.12)}px ${Math.round(size * 0.14)}px`, alignItems: 'center', boxSizing: 'border-box' }}>
+      <img src={data.qrDataUrl} width={size} height={size} style={{ width: size, height: size, flexShrink: 0 }} />
+      <Txt style={{ ...label(capSize, INK), letterSpacing: capSize * 0.06, lineHeight: 1.3, marginLeft: Math.round(size * 0.14) }}>{caption}</Txt>
     </Row>
   );
 }
 
-/** Navy footer: CALL OR TEXT + phone + listing URL. */
-function Footer({ data, k, h }) {
-  const value = data.contactValue || data.caseUrlLabel;
-  const isEmail = /@/.test(value);
+function PhoneBar({ data, padX, padY, labelSize, phoneSize, urlSize, width, stacked = false }) {
+  const phone = fit(data.contactValue, width - padX * 2 - (stacked ? 0 : 420), phoneSize, phoneSize * 0.5);
+  if (stacked) {
+    return (
+      <Col style={{ width: '100%', backgroundColor: NAVY, padding: `${padY}px ${padX}px` }}>
+        <Txt style={label(labelSize, ON_NAVY)}>{contactLabel(data)}, any hour</Txt>
+        <Txt style={{ ...black(phone, PAPER), marginTop: 10 }}>{data.contactValue}</Txt>
+        <Txt style={{ ...body(urlSize, ON_NAVY, 700), marginTop: 10 }}>Updates and the search map: {data.caseUrlLabel}</Txt>
+      </Col>
+    );
+  }
   return (
-    <Row
-      style={{
-        backgroundColor: NAVY,
-        height: h,
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: `0 ${44 * k}px`,
-        width: '100%',
-      }}
-    >
-      <Row style={{ alignItems: 'center', minWidth: 0 }}>
-        <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 13 * k, fontWeight: 800, letterSpacing: 2.5 * k, color: 'rgba(255,249,238,0.8)' }}>
-          {/EMAIL/i.test(data.contactVerb || '') ? 'EMAIL' : /\sAT$/.test(data.contactVerb || '') ? 'REPORT AT' : 'CALL OR TEXT'}
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            fontFamily: 'Archivo Black',
-            fontSize: (isEmail ? 30 : 42) * k,
-            color: CREAM,
-            marginLeft: 16 * k,
-          }}
-        >
-          {value}
-        </div>
+    <Row style={{ width: '100%', backgroundColor: NAVY, padding: `${padY}px ${padX}px`, justifyContent: 'space-between', alignItems: 'center' }}>
+      <Row style={{ alignItems: 'baseline', minWidth: 0 }}>
+        <Txt style={{ ...label(labelSize, ON_NAVY), marginRight: 18, flexShrink: 0 }}>{contactLabel(data)}</Txt>
+        <Txt style={black(phone, PAPER)}>{data.contactValue}</Txt>
       </Row>
-      <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 16 * k, fontWeight: 700, color: 'rgba(255,249,238,0.85)' }}>
-        {data.caseUrlLabel}
-      </div>
+      <Txt style={{ ...body(urlSize, ON_NAVY, 700), flexShrink: 0, marginLeft: 16 }}>{data.caseUrlLabel}</Txt>
     </Row>
   );
 }
 
-function InfoBlock({ data, k, label, value }) {
+/* ------------------------------------------------------------------ sizes */
+
+function Square({ data, src }) {
+  const W = 1080;
+  const name = data.petName.toUpperCase();
   return (
-    <Col>
-      <Label size={12 * k}>{label}</Label>
-      <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 17 * k, fontWeight: 600, lineHeight: 1.35, color: INK, marginTop: 2 * k }}>
-        {value}
-      </div>
-    </Col>
-  );
-}
-
-function colorMarkings(data) {
-  const chips = String(data.chips || '').split('  •  ');
-  const bits = [chips[1] || null, data.markings || null].filter(Boolean);
-  return bits.join(' · ') || data.chips || '-';
-}
-
-/** Right rail shared by square + og: name, reward, color, last seen + map + QR. */
-function Rail({ data, k, w, mapH, showName }) {
-  return (
-    <Col style={{ width: w, flexShrink: 0, justifyContent: 'flex-start' }}>
-      {showName ? (
-        <Col style={{ marginBottom: 14 * k }}>
-          <Label size={12 * k} color={NAVY}>
-            Have you seen
-          </Label>
-          <div style={{ display: 'flex', fontFamily: 'Archivo Black', fontSize: 52 * k, lineHeight: 1, color: INK }}>
-            {data.petName.toUpperCase()}
-          </div>
-        </Col>
-      ) : null}
-      {data.reward ? (
-        <Col style={{ backgroundColor: YELLOW, padding: `${12 * k}px ${18 * k}px`, marginBottom: 14 * k }}>
-          <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 12 * k, fontWeight: 800, letterSpacing: 2.4 * k, color: INK, opacity: 0.85 }}>
-            REWARD
-          </div>
-          <div style={{ display: 'flex', fontFamily: 'Archivo Black', fontSize: 38 * k, lineHeight: 1, color: INK }}>
-            {data.reward === 'REWARD' ? 'OFFERED' : data.reward}
-          </div>
-        </Col>
-      ) : null}
-      <InfoBlock data={data} k={k} label="Color & markings" value={colorMarkings(data)} />
-      <Col style={{ marginTop: 'auto' }}>
-        <Label size={12 * k}>Last seen</Label>
-        <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 19 * k, fontWeight: 700, lineHeight: 1.25, color: INK, marginTop: 1 * k }}>
-          {data.lastSeenArea}
-        </div>
-        <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 14 * k, fontWeight: 600, color: MUTE, marginBottom: 8 * k }}>
-          {data.lastSeenWhen}
-        </div>
-        {data.map ? <MapPanel data={data} w={w} h={mapH} k={k} /> : null}
-        <Col style={{ marginTop: 12 * k }}>
-          <QrPanel data={data} k={k} qrSize={96 * k} caption={data.scanCta} />
-        </Col>
-      </Col>
-    </Col>
-  );
-}
-
-export function SocialCard({ data, size }) {
-  if (size === 'story') {
-    // 1080x1920: header, tall photo, rail content, footer.
-    const k = 1;
-    return (
-      <Col style={{ width: '100%', height: '100%', backgroundColor: '#ffffff', fontFamily: 'Archivo' }}>
-        <Header data={data} k={k} headSize={110} showSeenLine />
-        <Row style={{ flexGrow: 1, padding: `${30 * k}px ${44 * k}px`, minHeight: 0 }}>
-          <Photo data={data} k={k} style={{ flexGrow: 1, minWidth: 0 }} />
-        </Row>
-        <Row style={{ padding: `0 ${44 * k}px ${28 * k}px`, justifyContent: 'space-between' }}>
-          <Col style={{ width: 560, justifyContent: 'flex-start' }}>
-            <div style={{ display: 'flex', fontFamily: 'Archivo Black', fontSize: 64, lineHeight: 1, color: INK }}>
-              {data.petName.toUpperCase()}
-            </div>
-            <Col style={{ marginTop: 16 }}>
-              <InfoBlock data={data} k={1.2} label="Color & markings" value={colorMarkings(data)} />
-            </Col>
-            {data.reward ? (
-              <Row style={{ backgroundColor: YELLOW, padding: '12px 18px', marginTop: 18, alignItems: 'baseline', alignSelf: 'flex-start' }}>
-                <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 14, fontWeight: 800, letterSpacing: 3, color: INK, opacity: 0.85 }}>
-                  REWARD
-                </div>
-                <div style={{ display: 'flex', fontFamily: 'Archivo Black', fontSize: 40, lineHeight: 1, color: INK, marginLeft: 12 }}>
-                  {data.reward === 'REWARD' ? 'OFFERED' : data.reward}
-                </div>
-              </Row>
-            ) : null}
+    <Col style={{ width: W, height: 1080, backgroundColor: PAPER, fontFamily: 'Inter', color: INK }}>
+      <Band data={data} width={W} padTop={40} padBottom={32} padX={52} eyebrow={20} headSize={124} rewardSize={66} />
+      <Row style={{ padding: '20px 52px 0', height: 700, boxSizing: 'border-box' }}>
+        <Photo src={src} w={596} h={680} border={6} data={data} />
+        <Col style={{ width: 360, marginLeft: 20, height: 680 }}>
+          <Txt style={label(18, SOFT)}>Have you seen</Txt>
+          <Txt style={{ ...black(fit(name, 360, 84, 36)), marginTop: 2 }}>{name}</Txt>
+          <Txt style={{ ...body(22), marginTop: 14 }}>{data.lookFor}</Txt>
+          <Col style={{ marginTop: 14, backgroundColor: WASH, padding: '14px 18px', borderLeft: `8px solid ${FLASH}` }}>
+            <Txt style={label(14, INK)}>Last seen</Txt>
+            <Txt style={{ ...body(21, INK, 700), marginTop: 4 }}>
+              {whereLine(data)}
+              {data.lastSeenWhen ? `, ${data.lastSeenWhen}` : ''}. Don't chase. Note where and call.
+            </Txt>
           </Col>
-          <Col style={{ width: 400, justifyContent: 'flex-start' }}>
-            <Label size={13}>Last seen</Label>
-            <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 21, fontWeight: 700, lineHeight: 1.25, color: INK }}>
-              {data.lastSeenArea}
-            </div>
-            <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 15, fontWeight: 600, color: MUTE, marginBottom: 8 }}>
-              {data.lastSeenWhen}
-            </div>
-            {data.map ? <MapPanel data={data} w={400} h={230} k={1} /> : null}
-            <Col style={{ marginTop: 12 }}>
-              <QrPanel data={data} k={1} qrSize={92} caption={data.scanCta} />
-            </Col>
-          </Col>
-        </Row>
-        <Footer data={data} k={1} h={124} />
-      </Col>
-    );
-  }
-
-  if (size === 'square') {
-    // 1080x1080 - the design's 1c artboard.
-    const k = 1;
-    return (
-      <Col style={{ width: '100%', height: '100%', backgroundColor: '#ffffff', fontFamily: 'Archivo' }}>
-        <Header data={data} k={k} headSize={104} showSeenLine />
-        <Row style={{ flexGrow: 1, padding: `${30 * k}px ${44 * k}px`, minHeight: 0 }}>
-          <Photo data={data} k={k} style={{ width: 0, flexGrow: 1, marginRight: 30 * k }} />
-          <Rail data={data} k={k} w={320} mapH={150} showName />
-        </Row>
-        <Footer data={data} k={k} h={124} />
-      </Col>
-    );
-  }
-
-  // og 1200x630: photo left, condensed header + rail right.
-  const k = 0.78;
-  return (
-    <Col style={{ width: '100%', height: '100%', backgroundColor: '#ffffff', fontFamily: 'Archivo' }}>
-      <Row style={{ flexGrow: 1, minHeight: 0 }}>
-        <Photo data={data} k={k} style={{ width: '44%', height: '100%', borderWidth: 0, borderRight: `${4 * k}px solid ${INK}` }} />
-        <Col style={{ width: 0, flexGrow: 1 }}>
-          <Header data={data} k={k} headSize={64} showSeenLine={false} />
-          <Row style={{ flexGrow: 1, padding: `${18 * k}px ${34 * k}px`, minHeight: 0 }}>
-            <Col style={{ width: 0, flexGrow: 1, marginRight: 20 * k, justifyContent: 'flex-start' }}>
-              <Label size={12 * k} color={NAVY}>
-                Have you seen
-              </Label>
-              <div style={{ display: 'flex', fontFamily: 'Archivo Black', fontSize: 46 * k, lineHeight: 1, color: INK }}>
-                {data.petName.toUpperCase()}
-              </div>
-              <Col style={{ marginTop: 12 * k }}>
-                <InfoBlock data={data} k={k} label="Color & markings" value={colorMarkings(data)} />
-              </Col>
-              <Col style={{ marginTop: 12 * k }}>
-                <Label size={12 * k}>Last seen</Label>
-                <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 17 * k, fontWeight: 700, lineHeight: 1.3, color: INK }}>
-                  {data.lastSeenArea}
-                </div>
-                <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 13 * k, fontWeight: 600, color: MUTE }}>
-                  {data.lastSeenWhen}
-                </div>
-              </Col>
-              {data.reward ? (
-                <Row style={{ backgroundColor: YELLOW, padding: `${8 * k}px ${14 * k}px`, marginTop: 'auto', alignItems: 'baseline', alignSelf: 'flex-start' }}>
-                  <div style={{ display: 'flex', fontFamily: 'Archivo', fontSize: 11 * k, fontWeight: 800, letterSpacing: 2 * k, color: INK, opacity: 0.85 }}>
-                    REWARD
-                  </div>
-                  <div style={{ display: 'flex', fontFamily: 'Archivo Black', fontSize: 30 * k, lineHeight: 1, color: INK, marginLeft: 10 * k }}>
-                    {data.reward === 'REWARD' ? 'OFFERED' : data.reward}
-                  </div>
-                </Row>
-              ) : null}
-            </Col>
-            <Col style={{ width: 250 * k, flexShrink: 0, justifyContent: 'flex-end' }}>
-              {data.map ? <MapPanel data={data} w={250 * k} h={160 * k} k={k} /> : null}
-              <Col style={{ marginTop: 10 * k }}>
-                <QrPanel data={data} k={k} qrSize={80 * k} caption={data.scanCta} />
-              </Col>
-            </Col>
+          <Col style={{ flexGrow: 1 }} />
+          <Qr data={data} size={96} caption="Scan or tap the link to report a sighting" width={360} />
+        </Col>
+      </Row>
+      <Col style={{ marginTop: 20, flexGrow: 1 }}>
+        <Col style={{ width: '100%', backgroundColor: NAVY, padding: '22px 52px', flexGrow: 1, justifyContent: 'center' }}>
+          <Row style={{ alignItems: 'baseline' }}>
+            <Txt style={{ ...label(18, ON_NAVY), marginRight: 18, flexShrink: 0 }}>{contactLabel(data)}</Txt>
+            <Txt style={black(fit(data.contactValue, 976 - 200, 64, 32), PAPER)}>{data.contactValue}</Txt>
           </Row>
-          <Footer data={data} k={k} h={86 * k} />
+          <Txt style={{ ...body(20, ON_NAVY, 700), marginTop: 8 }}>Updates and the search map: {data.caseUrlLabel}</Txt>
         </Col>
-      </Row>
+      </Col>
     </Col>
   );
+}
+
+function Story({ data, src }) {
+  const W = 1080;
+  const name = data.petName.toUpperCase();
+  return (
+    <Col style={{ width: W, height: 1920, backgroundColor: PAPER, fontFamily: 'Inter', color: INK }}>
+      <Col style={{ width: '100%', backgroundColor: NAVY, padding: '150px 56px 36px' }}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <Txt style={label(22, ON_NAVY)}>Please help · {data.lastSeenArea.split(',').pop().trim() || 'near you'}</Txt>
+          {data.reward ? <Txt style={label(22, FLASH)}>Reward {data.reward === 'REWARD' ? 'offered' : data.reward}</Txt> : null}
+        </Row>
+        <Txt style={{ ...black(fit(data.headlineBig, 968, 150, 80), FLASH), marginTop: 10 }}>{data.headlineBig}</Txt>
+      </Col>
+      <Col style={{ margin: '24px 56px 0' }}>
+        <Photo src={src} w={968} h={906} border={6} data={data} />
+      </Col>
+      <Row style={{ padding: '24px 56px 0', justifyContent: 'space-between', alignItems: 'flex-end', height: 174, boxSizing: 'border-box' }}>
+        <Col style={{ minWidth: 0 }}>
+          <Txt style={label(20, SOFT)}>Have you seen</Txt>
+          <Txt style={{ ...black(fit(name, 520, 110, 48)), marginTop: 4 }}>{name}</Txt>
+        </Col>
+        <Txt style={{ ...body(26), textAlign: 'right', maxWidth: 420 }}>{data.factsLine || data.lookFor}</Txt>
+      </Row>
+      <Col style={{ margin: '20px 56px 0', backgroundColor: WASH, padding: '18px 24px', borderLeft: `10px solid ${FLASH}`, height: 126, boxSizing: 'border-box' }}>
+        <Txt style={label(17, INK)}>Last seen {whereLine(data)}{data.lastSeenWhen ? `, ${data.lastSeenWhen}` : ''}</Txt>
+        <Txt style={{ ...body(27, INK, 700), marginTop: 4 }}>{data.ifYouSee}</Txt>
+      </Col>
+      <Col style={{ marginTop: 24, flexGrow: 1 }}>
+        <Col style={{ width: '100%', backgroundColor: NAVY, padding: '36px 56px 150px', flexGrow: 1 }}>
+          <Txt style={label(22, ON_NAVY)}>{contactLabel(data)}, any hour</Txt>
+          <Txt style={{ ...black(fit(data.contactValue, 968, 96, 48), PAPER), marginTop: 10 }}>{data.contactValue}</Txt>
+          <Txt style={{ ...body(26, ON_NAVY, 700), marginTop: 10 }}>Updates and the search map: {data.caseUrlLabel}</Txt>
+        </Col>
+      </Col>
+    </Col>
+  );
+}
+
+function Og({ data, src }) {
+  const name = data.petName.toUpperCase();
+  return (
+    <Row style={{ width: 1200, height: 630, backgroundColor: PAPER, fontFamily: 'Inter', color: INK }}>
+      <div style={{ display: 'flex', width: 560, height: 630, backgroundColor: CELL, overflow: 'hidden', borderRight: `6px solid ${INK}`, boxSizing: 'border-box' }}>
+        {src ? (
+          <img src={src} width={554} height={630} style={{ width: 554, height: 630, objectFit: 'cover' }} />
+        ) : (
+          <Col style={{ width: '100%', justifyContent: 'center', padding: 32 }}>
+            <Txt style={{ ...label(15), marginBottom: 10 }}>No photo yet. Please go by this.</Txt>
+            <Txt style={{ ...body(28, INK, 700), lineHeight: 1.2 }}>{data.description || data.lookFor}</Txt>
+          </Col>
+        )}
+      </div>
+      <Col style={{ width: 640, height: 630 }}>
+        <Col style={{ backgroundColor: NAVY, padding: '30px 40px 24px' }}>
+          <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <Txt style={label(15, ON_NAVY)}>Please help · {data.lastSeenArea.split(',').pop().trim() || 'near you'}</Txt>
+            {data.reward ? <Txt style={label(15, FLASH)}>Reward {data.reward === 'REWARD' ? 'offered' : data.reward}</Txt> : null}
+          </Row>
+          <Txt style={{ ...black(fit(data.headlineBig, 560, 96, 48), FLASH), marginTop: 6 }}>{data.headlineBig}</Txt>
+        </Col>
+        <Col style={{ padding: '22px 40px 0', flexGrow: 1 }}>
+          <Txt style={label(15, SOFT)}>Have you seen</Txt>
+          <Txt style={{ ...black(fit(name, 560, 72, 36)), marginTop: 2 }}>{name}</Txt>
+          <Txt style={{ ...body(23), marginTop: 12 }}>{data.lookFor}</Txt>
+          <Col style={{ marginTop: 14, backgroundColor: WASH, padding: '12px 16px', borderLeft: `8px solid ${FLASH}` }}>
+            <Txt style={label(13, INK)}>Last seen {whereLine(data)}{data.lastSeenWhen ? `, ${data.lastSeenWhen}` : ''}</Txt>
+            <Txt style={{ ...body(19, INK, 700), marginTop: 4 }}>{data.ifYouSee}</Txt>
+          </Col>
+        </Col>
+        <Row style={{ backgroundColor: NAVY, padding: '22px 40px', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Col style={{ minWidth: 0 }}>
+            <Txt style={label(14, ON_NAVY)}>{contactLabel(data)}</Txt>
+            <Txt style={{ ...black(fit(data.contactValue, 420, 52, 26), PAPER), marginTop: 2 }}>{data.contactValue}</Txt>
+          </Col>
+          <Txt style={{ ...body(17, ON_NAVY, 700), flexShrink: 0 }}>reunitepets.org</Txt>
+        </Row>
+      </Col>
+    </Row>
+  );
+}
+
+export function SocialCard({ data, size, photoSrc }) {
+  const src = photoSrc ?? data.photoDataUrl ?? null;
+  if (size === 'story') return <Story data={data} src={src} />;
+  if (size === 'square') return <Square data={data} src={src} />;
+  return <Og data={data} src={src} />;
 }
