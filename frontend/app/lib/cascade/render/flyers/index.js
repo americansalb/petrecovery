@@ -5,7 +5,7 @@
  * dynamic-imported inside the fn so it never lands in another module's webpack
  * trace and to keep cold start light. Node runtime only.
  *
- * The layout is planned first (./layout.js) so the photo can be cut to the
+ * The layout is planned first (./plan.js) so the photo can be cut to the
  * exact shape of its frame around the pet (render/photo.js) before the PDF is
  * drawn: the frame is never matted and never a void.
  */

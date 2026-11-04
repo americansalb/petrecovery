@@ -1,6 +1,6 @@
 import React from 'react';
 import { Document, Font, Page, View, Text, Image, Svg, Circle } from '@react-pdf/renderer';
-import { PAGES, planSheet, planHalf } from './layout';
+import { PAGES, planSheet, planHalf } from './plan';
 
 // Break lines at spaces only; never hyphenate mid-word.
 Font.registerHyphenationCallback((word) => [word]);
@@ -13,7 +13,7 @@ Font.registerHyphenationCallback((word) => [word]);
  * Read from the car: the photo, LOST DOG, the phone. From the sidewalk: the
  * name, what to look for, what to do, where and when, the QR code.
  *
- * The layout comes from ./layout.js (planSheet, planHalf): the photo frame
+ * The layout comes from ./plan.js (planSheet, planHalf): the photo frame
  * takes the room the fixed blocks leave and follows the photo's shape; the
  * photo arrives already cut to that shape (index.js, render/photo.js), so
  * objectFit cover here is only a safety net.
@@ -336,7 +336,7 @@ function TearTabs({ data, w, h }) {
 
 /* ---------------------------------------------------------------- layouts */
 
-/** One sheet, planned by layout.js: Letter (with tabs) or the poster (scaled). */
+/** One sheet, planned by plan.js: Letter (with tabs) or the poster (scaled). */
 function Sheet({ data, plan, photoSrc }) {
   const { k, page, margin, contentW } = plan;
   const withTabs = plan.tabs > 0;

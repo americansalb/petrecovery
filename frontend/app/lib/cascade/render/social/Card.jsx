@@ -7,7 +7,7 @@ import React from 'react';
  * the pet before it gets here), HAVE YOU SEEN + the name, what to look for,
  * last seen, and the phone, huge, on navy. One design, three sizes:
  * og 1200×630, square 1080×1080, story 1080×1920 (SOCIAL_FRAMES in
- * ../flyers/layout.js holds each photo frame).
+ * ../flyers/plan.js holds each photo frame).
  *
  * satori only understands inline styles and needs display:flex on every
  * element with more than one child, hence the verbosity.

@@ -7,11 +7,11 @@
  * failure and simply omit the social asset - the flyers (pure JS) still work.
  *
  * The photo is cut to its frame's shape around the pet first (render/photo.js,
- * SOCIAL_FRAMES in ../flyers/layout.js): satori has no object-position.
+ * SOCIAL_FRAMES in ../flyers/plan.js): satori has no object-position.
  */
 
 import { normalizeFlyerData } from '../flyers/normalize';
-import { SOCIAL_FRAMES } from '../flyers/layout';
+import { SOCIAL_FRAMES } from '../flyers/plan';
 import { cropPhoto } from '../photo';
 
 export const SOCIAL_SIZES = {

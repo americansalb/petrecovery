@@ -4,7 +4,7 @@
  * `loadPetPhoto` fetches a photo once and returns it as a JPEG data URL with
  * its size and its focal point: where sharp's attention crop finds the most
  * detail, which on a pet photo is the pet. `cropPhoto` cuts the photo to the
- * shape a frame needs, around that point (app/lib/cascade/render/flyers/layout.js
+ * shape a frame needs, around that point (app/lib/cascade/render/flyers/plan.js
  * `cropRect`), so a photo always fills its frame and the pet stays in it.
  *
  * satori cannot fetch remote images and neither renderer decodes WebP, GIF
@@ -15,7 +15,7 @@
  * Returns null on any failure. Node runtime.
  */
 
-import { cropRect } from './flyers/layout';
+import { cropRect } from './flyers/plan';
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const CROP_MAX_W = 1600;

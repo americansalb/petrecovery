@@ -72,7 +72,7 @@ export function makeGetShared(caseData) {
       // Voyager tiles + z15 match the poster design system. Best-effort: null
       // on any failure and the layouts render mapless.
       const map = await buildFlyerMapSpec(caseData.lastSeenLatitude, caseData.lastSeenLongitude, {
-        // Tall enough for the poster's map column (render/flyers/layout.js).
+        // Tall enough for the poster's map column (render/flyers/plan.js).
         width: 680,
         height: 480,
         zoom: 15,

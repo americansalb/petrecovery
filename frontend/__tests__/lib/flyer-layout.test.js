@@ -1,12 +1,12 @@
 /**
- * The flyer's layout rules (app/lib/cascade/render/flyers/layout.js) and the
+ * The flyer's layout rules (app/lib/cascade/render/flyers/plan.js) and the
  * words it is built from (normalize.js): the photo takes the room that is
  * left, the frame follows the photo's shape, the crop keeps the pet.
  */
 
 jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholderEmail: (e) => /placeholder|noemail/.test(e || '') }));
 
-import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, WIDE_FROM } from '@/app/lib/cascade/render/flyers/layout';
+import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, WIDE_FROM } from '@/app/lib/cascade/render/flyers/plan';
 import { normalizeFlyerData } from '@/app/lib/cascade/render/flyers/normalize';
 
 describe('planSheet', () => {
