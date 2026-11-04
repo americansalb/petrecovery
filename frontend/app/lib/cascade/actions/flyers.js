@@ -38,6 +38,9 @@ export async function runFlyers(ctx) {
       });
       ready += 1;
     } catch (err) {
+      // Loud: the asset row keeps the error, but the host's log is where
+      // anyone looks when every flyer of every pet is failing.
+      console.error(`[cascade.flyers] ${kind} failed for ${ctx.case.caseNumber}:`, err?.message || err);
       await ctx.upsertAsset(kind, { status: 'failed', error: String(err.message || err) });
     }
   }

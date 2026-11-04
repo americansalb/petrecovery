@@ -49,9 +49,9 @@ export async function runRecoveryEmail(ctx) {
   const speciesWord = SPECIES_WORD[c.petSpecies] || 'pet';
 
   const reporter = await prisma.user
-    .findUnique({ where: { id: c.reporterId }, select: { name: true } })
+    .findUnique({ where: { id: c.reporterId }, select: { firstName: true } })
     .catch(() => null);
-  const firstName = reporter?.name ? reporter.name.split(/\s+/)[0] : '';
+  const firstName = (reporter?.firstName || '').trim().split(/\s+/)[0] || '';
 
   const ai = ctx.results.ai_copy || {};
   const opener =

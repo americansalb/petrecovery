@@ -37,6 +37,7 @@ export async function runSocial(ctx) {
       });
       ready += 1;
     } catch (err) {
+      console.error(`[cascade.social] ${kind} failed for ${ctx.case.caseNumber}:`, err?.message || err);
       await ctx.upsertAsset(kind, { status: 'failed', error: String(err.message || err) });
     }
   }

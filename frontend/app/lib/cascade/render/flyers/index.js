@@ -8,8 +8,14 @@
  * The layout is planned first (./plan.js) so the photo can be cut to the
  * exact shape of its frame around the pet (render/photo.js) before the PDF is
  * drawn: the frame is never matted and never a void.
+ *
+ * The JSX here and in Flyer.jsx is compiled against `h` from ./pdfReact, the
+ * React react-pdf itself loads; see that file for why.
  */
 
+/** @jsxRuntime classic */
+/** @jsx h */
+import { h } from './pdfReact';
 import { registerFlyerFonts } from './registerFonts';
 import { normalizeFlyerData } from './normalize';
 import { cropPhoto } from '../photo';
