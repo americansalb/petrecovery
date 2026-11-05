@@ -96,7 +96,7 @@ function QrTile({ data, size }) {
  * The last-seen map (see Flyer.jsx MapTile). The cascade's tiles are in
  * points, drawn here at 1.5× so street names stay readable on a screen.
  */
-function MapTile({ data, w, h, radius = 14 }) {
+export function MapTile({ data, w, h, radius = 14 }) {
   const m = data.map;
   if (!m) {
     return (
