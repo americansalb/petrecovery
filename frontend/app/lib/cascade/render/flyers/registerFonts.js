@@ -32,6 +32,8 @@ export function registerFlyerFonts() {
       { src: join(DIR, 'BricolageGrotesque-800.ttf'), fontWeight: 800 },
     ],
   });
+  // The poster face: LOST, the species, the phone number. OFL.
+  Font.register({ family: 'Anton', src: join(DIR, 'Anton-Regular.ttf') });
   // Don't hyphenate long words (pet names, addresses) mid-line.
   Font.registerHyphenationCallback((word) => [word]);
   registered = true;

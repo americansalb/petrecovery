@@ -7,8 +7,10 @@
  * to this file (OFL, see LICENSE.txt) and read synchronously from disk at
  * import time.
  *
- * Inter is the body face; Bricolage Grotesque, the site's display face, is
- * the flyers' LOST DOG, the pet's name and the phone number.
+ * Inter is the body face. Anton, a poster face, is LOST, the species and
+ * the phone number, the three things the flyer says from across a street.
+ * Bricolage Grotesque, the site's display face, stays for the share images'
+ * smaller headings.
  *
  * Node runtime only.
  */
@@ -29,6 +31,8 @@ export const INTER_BOLD = load('Inter-Bold.ttf');
 export const INTER_BLACK = load('Inter-Black.ttf');
 export const BRICOLAGE_700 = load('BricolageGrotesque-700.ttf');
 export const BRICOLAGE_800 = load('BricolageGrotesque-800.ttf');
+// The poster face: LOST, the species and the phone number, as big as the sheet allows.
+export const ANTON = load('Anton-Regular.ttf');
 
 // satori wants an array of { name, data, weight, style }
 export const SATORI_FONTS = [
@@ -38,11 +42,12 @@ export const SATORI_FONTS = [
   { name: 'Inter', data: INTER_BLACK, weight: 900, style: 'normal' },
   { name: 'Bricolage Grotesque', data: BRICOLAGE_700, weight: 700, style: 'normal' },
   { name: 'Bricolage Grotesque', data: BRICOLAGE_800, weight: 800, style: 'normal' },
+  { name: 'Anton', data: ANTON, weight: 400, style: 'normal' },
 ];
 
 // resvg wants raw font buffers + a default family, and must not touch the system
 export const RESVG_FONT = {
-  fontBuffers: [INTER_REGULAR, INTER_SEMIBOLD, INTER_BOLD, INTER_BLACK, BRICOLAGE_700, BRICOLAGE_800],
+  fontBuffers: [INTER_REGULAR, INTER_SEMIBOLD, INTER_BOLD, INTER_BLACK, BRICOLAGE_700, BRICOLAGE_800, ANTON],
   defaultFontFamily: 'Inter',
   loadSystemFonts: false,
 };

@@ -6,7 +6,7 @@
 
 jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholderEmail: (e) => /placeholder|noemail/.test(e || '') }));
 
-import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES } from '@/app/lib/cascade/render/flyers/plan';
+import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, antonEm, fitAnton, ANTON_CAP } from '@/app/lib/cascade/render/flyers/plan';
 import { normalizeFlyerData, zoneFor } from '@/app/lib/cascade/render/flyers/normalize';
 
 const used = (p) => p.margin + p.head + p.gap * 2 + p.frame.h + p.info + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
@@ -14,7 +14,7 @@ const used = (p) => p.margin + p.head + p.gap * 2 + p.frame.h + p.info + p.conta
 describe('planSheet', () => {
   test('the photo spans the page and takes what the fixed blocks leave', () => {
     const p = planSheet(PAGES.LETTER, { aspect: 1.42 });
-    expect(p.frame.w).toBe(612 - 36 * 2);
+    expect(p.frame.w).toBe(612 - 30 * 2);
     expect(Math.round(used(p))).toBe(792);
     expect(p.frame.h).toBeGreaterThan(330);
     expect(p.frameAspect).toBeCloseTo(p.frame.w / p.frame.h, 5);
@@ -35,10 +35,33 @@ describe('planSheet', () => {
     expect(p.frame.h).toBeGreaterThan(330);
   });
 
+  test('the word is set as large as the width allows, and a long species shrinks it', () => {
+    const dog = planSheet(PAGES.LETTER, { aspect: 1.5 }, { headline: 'LOST DOG' });
+    const rabbit = planSheet(PAGES.LETTER, { aspect: 1.5 }, { headline: 'LOST RABBIT' });
+    expect(dog.headSize).toBeCloseTo(dog.contentW / antonEm('LOST DOG'), 3);
+    expect(dog.headSize).toBeGreaterThan(140);
+    expect(dog.head).toBeCloseTo(dog.headSize * ANTON_CAP, 5);
+    expect(rabbit.headSize).toBeLessThan(dog.headSize);
+    // The photo gets the room the shorter word leaves.
+    expect(rabbit.frame.h).toBeGreaterThan(dog.frame.h);
+    expect(Math.round(used(rabbit))).toBe(792);
+  });
+
+  test('Anton is measured from the file, so LOST DOG and a phone number never wrap', () => {
+    // fontkit lays these out at 3.439 and 5.742 em; the table is within 1%.
+    expect(antonEm('LOST DOG') / 1.03).toBeGreaterThan(3.439 * 0.99);
+    expect(antonEm('LOST DOG') / 1.03).toBeLessThan(3.439 * 1.01);
+    expect(antonEm('(512) 555-0100') / 1.03).toBeGreaterThan(5.742 * 0.99);
+    expect(antonEm('(512) 555-0100') / 1.03).toBeLessThan(5.742 * 1.01);
+    expect(fitAnton('LOST DOG', 540, 160, 60)).toBeCloseTo(540 / antonEm('LOST DOG'), 5);
+    expect(fitAnton('LOST DOG', 5400, 160, 60)).toBe(160);
+    expect(fitAnton('LOST RABBIT', 10, 160, 60)).toBe(60);
+  });
+
   test('the Letter sheet keeps tear tabs at the foot', () => {
     const p = planSheet(PAGES.LETTER, { aspect: 1.5 });
-    expect(p.tabs).toBe(66);
-    expect(p.tabsGap).toBe(13.5);
+    expect(p.tabs).toBe(60);
+    expect(p.tabsGap).toBe(9);
     expect(p.bottom).toBe(0);
   });
 
@@ -47,8 +70,8 @@ describe('planSheet', () => {
     const p = planSheet(PAGES.TABLOID, { aspect: 1.5 }, { k, tabs: false });
     expect(p.tabs).toBe(0);
     expect(p.tabsGap).toBe(0);
-    expect(p.head).toBeCloseTo(100 * k, 5);
-    expect(p.bottom).toBeCloseTo(36 * k, 5);
+    expect(p.headSize).toBeCloseTo(planSheet(PAGES.LETTER, { aspect: 1.5 }).headSize * k, 3);
+    expect(p.bottom).toBeCloseTo(30 * k, 5);
     expect(Math.round(used(p))).toBe(1224);
     expect(p.frame.h).toBeGreaterThan(700);
   });
@@ -98,8 +121,8 @@ describe('cropRect', () => {
 
   test('the share image frames are the sizes the boards draw', () => {
     expect(SOCIAL_FRAMES.og).toEqual({ w: 560, h: 630 });
-    expect(SOCIAL_FRAMES.square).toEqual({ w: 1080, h: 612 });
-    expect(SOCIAL_FRAMES.story).toEqual({ w: 1080, h: 980 });
+    expect(SOCIAL_FRAMES.square).toEqual({ w: 1080, h: 640 });
+    expect(SOCIAL_FRAMES.story).toEqual({ w: 1080, h: 1010 });
   });
 });
 
