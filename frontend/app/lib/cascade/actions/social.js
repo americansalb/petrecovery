@@ -5,7 +5,11 @@
  */
 
 import { generateSocialCard, SOCIAL_SIZES } from '../render/social/index.js';
+import { RENDERER_VERSION } from '../render/version';
 import { uploadBufferToCdn } from '@/app/lib/cdnUpload';
+
+// Which renderer drew the row. refresh.js redraws cases whose stamp is older.
+const stamp = { rendererVersion: RENDERER_VERSION };
 
 export async function runSocial(ctx) {
   const shared = await ctx.getShared();
@@ -34,11 +38,12 @@ export async function runSocial(ctx) {
         width,
         height,
         sizeBytes,
+        meta: stamp,
       });
       ready += 1;
     } catch (err) {
       console.error(`[cascade.social] ${kind} failed for ${ctx.case.caseNumber}:`, err?.message || err);
-      await ctx.upsertAsset(kind, { status: 'failed', error: String(err.message || err) });
+      await ctx.upsertAsset(kind, { status: 'failed', error: String(err.message || err), meta: stamp });
     }
   }
 

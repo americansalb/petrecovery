@@ -37,6 +37,24 @@ export async function register() {
     );
   }
 
+  // Flyers and share images are drawn once, when a report is filed. After
+  // a deploy that changes their design, every open case would keep the old
+  // artwork; instead the server redraws any case whose stored kit carries
+  // an older renderer version, a minute and a half after boot, one case at
+  // a time (app/lib/cascade/refresh.js, started over loopback by
+  // refreshBoot.js because the renderers cannot be bundled for the edge
+  // runtime this file is also compiled for). CASCADE_REFRESH_ON_BOOT=0
+  // turns it off; POST /api/cascade/regenerate?stale=1 does it by hand.
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.NEXT_PHASE !== 'phase-production-build' &&
+    process.env.DATABASE_URL &&
+    process.env.CASCADE_REFRESH_ON_BOOT !== '0'
+  ) {
+    const { scheduleStaleKitRefresh } = await import('./app/lib/cascade/refreshBoot');
+    scheduleStaleKitRefresh();
+  }
+
   const limiter = await describeRateLimitBackend();
   if (limiter.durable) {
     console.log(`[boot] Rate limiting: ${limiter.backend} (survives restarts)`);

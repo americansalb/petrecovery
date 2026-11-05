@@ -186,7 +186,10 @@ describe('no setting or localhost fallback decides the address', () => {
   // config.js reads NEXTAUTH_URL for `next dev` only, and owns the
   // development default; auth.js writes NEXTAUTH_URL for NextAuth.
   const MAY_NAME_SETTING = new Set(['app/lib/config.js', 'app/lib/auth.js']);
-  const MAY_NAME_LOCALHOST = new Set(['app/lib/config.js']);
+  // refreshBoot.js asks this same server, over loopback, to redraw stale
+  // kits after boot. That is a call to the process itself, not the site's
+  // address, and nothing it produces is ever shown or sent to anyone.
+  const MAY_NAME_LOCALHOST = new Set(['app/lib/config.js', 'app/lib/cascade/refreshBoot.js']);
 
   function sources() {
     const out = [];
