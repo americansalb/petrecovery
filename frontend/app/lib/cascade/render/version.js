@@ -12,4 +12,4 @@
  * Bump this whenever the output of render/flyers or render/social changes
  * in a way a person would notice. Nothing else reads it.
  */
-export const RENDERER_VERSION = '2026-11-05.2';
+export const RENDERER_VERSION = '2026-11-05.3';

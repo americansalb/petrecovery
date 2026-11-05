@@ -9,7 +9,7 @@
  * or the owner's own words; nothing is invented to fill a box.
  */
 
-import { format } from 'date-fns';
+import tzLookup from 'tz-lookup';
 import { FLYER_THEME, SPECIES_LABEL } from './theme';
 import { resolveFlyerCopy } from './copy';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
@@ -35,6 +35,20 @@ function formatPhone(phone) {
   if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
   if (d.length === 11 && d[0] === '1') return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
   return phone || '';
+}
+
+/** The IANA zone where the pet was lost, from the last-seen point; Central when there is none. */
+export function zoneFor(caseData) {
+  const lat = Number(caseData?.lastSeenLatitude);
+  const lon = Number(caseData?.lastSeenLongitude);
+  if (Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0)) {
+    try {
+      return tzLookup(lat, lon);
+    } catch {
+      /* fall through */
+    }
+  }
+  return 'America/Chicago';
 }
 
 function cap(str, n) {
@@ -228,14 +242,20 @@ export function normalizeFlyerData(caseData, shared = {}) {
     reward = caseData.rewardAmount ? `$${Number(caseData.rewardAmount).toLocaleString()}` : 'REWARD';
   }
 
+  // The sheet prints the DATE the pet was last seen, in the pet's own time
+  // zone, never a clock time. The report wizard asks how long ago in bands
+  // ("1 to 6 hours", "1 to 3 days") and stores the band's middle as
+  // lastSeenAt (api/reports/create, calculateLastSeenTime), so "5:45 pm"
+  // would be an invention. The zone comes from where the pet was lost: the
+  // server runs in UTC, where an Austin evening is already tomorrow.
+  const zone = zoneFor(caseData);
   let lastSeenWhen = '';
   let lastSeenDate = '';
   try {
     if (caseData.lastSeenAt) {
       const d = new Date(caseData.lastSeenAt);
-      lastSeenDate = format(d, 'MMM d, yyyy');
-      const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0;
-      lastSeenWhen = hasTime ? format(d, 'EEE MMM d, h:mm a').replace(/ AM$/, ' am').replace(/ PM$/, ' pm') : format(d, 'EEE MMM d');
+      lastSeenWhen = new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'short', month: 'short', day: 'numeric' }).format(d);
+      lastSeenDate = new Intl.DateTimeFormat('en-US', { timeZone: zone, month: 'short', day: 'numeric', year: 'numeric' }).format(d);
     }
   } catch {
     /* leave blank */
