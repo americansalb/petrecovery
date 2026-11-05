@@ -56,6 +56,17 @@ jobs:
         working-directory: frontend
         run: npx next lint --max-warnings=360
 
+      # The type check lives here, not in `next build`: on Render's build
+      # machine it ran out of memory at "Checking validity of types" on
+      # every deploy after #364, and a bigger heap (#366) was not there to
+      # give. The build skips it (next.config.js typescript.ignoreBuildErrors)
+      # and this step, with a runner that has the memory, is the gate.
+      - name: Type check
+        working-directory: frontend
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npx tsc --noEmit -p tsconfig.json
+
   # Job 2: Unit Tests
   test:
     name: Unit Tests
