@@ -16,12 +16,20 @@ const nextConfig = {
   // ESLint does not run inside `next build`: CI's "Lint & Type Check" job
   // lints every push and PR (`next lint --max-warnings`). In the build it
   // only added memory and time. The build's type check and lint sat just
-  // under Node's default ~2 GB heap, went over it on Render (every deploy
-  // after #364 failed with "JavaScript heap out of memory" at "Linting and
-  // checking validity of types"), so `npm run build` also gives next build
-  // a 4 GB heap. Type checking still runs in the build.
+  // under Node's default ~2 GB heap and went over it on Render: every deploy
+  // after #364 died at "Checking validity of types" with "JavaScript heap
+  // out of memory", and giving next build a 4 GB heap (#366) changed nothing,
+  // because Render's build machine does not have it to give. Reproduced
+  // 2026-11-05: `next build` under a 2 GB heap dies at exactly that step;
+  // without it the same build fits. So neither lint nor the type check runs
+  // in the build. CI runs both on every push and pull request (Lint & Type
+  // Check: `next lint` and `tsc --noEmit`), which is where a type error is
+  // caught; the build only compiles and generates pages.
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
   },
 
   // Ensure static files needed at runtime are copied to standalone output
