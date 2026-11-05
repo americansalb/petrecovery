@@ -1,11 +1,14 @@
 /**
- * Bundled Inter fonts for server-side rendering.
+ * Bundled fonts for server-side rendering.
  *
- * satori (SVG) and @resvg/resvg-js (PNG) both need real TTF/OTF buffers - they
- * cannot read woff2 or fetch fonts at runtime (the agent proxy blocks font
- * CDNs anyway). react-pdf needs the same buffers registered once. So the four
- * weights are vendored as .ttf next to this file (OFL, see LICENSE.txt) and
- * read synchronously from disk at import time.
+ * satori (SVG) and @resvg/resvg-js (PNG) both need real TTF/OTF buffers: they
+ * cannot read woff2 or fetch fonts at runtime. react-pdf needs the same files
+ * registered once (registerFonts.js). So the faces are vendored as .ttf next
+ * to this file (OFL, see LICENSE.txt) and read synchronously from disk at
+ * import time.
+ *
+ * Inter is the body face; Bricolage Grotesque, the site's display face, is
+ * the flyers' LOST DOG, the pet's name and the phone number.
  *
  * Node runtime only.
  */
@@ -24,13 +27,8 @@ export const INTER_REGULAR = load('Inter-Regular.ttf');
 export const INTER_SEMIBOLD = load('Inter-SemiBold.ttf');
 export const INTER_BOLD = load('Inter-Bold.ttf');
 export const INTER_BLACK = load('Inter-Black.ttf');
-
-// The poster design system's faces (OFL, see LICENSE.txt)
-export const ARCHIVO_400 = load('Archivo-400.ttf');
-export const ARCHIVO_600 = load('Archivo-600.ttf');
-export const ARCHIVO_700 = load('Archivo-700.ttf');
-export const ARCHIVO_800 = load('Archivo-800.ttf');
-export const ARCHIVO_BLACK = load('ArchivoBlack.ttf');
+export const BRICOLAGE_700 = load('BricolageGrotesque-700.ttf');
+export const BRICOLAGE_800 = load('BricolageGrotesque-800.ttf');
 
 // satori wants an array of { name, data, weight, style }
 export const SATORI_FONTS = [
@@ -38,17 +36,14 @@ export const SATORI_FONTS = [
   { name: 'Inter', data: INTER_SEMIBOLD, weight: 600, style: 'normal' },
   { name: 'Inter', data: INTER_BOLD, weight: 700, style: 'normal' },
   { name: 'Inter', data: INTER_BLACK, weight: 900, style: 'normal' },
-  { name: 'Archivo', data: ARCHIVO_400, weight: 400, style: 'normal' },
-  { name: 'Archivo', data: ARCHIVO_600, weight: 600, style: 'normal' },
-  { name: 'Archivo', data: ARCHIVO_700, weight: 700, style: 'normal' },
-  { name: 'Archivo', data: ARCHIVO_800, weight: 800, style: 'normal' },
-  { name: 'Archivo Black', data: ARCHIVO_BLACK, weight: 400, style: 'normal' },
+  { name: 'Bricolage Grotesque', data: BRICOLAGE_700, weight: 700, style: 'normal' },
+  { name: 'Bricolage Grotesque', data: BRICOLAGE_800, weight: 800, style: 'normal' },
 ];
 
 // resvg wants raw font buffers + a default family, and must not touch the system
 export const RESVG_FONT = {
-  fontBuffers: [INTER_REGULAR, INTER_SEMIBOLD, INTER_BOLD, INTER_BLACK, ARCHIVO_400, ARCHIVO_600, ARCHIVO_700, ARCHIVO_800, ARCHIVO_BLACK],
-  defaultFontFamily: 'Archivo',
+  fontBuffers: [INTER_REGULAR, INTER_SEMIBOLD, INTER_BOLD, INTER_BLACK, BRICOLAGE_700, BRICOLAGE_800],
+  defaultFontFamily: 'Inter',
   loadSystemFonts: false,
 };
 

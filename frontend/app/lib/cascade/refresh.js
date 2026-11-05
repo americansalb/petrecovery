@@ -134,9 +134,18 @@ export async function regenerateCaseAssets(caseData, { correlationId } = {}) {
     outcome.shareTargets = `failed: ${errText(err)}`;
   }
 
+  // Steps the original run never finished (the recovery email, the
+  // follow-up seeding) are not a redraw's to run, and left PENDING they keep
+  // the activation at RUNNING, which the kit page polls forever. Skip them.
+  await prisma.cascadeStep
+    .updateMany({
+      where: { activationId: activation.id, status: { in: ['PENDING', 'RUNNING'] } },
+      data: { status: 'SKIPPED', error: 'Never finished by the original run; a redraw does not run this step.', finishedAt: new Date() },
+    })
+    .catch(() => {});
+
   // Settle the activation from its steps and assets. A kit the cascade left
-  // at RUNNING (the recovery-kit page polls it forever) becomes COMPLETE or
-  // PARTIAL here.
+  // at RUNNING becomes COMPLETE or PARTIAL here.
   try {
     const fresh = await prisma.caseActivation.findUnique({ where: { id: activation.id } });
     if (fresh) await rollupSummary(fresh);

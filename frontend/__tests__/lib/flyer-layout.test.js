@@ -1,78 +1,75 @@
 /**
  * The flyer's layout rules (app/lib/cascade/render/flyers/plan.js) and the
  * words it is built from (normalize.js): the photo takes the room that is
- * left, the frame follows the photo's shape, the crop keeps the pet.
+ * left, the full width of the page, and the crop keeps the pet in it.
  */
 
 jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholderEmail: (e) => /placeholder|noemail/.test(e || '') }));
 
-import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, WIDE_FROM } from '@/app/lib/cascade/render/flyers/plan';
+import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES } from '@/app/lib/cascade/render/flyers/plan';
 import { normalizeFlyerData } from '@/app/lib/cascade/render/flyers/normalize';
 
+const used = (p) => p.margin + p.head + p.gap * 2 + p.frame.h + p.info + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
+
 describe('planSheet', () => {
-  test('a wide photo gets the full-width frame, and every block still fits on the page', () => {
+  test('the photo spans the page and takes what the fixed blocks leave', () => {
     const p = planSheet(PAGES.LETTER, { aspect: 1.42 });
-    expect(p.mode).toBe('wide');
-    expect(p.frame.w).toBe(612 - 27 * 2);
-    const used = p.band + p.topGap + p.frame.h + p.name + p.facts + p.row + p.footer + p.gap * 4 + p.tabsGap + p.tabs + p.bottom;
-    expect(Math.round(used)).toBe(792);
-    expect(p.frame.h).toBeGreaterThan(280);
+    expect(p.frame.w).toBe(612 - 36 * 2);
+    expect(Math.round(used(p))).toBe(792);
+    expect(p.frame.h).toBeGreaterThan(330);
+    expect(p.frameAspect).toBeCloseTo(p.frame.w / p.frame.h, 5);
+    expect(p.hasPhoto).toBe(true);
   });
 
-  test('a very wide photo keeps its own shape and the slack goes to the map, then the gaps', () => {
-    const p = planSheet(PAGES.LETTER, { aspect: 2.4 });
-    expect(p.frame.h).toBeCloseTo(p.contentW / 2.4, 0);
-    expect(p.row).toBeGreaterThan(112.5);
-    const used = p.band + p.topGap + p.frame.h + p.name + p.facts + p.row + p.footer + p.gap * 4 + p.tabsGap + p.tabs + p.bottom;
-    expect(Math.round(used)).toBe(792);
+  test('a tall photo gets the same frame: it is cut to it around the pet, never matted', () => {
+    const wide = planSheet(PAGES.LETTER, { aspect: 2.4 });
+    const tall = planSheet(PAGES.LETTER, { aspect: 0.6 });
+    expect(tall.frame).toEqual(wide.frame);
+    expect(tall.frameAspect).toBeCloseTo(wide.frameAspect, 5);
   });
 
-  test('a tall photo stands in a column the full height of the body, as wide as its shape allows', () => {
-    const p = planSheet(PAGES.LETTER, { aspect: 0.8 });
-    expect(p.mode).toBe('column');
-    expect(p.frame.h).toBe(p.bodyH);
-    expect(p.colW).toBe(345); // bodyH × 0.8 is past the cap
-    expect(p.detailsW).toBeCloseTo(558 - 345 - 12, 5);
-    expect(p.mapH).toBeGreaterThan(100);
-    expect(Math.round(80 + 82 + 82 + 84 + 60 + 7.5 * 5 + 26 + p.mapH)).toBe(Math.round(p.bodyH));
-    const tall = planSheet(PAGES.LETTER, { aspect: 0.5 });
-    expect(tall.colW).toBeCloseTo(tall.bodyH * 0.5, 5);
-    expect(planSheet(PAGES.LETTER, { aspect: 0.3 }).colW).toBe(225);
-  });
-
-  test('a square photo is a column too, at the widest the column goes', () => {
-    const p = planSheet(PAGES.LETTER, { aspect: 1 });
-    expect(p.mode).toBe('column');
-    expect(p.colW).toBe(345);
-    expect(p.frameAspect).toBeCloseTo(345 / p.bodyH, 5);
-  });
-
-  test('no photo: the wide layout, with a frame for the description', () => {
+  test('no photo: the frame stays, for the description', () => {
     const p = planSheet(PAGES.LETTER, null);
-    expect(p.mode).toBe('none');
-    expect(p.frame.h).toBeGreaterThan(280);
+    expect(p.hasPhoto).toBe(false);
+    expect(p.frameAspect).toBeNull();
+    expect(p.frame.h).toBeGreaterThan(330);
   });
 
-  test('the poster scales the sheet and drops the tear tabs', () => {
+  test('the Letter sheet keeps tear tabs at the foot', () => {
+    const p = planSheet(PAGES.LETTER, { aspect: 1.5 });
+    expect(p.tabs).toBe(66);
+    expect(p.tabsGap).toBe(13.5);
+    expect(p.bottom).toBe(0);
+  });
+
+  test('the poster scales the sheet, drops the tabs and keeps a margin at the foot', () => {
     const k = 792 / 612;
     const p = planSheet(PAGES.TABLOID, { aspect: 1.5 }, { k, tabs: false });
     expect(p.tabs).toBe(0);
-    expect(p.band).toBeCloseTo(105 * k, 5);
-    const used = p.band + p.topGap + p.frame.h + p.name + p.facts + p.row + p.footer + p.gap * 4 + p.bottom;
-    expect(Math.round(used)).toBe(1224);
+    expect(p.tabsGap).toBe(0);
+    expect(p.head).toBeCloseTo(100 * k, 5);
+    expect(p.bottom).toBeCloseTo(36 * k, 5);
+    expect(Math.round(used(p))).toBe(1224);
+    expect(p.frame.h).toBeGreaterThan(700);
   });
+});
 
-  test('the half sheet plans a photo column and a frame shape', () => {
+describe('planHalf', () => {
+  test('two half sheets: the photo is a column beside the words', () => {
     const p = planHalf(PAGES.LETTER, { aspect: 0.8 });
     expect(p.halfH).toBe(396);
-    expect(p.frameAspect).toBeCloseTo(225 / p.frame.h, 5);
-    expect(planHalf(PAGES.LETTER, { aspect: 1.5 }).photoW).toBe(300);
-    expect(planHalf(PAGES.LETTER, null).hasPhoto).toBe(false);
+    expect(p.photoW).toBe(264);
+    expect(p.frame.h).toBe(396 - 21 * 2 - 3);
+    expect(p.frameAspect).toBeCloseTo(264 / p.frame.h, 5);
+    expect(p.detailsW).toBe(612 - 21 * 3 - 264);
+    expect(p.hasPhoto).toBe(true);
   });
 
-  test('the wide threshold is 1.2', () => {
-    expect(planSheet(PAGES.LETTER, { aspect: WIDE_FROM }).mode).toBe('wide');
-    expect(planSheet(PAGES.LETTER, { aspect: WIDE_FROM - 0.01 }).mode).toBe('column');
+  test('a wide photo gets the same column; without a photo there is no crop', () => {
+    expect(planHalf(PAGES.LETTER, { aspect: 1.5 }).frame).toEqual(planHalf(PAGES.LETTER, { aspect: 0.8 }).frame);
+    const none = planHalf(PAGES.LETTER, null);
+    expect(none.hasPhoto).toBe(false);
+    expect(none.frameAspect).toBeNull();
   });
 });
 
@@ -101,7 +98,8 @@ describe('cropRect', () => {
 
   test('the share image frames are the sizes the boards draw', () => {
     expect(SOCIAL_FRAMES.og).toEqual({ w: 560, h: 630 });
-    expect(SOCIAL_FRAMES.square.w).toBe(596);
+    expect(SOCIAL_FRAMES.square).toEqual({ w: 1080, h: 612 });
+    expect(SOCIAL_FRAMES.story).toEqual({ w: 1080, h: 980 });
   });
 });
 
@@ -129,6 +127,8 @@ describe('normalizeFlyerData', () => {
   test('the words on the sheet come from the report', () => {
     const d = normalizeFlyerData(MAX, {});
     expect(d.headlineBig).toBe('LOST DOG');
+    expect(d.stamp).toBe('LOST');
+    expect(d.speciesLabel).toBe('DOG');
     expect(d.factsLine).toBe('Golden Retriever · Large · 4 years old · Microchipped');
     expect(d.lookFor).toBe('Golden coat. White patch on the chest. Blue, with a bone tag.');
     expect(d.ifYouSee).toBe("Max is probably frightened and hiding. Please don't chase or call out. Note the exact spot and call or text Avery right away.");
@@ -138,6 +138,16 @@ describe('normalizeFlyerData', () => {
     expect(d.lastSeenArea).toBe('2100 Barton Springs Rd, Austin');
     expect(d.lastSeenWhen).toMatch(/^Mon Nov 2, \d{1,2}:\d{2} (am|pm)$/);
     expect(d.caseUrlLabel).toBe('reunitepets.org/cases/AUS-2026-0001');
+  });
+
+  test('a description that only repeats the color and the species is left out', () => {
+    const d = normalizeFlyerData(
+      { ...MAX, petBreed: 'Unknown', petColor: 'white, White', petDescription: 'white, White Dog', pet: null },
+      {}
+    );
+    expect(d.lookFor).toBe('White, White coat.');
+    const e = normalizeFlyerData({ ...MAX, petBreed: 'Unknown', petColor: 'Black', petDescription: 'Black lab, limps on the left hind leg', pet: null }, {});
+    expect(e.lookFor).toBe('Black coat. Black lab, limps on the left hind leg.');
   });
 
   test('no phone: the QR code is the way to report', () => {

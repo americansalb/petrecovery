@@ -149,7 +149,18 @@ function lookFor(caseData, pet) {
   if (color) parts.push(sentence(/\b(coat|fur|colou?r)\b/i.test(color) ? color : `${color} coat`));
   if (marks) parts.push(sentence(marks));
   if (collar) parts.push(sentence(/collar|harness|tag/i.test(collar) ? collar : `${collar} collar`));
-  if (parts.length < 2 && caseData.petDescription) parts.push(sentence(cap(caseData.petDescription, 140)));
+  if (parts.length < 2 && caseData.petDescription) {
+    // "White, brown, tabby Dog" says nothing the color did not: a description
+    // made of the color and the species is left out.
+    const desc = cap(caseData.petDescription, 140);
+    const said = parts.join(' ').toLowerCase();
+    const fresh = desc
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w && !/^(dog|cat|bird|rabbit|pet|a|an|the|and|with|is|very)$/.test(w) && !said.includes(w));
+    if (fresh.length) parts.push(sentence(desc));
+  }
   return cap(parts.join(' '), 180);
 }
 
@@ -257,7 +268,7 @@ export function normalizeFlyerData(caseData, shared = {}) {
     factsLine: factsLine(caseData, pet),
     petName: name,
     chips,
-    description: cap(shared.description || caseData.petDescription, 240),
+    description: sentence(cap(shared.description || caseData.petDescription, 240)).replace(/\.$/, ''),
     markings,
     microchipped,
     lastSeenArea: areaFromAddress(caseData.lastSeenAddress),
