@@ -8,6 +8,15 @@ const nextConfig = {
     // before traffic arrives. Load routes on demand, as Next 14 did.
     // scripts/production-memory-smoke.js verifies the built server at that cap.
     preloadEntriesOnStart: false,
+    // `next build` prerenders the static pages in one worker per CPU it can
+    // see, and each worker is a whole copy of the server (the city tables
+    // included) allowed the full NODE_OPTIONS heap. On this app that is
+    // about 600 MB a worker, 5.3 GB in all on four cores. A Render build
+    // machine reports the host's cores, not the container's share, so the
+    // build spawned dozens of workers and ran out of memory at "Generating
+    // static pages" (deploy of f44f4e9, 2026-11-05). Two workers prerender
+    // 242 pages in well under a minute and fit anywhere.
+    cpus: 2,
   },
 
   // Build optimizations for memory and speed
