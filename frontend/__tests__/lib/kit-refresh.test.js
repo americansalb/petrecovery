@@ -12,6 +12,7 @@
 const mockPrisma = {
   case: { findMany: jest.fn(), count: jest.fn() },
   caseActivation: { findUnique: jest.fn() },
+  cascadeStep: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
 };
 jest.mock('@/app/lib/prisma', () => ({ __esModule: true, default: mockPrisma }));
 jest.mock('@/lib/logging', () => ({ logEvent: jest.fn().mockResolvedValue(undefined) }));
@@ -74,7 +75,15 @@ test('redrawing one case settles its steps and its activation, and sends nothing
   expect(outcome).toMatchObject({ aiCopy: 'template', flyers: '3 ready', social: '3 ready', shareTargets: '2 targets' });
   const stepKeys = upsertStep.mock.calls.map(([, key, patch]) => `${key}:${patch.status}`);
   expect(stepKeys).toEqual(['ai_copy:SUCCESS', 'flyers:SUCCESS', 'social:SUCCESS', 'share_targets:SUCCESS']);
-  // The kit page polls an activation left at RUNNING forever; the rollup ends that.
+  // The kit page polls an activation left at RUNNING forever. Steps the
+  // original run never finished are skipped (mike's kit sat at RUNNING with
+  // recovery_email and followups PENDING), then the rollup settles it.
+  expect(mockPrisma.cascadeStep.updateMany).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { activationId: 'act-id-1', status: { in: ['PENDING', 'RUNNING'] } },
+      data: expect.objectContaining({ status: 'SKIPPED' }),
+    })
+  );
   expect(rollupSummary).toHaveBeenCalledWith({ id: 'act-id-1' });
 });
 
