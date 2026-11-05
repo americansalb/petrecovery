@@ -66,6 +66,7 @@ export async function POST(request) {
               `[kits] redrew ${stats.redrawn} of ${stats.attempted} in ${Math.round((stats.ms || 0) / 1000)}s` +
                 (stats.failed?.length ? `; failed: ${stats.failed.join(', ')}` : '') +
                 (stats.remaining ? `; ${stats.remaining} still stale` : '') +
+                (stats.stopped ? `; stopped: ${stats.stopped}` : '') +
                 (stats.skipped ? `; ${stats.skipped}` : '')
             );
           })
@@ -75,7 +76,7 @@ export async function POST(request) {
       }
       return NextResponse.json({ ok: true, started: count > 0, stale: count, version: RENDERER_VERSION }, NO_STORE);
     }
-    const stats = await refreshStaleKits({ limit, pauseMs: 0 });
+    const stats = await refreshStaleKits({ limit, pauseMs: 2000 });
     return NextResponse.json({ ok: true, ...stats }, NO_STORE);
   }
 
