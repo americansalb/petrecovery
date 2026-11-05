@@ -9,7 +9,7 @@ jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholder
 import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, unboundedEm, fitUnbounded, UNBOUNDED, STICKER } from '@/app/lib/cascade/render/flyers/plan';
 import { normalizeFlyerData, zoneFor } from '@/app/lib/cascade/render/flyers/normalize';
 
-const used = (p) => p.top + p.sticker + p.gap + p.word + p.nameGap + p.name + p.rowGap + p.row + p.pillGap + p.pill + p.tabsGap + p.tabs + p.bottom;
+const used = (p) => p.top + p.sticker + p.gap + p.word + p.nameGap + p.name + p.rowGap + p.row + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
 
 describe('planSheet', () => {
   const WORDS = { stamp: 'LOST' };
@@ -19,9 +19,10 @@ describe('planSheet', () => {
     expect(p.contentW).toBe(612 - 60);
     expect(p.sticker).toBeGreaterThan(320);
     expect(p.sticker).toBeLessThanOrEqual(p.contentW);
-    // The last-seen map has a row of its own, beside the facts.
-    expect(p.row).toBe(123);
+    // The last-seen map has a row of its own, beside the facts; the contact panel has its own under that.
+    expect(p.row).toBe(120);
     expect(p.mapW).toBe(240);
+    expect(p.contact).toBe(90);
     expect(p.frame).toEqual({ w: p.sticker, h: p.sticker });
     expect(p.frameAspect).toBe(1);
     expect(p.focalAt).toBe(0.5);
@@ -140,7 +141,7 @@ describe('cropRect', () => {
 
   test('the share image stickers are square cuts, the sizes the boards draw', () => {
     expect(SOCIAL_FRAMES.og).toEqual({ w: 500, h: 500, focalAt: 0.5 });
-    expect(SOCIAL_FRAMES.square).toEqual({ w: 480, h: 480, focalAt: 0.5 });
+    expect(SOCIAL_FRAMES.square).toEqual({ w: 460, h: 460, focalAt: 0.5 });
     expect(SOCIAL_FRAMES.story).toEqual({ w: 760, h: 760, focalAt: 0.5 });
   });
 });
@@ -181,11 +182,17 @@ describe('normalizeFlyerData', () => {
     expect(d.ifYouSee).toBe("Max is probably frightened and hiding. Please don't chase or call out. Note the exact spot and call or text Avery right away.");
     expect(d.contactValue).toBe('(512) 555-0100');
     expect(d.contactSecondary).toBe('avery@example.com');
+    expect(d.email).toBe('avery@example.com');
     expect(d.reward).toBe('$500');
+    // No reward: no tag on the sticker, nothing else moves.
+    expect(normalizeFlyerData({ ...MAX, hasReward: false, rewardAmount: null }, {}).reward).toBeNull();
+    expect(normalizeFlyerData({ ...MAX, rewardAmount: null }, {}).reward).toBe('REWARD');
     expect(d.lastSeenArea).toBe('2100 Barton Springs Rd, Austin');
     expect(d.lastSeenWhen).toBe('Mon, Nov 2');
     expect(d.lastSeenDate).toBe('Nov 2, 2026');
-    expect(d.caseUrlLabel).toBe('reunitepets.org/cases/AUS-2026-0001');
+    // The line a stranger types: the domain and the case number's suffix.
+    expect(d.caseUrlLabel).toBe('reunitepets.org/p/0001');
+    expect(normalizeFlyerData({ ...MAX, caseNumber: 'MUN-2026-HF27J2' }, {}).caseUrlLabel).toBe('reunitepets.org/p/HF27J2');
   });
 
   test('the date is the local date where the pet was lost, and never a clock time', () => {
@@ -211,11 +218,15 @@ describe('normalizeFlyerData', () => {
     expect(e.lookFor).toBe('Black coat. Black lab, limps on the left hind leg.');
   });
 
-  test('no phone: the QR code is the way to report', () => {
+  test('no phone: the short link is the way to report; a placeholder email is no email', () => {
     const d = normalizeFlyerData({ ...MAX, ownerPhone: 'Not provided', ownerEmail: 'x@placeholder.test' }, {});
     expect(d.hasPhone).toBe(false);
-    expect(d.contactValue).toBe('reunitepets.org/cases/AUS-2026-0001');
+    expect(d.email).toBe('');
+    expect(d.contactValue).toBe('reunitepets.org/p/0001');
     expect(d.ifYouSee).toMatch(/report it with the QR code right away\.$/);
+    const e = normalizeFlyerData({ ...MAX, ownerPhone: 'Not provided' }, {});
+    expect(e.contactValue).toBe('avery@example.com');
+    expect(e.email).toBe('avery@example.com');
   });
 
   test('photos carry their shape and focal point, from either input shape', () => {

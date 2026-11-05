@@ -6,11 +6,11 @@
  * The flyer is a sticker on a yellow sheet. The pet's photo is cut into a
  * circle with a cream ring and a hard navy shadow, as big as the sheet
  * allows. Under it, centred: LOST in a wide face and the name; then the
- * last-seen map beside where, when and what to look for; then the phone
- * number inside a navy pill. The reward is a cream tag on the sticker; the QR code sits in a
- * cream tile beside the pill; tear tabs run along the foot on a cream
- * strip. Every block under the sticker has a set height; the sticker
- * takes what is left.
+ * last-seen map beside where, when and what to look for; then the contact
+ * panel on navy: the phone number with the email under it, the QR code
+ * and the short link. The reward is a cream tag on the sticker; tear tabs
+ * run along the foot on a cream strip. Every block under the sticker has
+ * a set height; the sticker takes what is left.
  *
  * `planSheet` sizes one page (Letter with tear tabs, or the poster, the
  * Letter sheet scaled by its width); `planHalf` sizes the half sheet,
@@ -50,6 +50,32 @@ export function fitUnbounded(text, maxW, base, min) {
   return Math.max(min, Math.min(base, maxW / (unboundedEm(text) || 1)));
 }
 
+/** Width estimate (ems) for Inter, padded so fitted lines never wrap. */
+export function interEm(text) {
+  let em = 0;
+  for (const ch of String(text || '')) {
+    if ("iljI1.,:;!|'".includes(ch)) em += 0.3;
+    else if ('mwMW@'.includes(ch)) em += 0.9;
+    else if (ch === ' ') em += 0.27;
+    else if (ch >= 'a' && ch <= 'z') em += 0.55;
+    else if (ch >= 'A' && ch <= 'Z') em += 0.66;
+    else if (ch >= '0' && ch <= '9') em += 0.6;
+    else em += 0.58;
+  }
+  return em * 1.06;
+}
+
+/** The largest Inter size, up to `base`, at which `text` fits in `maxW`. */
+export function fitInter(text, maxW, base, min) {
+  return Math.max(min, Math.min(base, maxW / (interEm(text) || 1)));
+}
+
+/** The width of an eyebrow (Inter 700, uppercase, tracked 0.14 em) set at `size`. */
+export function eyebrowW(text, size) {
+  const t = String(text || '').toUpperCase();
+  return (interEm(t) + t.length * 0.14) * size;
+}
+
 /**
  * Unbounded in react-pdf: the baseline sits at the font's ascent (0.995
  * em) from the top of a line box, so caps run from 0.245 em to 0.995 em
@@ -72,13 +98,13 @@ export function blocks(k = 1) {
     gap: 19.5 * k, // between the sticker and the word
     wordMax: 88 * k, // LOST at its largest (118 px)
     name: 30 * k, // "Milo, a tabby"
-    nameGap: 7.5 * k,
+    nameGap: 6 * k,
     rowGap: 10.5 * k,
-    row: 123 * k, // the last-seen map beside where, when and what to look for
+    row: 120 * k, // the last-seen map beside where, when and what to look for
     mapW: 240 * k, // the map's width in that row
     rowGapX: 15 * k,
-    pillGap: 12 * k,
-    pill: 75 * k, // the eyebrow and the phone on navy
+    contactGap: 12 * k,
+    contact: 90 * k, // the navy panel: the phone and the email, the QR code and the short link
     tabsGap: 12,
     tabs: 54,
     bottom: 10.5,
@@ -98,7 +124,7 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = 
   const aspect = photo?.aspect && Number.isFinite(photo.aspect) && photo.aspect > 0 ? photo.aspect : null;
   const wordSize = fitUnbounded(stamp, contentW, b.wordMax, 40 * k);
   const word = wordSize * UNBOUNDED.cap;
-  const below = b.gap + word + b.nameGap + b.name + b.rowGap + b.row + b.pillGap + b.pill + tabsH + bottom;
+  const below = b.gap + word + b.nameGap + b.name + b.rowGap + b.row + b.contactGap + b.contact + tabsH + bottom;
   const room = page.h - b.top - below;
   const sticker = Math.floor(Math.min(contentW - 2 * STICKER.shadow * contentW, room));
   // A sticker held back by the width (the poster) leaves slack; it goes above and below.
@@ -119,8 +145,8 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = 
     row: b.row,
     mapW: b.mapW,
     rowGapX: b.rowGapX,
-    pillGap: b.pillGap,
-    pill: b.pill,
+    contactGap: b.contactGap,
+    contact: b.contact,
     tabs: tabs ? b.tabs : 0,
     tabsGap: tabs ? b.tabsGap : 0,
     bottom: bottom + slack,
@@ -143,6 +169,7 @@ export function planHalf(page = PAGES.LETTER, photo, { stamp = 'LOST' } = {}) {
     halfH,
     pad,
     sticker,
+    mapH: 90, // the last-seen map across the column
     stickerTop: pad + (halfH - pad * 2 - 3 - sticker) / 2,
     colX,
     detailsW,
@@ -179,6 +206,6 @@ export function cropRect(w, h, focal, aspect, focalAt = 0.5) {
 /** The share images' stickers (px): a square cut, drawn as a circle, this big. */
 export const SOCIAL_FRAMES = {
   og: { w: 500, h: 500, focalAt: 0.5 },
-  square: { w: 480, h: 480, focalAt: 0.5 },
+  square: { w: 460, h: 460, focalAt: 0.5 },
   story: { w: 760, h: 760, focalAt: 0.5 },
 };

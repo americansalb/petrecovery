@@ -3,22 +3,24 @@
 /** @jsxFrag Fragment */
 import { h, Fragment } from './pdfReact';
 import { Document, Font, Page, View, Text, Image, Svg, Circle } from '@react-pdf/renderer';
-import { PAGES, planSheet, planHalf, fitUnbounded, UNBOUNDED, STICKER } from './plan';
+import { PAGES, planSheet, planHalf, fitUnbounded, fitInter, interEm, eyebrowW, UNBOUNDED, STICKER } from './plan';
 
 // Break lines at spaces only; never hyphenate mid-word.
 Font.registerHyphenationCallback((word) => [word]);
 
 /**
  * The flyer PDFs, drawn from the Claude Design canvas "Lost Pet Flyers,
- * second design" (design px × 0.75 = pt).
+ * the sticker" (design px × 0.75 = pt).
  *
  * A sticker on a yellow sheet. The pet's photo, cut into a circle with a
  * cream ring and a hard navy shadow, as big as the sheet allows. Under
- * it, centred: LOST in Unbounded, a wide face; the name; where and when;
- * two lines of what to look for; and the phone number inside a navy pill,
- * the one thing to do. The reward is a cream tag on the sticker, the QR
- * code a cream tile beside the pill, the tear tabs a cream strip along
- * the foot. Yellow, navy, cream: the site's own colours.
+ * it, centred: LOST in Unbounded, a wide face; the name; the last-seen
+ * map beside where, when and what to look for; then the contact panel on
+ * navy, every way to reach the family in one block: the phone number
+ * with the email under it, the QR code, and the short link to the case
+ * (reunitepets.org/p/HF27J2) for anyone who would rather type. The reward
+ * is a cream tag on the sticker, the tear tabs a cream strip along the
+ * foot. Yellow, navy, cream: the site's own colours.
  *
  * The layout comes from ./plan.js: every block under the sticker has a
  * set height and the sticker takes what is left. The photo arrives already
@@ -40,22 +42,6 @@ const C = {
 };
 
 /* ---------------------------------------------------------------- helpers */
-
-/** Width estimate (ems) for Inter, padded so fitted lines never wrap. */
-function interEm(text) {
-  let em = 0;
-  for (const ch of String(text || '')) {
-    if ("iljI1.,:;!|'".includes(ch)) em += 0.3;
-    else if ('mwMW@'.includes(ch)) em += 0.9;
-    else if (ch === ' ') em += 0.27;
-    else if (ch >= 'a' && ch <= 'z') em += 0.55;
-    else if (ch >= 'A' && ch <= 'Z') em += 0.66;
-    else if (ch >= '0' && ch <= '9') em += 0.6;
-    else em += 0.58;
-  }
-  return em * 1.06;
-}
-const fitInter = (text, maxW, base, min) => Math.max(min, Math.min(base, maxW / (interEm(text) || 1)));
 
 const BODY = (fs, color = C.navy, weight = 500) => ({ fontFamily: 'Inter', fontWeight: weight, fontSize: fs, lineHeight: 1.4, color });
 const NAME = (fs, color = C.navy) => ({ fontFamily: 'Inter', fontWeight: 800, fontSize: fs, lineHeight: 1.1, letterSpacing: -fs * 0.02, color });
@@ -89,9 +75,11 @@ const rewardLine = (data) => (data.reward === 'REWARD' ? 'Reward offered' : `${d
 function contactEyebrow(data) {
   const who = `Seen ${data.petName}?`;
   if (data.hasPhone) return `${who} Call or text, any hour`;
-  if (/EMAIL/i.test(data.contactVerb || '')) return `${who} Email, any hour`;
+  if (data.email) return `${who} Email, any hour`;
   return `${who} Report it at`;
 }
+
+const LINK_EYEBROW = 'Report a sighting';
 
 /* ------------------------------------------------------------- primitives */
 
@@ -135,21 +123,6 @@ function Sticker({ data, src, size, k, style = {} }) {
   );
 }
 
-/** The navy pill: the eyebrow in yellow, the phone in cream, centred. */
-function Pill({ data, w, h, k, phoneBase = 34.5, align = 'center' }) {
-  const padX = 24 * k;
-  const phone = fitUnbounded(data.contactValue, w - padX * 2, phoneBase * k, 10 * k);
-  return (
-    <View style={{ width: w, height: h, backgroundColor: C.navy, borderRadius: h / 2, paddingHorizontal: padX, alignItems: align, justifyContent: 'center' }}>
-      <Text maxLines={1} style={EYEBROW(9 * k, C.yellow)}>{contactEyebrow(data)}</Text>
-      <View style={{ marginTop: 7 * k }}>
-        <TightLine size={phone} color={C.cream}>{data.contactValue}</TightLine>
-      </View>
-      <View style={{ height: 5 * k }} />
-    </View>
-  );
-}
-
 /** The QR code in a cream tile. */
 function QrTile({ data, size }) {
   if (!data.qrDataUrl) return null;
@@ -157,6 +130,72 @@ function QrTile({ data, size }) {
   return (
     <View style={{ width: size, height: size, backgroundColor: C.cream, borderRadius: size * 0.16, padding: pad }}>
       <Image src={data.qrDataUrl} style={{ width: size - pad * 2, height: size - pad * 2 }} />
+    </View>
+  );
+}
+
+/** "Report a sighting" over the short link, in cream on navy. */
+function LinkBlock({ data, k, w }) {
+  return (
+    <View style={{ width: w }}>
+      <Text maxLines={1} style={EYEBROW(7.5 * k, C.yellow)}>{LINK_EYEBROW}</Text>
+      <Text maxLines={1} style={{ ...BODY(10 * k, C.cream, 700), marginTop: 3 * k, lineHeight: 1.2 }}>{data.caseUrlLabel}</Text>
+    </View>
+  );
+}
+
+/**
+ * The contact panel: every way to reach the family in one navy block.
+ * The phone number (or, without one, the email, or the short link) with
+ * "or email" under it; then the QR code and the short link under "Report
+ * a sighting". Side by side on a sheet; stacked where the column is
+ * narrow (the half sheet). The link block is left out when the short
+ * link is already the main line.
+ */
+function ContactPanel({ data, w, h, k, stacked = false, phoneBase = 34.5 }) {
+  const padX = 18 * k;
+  const qr = data.qrDataUrl ? (stacked ? 40 : 60) * k : 0;
+  const mainIsLink = !data.hasPhone && !data.email;
+  const link = mainIsLink ? '' : data.caseUrlLabel;
+  const linkW = link ? Math.ceil(Math.max(interEm(link) * 10 * k, eyebrowW(LINK_EYEBROW, 7.5 * k))) : 0;
+  const innerW = w - padX * 2;
+  const leftW = stacked ? innerW : innerW - (qr ? qr + 12 * k : 0) - (linkW ? linkW + 9 * k : 0);
+  const phone = fitUnbounded(data.contactValue, leftW, phoneBase * k, 10 * k);
+  const emailLine = data.hasPhone && data.email ? `or email ${data.email}` : '';
+  const emailSize = emailLine ? fitInter(emailLine, leftW, 9.75 * k, 7 * k) : 0;
+
+  const main = (
+    <View style={{ width: leftW }}>
+      <Text maxLines={1} style={EYEBROW(9 * k, C.yellow)}>{contactEyebrow(data)}</Text>
+      <View style={{ marginTop: 6 * k }}>
+        <TightLine size={phone} color={C.cream}>{data.contactValue}</TightLine>
+      </View>
+      {emailLine ? <Text maxLines={1} style={{ ...BODY(emailSize, C.cream, 500), marginTop: 6 * k, lineHeight: 1.2 }}>{emailLine}</Text> : null}
+    </View>
+  );
+  const aside = qr || link ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: stacked ? 9 * k : 0, marginLeft: stacked ? 0 : 12 * k }}>
+      {qr ? <QrTile data={data} size={qr} /> : null}
+      {link ? (
+        <View style={{ marginLeft: qr ? 9 * k : 0 }}>
+          <LinkBlock data={data} k={k} w={linkW} />
+        </View>
+      ) : null}
+    </View>
+  ) : null;
+
+  if (stacked) {
+    return (
+      <View style={{ width: w, backgroundColor: C.navy, borderRadius: 16 * k, paddingHorizontal: padX, paddingVertical: 11 * k }}>
+        {main}
+        {aside}
+      </View>
+    );
+  }
+  return (
+    <View style={{ width: w, height: h, backgroundColor: C.navy, borderRadius: 20 * k, paddingHorizontal: padX, flexDirection: 'row', alignItems: 'center' }}>
+      {main}
+      {aside}
     </View>
   );
 }
@@ -252,12 +291,12 @@ function Facts({ data, k, w, lines = 2, align = 'center' }) {
   );
 }
 
-/** Tear-off strip on cream: 8 tabs, the phone (or the case number) and the name. */
+/** Tear-off strip on cream: 8 tabs with the phone and the name; 4 wider ones when they carry the short link instead. */
 function TearTabs({ data, w, h }) {
-  const count = 8;
+  const count = data.hasPhone ? 8 : 4;
   const tabW = w / count;
-  const first = data.hasPhone ? data.contactValue : data.caseNumber;
-  const second = data.hasPhone ? `${data.petName} · ${data.stamp}` : 'reunitepets.org';
+  const first = data.hasPhone ? data.contactValue : data.caseUrlLabel;
+  const second = `${data.petName} · ${data.stamp}`;
   return (
     <View style={{ width: w, flexDirection: 'row', height: h, backgroundColor: C.cream, borderRadius: 9, borderTopWidth: 0.75, borderTopColor: C.dash, borderTopStyle: 'dashed' }}>
       {Array.from({ length: count }).map((_, i) => (
@@ -275,8 +314,6 @@ function TearTabs({ data, w, h }) {
 /** One sheet, planned by plan.js: Letter (with tabs) or the poster (scaled). */
 function Sheet({ data, plan, photoSrc }) {
   const { k, page, side, contentW } = plan;
-  const qr = data.qrDataUrl ? 63 * k : 0;
-  const pillW = contentW - (qr ? qr + 12 * k : 0);
   return (
     <Page size={[page.w, page.h]} style={{ backgroundColor: C.yellow, fontFamily: 'Inter', color: C.navy, paddingTop: plan.top, paddingHorizontal: side }}>
       <View style={{ alignItems: 'center' }}>
@@ -292,21 +329,14 @@ function Sheet({ data, plan, photoSrc }) {
           <Where data={data} k={k} w={contentW - plan.mapW - plan.rowGapX} />
         </View>
       </View>
-      <View style={{ marginTop: plan.pillGap, flexDirection: 'row', alignItems: 'center' }}>
-        <Pill data={data} w={pillW} h={plan.pill} k={k} />
-        {qr ? (
-          <View style={{ marginLeft: 12 * k }}>
-            <QrTile data={data} size={qr} />
-          </View>
-        ) : null}
+      <View style={{ marginTop: plan.contactGap }}>
+        <ContactPanel data={data} w={contentW} h={plan.contact} k={k} />
       </View>
       {plan.tabs > 0 ? (
         <View style={{ position: 'absolute', left: side, right: side, bottom: plan.bottom }}>
           <TearTabs data={data} w={contentW} h={plan.tabs} />
         </View>
-      ) : (
-        <Text style={{ ...BODY(9 * k, C.soft, 600), textAlign: 'center', marginTop: 12 * k }}>{data.caseUrlLabel}</Text>
-      )}
+      ) : null}
     </Page>
   );
 }
@@ -320,11 +350,6 @@ function Half({ data, plan, photoSrc, cut }) {
       <View style={{ position: 'absolute', left: pad, top: plan.stickerTop }}>
         <Sticker data={data} src={photoSrc} size={sticker} k={k} />
       </View>
-      {data.qrDataUrl ? (
-        <View style={{ position: 'absolute', left: pad + sticker * 0.72, top: plan.stickerTop + sticker * 0.74 }}>
-          <QrTile data={data} size={54} />
-        </View>
-      ) : null}
       <View style={{ position: 'absolute', left: colX, top: pad + 6, width: detailsW, height: plan.halfH - pad * 2 - 9 }}>
         <TightLine size={plan.wordSize}>{data.stamp}</TightLine>
         <Text maxLines={1} style={{ ...NAME(fitInter(data.coverLine, detailsW, 19.5, 12)), marginTop: 7 }}>{data.coverLine}</Text>
@@ -332,14 +357,13 @@ function Half({ data, plan, photoSrc, cut }) {
           <LastSeen data={data} k={k} align="left" w={detailsW} />
         </View>
         <View style={{ marginTop: 4 }}>
-          <Facts data={data} k={k} w={detailsW} lines={3} align="left" />
+          <Facts data={data} k={k} w={detailsW} lines={2} align="left" />
         </View>
         <View style={{ marginTop: 8 }}>
-          <MapTile data={data} w={detailsW} h={96} k={k} />
+          <MapTile data={data} w={detailsW} h={plan.mapH} k={k} />
         </View>
         <View style={{ flex: 1 }} />
-        <Pill data={data} w={detailsW} h={62} k={k} phoneBase={26} align="flex-start" />
-        <Text style={{ ...BODY(7.5, C.soft, 600), marginTop: 6 }}>{data.caseUrlLabel}</Text>
+        <ContactPanel data={data} w={detailsW} k={k} stacked phoneBase={28} />
       </View>
     </View>
   );
