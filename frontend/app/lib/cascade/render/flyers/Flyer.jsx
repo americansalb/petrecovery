@@ -3,7 +3,7 @@
 /** @jsxFrag Fragment */
 import { h, Fragment } from './pdfReact';
 import { Document, Font, Page, View, Text, Image } from '@react-pdf/renderer';
-import { PAGES, planSheet, planHalf, fitAnton, ANTON_CAP, ANTON_TOP } from './plan';
+import { PAGES, planSheet, planHalf, fitFraunces, FRAUNCES } from './plan';
 
 // Break lines at spaces only; never hyphenate mid-word.
 Font.registerHyphenationCallback((word) => [word]);
@@ -12,17 +12,18 @@ Font.registerHyphenationCallback((word) => [word]);
  * The flyer PDFs, drawn from the Claude Design canvas "Lost Pet Flyers,
  * second design" (design px × 0.75 = pt).
  *
- * Three things, each enormous: the word, the face, the phone. LOST DOG in
- * Anton, a poster face, across the full width of the sheet, LOST in red.
- * The photo square-cornered and as tall as the sheet allows, cut around
- * the pet, with a red reward disc over its corner when there is one. The
- * phone number in the same face. Then, small: the name, two lines of what
- * to look for, where and when, a QR code, tear tabs. White paper, black
- * type, one red; a home printer in grayscale loses nothing.
+ * A cover. The photo bleeds off the top and the sides of the sheet, cut
+ * around the pet, with nothing on it: it is the evidence, and a word over
+ * it would hide an ear or darken a coat. Under it, on warm paper, one
+ * line: LOST in red and "Milo, a tabby cat" in the italic, both in
+ * Fraunces, as large as the width allows. Then where and when, two lines
+ * of what to look for, the phone number in the same face, the reward, the
+ * QR code, and tear tabs. Paper, ink, one red.
  *
- * The layout comes from ./plan.js: the word is set as large as the width
- * allows and the photo takes what the fixed blocks leave. The photo
- * arrives already cut to that shape (index.js, render/photo.js).
+ * The layout comes from ./plan.js: every block under the photo has a set
+ * height and the photo takes what is left. The photo arrives already cut
+ * to that shape (index.js, render/photo.js) with the face set just above
+ * the frame's middle.
  *
  *  - FLYER_LETTER: Letter, tear tabs at the foot.
  *  - FLYER_HALF: two half sheets on one Letter page, the photo in a column.
@@ -30,60 +31,65 @@ Font.registerHyphenationCallback((word) => [word]);
  */
 
 const C = {
-  ink: '#0f172a',
-  soft: '#475569',
-  muted: '#64748b',
-  lost: '#dc2626',
-  paper: '#ffffff',
-  cell: '#f1f5f9',
-  dash: '#94a3b8',
+  paper: '#f7f4ee',
+  ink: '#1c1917',
+  muted: '#78716c',
+  red: '#b91c1c',
+  line: '#ddd6ca',
+  dash: '#c4bbab',
+  nophoto: '#e9e2d6',
 };
 
 /* ---------------------------------------------------------------- helpers */
 
-/** Width estimate (ems) for Inter ExtraBold, padded so fitted lines never wrap. */
+/** Width estimate (ems) for Inter, padded so fitted lines never wrap. */
 function interEm(text) {
   let em = 0;
   for (const ch of String(text || '')) {
-    if ("iljI1.,:;!|'".includes(ch)) em += 0.32;
-    else if ('mwMW@'.includes(ch)) em += 0.95;
-    else if (ch === ' ') em += 0.28;
-    else if (ch >= 'a' && ch <= 'z') em += 0.58;
-    else if (ch >= 'A' && ch <= 'Z') em += 0.7;
-    else if (ch >= '0' && ch <= '9') em += 0.62;
-    else em += 0.6;
+    if ("iljI1.,:;!|'".includes(ch)) em += 0.3;
+    else if ('mwMW@'.includes(ch)) em += 0.9;
+    else if (ch === ' ') em += 0.27;
+    else if (ch >= 'a' && ch <= 'z') em += 0.55;
+    else if (ch >= 'A' && ch <= 'Z') em += 0.66;
+    else if (ch >= '0' && ch <= '9') em += 0.6;
+    else em += 0.58;
   }
   return em * 1.06;
 }
 const fitInter = (text, maxW, base, min) => Math.max(min, Math.min(base, maxW / (interEm(text) || 1)));
 
-const ANTON = (fs, color = C.ink) => ({ fontFamily: 'Anton', fontSize: fs, lineHeight: 1, letterSpacing: -fs * 0.01, color });
-
-/**
- * One line of Anton that takes exactly its cap height on the sheet: the
- * line box is pulled up by the air above the caps and padded below to the
- * baseline (ANTON_TOP, ANTON_CAP in plan.js), so a word sits tight on what
- * follows and a number sits on its rule. react-pdf drops a line that does
- * not fit a fixed-height box, so the box here is never fixed.
- */
-function AntonLine({ size, color = C.ink, style = {}, children }) {
-  return (
-    <View style={{ marginTop: -ANTON_TOP * size, marginBottom: (ANTON_TOP + ANTON_CAP - 1) * size, ...style }}>
-      <Text maxLines={1} style={ANTON(size, color)}>{children}</Text>
-    </View>
-  );
-}
-const NAME = (fs, color = C.ink) => ({ fontFamily: 'Inter', fontWeight: 900, fontSize: fs, lineHeight: 1, letterSpacing: -fs * 0.03, color });
-const BODY = (fs, color = C.ink, weight = 600) => ({ fontFamily: 'Inter', fontWeight: weight, fontSize: fs, lineHeight: 1.3, color });
+const BODY = (fs, color = C.ink, weight = 500) => ({ fontFamily: 'Inter', fontWeight: weight, fontSize: fs, lineHeight: 1.4, color });
 const EYEBROW = (fs, color = C.muted) => ({
   fontFamily: 'Inter',
   fontWeight: 700,
   fontSize: fs,
-  letterSpacing: fs * 0.14,
+  letterSpacing: fs * 0.15,
   textTransform: 'uppercase',
   color,
 });
-const MONO = (fs, color = C.soft) => ({ fontFamily: 'Courier', fontSize: fs, color, lineHeight: 1.3 });
+const MONO = (fs, color = C.muted) => ({ fontFamily: 'Courier', fontSize: fs, color, lineHeight: 1.3 });
+
+/**
+ * One line of Fraunces that takes exactly its cap height on the sheet and
+ * ends on its baseline: the line box is pulled up by the air above the
+ * caps (FRAUNCES.top) and trimmed to the baseline, so a word sits tight on
+ * what follows and two lines of different sizes share a baseline when
+ * their row aligns them at the end. react-pdf drops a line that does not
+ * fit a fixed-height box, so the box here is never fixed.
+ */
+function TightLine({ size, color = C.ink, italic = false, style = {}, children }) {
+  const font = italic ? { fontFamily: 'Fraunces', fontWeight: 600, fontStyle: 'italic' } : { fontFamily: 'Fraunces', fontWeight: 900 };
+  return (
+    <View style={{ marginTop: -FRAUNCES.top * size, marginBottom: (FRAUNCES.top + FRAUNCES.cap - 1) * size, ...style }}>
+      <Text maxLines={1} style={{ ...font, fontSize: size, lineHeight: 1, letterSpacing: italic ? -size * 0.01 : -size * 0.03, color }}>
+        {children}
+      </Text>
+    </View>
+  );
+}
+
+/** "$500 reward" or "Reward offered" */
+const rewardLine = (data) => (data.reward === 'REWARD' ? 'Reward offered' : `${data.reward} reward`);
 
 /** "Seen Milo? Call or text, any hour" */
 function contactEyebrow(data) {
@@ -95,135 +101,98 @@ function contactEyebrow(data) {
 
 /* ------------------------------------------------------------- primitives */
 
-/** LOST DOG across the full width, LOST in red. */
-function Word({ data, w, size }) {
+/** The photo, filling its frame; without one, the description in its place. */
+function Photo({ data, src, w, h, k }) {
+  if (src) return <Image src={src} style={{ width: w, height: h, objectFit: 'cover' }} />;
   return (
-    <AntonLine size={size} style={{ width: w }}>
-      <Text style={{ color: data.accent }}>{data.stamp}</Text>
-      {` ${data.speciesLabel}`}
-    </AntonLine>
-  );
-}
-
-/** The red disc over the photo's corner: "$500 / REWARD", or "REWARD / OFFERED". */
-function RewardDisc({ data, size, k }) {
-  const amount = data.reward !== 'REWARD';
-  const big = amount ? data.reward : 'REWARD';
-  const small = amount ? 'Reward' : 'Offered';
-  const bigSize = fitAnton(big, size * 0.78, size * 0.36, size * 0.2);
-  return (
-    <View
-      style={{
-        position: 'absolute',
-        top: -12 * k,
-        right: -12 * k,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: data.accent,
-        alignItems: 'center',
-        justifyContent: 'center',
-        transform: 'rotate(-8deg)',
-      }}
-    >
-      <AntonLine size={bigSize} color={C.paper}>{big}</AntonLine>
-      <Text style={{ ...EYEBROW(size * 0.085, C.paper), marginTop: size * 0.06 }}>{small}</Text>
+    <View style={{ width: w, height: h, backgroundColor: C.nophoto, paddingHorizontal: 30 * k, justifyContent: 'center' }}>
+      <Text style={{ ...EYEBROW(9 * k, C.muted), marginBottom: 10 * k }}>No photo yet. Please go by this.</Text>
+      <Text style={{ fontFamily: 'Fraunces', fontWeight: 600, fontStyle: 'italic', fontSize: fitFraunces(data.description || data.lookFor, w * 2.4, 27 * k, 15 * k), lineHeight: 1.15, color: C.ink }}>
+        {data.description || data.lookFor}
+      </Text>
+      <Text style={{ ...BODY(10.5 * k, C.muted), marginTop: 12 * k }}>A photo goes on the page at the link as soon as the family adds one. Scan the code to see it.</Text>
     </View>
   );
 }
 
-/** The photo, filling its frame, square-cornered; without one, the description in its place. */
-function PhotoBlock({ data, src, w, h, k, disc = 96 }) {
+/** LOST in red and "Milo, a tabby cat" in the italic: one line, or two when the line is long. */
+function WordLine({ data, word, w, gap }) {
+  if (word.stacked) {
+    return (
+      <View style={{ width: w }}>
+        <TightLine size={word.wordSize} color={data.accentDeep}>{data.stamp}</TightLine>
+        <TightLine size={word.lineSize} italic style={{ marginTop: word.lineSize * 0.45 }}>{data.coverLine}</TightLine>
+      </View>
+    );
+  }
   return (
-    <View style={{ position: 'relative', width: w, height: h }}>
-      {src ? (
-        <Image src={src} style={{ width: w, height: h, objectFit: 'cover' }} />
-      ) : (
-        <View style={{ width: w, height: h, backgroundColor: C.cell, padding: 24 * k, justifyContent: 'center' }}>
-          <Text style={{ ...EYEBROW(9 * k, C.soft), marginBottom: 10 * k }}>No photo yet. Please go by this.</Text>
-          <Text style={{ ...NAME(Math.min(30 * k, fitInter(data.description || data.lookFor, w * 2.6, 30 * k, 16 * k))), lineHeight: 1.15 }}>
-            {data.description || data.lookFor}
-          </Text>
-          <Text style={{ ...BODY(10.5 * k, C.soft), marginTop: 12 * k }}>A photo goes on the page at the link as soon as the family adds one. Scan the code to see it.</Text>
-        </View>
-      )}
-      {data.reward ? <RewardDisc data={data} size={disc * k} k={k} /> : null}
+    <View style={{ width: w, flexDirection: 'row', alignItems: 'flex-end' }}>
+      <TightLine size={word.wordSize} color={data.accentDeep}>{data.stamp}</TightLine>
+      <TightLine size={word.lineSize} italic style={{ marginLeft: gap, flexShrink: 1 }}>{data.coverLine}</TightLine>
     </View>
   );
 }
 
-/** The name, what to look for, where and when; the QR code on the right. */
-function Info({ data, w, h, k, qr = 56 }) {
+/** Where and when, then two lines of what to look for. */
+function Facts({ data, w, k, lines = 2, lastSeen = 15, facts = 36, gap = 4.5 }) {
+  return (
+    <View style={{ width: w }}>
+      <Text maxLines={1} style={{ ...BODY(11.25 * k, C.muted, 400), height: lastSeen, lineHeight: 1.2 }}>
+        <Text style={EYEBROW(8.25 * k, C.red)}>Last seen  </Text>
+        <Text style={{ fontWeight: 600, color: C.ink }}>{data.lastSeenWhen}</Text>
+        {data.lastSeenWhen ? '   ' : ''}
+        {data.lastSeenArea}
+      </Text>
+      <Text maxLines={lines} style={{ ...BODY(12.75 * k), height: facts, marginTop: gap }}>
+        {data.lookFor}
+        {data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : ''}
+      </Text>
+    </View>
+  );
+}
+
+/** The rule, the eyebrow, the phone in the cover's face; the reward, the link and the QR code at the right. */
+function Contact({ data, w, h, k, phoneBase = 52.5, qr = 60, urlW = 108, url = true }) {
   const qrW = data.qrDataUrl ? qr * k : 0;
-  const textW = w - (qrW ? qrW + 18 * k : 0);
-  const name = fitInter(data.petName, textW, 30 * k, 16 * k);
+  const rightW = (url ? urlW * k : 0) + (qrW ? qrW + 12 * k : 0);
+  const phone = fitFraunces(data.contactValue, w - rightW - 12 * k, phoneBase * k, 14 * k);
   return (
-    <View style={{ width: w, height: h, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <View style={{ width: textW }}>
-        <Text maxLines={1} style={NAME(name)}>{data.petName}</Text>
-        <Text maxLines={2} style={{ ...BODY(12 * k), marginTop: 6 * k }}>
-          {data.lookFor}
-          {data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : ''}
-        </Text>
-        <Text maxLines={1} style={{ ...BODY(9.75 * k, C.soft, 400), marginTop: 4.5 * k }}>
-          <Text style={EYEBROW(8.25 * k, data.accent)}>Last seen  </Text>
-          <Text style={{ fontWeight: 700, color: C.ink }}>{data.lastSeenWhen}</Text>
-          {data.lastSeenWhen ? '   ' : ''}
-          {data.lastSeenArea}
-        </Text>
-      </View>
-      {qrW ? (
-        <View style={{ width: qrW + 6 * k, alignItems: 'center' }}>
-          <Image src={data.qrDataUrl} style={{ width: qrW, height: qrW }} />
-          <Text style={{ ...EYEBROW(6.4 * k, C.soft), letterSpacing: 0.4 * k, textAlign: 'center', marginTop: 3 * k, lineHeight: 1.2 }}>Scan to report a sighting</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-/** The rule, the eyebrow, the phone in the poster face, the case link. */
-function Contact({ data, w, h, k, urlW = 120, valueBase = 51 }) {
-  const value = fitAnton(data.contactValue, w - urlW * k - 12 * k, valueBase * k, 14 * k);
-  return (
-    <View style={{ width: w, height: h, borderTopWidth: 2.25 * k, borderTopColor: C.ink, paddingTop: 7.5 * k, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+    <View style={{ width: w, height: h, borderTopWidth: 0.75, borderTopColor: C.line, paddingTop: 10.5 * k, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
       <View style={{ minWidth: 0 }}>
-        <Text maxLines={1} style={{ ...EYEBROW(9 * k, data.accent), marginBottom: 3 * k }}>{contactEyebrow(data)}</Text>
-        <AntonLine size={value}>{data.contactValue}</AntonLine>
+        <Text maxLines={1} style={{ ...EYEBROW(9 * k), marginBottom: 6 * k }}>{contactEyebrow(data)}</Text>
+        <TightLine size={phone}>{data.contactValue}</TightLine>
+        {!url && data.reward ? <Text style={{ ...EYEBROW(9 * k, C.red), marginTop: 8 * k }}>{rewardLine(data)}</Text> : null}
       </View>
-      {urlW > 0 && (data.hasPhone || /EMAIL/i.test(data.contactVerb || '')) ? (
-        <Text style={{ ...MONO(8.25 * k), textAlign: 'right', width: urlW * k, marginBottom: 4 * k }}>{`reunitepets.org/cases/\n${data.caseNumber}`}</Text>
-      ) : null}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+        {url ? (
+          <View style={{ width: urlW * k, alignItems: 'flex-end' }}>
+            {data.reward ? <Text style={EYEBROW(9 * k, C.red)}>{rewardLine(data)}</Text> : null}
+            <Text style={{ ...MONO(7.5 * k), textAlign: 'right', marginTop: 3 * k }}>{`reunitepets.org/cases/\n${data.caseNumber}`}</Text>
+          </View>
+        ) : null}
+        {qrW ? (
+          <View style={{ width: qrW, alignItems: 'center', marginLeft: 12 * k }}>
+            <Image src={data.qrDataUrl} style={{ width: qrW, height: qrW }} />
+            <Text style={{ ...EYEBROW(5.5 * k, C.muted), letterSpacing: 0.3 * k, textAlign: 'center', marginTop: 3 * k, lineHeight: 1.2 }}>Scan to report a sighting</Text>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
 
-/** Tear-off strip: 8 tabs, the phone (or the case number) turned on their side. */
+/** Tear-off strip: 8 tabs, the phone (or the case number) and the name. */
 function TearTabs({ data, w, h }) {
   const count = 8;
   const tabW = w / count;
-  const inner = { w: h - 10, h: tabW - 6 };
   const first = data.hasPhone ? data.contactValue : data.caseNumber;
-  const second = data.hasPhone ? `${data.headlineBig} · ${data.petName}` : 'reunitepets.org';
+  const second = data.hasPhone ? `${data.petName} · ${data.stamp}` : 'reunitepets.org';
   return (
-    <View style={{ width: w, flexDirection: 'row', height: h, borderTopWidth: 1.5, borderTopColor: C.dash, borderTopStyle: 'dashed' }}>
+    <View style={{ width: w, flexDirection: 'row', height: h, borderTopWidth: 0.75, borderTopColor: C.dash, borderTopStyle: 'dashed' }}>
       {Array.from({ length: count }).map((_, i) => (
-        <View key={i} style={{ width: tabW, height: h, borderLeftWidth: i ? 1.5 : 0, borderLeftColor: C.dash, borderLeftStyle: 'dashed' }}>
-          <View
-            style={{
-              position: 'absolute',
-              left: (tabW - inner.w) / 2,
-              top: (h - inner.h) / 2,
-              width: inner.w,
-              height: inner.h,
-              transform: 'rotate(-90deg)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: fitInter(first, inner.w, 8.5, 6), color: C.ink }}>{first}</Text>
-            <Text style={{ fontFamily: 'Inter', fontWeight: 500, fontSize: fitInter(second, inner.w, 7, 5), color: C.soft, marginTop: 2 }}>{second}</Text>
-          </View>
+        <View key={i} style={{ width: tabW, height: h, borderLeftWidth: i ? 0.75 : 0, borderLeftColor: C.dash, borderLeftStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: fitInter(first, tabW - 8, 7.5, 5), color: C.ink }}>{first}</Text>
+          <Text style={{ fontFamily: 'Inter', fontWeight: 500, fontSize: fitInter(second, tabW - 8, 6, 4.5), color: C.muted, marginTop: 2 }}>{second}</Text>
         </View>
       ))}
     </View>
@@ -234,34 +203,34 @@ function TearTabs({ data, w, h }) {
 
 /** One sheet, planned by plan.js: Letter (with tabs) or the poster (scaled). */
 function Sheet({ data, plan, photoSrc }) {
-  const { k, page, margin, contentW } = plan;
+  const { k, page, side, contentW } = plan;
   return (
-    <Page size={[page.w, page.h]} style={{ backgroundColor: C.paper, fontFamily: 'Inter', color: C.ink, paddingTop: margin, paddingHorizontal: margin }}>
-      <Word data={data} w={contentW} size={plan.headSize} />
-      <View style={{ marginTop: plan.gap }}>
-        <PhotoBlock data={data} src={photoSrc} w={contentW} h={plan.frame.h} k={k} />
-      </View>
-      <View style={{ marginTop: plan.gap }}>
-        <Info data={data} w={contentW} h={plan.info} k={k} />
-      </View>
-      <View style={{ marginTop: plan.contactGap }}>
-        <Contact data={data} w={contentW} h={plan.contact} k={k} />
-      </View>
-      {plan.tabs > 0 ? (
-        <View style={{ marginTop: plan.tabsGap }}>
-          <TearTabs data={data} w={contentW} h={plan.tabs} />
+    <Page size={[page.w, page.h]} style={{ backgroundColor: C.paper, fontFamily: 'Inter', color: C.ink }}>
+      <Photo data={data} src={photoSrc} w={page.w} h={plan.frame.h} k={k} />
+      <View style={{ paddingHorizontal: side }}>
+        <View style={{ marginTop: plan.panelTop }}>
+          <WordLine data={data} word={plan.word} w={contentW} gap={12 * k} />
         </View>
-      ) : null}
+        <View style={{ marginTop: plan.gapA }}>
+          <Facts data={data} w={contentW} k={k} lastSeen={plan.lastSeen} facts={plan.facts} gap={plan.gapB} />
+        </View>
+        <View style={{ marginTop: plan.gapC }}>
+          <Contact data={data} w={contentW} h={plan.contact} k={k} />
+        </View>
+        {plan.tabs > 0 ? (
+          <View style={{ marginTop: plan.tabsGap }}>
+            <TearTabs data={data} w={contentW} h={plan.tabs} />
+          </View>
+        ) : null}
+      </View>
     </Page>
   );
 }
 
-/** One half sheet: the photo in a column, LOST over CAT beside it, then the words. */
+/** One half sheet: the photo in a column, the cover's words beside it. */
 function Half({ data, plan, photoSrc, cut }) {
-  const k = 0.75;
+  const k = 0.85;
   const { pad, photoW, detailsW } = plan;
-  const word = fitAnton(Math.max(data.stamp.length, data.speciesLabel.length) > 5 ? data.speciesLabel : data.stamp, detailsW, 112, 48);
-  const qrW = data.qrDataUrl ? 54 : 0;
   return (
     <View
       style={{
@@ -270,31 +239,19 @@ function Half({ data, plan, photoSrc, cut }) {
         paddingTop: pad,
         paddingBottom: pad - (cut ? 1.5 : 0),
         flexDirection: 'row',
-        borderBottomWidth: cut ? 1.5 : 0,
+        borderBottomWidth: cut ? 0.75 : 0,
         borderBottomColor: C.dash,
         borderBottomStyle: 'dashed',
       }}
     >
-      <PhotoBlock data={data} src={photoSrc} w={photoW} h={plan.frame.h} k={k} disc={96} />
-      <View style={{ width: detailsW, marginLeft: pad, height: plan.frame.h }}>
-        <AntonLine size={word} color={data.accent}>{data.stamp}</AntonLine>
-        <AntonLine size={word} style={{ marginTop: -ANTON_TOP * word + 4 }}>{data.speciesLabel}</AntonLine>
-        <View style={{ marginTop: 9 }}>
-          <Info data={data} w={detailsW} h={66} k={k} qr={0} />
+      <Photo data={data} src={photoSrc} w={photoW} h={plan.frame.h} k={k} />
+      <View style={{ width: detailsW, marginLeft: pad, height: plan.frame.h, paddingTop: 6 }}>
+        <WordLine data={data} word={plan.word} w={detailsW} gap={9} />
+        <View style={{ marginTop: 12 }}>
+          <Facts data={data} w={detailsW} k={k} lines={3} lastSeen={13} facts={50} gap={4} />
         </View>
         <View style={{ flex: 1 }} />
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <View style={{ width: detailsW - (qrW ? qrW + 12 : 0) }}>
-            <Contact data={data} w={detailsW - (qrW ? qrW + 12 : 0)} h={54} k={k} urlW={0} valueBase={44} />
-            <Text style={{ ...MONO(7.5), marginTop: 3 }}>{data.caseUrlLabel}</Text>
-          </View>
-          {qrW ? (
-            <View style={{ width: qrW + 3, alignItems: 'center' }}>
-              <Image src={data.qrDataUrl} style={{ width: qrW, height: qrW }} />
-              <Text style={{ ...EYEBROW(6, C.soft), letterSpacing: 0.4, textAlign: 'center', marginTop: 3, lineHeight: 1.25 }}>Scan to report a sighting</Text>
-            </View>
-          ) : null}
-        </View>
+        <Contact data={data} w={detailsW} h={76} k={k} phoneBase={34} qr={70} url={false} />
       </View>
     </View>
   );
@@ -311,10 +268,10 @@ function HalfSheetPage({ data, plan, photoSrc }) {
 
 export function planFor(variant, data) {
   const photo = data.photos?.[0] || null;
-  const headline = data.headlineBig;
-  if (variant === 'half') return planHalf(PAGES.LETTER, photo);
-  if (variant === 'poster') return planSheet(PAGES.TABLOID, photo, { k: PAGES.TABLOID.w / PAGES.LETTER.w, tabs: false, headline });
-  return planSheet(PAGES.LETTER, photo, { k: 1, tabs: true, headline });
+  const words = { stamp: data.stamp, coverLine: data.coverLine };
+  if (variant === 'half') return planHalf(PAGES.LETTER, photo, words);
+  if (variant === 'poster') return planSheet(PAGES.TABLOID, photo, { k: PAGES.TABLOID.w / PAGES.LETTER.w, tabs: false, ...words });
+  return planSheet(PAGES.LETTER, photo, { k: 1, tabs: true, ...words });
 }
 
 /**

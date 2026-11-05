@@ -38,7 +38,7 @@ export async function generateSocialCard(caseData, kind, shared = {}) {
   const data = normalizeFlyerData(caseData, shared);
   const frame = SOCIAL_FRAMES[spec.size];
   const photo = data.photos[0] || null;
-  const photoSrc = photo ? await cropPhoto(photo, frame.w / frame.h, { maxW: frame.w }) : null;
+  const photoSrc = photo ? await cropPhoto(photo, frame.w / frame.h, { maxW: frame.w, focalAt: frame.focalAt }) : null;
 
   const svg = await satori(<SocialCard data={data} size={spec.size} photoSrc={photoSrc} />, {
     width: spec.width,

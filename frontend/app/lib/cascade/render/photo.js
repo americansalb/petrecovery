@@ -124,16 +124,16 @@ export async function loadPetImageDataUrl(url) {
 const cropCache = new WeakMap();
 
 /**
- * The photo cut to `aspect` (width over height) around its focal point, as
- * a data URL no wider than `maxW` (the frame's own width, for a share
- * image). The photo itself when it already has that shape and fits, or
+ * The photo cut to `aspect` (width over height) around its focal point,
+ * which sits `focalAt` of the way down the frame, as a data URL no wider
+ * than `maxW` (the frame's own width, for a share image). The photo itself when it already has that shape and fits, or
  * when sharp is not there. Cached per photo, shape and width.
  */
-export async function cropPhoto(photo, aspect, { maxW = CROP_MAX_W } = {}) {
+export async function cropPhoto(photo, aspect, { maxW = CROP_MAX_W, focalAt = 0.5 } = {}) {
   if (!photo?.dataUrl) return null;
-  const rect = cropRect(photo.w, photo.h, photo.focal, aspect) || { left: 0, top: 0, width: photo.w, height: photo.h };
+  const rect = cropRect(photo.w, photo.h, photo.focal, aspect, focalAt) || { left: 0, top: 0, width: photo.w, height: photo.h };
   if (rect.width === photo.w && rect.height === photo.h && !(photo.w > maxW)) return photo.dataUrl;
-  const key = `${aspect.toFixed(3)}@${maxW}`;
+  const key = `${aspect.toFixed(3)}@${maxW}@${focalAt}`;
   let byAspect = cropCache.get(photo);
   if (!byAspect) {
     byAspect = new Map();

@@ -6,86 +6,94 @@
 
 jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholderEmail: (e) => /placeholder|noemail/.test(e || '') }));
 
-import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, antonEm, fitAnton, ANTON_CAP } from '@/app/lib/cascade/render/flyers/plan';
+import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, frauncesEm, frauncesItalicEm, fitFraunces, FOCAL_AT } from '@/app/lib/cascade/render/flyers/plan';
 import { normalizeFlyerData, zoneFor } from '@/app/lib/cascade/render/flyers/normalize';
 
-const used = (p) => p.margin + p.head + p.gap * 2 + p.frame.h + p.info + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
+const used = (p) => p.frame.h + p.panelTop + p.wordH + p.gapA + p.lastSeen + p.gapB + p.facts + p.gapC + p.contact + p.tabsGap + p.tabs + p.bottom;
 
 describe('planSheet', () => {
-  test('the photo spans the page and takes what the fixed blocks leave', () => {
-    const p = planSheet(PAGES.LETTER, { aspect: 1.42 });
-    expect(p.frame.w).toBe(612 - 30 * 2);
+  const WORDS = { stamp: 'LOST', coverLine: 'Milo, a tabby cat' };
+
+  test('the photo bleeds the full width and takes what the fixed blocks leave', () => {
+    const p = planSheet(PAGES.LETTER, { aspect: 1.42 }, WORDS);
+    expect(p.frame.w).toBe(612);
     expect(Math.round(used(p))).toBe(792);
-    expect(p.frame.h).toBeGreaterThan(330);
-    expect(p.frameAspect).toBeCloseTo(p.frame.w / p.frame.h, 5);
+    expect(p.frame.h).toBeGreaterThan(400);
+    expect(p.frameAspect).toBeCloseTo(612 / p.frame.h, 5);
     expect(p.hasPhoto).toBe(true);
+    expect(p.focalAt).toBe(FOCAL_AT);
   });
 
   test('a tall photo gets the same frame: it is cut to it around the pet, never matted', () => {
-    const wide = planSheet(PAGES.LETTER, { aspect: 2.4 });
-    const tall = planSheet(PAGES.LETTER, { aspect: 0.6 });
+    const wide = planSheet(PAGES.LETTER, { aspect: 2.4 }, WORDS);
+    const tall = planSheet(PAGES.LETTER, { aspect: 0.6 }, WORDS);
     expect(tall.frame).toEqual(wide.frame);
     expect(tall.frameAspect).toBeCloseTo(wide.frameAspect, 5);
   });
 
   test('no photo: the frame stays, for the description', () => {
-    const p = planSheet(PAGES.LETTER, null);
+    const p = planSheet(PAGES.LETTER, null, WORDS);
     expect(p.hasPhoto).toBe(false);
     expect(p.frameAspect).toBeNull();
-    expect(p.frame.h).toBeGreaterThan(330);
+    expect(p.frame.h).toBeGreaterThan(400);
   });
 
-  test('the word is set as large as the width allows, and a long species shrinks it', () => {
-    const dog = planSheet(PAGES.LETTER, { aspect: 1.5 }, { headline: 'LOST DOG' });
-    const rabbit = planSheet(PAGES.LETTER, { aspect: 1.5 }, { headline: 'LOST RABBIT' });
-    expect(dog.headSize).toBeCloseTo(dog.contentW / antonEm('LOST DOG'), 3);
-    expect(dog.headSize).toBeGreaterThan(140);
-    expect(dog.head).toBeCloseTo(dog.headSize * ANTON_CAP, 5);
-    expect(rabbit.headSize).toBeLessThan(dog.headSize);
-    // The photo gets the room the shorter word leaves.
-    expect(rabbit.frame.h).toBeGreaterThan(dog.frame.h);
-    expect(Math.round(used(rabbit))).toBe(792);
+  test('LOST and the cover line share one line while the line fits; a long line goes under the word', () => {
+    const short = planSheet(PAGES.LETTER, { aspect: 1.5 }, WORDS);
+    expect(short.word.stacked).toBe(false);
+    expect(short.word.wordSize).toBe(124);
+    expect(short.word.lineSize).toBeGreaterThanOrEqual(15);
+    const long = planSheet(PAGES.LETTER, { aspect: 1.5 }, { stamp: 'LOST', coverLine: 'Clementine, a holland lop rabbit with one ear' });
+    expect(long.word.stacked).toBe(true);
+    expect(long.word.wordSize).toBe(124);
+    expect(long.wordH).toBeGreaterThan(short.wordH);
+    // The photo gives up the second line's height.
+    expect(long.frame.h).toBeLessThan(short.frame.h);
+    expect(Math.round(used(long))).toBe(792);
   });
 
-  test('Anton is measured from the file, so LOST DOG and a phone number never wrap', () => {
-    // fontkit lays these out at 3.439 and 5.742 em; the table is within 1%.
-    expect(antonEm('LOST DOG') / 1.03).toBeGreaterThan(3.439 * 0.99);
-    expect(antonEm('LOST DOG') / 1.03).toBeLessThan(3.439 * 1.01);
-    expect(antonEm('(512) 555-0100') / 1.03).toBeGreaterThan(5.742 * 0.99);
-    expect(antonEm('(512) 555-0100') / 1.03).toBeLessThan(5.742 * 1.01);
-    expect(fitAnton('LOST DOG', 540, 160, 60)).toBeCloseTo(540 / antonEm('LOST DOG'), 5);
-    expect(fitAnton('LOST DOG', 5400, 160, 60)).toBe(160);
-    expect(fitAnton('LOST RABBIT', 10, 160, 60)).toBe(60);
+  test('Fraunces is measured from the file, so the word, the line and the number never wrap', () => {
+    // fontkit lays these out at 2.859, 7.798 and 7.577 em; the tables are within 1%.
+    expect(frauncesEm('LOST') / 1.03).toBeGreaterThan(2.859 * 0.99);
+    expect(frauncesEm('LOST') / 1.03).toBeLessThan(2.859 * 1.01);
+    expect(frauncesEm('(512) 555-0100') / 1.03).toBeGreaterThan(7.798 * 0.99);
+    expect(frauncesEm('(512) 555-0100') / 1.03).toBeLessThan(7.798 * 1.01);
+    expect(frauncesItalicEm('Milo, a tabby cat') / 1.03).toBeGreaterThan(7.577 * 0.99);
+    expect(frauncesItalicEm('Milo, a tabby cat') / 1.03).toBeLessThan(7.577 * 1.01);
+    expect(fitFraunces('LOST', 300, 124, 60)).toBeCloseTo(300 / frauncesEm('LOST'), 5);
+    expect(fitFraunces('LOST', 3000, 124, 60)).toBe(124);
+    expect(fitFraunces('FOUND', 10, 124, 60)).toBe(60);
   });
 
   test('the Letter sheet keeps tear tabs at the foot', () => {
-    const p = planSheet(PAGES.LETTER, { aspect: 1.5 });
-    expect(p.tabs).toBe(60);
-    expect(p.tabsGap).toBe(9);
-    expect(p.bottom).toBe(0);
+    const p = planSheet(PAGES.LETTER, { aspect: 1.5 }, WORDS);
+    expect(p.tabs).toBe(54);
+    expect(p.tabsGap).toBe(12);
+    expect(p.bottom).toBe(9);
   });
 
   test('the poster scales the sheet, drops the tabs and keeps a margin at the foot', () => {
     const k = 792 / 612;
-    const p = planSheet(PAGES.TABLOID, { aspect: 1.5 }, { k, tabs: false });
+    const p = planSheet(PAGES.TABLOID, { aspect: 1.5 }, { k, tabs: false, ...WORDS });
     expect(p.tabs).toBe(0);
     expect(p.tabsGap).toBe(0);
-    expect(p.headSize).toBeCloseTo(planSheet(PAGES.LETTER, { aspect: 1.5 }).headSize * k, 3);
+    expect(p.word.wordSize).toBeCloseTo(124 * k, 5);
     expect(p.bottom).toBeCloseTo(30 * k, 5);
     expect(Math.round(used(p))).toBe(1224);
-    expect(p.frame.h).toBeGreaterThan(700);
+    expect(p.frame.h).toBeGreaterThan(800);
   });
 });
 
 describe('planHalf', () => {
   test('two half sheets: the photo is a column beside the words', () => {
-    const p = planHalf(PAGES.LETTER, { aspect: 0.8 });
+    const p = planHalf(PAGES.LETTER, { aspect: 0.8 }, { stamp: 'LOST', coverLine: 'Milo, a tabby cat' });
     expect(p.halfH).toBe(396);
-    expect(p.photoW).toBe(264);
-    expect(p.frame.h).toBe(396 - 21 * 2 - 3);
-    expect(p.frameAspect).toBeCloseTo(264 / p.frame.h, 5);
-    expect(p.detailsW).toBe(612 - 21 * 3 - 264);
+    expect(p.photoW).toBe(300);
+    expect(p.frame.h).toBe(396 - 15 * 2 - 3);
+    expect(p.frameAspect).toBeCloseTo(300 / p.frame.h, 5);
+    expect(p.detailsW).toBe(612 - 15 * 3 - 300);
     expect(p.hasPhoto).toBe(true);
+    expect(p.word.wordSize).toBeGreaterThan(40);
   });
 
   test('a wide photo gets the same column; without a photo there is no crop', () => {
@@ -114,15 +122,23 @@ describe('cropRect', () => {
     expect(cropRect(600, 1200, { x: 0.5, y: 1 }, 1)).toEqual({ left: 0, top: 600, width: 600, height: 600 });
   });
 
+  test('the face can sit above the middle of the frame, so a word under the photo is not under the chin', () => {
+    // Focal point at 60% down a 1200 px photo, frame 600 tall: centered puts the
+    // face at 300; at 0.45 the face sits at 270 and the cut starts lower.
+    expect(cropRect(600, 1200, { x: 0.5, y: 0.6 }, 1, 0.5)).toEqual({ left: 0, top: 420, width: 600, height: 600 });
+    expect(cropRect(600, 1200, { x: 0.5, y: 0.6 }, 1, 0.45)).toEqual({ left: 0, top: 450, width: 600, height: 600 });
+    expect(cropRect(600, 1200, { x: 0.5, y: 0.1 }, 1, 0.45)).toEqual({ left: 0, top: 0, width: 600, height: 600 });
+  });
+
   test('bad input gives no crop', () => {
     expect(cropRect(0, 0, null, 1)).toBeNull();
     expect(cropRect(100, 100, null, 0)).toBeNull();
   });
 
-  test('the share image frames are the sizes the boards draw', () => {
-    expect(SOCIAL_FRAMES.og).toEqual({ w: 560, h: 630 });
-    expect(SOCIAL_FRAMES.square).toEqual({ w: 1080, h: 640 });
-    expect(SOCIAL_FRAMES.story).toEqual({ w: 1080, h: 1010 });
+  test('the share image frames are the sizes the boards draw, with the face just above the middle', () => {
+    expect(SOCIAL_FRAMES.og).toEqual({ w: 690, h: 630, focalAt: FOCAL_AT });
+    expect(SOCIAL_FRAMES.square).toEqual({ w: 1080, h: 640, focalAt: FOCAL_AT });
+    expect(SOCIAL_FRAMES.story).toEqual({ w: 1080, h: 1150, focalAt: FOCAL_AT });
   });
 });
 
@@ -153,6 +169,9 @@ describe('normalizeFlyerData', () => {
     const d = normalizeFlyerData(MAX, {});
     expect(d.headlineBig).toBe('LOST DOG');
     expect(d.stamp).toBe('LOST');
+    expect(d.coverLine).toBe('Max, a golden retriever');
+    expect(normalizeFlyerData({ ...MAX, petBreed: 'Unknown', petSpecies: 'CAT' }, {}).coverLine).toBe('Max, a cat');
+    expect(normalizeFlyerData({ ...MAX, petBreed: 'Australian shepherd' }, {}).coverLine).toBe('Max, an australian shepherd');
     expect(d.speciesLabel).toBe('DOG');
     expect(d.factsLine).toBe('Golden Retriever · Large · 4 years old · Microchipped');
     expect(d.lookFor).toBe('Golden coat. White patch on the chest. Blue, with a bone tag.');
