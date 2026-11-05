@@ -13,6 +13,7 @@ import tzLookup from 'tz-lookup';
 import { FLYER_THEME, SPECIES_LABEL, SPECIES_WORD } from './theme';
 import { resolveFlyerCopy } from './copy';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
+import { caseShortLabel } from '@/app/lib/caseShortLink';
 
 function areaFromAddress(address) {
   if (!address) return 'this neighborhood';
@@ -221,9 +222,9 @@ export function normalizeFlyerData(caseData, shared = {}) {
     caseData.ownerEmail && !isPlaceholderEmail(caseData.ownerEmail) && caseData.ownerEmail !== 'Not provided'
   );
 
-  // Display URL for the footer + the no-contact fallback (the QR encodes
-  // the real absolute URL; this is the human-readable line).
-  const caseUrlLabel = `reunitepets.org/cases/${caseData.caseNumber}`;
+  // The line a stranger types: reunitepets.org/p/HF27J2 (app/lib/caseShortLink.js).
+  // The QR code beside it carries the full case URL.
+  const caseUrlLabel = caseShortLabel(caseData.caseNumber);
 
   let contactVerb = 'REPORT A SIGHTING AT';
   let contactValue = caseUrlLabel;
@@ -306,10 +307,11 @@ export function normalizeFlyerData(caseData, shared = {}) {
     contactVerb,
     contactValue,
     hasPhone,
+    email: hasEmail ? cap(caseData.ownerEmail, 48) : '', // a real address, or nothing
     ownerFirstName,
     contactSecondary: cap(contactSecondary, 48),
     caseNumber: caseData.caseNumber,
-    caseUrlLabel,
+    caseUrlLabel, // "reunitepets.org/p/HF27J2"
     map: shared.map || null, // stitched last-seen map spec (render/staticMap.js)
     photoAspect,
     photos, // [{src, w, h, aspect (w/h), focal}]

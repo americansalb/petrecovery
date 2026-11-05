@@ -1,12 +1,14 @@
 import React from 'react';
-import { fitUnbounded, STICKER } from '../flyers/plan';
+import { fitUnbounded, fitInter, interEm, eyebrowW, STICKER } from '../flyers/plan';
 
 /**
  * Share images, from the Claude Design canvas "Lost Pet Flyers, second
  * design" (the three Share boards): the sticker on yellow at the three
  * sizes phones pass around. The photo as a round sticker with a cream
  * ring and a navy shadow; LOST in Unbounded; the name; where and when;
- * what to look for; the phone number in a navy pill. og 1200×630 (sticker
+ * what to look for; then the contact panel on navy: the phone with the
+ * email under it, the QR code and the short link (the link preview, which
+ * is itself the link, keeps the plain phone pill). og 1200×630 (sticker
  * left, words right), square 1080×1080 and story 1080×1920 (sticker above,
  * everything centred). SOCIAL_FRAMES in ../flyers/plan.js holds each
  * sticker's size.
@@ -36,9 +38,11 @@ const rewardLine = (data) => (data.reward === 'REWARD' ? 'Reward offered' : `${d
 function contactEyebrow(data) {
   const who = `Seen ${data.petName}?`;
   if (data.hasPhone) return `${who} Call or text, any hour`;
-  if (/EMAIL/i.test(data.contactVerb || '')) return `${who} Email, any hour`;
+  if (data.email) return `${who} Email, any hour`;
   return `${who} Report it at`;
 }
+
+const LINK_EYEBROW = 'Report a sighting';
 
 function lookForLine(data) {
   const facts = data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : '';
@@ -89,6 +93,45 @@ function QrTile({ data, size }) {
     <Col style={{ width: size, height: size, backgroundColor: CREAM, borderRadius: Math.round(size * 0.16), padding: pad, flexShrink: 0 }}>
       <img src={data.qrDataUrl} width={size - pad * 2} height={size - pad * 2} style={{ width: size - pad * 2, height: size - pad * 2 }} />
     </Col>
+  );
+}
+
+/**
+ * The contact panel (see Flyer.jsx ContactPanel): the phone with the email
+ * under it, the QR code, the short link under "Report a sighting", all in
+ * one navy block. `k` is pixels per Letter point, so the square and the
+ * story keep the sheet's proportions.
+ */
+function ContactPanel({ data, w, k }) {
+  const padX = Math.round(18 * k);
+  const qr = data.qrDataUrl ? Math.round(60 * k) : 0;
+  const mainIsLink = !data.hasPhone && !data.email;
+  const link = mainIsLink ? '' : data.caseUrlLabel;
+  const linkSize = Math.round(10 * k);
+  const linkW = link ? Math.ceil(Math.max(interEm(link) * linkSize, eyebrowW(LINK_EYEBROW, 7.5 * k))) : 0;
+  const leftW = w - padX * 2 - (qr ? qr + Math.round(12 * k) : 0) - (linkW ? linkW + Math.round(9 * k) : 0);
+  const phone = fitUnbounded(data.contactValue, leftW, 34.5 * k, 10 * k);
+  const emailLine = data.hasPhone && data.email ? `or email ${data.email}` : '';
+  const emailSize = emailLine ? fitInter(emailLine, leftW, 9.75 * k, 7 * k) : 0;
+  return (
+    <Row style={{ width: w, height: Math.round(90 * k), backgroundColor: NAVY, borderRadius: Math.round(20 * k), padding: `0 ${padX}px`, alignItems: 'center' }}>
+      <Col style={{ width: leftW }}>
+        <Txt style={{ ...eyebrow(9 * k, YEL), whiteSpace: 'nowrap' }}>{contactEyebrow(data)}</Txt>
+        <Txt style={{ ...disp(phone, CREAM), marginTop: Math.round(6 * k) }}>{data.contactValue}</Txt>
+        {emailLine ? <Txt style={{ ...body(emailSize, CREAM, 500), marginTop: Math.round(6 * k), lineHeight: 1.2, whiteSpace: 'nowrap' }}>{emailLine}</Txt> : null}
+      </Col>
+      {qr ? (
+        <Col style={{ marginLeft: Math.round(12 * k) }}>
+          <QrTile data={data} size={qr} />
+        </Col>
+      ) : null}
+      {link ? (
+        <Col style={{ marginLeft: Math.round(qr ? 9 * k : 12 * k), width: linkW }}>
+          <Txt style={eyebrow(7.5 * k, YEL)}>{LINK_EYEBROW}</Txt>
+          <Txt style={{ ...body(linkSize, CREAM, 700), marginTop: Math.round(3 * k), lineHeight: 1.2, whiteSpace: 'nowrap' }}>{link}</Txt>
+        </Col>
+      ) : null}
+    </Row>
   );
 }
 
@@ -182,25 +225,18 @@ function Og({ data, src }) {
 function Square({ data, src }) {
   const W = 1000;
   return (
-    <Col style={{ width: 1080, height: 1080, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '56px 40px 40px' }}>
-      <Sticker data={data} src={src} size={480} />
-      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 120, 60)), marginTop: 24 }}>{data.stamp}</Txt>
+    <Col style={{ width: 1080, height: 1080, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '48px 40px 40px' }}>
+      <Sticker data={data} src={src} size={460} />
+      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 110, 60)), marginTop: 22 }}>{data.stamp}</Txt>
       <Txt style={{ ...name(34), marginTop: 10, lineClamp: 1 }}>{data.coverLine}</Txt>
-      <Row style={{ marginTop: 14, width: W, height: 160 }}>
-        <MapTile data={data} w={400} h={160} />
+      <Row style={{ marginTop: 14, width: W, height: 150 }}>
+        <MapTile data={data} w={400} h={150} />
         <Col style={{ marginLeft: 16, width: W - 416 }}>
           <Where data={data} size={17} width={W - 416} />
         </Col>
       </Row>
       <Col style={{ flexGrow: 1 }} />
-      <Row style={{ width: W, alignItems: 'center' }}>
-        <Pill data={data} w={data.qrDataUrl ? W - 116 : W} phoneMax={50} eye={13} />
-        {data.qrDataUrl ? (
-          <Col style={{ marginLeft: 16 }}>
-            <QrTile data={data} size={100} />
-          </Col>
-        ) : null}
-      </Row>
+      <ContactPanel data={data} w={W} k={1.6} />
     </Col>
   );
 }
@@ -219,15 +255,7 @@ function Story({ data, src }) {
         </Col>
       </Row>
       <Col style={{ flexGrow: 1 }} />
-      <Row style={{ width: W, alignItems: 'center' }}>
-        <Pill data={data} w={data.qrDataUrl ? W - 166 : W} phoneMax={72} eye={17} />
-        {data.qrDataUrl ? (
-          <Col style={{ marginLeft: 16 }}>
-            <QrTile data={data} size={150} />
-          </Col>
-        ) : null}
-      </Row>
-      <Txt style={{ ...body(18, SOFT, 600), marginTop: 22 }}>reunitepets.org/cases/{data.caseNumber}</Txt>
+      <ContactPanel data={data} w={W} k={W / 516} />
     </Col>
   );
 }
