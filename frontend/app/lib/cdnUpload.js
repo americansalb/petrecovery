@@ -8,9 +8,23 @@
  * object - the CDN url is stable and idempotent, matching CaseAsset's
  * @@unique([caseId, kind]) contract.
  *
+ * The returned URL carries `?v=<hash of the bytes>`. Bunny keys its cache
+ * on the whole URL, query string included, and caches for thirty days, so
+ * without it a redrawn flyer at the same key would stay hidden behind the
+ * old copy at the edge (the kits redrawn on 2026-11-05 would have shown
+ * the old design for a month). Same bytes, same URL; new bytes, new URL.
+ * The storage key itself never changes.
+ *
  * Node runtime only (uses Buffer + fetch to the storage host). Never import
  * from an edge route.
  */
+
+import { createHash } from 'node:crypto';
+
+/** Eight hex characters of the content's SHA-1: the `v` the URL carries. */
+export function contentVersion(buffer) {
+  return createHash('sha1').update(buffer).digest('hex').slice(0, 8);
+}
 
 const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE;
 const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
@@ -72,7 +86,7 @@ export async function uploadBufferToCdn(buffer, { key, keyPrefix, filename, cont
     const dest = join(process.cwd(), 'public', '_localcdn', cleanKey);
     await mkdir(dirname(dest), { recursive: true });
     await writeFile(dest, buffer);
-    return { url: `${getBaseUrl()}/_localcdn/${cleanKey}`, key: cleanKey, sizeBytes: buffer.length };
+    return { url: `${getBaseUrl()}/_localcdn/${cleanKey}?v=${contentVersion(buffer)}`, key: cleanKey, sizeBytes: buffer.length };
   }
 
   if (!isCdnConfigured()) {
@@ -95,7 +109,7 @@ export async function uploadBufferToCdn(buffer, { key, keyPrefix, filename, cont
   }
 
   return {
-    url: `${BUNNY_CDN_URL}/${cleanKey}`,
+    url: `${BUNNY_CDN_URL}/${cleanKey}?v=${contentVersion(buffer)}`,
     key: cleanKey,
     sizeBytes: buffer.length,
   };

@@ -5,7 +5,11 @@
  */
 
 import { generateFlyerPdf, FLYER_VARIANTS } from '../render/flyers/index.js';
+import { RENDERER_VERSION } from '../render/version';
 import { uploadBufferToCdn } from '@/app/lib/cdnUpload';
+
+// Which renderer drew the row. refresh.js redraws cases whose stamp is older.
+const stamp = { rendererVersion: RENDERER_VERSION };
 
 export async function runFlyers(ctx) {
   const shared = await ctx.getShared();
@@ -35,13 +39,14 @@ export async function runFlyers(ctx) {
         mimeType: 'application/pdf',
         label: spec.label,
         sizeBytes,
+        meta: stamp,
       });
       ready += 1;
     } catch (err) {
       // Loud: the asset row keeps the error, but the host's log is where
       // anyone looks when every flyer of every pet is failing.
       console.error(`[cascade.flyers] ${kind} failed for ${ctx.case.caseNumber}:`, err?.message || err);
-      await ctx.upsertAsset(kind, { status: 'failed', error: String(err.message || err) });
+      await ctx.upsertAsset(kind, { status: 'failed', error: String(err.message || err), meta: stamp });
     }
   }
 
