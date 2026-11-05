@@ -7,9 +7,8 @@
  * to this file (OFL, see LICENSE.txt) and read synchronously from disk at
  * import time.
  *
- * Inter is the body face. Fraunces, a warm display serif, is the cover's
- * word (LOST), its line ("Milo, a tabby cat", in the italic) and the phone
- * number.
+ * Inter is the body face. Unbounded, a wide display face, is the word
+ * (LOST) and the phone number.
  *
  * Node runtime only.
  */
@@ -29,8 +28,7 @@ export const INTER_MEDIUM = load('Inter-Medium.ttf');
 export const INTER_SEMIBOLD = load('Inter-SemiBold.ttf');
 export const INTER_BOLD = load('Inter-Bold.ttf');
 export const INTER_BLACK = load('Inter-Black.ttf');
-export const FRAUNCES_900 = load('Fraunces-900.ttf');
-export const FRAUNCES_ITALIC_600 = load('Fraunces-Italic-600.ttf');
+export const UNBOUNDED_900 = load('Unbounded-900.ttf');
 
 // satori wants an array of { name, data, weight, style }
 export const SATORI_FONTS = [
@@ -39,13 +37,12 @@ export const SATORI_FONTS = [
   { name: 'Inter', data: INTER_SEMIBOLD, weight: 600, style: 'normal' },
   { name: 'Inter', data: INTER_BOLD, weight: 700, style: 'normal' },
   { name: 'Inter', data: INTER_BLACK, weight: 900, style: 'normal' },
-  { name: 'Fraunces', data: FRAUNCES_900, weight: 900, style: 'normal' },
-  { name: 'Fraunces', data: FRAUNCES_ITALIC_600, weight: 600, style: 'italic' },
+  { name: 'Unbounded', data: UNBOUNDED_900, weight: 900, style: 'normal' },
 ];
 
 // resvg wants raw font buffers + a default family, and must not touch the system
 export const RESVG_FONT = {
-  fontBuffers: [INTER_REGULAR, INTER_MEDIUM, INTER_SEMIBOLD, INTER_BOLD, INTER_BLACK, FRAUNCES_900, FRAUNCES_ITALIC_600],
+  fontBuffers: [INTER_REGULAR, INTER_MEDIUM, INTER_SEMIBOLD, INTER_BOLD, INTER_BLACK, UNBOUNDED_900],
   defaultFontFamily: 'Inter',
   loadSystemFonts: false,
 };

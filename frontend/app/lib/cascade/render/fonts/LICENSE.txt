@@ -6,7 +6,6 @@ fonts without any runtime network fetch. Full license: https://openfontlicense.o
 
 ---
 
-Fraunces-900.ttf and Fraunces-Italic-600.ttf (Undercase Type) are licensed
-under the SIL Open Font License 1.1, downloaded from Google Fonts on
-2026-11-05 as the static TrueType instances Google serves to a browser that
-cannot read variable fonts.
+Unbounded-900.ttf (Unbounded Project Authors) is licensed under the SIL Open
+Font License 1.1, downloaded from Google Fonts on 2026-11-05 as the static
+TrueType instance Google serves to a browser that cannot read variable fonts.
