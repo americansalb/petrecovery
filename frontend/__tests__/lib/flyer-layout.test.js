@@ -7,7 +7,7 @@
 jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholderEmail: (e) => /placeholder|noemail/.test(e || '') }));
 
 import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES } from '@/app/lib/cascade/render/flyers/plan';
-import { normalizeFlyerData } from '@/app/lib/cascade/render/flyers/normalize';
+import { normalizeFlyerData, zoneFor } from '@/app/lib/cascade/render/flyers/normalize';
 
 const used = (p) => p.margin + p.head + p.gap * 2 + p.frame.h + p.info + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
 
@@ -115,6 +115,8 @@ describe('normalizeFlyerData', () => {
     petDescription: 'Friendly 4-year-old golden retriever. White patch on chest.',
     escapeScenario: 'got_spooked',
     lastSeenAddress: '2100 Barton Springs Rd, Austin, TX 78704, United States',
+    lastSeenLatitude: 30.2638,
+    lastSeenLongitude: -97.7716,
     lastSeenAt: new Date('2026-11-02T18:30:00Z'),
     ownerName: 'Avery Jones',
     ownerPhone: '5125550100',
@@ -136,8 +138,22 @@ describe('normalizeFlyerData', () => {
     expect(d.contactSecondary).toBe('avery@example.com');
     expect(d.reward).toBe('$500');
     expect(d.lastSeenArea).toBe('2100 Barton Springs Rd, Austin');
-    expect(d.lastSeenWhen).toMatch(/^Mon Nov 2, \d{1,2}:\d{2} (am|pm)$/);
+    expect(d.lastSeenWhen).toBe('Mon, Nov 2');
+    expect(d.lastSeenDate).toBe('Nov 2, 2026');
     expect(d.caseUrlLabel).toBe('reunitepets.org/cases/AUS-2026-0001');
+  });
+
+  test('the date is the local date where the pet was lost, and never a clock time', () => {
+    // 8 pm in Austin on the 4th is 2 am UTC on the 5th. The wizard stores a
+    // band's middle as the time, so a clock time would be made up anyway.
+    const evening = normalizeFlyerData({ ...MAX, lastSeenAt: new Date('2026-11-05T02:00:00Z') }, {});
+    expect(evening.lastSeenWhen).toBe('Wed, Nov 4');
+    expect(zoneFor(MAX)).toBe('America/Chicago');
+    expect(zoneFor({ lastSeenLatitude: 34.0099, lastSeenLongitude: -118.27 })).toBe('America/Los_Angeles');
+    expect(zoneFor({ lastSeenLatitude: -16.5, lastSeenLongitude: -68.15 })).toBe('America/La_Paz');
+    // No point on record: Central, the site's home zone, not the server's UTC.
+    expect(zoneFor({})).toBe('America/Chicago');
+    expect(zoneFor({ lastSeenLatitude: 0, lastSeenLongitude: 0 })).toBe('America/Chicago');
   });
 
   test('a description that only repeats the color and the species is left out', () => {
