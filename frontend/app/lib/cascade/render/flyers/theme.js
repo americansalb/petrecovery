@@ -8,12 +8,14 @@ export const FLYER_THEME = {
     stamp: 'LOST',
     stampBg: '#dc2626',
     accent: '#dc2626',
+    accentDeep: '#b91c1c', // the word on paper (lost-text)
     bannerFrom: '#dc2626',
   },
   found: {
     stamp: 'FOUND',
     stampBg: '#059669',
     accent: '#059669',
+    accentDeep: '#047857',
     bannerFrom: '#059669',
   },
   midnight: '#0f172a',
@@ -37,6 +39,15 @@ export const SPECIES_LABEL = {
   BIRD: 'BIRD',
   RABBIT: 'RABBIT',
   OTHER: 'PET',
+};
+
+/** The species as a word in a sentence: "Milo, a cat". */
+export const SPECIES_WORD = {
+  DOG: 'dog',
+  CAT: 'cat',
+  BIRD: 'bird',
+  RABBIT: 'rabbit',
+  OTHER: 'pet',
 };
 
 export const SPECIES_GLYPH = {

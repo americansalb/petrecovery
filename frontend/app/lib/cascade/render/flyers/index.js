@@ -42,6 +42,6 @@ export async function generateFlyerPdf(caseData, kind, shared = {}) {
   const data = normalizeFlyerData(caseData, shared);
   const plan = planFor(spec.variant, data);
   const photo = data.photos[0] || null;
-  const photoSrc = photo && plan.frameAspect ? await cropPhoto(photo, plan.frameAspect) : photo?.src || null;
+  const photoSrc = photo && plan.frameAspect ? await cropPhoto(photo, plan.frameAspect, { focalAt: plan.focalAt }) : photo?.src || null;
   return renderToBuffer(<FlyerDocument data={data} variant={spec.variant} plan={plan} photoSrc={photoSrc} />);
 }

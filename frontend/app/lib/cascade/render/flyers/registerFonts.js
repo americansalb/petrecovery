@@ -23,13 +23,12 @@ export function registerFlyerFonts() {
       { src: join(DIR, 'Inter-Black.ttf'), fontWeight: 900 },
     ],
   });
-  // The site's display face (app/lib/fonts.js); on the flyer it is LOST DOG,
-  // the pet's name and the phone number. OFL like Inter.
+  // The cover's face: LOST, "Milo, a tabby cat" in the italic, the phone number. OFL.
   Font.register({
-    family: 'Bricolage Grotesque',
+    family: 'Fraunces',
     fonts: [
-      { src: join(DIR, 'BricolageGrotesque-700.ttf'), fontWeight: 700 },
-      { src: join(DIR, 'BricolageGrotesque-800.ttf'), fontWeight: 800 },
+      { src: join(DIR, 'Fraunces-900.ttf'), fontWeight: 900 },
+      { src: join(DIR, 'Fraunces-Italic-600.ttf'), fontWeight: 600, fontStyle: 'italic' },
     ],
   });
   // Don't hyphenate long words (pet names, addresses) mid-line.

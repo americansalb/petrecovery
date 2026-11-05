@@ -10,7 +10,7 @@
  */
 
 import tzLookup from 'tz-lookup';
-import { FLYER_THEME, SPECIES_LABEL } from './theme';
+import { FLYER_THEME, SPECIES_LABEL, SPECIES_WORD } from './theme';
 import { resolveFlyerCopy } from './copy';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
 
@@ -269,13 +269,21 @@ export function normalizeFlyerData(caseData, shared = {}) {
 
   const copy = resolveFlyerCopy(caseData, shared);
 
+  // "Milo, a tabby cat": the line under LOST on the cover. The breed when
+  // the report names one, else the species.
+  const breedWord = caseData.petBreed && caseData.petBreed !== 'Unknown' ? String(caseData.petBreed).trim().toLowerCase() : '';
+  const kindWord = breedWord || SPECIES_WORD[caseData.petSpecies] || 'pet';
+  const coverLine = `${name}, ${/^[aeiou]/i.test(kindWord) ? 'an' : 'a'} ${kindWord}`;
+
   return {
     // brand + semantics
     stamp: theme.stamp,
     accent: theme.accent,
     accentBg: theme.stampBg,
+    accentDeep: theme.accentDeep, // the word on paper
     speciesLabel,
     headlineBig: `${theme.stamp} ${speciesLabel}`, // LOST DOG
+    coverLine, // "Milo, a tabby cat"
     // copy
     headline: copy.headline, // "Have you seen {name}?"
     plea: copy.plea,
