@@ -38,7 +38,7 @@ test('no secret and no token is unauthorized; no secret configured at all is 503
 test('the secret redraws the stale kits and waits for the result', async () => {
   const res = await post('stale=1&limit=7', { 'x-sweep-secret': 'shh' });
   expect(res.status).toBe(200);
-  expect(refreshStaleKits).toHaveBeenCalledWith({ limit: 7, pauseMs: 0 });
+  expect(refreshStaleKits).toHaveBeenCalledWith({ limit: 7, pauseMs: 2000 });
   expect(await res.json()).toMatchObject({ ok: true, attempted: 1, redrawn: 1, remaining: 0 });
 });
 

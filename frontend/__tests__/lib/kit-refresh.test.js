@@ -112,7 +112,7 @@ test('the refresh redraws the stale cases newest first, one at a time, and says 
     return { count: 3, result: { ready: 3 } };
   });
 
-  const stats = await refreshStaleKits({ limit: 2, pauseMs: 0 });
+  const stats = await refreshStaleKits({ limit: 2, pauseMs: 0, rssBudgetMb: Infinity });
 
   expect(mockPrisma.case.findMany).toHaveBeenCalledWith(
     expect.objectContaining({ where: staleKitWhere(), orderBy: { createdAt: 'desc' }, take: 2, include: { pet: true } })
@@ -126,7 +126,7 @@ test('a case that fails to redraw is counted, named, and does not stop the rest'
   mockPrisma.case.count.mockResolvedValue(0);
   runSocial.mockRejectedValueOnce(new Error('resvg missing'));
 
-  const stats = await refreshStaleKits({ pauseMs: 0 });
+  const stats = await refreshStaleKits({ pauseMs: 0, rssBudgetMb: Infinity });
 
   expect(stats.attempted).toBe(2);
   expect(stats.redrawn).toBe(1);
@@ -137,10 +137,21 @@ test('a case that fails to redraw is counted, named, and does not stop the rest'
 test('two refreshes never run at once', async () => {
   mockPrisma.case.findMany.mockResolvedValue([aCase(7)]);
   mockPrisma.case.count.mockResolvedValue(0);
-  const first = refreshStaleKits({ pauseMs: 0 });
-  const second = await refreshStaleKits({ pauseMs: 0 });
+  const first = refreshStaleKits({ pauseMs: 0, rssBudgetMb: Infinity });
+  const second = await refreshStaleKits({ pauseMs: 0, rssBudgetMb: Infinity });
   expect(second.skipped).toMatch(/already running/);
   await first;
+});
+
+test('the pass stops, and says so, when the server has no room for the next case', async () => {
+  mockPrisma.case.findMany.mockResolvedValue([aCase(8), aCase(9), aCase(10)]);
+  mockPrisma.case.count.mockResolvedValue(2);
+  // A budget below what this very process uses: the first case is drawn,
+  // the wait for room gives up, and the rest are left for later.
+  const stats = await refreshStaleKits({ pauseMs: 0, rssBudgetMb: 1, maxWaitMs: 0 });
+  expect(stats.attempted).toBe(1);
+  expect(stats.stopped).toMatch(/over the 1 MB budget; 2 left for the next pass/);
+  expect(stats.remaining).toBe(2);
 });
 
 test('the flyers and social actions stamp every asset row they write', () => {

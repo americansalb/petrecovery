@@ -9,7 +9,7 @@
  *
  * satori cannot fetch remote images and neither renderer decodes WebP, GIF
  * or HEIC or honors EXIF orientation, so every photo goes through sharp:
- * auto-rotated, capped at 2000 px, re-encoded as JPEG. Without sharp only
+ * auto-rotated, capped at 1600 px, re-encoded as JPEG. Without sharp only
  * JPEG and PNG pass through, uncropped, with a centered focal point.
  *
  * Returns null on any failure. Node runtime.
@@ -18,12 +18,33 @@
 import { cropRect } from './flyers/plan';
 
 const MAX_BYTES = 12 * 1024 * 1024;
+// 1600 px across is 213 dpi on a Letter sheet's 7.5 in frame: a sharp print.
+// The share images need no more than their own width (SOCIAL_FRAMES). Every
+// pixel here is paid for four times over: the JPEG buffer, its base64 data
+// URL on the heap, the SVG satori builds around it, and the bitmap resvg
+// draws, and the server's memory is small (see refresh.js on pacing).
+const PHOTO_MAX = 1600;
 const CROP_MAX_W = 1600;
+const JPEG_QUALITY = 84;
 
 let sharpPromise = null;
 function getSharp() {
   if (!sharpPromise) {
-    sharpPromise = import('sharp').then((m) => m.default).catch(() => null);
+    sharpPromise = import('sharp')
+      .then((m) => {
+        const sharp = m.default;
+        // libvips keeps recent operations in memory for reuse; nothing here is
+        // ever reused, and that cache (50 MB by default) counts against the
+        // instance, not the heap.
+        try {
+          sharp.cache(false);
+          sharp.concurrency(1);
+        } catch {
+          /* older sharp */
+        }
+        return sharp;
+      })
+      .catch(() => null);
   }
   return sharpPromise;
 }
@@ -64,8 +85,8 @@ export async function photoFromBuffer(raw, contentType = 'image/jpeg') {
     try {
       const { data, info } = await sharp(raw)
         .rotate()
-        .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 88 })
+        .resize({ width: PHOTO_MAX, height: PHOTO_MAX, fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: JPEG_QUALITY })
         .toBuffer({ resolveWithObject: true });
       const focal = await findFocal(sharp, data, info.width, info.height);
       return { dataUrl: dataUrl(data), w: info.width, h: info.height, aspect: info.width / info.height, focal };
@@ -104,14 +125,15 @@ const cropCache = new WeakMap();
 
 /**
  * The photo cut to `aspect` (width over height) around its focal point, as
- * a data URL. The photo itself when it already has that shape, or when
- * sharp is not there. Cached per photo and shape.
+ * a data URL no wider than `maxW` (the frame's own width, for a share
+ * image). The photo itself when it already has that shape and fits, or
+ * when sharp is not there. Cached per photo, shape and width.
  */
-export async function cropPhoto(photo, aspect) {
+export async function cropPhoto(photo, aspect, { maxW = CROP_MAX_W } = {}) {
   if (!photo?.dataUrl) return null;
-  const rect = cropRect(photo.w, photo.h, photo.focal, aspect);
-  if (!rect) return photo.dataUrl;
-  const key = aspect.toFixed(3);
+  const rect = cropRect(photo.w, photo.h, photo.focal, aspect) || { left: 0, top: 0, width: photo.w, height: photo.h };
+  if (rect.width === photo.w && rect.height === photo.h && !(photo.w > maxW)) return photo.dataUrl;
+  const key = `${aspect.toFixed(3)}@${maxW}`;
   let byAspect = cropCache.get(photo);
   if (!byAspect) {
     byAspect = new Map();
@@ -124,8 +146,8 @@ export async function cropPhoto(photo, aspect) {
   try {
     const out = await sharp(buf)
       .extract(rect)
-      .resize({ width: Math.min(rect.width, CROP_MAX_W), withoutEnlargement: true })
-      .jpeg({ quality: 86 })
+      .resize({ width: Math.min(rect.width, maxW), withoutEnlargement: true })
+      .jpeg({ quality: JPEG_QUALITY })
       .toBuffer();
     const url = dataUrl(out);
     byAspect.set(key, url);

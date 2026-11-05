@@ -19,12 +19,13 @@ export function bootRefreshToken() {
 }
 
 /**
- * After `delayMs` (so the health check and the first visitors are served
- * before the renderers warm up), POST the stale pass to this server. The
+ * After `delayMs` (three minutes: the health check and the first visitors
+ * are served, and memory has settled, before the renderers start), POST
+ * the stale pass to this server. The
  * route answers at once and redraws in the background, logging a summary
  * line when it is done. Every failure here is a log line, never a crash.
  */
-export function scheduleStaleKitRefresh({ delayMs = 90 * 1000, limit = 200 } = {}) {
+export function scheduleStaleKitRefresh({ delayMs = 3 * 60 * 1000, limit = 200 } = {}) {
   const token = bootRefreshToken();
   const port = process.env.PORT || '3000';
   const url = `http://127.0.0.1:${port}/api/cascade/regenerate?stale=1&limit=${limit}&wait=0`;

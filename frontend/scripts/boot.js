@@ -87,7 +87,32 @@ step('Sync legal documents', 'node', ['prisma/sync-legal-docs.js']);
 const port = process.env.PORT || '3000';
 process.stdout.write(`[boot] Starting Next.js on port ${port}\n`);
 
-const server = spawn('npx', ['next', 'start', '-p', port], { stdio: 'inherit', env: process.env });
+/**
+ * Cap the heap. Without a cap V8 grows the heap to a share of the HOST's
+ * memory before it collects in earnest, so a server that renders flyers
+ * (react-pdf, satori, sharp) climbed to 625 MB of a 512 MB Render instance
+ * and was killed, with the founder paged each time (2026-11-05). Capped at
+ * 256 MiB, the same build survived twelve renders in a row at under 500 MB
+ * of RSS (scripts/production-memory-smoke.js runs the server at this cap).
+ * An operator who knows the instance is bigger sets NODE_OPTIONS herself,
+ * and that wins.
+ */
+const env = { ...process.env };
+if (!/max-old-space-size/.test(env.NODE_OPTIONS || '')) {
+  const cap = Number(process.env.SERVER_HEAP_MB) || 256;
+  env.NODE_OPTIONS = `${env.NODE_OPTIONS || ''} --max-old-space-size=${cap}`.trim();
+  process.stdout.write(`[boot] Heap capped at ${cap} MiB (NODE_OPTIONS=${env.NODE_OPTIONS})\n`);
+}
+// glibc gives every thread its own malloc arena and rarely hands memory
+// back, so the native buffers sharp, resvg and react-pdf allocate pile up
+// as fragmentation: the same twelve renders peaked at 470 MB with the
+// default arenas and 382 MB with two (sharp's own advice for glibc Linux).
+if (!env.MALLOC_ARENA_MAX) {
+  env.MALLOC_ARENA_MAX = '2';
+  process.stdout.write('[boot] MALLOC_ARENA_MAX=2\n');
+}
+
+const server = spawn('npx', ['next', 'start', '-p', port], { stdio: 'inherit', env });
 server.on('exit', (code) => process.exit(code ?? 1));
 for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, () => server.kill(signal));

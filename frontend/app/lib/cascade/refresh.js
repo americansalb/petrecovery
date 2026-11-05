@@ -168,32 +168,78 @@ export async function regenerateCaseAssets(caseData, { correlationId } = {}) {
 
 let refreshRunning = false;
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const rssMb = () => Math.round(process.memoryUsage().rss / (1024 * 1024));
+
 /**
- * Redraw the stale kits, one case at a time, newest report first.
+ * How much of the instance the server may be using before the next case is
+ * drawn. Each redraw decodes, crops and re-encodes the photo and draws six
+ * images from it, and much of that is native memory the heap limit does not
+ * see: eight redraws back to back took a 165 MB server to 625 MB, past the
+ * 512 MB a Render instance has, which is what paged the founder on
+ * 2026-11-05. With the heap capped and two malloc arenas (scripts/boot.js)
+ * twelve redraws now peak at 382 MB and settle at 376, so 400 leaves the
+ * pass running and the instance standing. KIT_REDRAW_RSS_BUDGET_MB
+ * overrides it for a bigger instance.
+ */
+export const RSS_BUDGET_MB = Number(process.env.KIT_REDRAW_RSS_BUDGET_MB) || 400;
+
+/**
+ * Wait until the process is under the budget, up to `maxWaitMs`. Returns
+ * the RSS it settled at, or null when it never came down: the caller stops
+ * rather than push the instance over.
+ */
+async function waitForRoom(budgetMb, { minPauseMs, maxWaitMs }) {
+  await sleep(minPauseMs);
+  const until = Date.now() + maxWaitMs;
+  let rss = rssMb();
+  while (rss > budgetMb && Date.now() < until) {
+    await sleep(2000);
+    rss = rssMb();
+  }
+  return rss > budgetMb ? null : rss;
+}
+
+/**
+ * Redraw the stale kits, one case at a time, newest report first, and only
+ * while the server has room: between cases it waits for memory to come
+ * back down, and if it does not within a minute and a half it stops and
+ * leaves the rest for the next pass (the next boot, or ?stale=1 by hand).
  *
- * @param {{limit?: number, pauseMs?: number}} [opts] at most `limit` cases
- *   this call; `pauseMs` of rest between cases
+ * @param {{limit?: number, pauseMs?: number, rssBudgetMb?: number, maxWaitMs?: number}} [opts]
+ *   at most `limit` cases this call; `pauseMs` of rest between cases;
+ *   `rssBudgetMb` the ceiling (Infinity to ignore memory, for tests);
+ *   `maxWaitMs` how long to wait for room before giving up
  * @returns {Promise<object>} what was done and how many are still stale
  */
-export async function refreshStaleKits({ limit = 50, pauseMs = 1500 } = {}) {
+export async function refreshStaleKits({ limit = 50, pauseMs = 5000, rssBudgetMb = RSS_BUDGET_MB, maxWaitMs = 90 * 1000 } = {}) {
   if (refreshRunning) return { version: RENDERER_VERSION, skipped: 'a refresh is already running' };
   refreshRunning = true;
   const started = Date.now();
   const cases = [];
   const failed = [];
+  let stopped = null;
   try {
     const stale = await findStaleCases({ limit });
     for (let i = 0; i < stale.length; i++) {
+      if (i > 0 && Number.isFinite(rssBudgetMb)) {
+        const rss = await waitForRoom(rssBudgetMb, { minPauseMs: pauseMs, maxWaitMs });
+        if (rss === null) {
+          stopped = `memory stayed at ${rssMb()} MB, over the ${rssBudgetMb} MB budget; ${stale.length - i} left for the next pass`;
+          break;
+        }
+      } else if (i > 0 && pauseMs > 0) {
+        await sleep(pauseMs);
+      }
       const c = stale[i];
       try {
         const outcome = await regenerateCaseAssets(c);
-        cases.push({ caseNumber: c.caseNumber, ...outcome });
+        cases.push({ caseNumber: c.caseNumber, rssMb: rssMb(), ...outcome });
         if (!/ready/.test(outcome.flyers) || !/ready/.test(outcome.social)) failed.push(c.caseNumber);
       } catch (err) {
         cases.push({ caseNumber: c.caseNumber, error: errText(err) });
         failed.push(c.caseNumber);
       }
-      if (pauseMs > 0 && i < stale.length - 1) await new Promise((r) => setTimeout(r, pauseMs));
     }
     const remaining = await countStaleCases();
     return {
@@ -202,6 +248,7 @@ export async function refreshStaleKits({ limit = 50, pauseMs = 1500 } = {}) {
       redrawn: cases.length - failed.length,
       failed,
       remaining,
+      ...(stopped ? { stopped } : {}),
       ms: Date.now() - started,
       cases,
     };
