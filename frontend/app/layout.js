@@ -1,5 +1,5 @@
 import './globals.css';
-import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
 import Navigation from './components/Navigation';
@@ -11,9 +11,12 @@ import PushNotificationProvider from './components/PushNotificationProvider';
 import { GPSProvider } from './lib/gpsService';
 import ClientProviders from './components/ClientProviders';
 
-// Load Inter font with optimal settings
-const inter = Inter({
-  subsets: ['latin'],
+// Inter, the body face, from the repo (app/fonts/files): the build used to
+// fetch it from Google Fonts, which failed every Render deploy for two weeks
+// (app/fonts/README.md).
+const inter = localFont({
+  src: './fonts/files/inter-latin-var.woff2',
+  weight: '100 900',
   display: 'swap',
   variable: '--font-inter',
 });

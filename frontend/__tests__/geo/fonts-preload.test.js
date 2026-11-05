@@ -12,7 +12,7 @@ const path = require('path');
 
 test("the Script families are not preloaded on every game page", () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../../app/geo/script/fonts.js'), 'utf8');
-  const calls = source.match(/\(\{ display: 'swap'[^)]*\}\)/g) || [];
+  const calls = source.match(/localFont\(\{[\s\S]*?\n\}\)/g) || [];
   expect(calls.length).toBeGreaterThan(20);
   for (const call of calls) expect(call).toContain('preload: false');
 });
