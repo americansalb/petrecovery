@@ -14,87 +14,226 @@
  * universal, so they fall back to the device and the tofu check in
  * ScriptSample tells the player if that bet was wrong on their machine.
  *
- * Every family is loaded with display: 'swap' and its own subset, so a
- * round shows its text immediately in whatever the device has and
- * upgrades when the real face arrives.
+ * The files are in the repo (app/fonts/files, one subset per script, the
+ * variable weight where Google publishes one; app/fonts/README.md says how
+ * they were taken). They used to come from Google Fonts at build time, and
+ * one of twenty-eight fetches failing took every Render deploy down with
+ * it for two weeks ("Cannot read properties of null (reading '1')" in
+ * next/font's loader on Noto Sans Myanmar).
  *
- * None of them is preloaded. next/font preloads every family a route's
- * modules declare, whether or not the page draws a word in it, so every
- * game page, the front door and the rankings included, asked for all
+ * Every family is loaded with display: 'swap', so a round shows its text
+ * immediately in whatever the device has and upgrades when the real face
+ * arrives. None of them is preloaded. next/font preloads every family a
+ * route's modules declare, whether or not the page draws a word in it, so
+ * every game page, the front door and the rankings included, asked for all
  * twenty-eight at once: 2.6 MB of fonts on a phone's first visit, one of
  * them 714 KB, ahead of the game's own code. A family's @font-face still
  * loads the moment a sentence in its script is on screen, which is the
  * only time it is needed.
  */
 
-import {
-  Noto_Sans_Adlam,
-  Noto_Sans_Arabic,
-  Noto_Sans_Armenian,
-  Noto_Sans_Bengali,
-  Noto_Sans_Canadian_Aboriginal,
-  Noto_Sans_Cherokee,
-  Noto_Sans_Devanagari,
-  Noto_Sans_Ethiopic,
-  Noto_Sans_Georgian,
-  Noto_Sans_Gujarati,
-  Noto_Sans_Gurmukhi,
-  Noto_Sans_Hebrew,
-  Noto_Sans_Kannada,
-  Noto_Sans_Khmer,
-  Noto_Sans_Lao,
-  Noto_Sans_Malayalam,
-  Noto_Sans_Meetei_Mayek,
-  Noto_Sans_Myanmar,
-  Noto_Sans_NKo,
-  Noto_Sans_Ol_Chiki,
-  Noto_Sans_Oriya,
-  Noto_Sans_Sinhala,
-  Noto_Sans_Tamil,
-  Noto_Sans_Telugu,
-  Noto_Sans_Thaana,
-  Noto_Sans_Thai,
-  Noto_Sans_Tifinagh,
-  Noto_Serif_Tibetan,
-} from 'next/font/google';
+import localFont from 'next/font/local';
 
 // next/font reads these calls at build time, so every argument has to
 // be a literal here: no shared options object, no spread, no loop.
-const arabic = Noto_Sans_Arabic({ display: 'swap', preload: false, weight: 'variable', subsets: ['arabic'], variable: '--font-s-arab' });
-const armenian = Noto_Sans_Armenian({ display: 'swap', preload: false, weight: 'variable', subsets: ['armenian'], variable: '--font-s-armn' });
-const bengali = Noto_Sans_Bengali({ display: 'swap', preload: false, weight: 'variable', subsets: ['bengali'], variable: '--font-s-beng' });
-const devanagari = Noto_Sans_Devanagari({ display: 'swap', preload: false, weight: 'variable', subsets: ['devanagari'], variable: '--font-s-deva' });
-const ethiopic = Noto_Sans_Ethiopic({ display: 'swap', preload: false, weight: 'variable', subsets: ['ethiopic'], variable: '--font-s-ethi' });
-const georgian = Noto_Sans_Georgian({ display: 'swap', preload: false, weight: 'variable', subsets: ['georgian'], variable: '--font-s-geor' });
-const gujarati = Noto_Sans_Gujarati({ display: 'swap', preload: false, weight: 'variable', subsets: ['gujarati'], variable: '--font-s-gujr' });
-const gurmukhi = Noto_Sans_Gurmukhi({ display: 'swap', preload: false, weight: 'variable', subsets: ['gurmukhi'], variable: '--font-s-guru' });
-const hebrew = Noto_Sans_Hebrew({ display: 'swap', preload: false, weight: 'variable', subsets: ['hebrew'], variable: '--font-s-hebr' });
-const kannada = Noto_Sans_Kannada({ display: 'swap', preload: false, weight: 'variable', subsets: ['kannada'], variable: '--font-s-knda' });
-const khmer = Noto_Sans_Khmer({ display: 'swap', preload: false, weight: 'variable', subsets: ['khmer'], variable: '--font-s-khmr' });
-const lao = Noto_Sans_Lao({ display: 'swap', preload: false, weight: 'variable', subsets: ['lao'], variable: '--font-s-laoo' });
-const malayalam = Noto_Sans_Malayalam({ display: 'swap', preload: false, weight: 'variable', subsets: ['malayalam'], variable: '--font-s-mlym' });
-const oriya = Noto_Sans_Oriya({ display: 'swap', preload: false, weight: 'variable', subsets: ['oriya'], variable: '--font-s-orya' });
-const sinhala = Noto_Sans_Sinhala({ display: 'swap', preload: false, weight: 'variable', subsets: ['sinhala'], variable: '--font-s-sinh' });
-const tamil = Noto_Sans_Tamil({ display: 'swap', preload: false, weight: 'variable', subsets: ['tamil'], variable: '--font-s-taml' });
-const telugu = Noto_Sans_Telugu({ display: 'swap', preload: false, weight: 'variable', subsets: ['telugu'], variable: '--font-s-telu' });
-const thai = Noto_Sans_Thai({ display: 'swap', preload: false, weight: 'variable', subsets: ['thai'], variable: '--font-s-thai' });
-// Google does not publish these three as variable fonts.
-const myanmar = Noto_Sans_Myanmar({ display: 'swap', preload: false, weight: ['400', '600'], subsets: ['myanmar'], variable: '--font-s-mymr' });
-const nko = Noto_Sans_NKo({ display: 'swap', preload: false, weight: ['400'], subsets: ['nko'], variable: '--font-s-nkoo' });
-const tifinagh = Noto_Sans_Tifinagh({ display: 'swap', preload: false, weight: ['400'], subsets: ['tifinagh'], variable: '--font-s-tfng' });
-
-// Scripts a phone almost certainly does not have. Thaana, Tibetan, Ol
-// Chiki, Meetei Mayek, Cherokee, Canadian syllabics, N'Ko, Adlam and
-// Tifinagh are each written for a handful of languages, and a device
-// that has never needed one will draw empty boxes for the whole round.
-// Bundling them is the difference between a hard round and a broken one.
-const adlam = Noto_Sans_Adlam({ display: 'swap', preload: false, weight: 'variable', subsets: ['adlam'], variable: '--font-s-adlm' });
-const canadian = Noto_Sans_Canadian_Aboriginal({ display: 'swap', preload: false, weight: 'variable', subsets: ['canadian-aboriginal'], variable: '--font-s-cans' });
-const cherokee = Noto_Sans_Cherokee({ display: 'swap', preload: false, weight: 'variable', subsets: ['cherokee'], variable: '--font-s-cher' });
-const meetei = Noto_Sans_Meetei_Mayek({ display: 'swap', preload: false, weight: 'variable', subsets: ['meetei-mayek'], variable: '--font-s-mtei' });
-const olchiki = Noto_Sans_Ol_Chiki({ display: 'swap', preload: false, weight: 'variable', subsets: ['ol-chiki'], variable: '--font-s-olck' });
-const thaana = Noto_Sans_Thaana({ display: 'swap', preload: false, weight: 'variable', subsets: ['thaana'], variable: '--font-s-thaa' });
-const tibetan = Noto_Serif_Tibetan({ display: 'swap', preload: false, weight: 'variable', subsets: ['tibetan'], variable: '--font-s-tibt' });
+const arabic = localFont({
+  src: '../../fonts/files/noto-arab-arabic-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-arab',
+});
+const armenian = localFont({
+  src: '../../fonts/files/noto-armn-armenian-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-armn',
+});
+const bengali = localFont({
+  src: '../../fonts/files/noto-beng-bengali-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-beng',
+});
+const devanagari = localFont({
+  src: '../../fonts/files/noto-deva-devanagari-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-deva',
+});
+const ethiopic = localFont({
+  src: '../../fonts/files/noto-ethi-ethiopic-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-ethi',
+});
+const georgian = localFont({
+  src: '../../fonts/files/noto-geor-georgian-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-geor',
+});
+const gujarati = localFont({
+  src: '../../fonts/files/noto-gujr-gujarati-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-gujr',
+});
+const gurmukhi = localFont({
+  src: '../../fonts/files/noto-guru-gurmukhi-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-guru',
+});
+const hebrew = localFont({
+  src: '../../fonts/files/noto-hebr-hebrew-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-hebr',
+});
+const kannada = localFont({
+  src: '../../fonts/files/noto-knda-kannada-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-knda',
+});
+const khmer = localFont({
+  src: '../../fonts/files/noto-khmr-khmer-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-khmr',
+});
+const lao = localFont({
+  src: '../../fonts/files/noto-laoo-lao-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-laoo',
+});
+const malayalam = localFont({
+  src: '../../fonts/files/noto-mlym-malayalam-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-mlym',
+});
+const oriya = localFont({
+  src: '../../fonts/files/noto-orya-oriya-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-orya',
+});
+const sinhala = localFont({
+  src: '../../fonts/files/noto-sinh-sinhala-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-sinh',
+});
+const tamil = localFont({
+  src: '../../fonts/files/noto-taml-tamil-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-taml',
+});
+const telugu = localFont({
+  src: '../../fonts/files/noto-telu-telugu-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-telu',
+});
+const thai = localFont({
+  src: '../../fonts/files/noto-thai-thai-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-thai',
+});
+const myanmar = localFont({
+  src: [
+    { path: '../../fonts/files/noto-mymr-myanmar-400.woff2', weight: '400', style: 'normal' },
+    { path: '../../fonts/files/noto-mymr-myanmar-600.woff2', weight: '600', style: 'normal' },
+  ],
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-mymr',
+});
+const nko = localFont({
+  src: '../../fonts/files/noto-nkoo-nko-400.woff2',
+  weight: '400',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-nkoo',
+});
+const tifinagh = localFont({
+  src: '../../fonts/files/noto-tfng-tifinagh-400.woff2',
+  weight: '400',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-tfng',
+});
+const adlam = localFont({
+  src: '../../fonts/files/noto-adlm-adlam-var.woff2',
+  weight: '400 700',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-adlm',
+});
+const canadian = localFont({
+  src: '../../fonts/files/noto-cans-canadian-aboriginal-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-cans',
+});
+const cherokee = localFont({
+  src: '../../fonts/files/noto-cher-cherokee-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-cher',
+});
+const meetei = localFont({
+  src: '../../fonts/files/noto-mtei-meetei-mayek-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-mtei',
+});
+const olchiki = localFont({
+  src: '../../fonts/files/noto-olck-ol-chiki-var.woff2',
+  weight: '400 700',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-olck',
+});
+const thaana = localFont({
+  src: '../../fonts/files/noto-thaa-thaana-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-thaa',
+});
+const tibetan = localFont({
+  src: '../../fonts/files/noto-tibt-tibetan-var.woff2',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+  variable: '--font-s-tibt',
+});
 
 export const scriptShowcaseFonts = [devanagari, tamil, ethiopic].map((font) => font.variable).join(' ');
 
