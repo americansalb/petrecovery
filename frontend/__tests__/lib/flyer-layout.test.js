@@ -9,7 +9,7 @@ jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholder
 import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, unboundedEm, fitUnbounded, UNBOUNDED, STICKER } from '@/app/lib/cascade/render/flyers/plan';
 import { normalizeFlyerData, zoneFor } from '@/app/lib/cascade/render/flyers/normalize';
 
-const used = (p) => p.top + p.sticker + p.gap + p.word + p.nameGap + p.name + p.lastSeenGap + p.lastSeen + p.factsGap + p.facts + p.pillGap + p.pill + p.tabsGap + p.tabs + p.bottom;
+const used = (p) => p.top + p.sticker + p.gap + p.word + p.nameGap + p.name + p.rowGap + p.row + p.pillGap + p.pill + p.tabsGap + p.tabs + p.bottom;
 
 describe('planSheet', () => {
   const WORDS = { stamp: 'LOST' };
@@ -17,8 +17,11 @@ describe('planSheet', () => {
   test('the sticker takes the room the fixed blocks leave, and fills the width', () => {
     const p = planSheet(PAGES.LETTER, { aspect: 1.42 }, WORDS);
     expect(p.contentW).toBe(612 - 60);
-    expect(p.sticker).toBeGreaterThan(360);
+    expect(p.sticker).toBeGreaterThan(320);
     expect(p.sticker).toBeLessThanOrEqual(p.contentW);
+    // The last-seen map has a row of its own, beside the facts.
+    expect(p.row).toBe(123);
+    expect(p.mapW).toBe(240);
     expect(p.frame).toEqual({ w: p.sticker, h: p.sticker });
     expect(p.frameAspect).toBe(1);
     expect(p.focalAt).toBe(0.5);
@@ -37,7 +40,7 @@ describe('planSheet', () => {
     const p = planSheet(PAGES.LETTER, null, WORDS);
     expect(p.hasPhoto).toBe(false);
     expect(p.frameAspect).toBeNull();
-    expect(p.sticker).toBeGreaterThan(360);
+    expect(p.sticker).toBeGreaterThan(320);
   });
 
   test('the word is set as large as the width allows; FOUND is wider and shrinks', () => {
@@ -137,8 +140,8 @@ describe('cropRect', () => {
 
   test('the share image stickers are square cuts, the sizes the boards draw', () => {
     expect(SOCIAL_FRAMES.og).toEqual({ w: 500, h: 500, focalAt: 0.5 });
-    expect(SOCIAL_FRAMES.square).toEqual({ w: 560, h: 560, focalAt: 0.5 });
-    expect(SOCIAL_FRAMES.story).toEqual({ w: 820, h: 820, focalAt: 0.5 });
+    expect(SOCIAL_FRAMES.square).toEqual({ w: 480, h: 480, focalAt: 0.5 });
+    expect(SOCIAL_FRAMES.story).toEqual({ w: 760, h: 760, focalAt: 0.5 });
   });
 });
 

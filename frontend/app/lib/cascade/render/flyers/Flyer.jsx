@@ -2,7 +2,7 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
 import { h, Fragment } from './pdfReact';
-import { Document, Font, Page, View, Text, Image } from '@react-pdf/renderer';
+import { Document, Font, Page, View, Text, Image, Svg, Circle } from '@react-pdf/renderer';
 import { PAGES, planSheet, planHalf, fitUnbounded, UNBOUNDED, STICKER } from './plan';
 
 // Break lines at spaces only; never hyphenate mid-word.
@@ -35,6 +35,8 @@ const C = {
   cream: '#fffbea',
   soft: '#3b3a2e',
   dash: '#0f172a',
+  lost: '#dc2626', // the pin: the brand's "lost" red
+  mapGround: '#eef2f8',
 };
 
 /* ---------------------------------------------------------------- helpers */
@@ -159,6 +161,76 @@ function QrTile({ data, size }) {
   );
 }
 
+/**
+ * The last-seen map: the cascade's tiles (render/staticMap.js) cropped
+ * around the pin, a red halo and dot on the spot, a dashed distance ring
+ * when one fits, "Last seen here" in a navy tag. Without a map (no point
+ * on record, or the tiles did not come), a cream tile says where to look.
+ */
+function MapTile({ data, w, h, k, radius }) {
+  const m = data.map;
+  const r = radius ?? 10 * k;
+  if (!m) {
+    return (
+      <View style={{ width: w, height: h, borderRadius: r, backgroundColor: C.cream, alignItems: 'center', justifyContent: 'center', padding: 10 * k }}>
+        <Text style={{ ...EYEBROW(7.5 * k, C.soft), textAlign: 'center' }}>Map at the link</Text>
+      </View>
+    );
+  }
+  const cx = w / 2;
+  const cy = h / 2;
+  const ox = cx - m.pin.x;
+  const oy = cy - m.pin.y;
+  const halo = Math.min(m.halo?.r || 20, Math.min(w, h) * 0.3);
+  const ring = m.ring && m.ring.r <= Math.min(w, h) * 0.46 ? m.ring : null;
+  return (
+    <View style={{ width: w, height: h, borderRadius: r, overflow: 'hidden', backgroundColor: C.mapGround, borderWidth: 2.25 * k, borderColor: C.navy }}>
+      <View style={{ position: 'absolute', left: ox, top: oy, width: m.width, height: m.height }}>
+        {m.tiles.map((t, i) => (
+          <Image key={i} src={t.src} style={{ position: 'absolute', left: t.left, top: t.top, width: 128, height: 128 }} />
+        ))}
+      </View>
+      {ring ? (
+        <Svg style={{ position: 'absolute', left: cx - ring.r, top: cy - ring.r }} width={ring.r * 2} height={ring.r * 2} viewBox={`0 0 ${ring.r * 2} ${ring.r * 2}`}>
+          <Circle cx={ring.r} cy={ring.r} r={ring.r - 1} fill="none" stroke={C.navy} strokeWidth={1.2} strokeDasharray="4 3" />
+        </Svg>
+      ) : null}
+      <Svg style={{ position: 'absolute', left: cx - halo, top: cy - halo }} width={halo * 2} height={halo * 2} viewBox={`0 0 ${halo * 2} ${halo * 2}`}>
+        <Circle cx={halo} cy={halo} r={halo - 1.5} fill={C.lost} fillOpacity={0.2} stroke={C.lost} strokeWidth={2} />
+      </Svg>
+      <Svg style={{ position: 'absolute', left: cx - 7, top: cy - 7 }} width={14} height={14} viewBox="0 0 14 14">
+        <Circle cx={7} cy={7} r={5.2} fill={C.lost} stroke={C.cream} strokeWidth={2} />
+      </Svg>
+      <View style={{ position: 'absolute', left: 6 * k, top: 6 * k, backgroundColor: C.navy, borderRadius: 999, paddingVertical: 2.5 * k, paddingHorizontal: 7 * k }}>
+        <Text style={EYEBROW(6 * k, C.cream)}>Last seen here</Text>
+      </View>
+      {ring ? (
+        <View style={{ position: 'absolute', right: 6 * k, bottom: 7 * k, backgroundColor: C.cream, borderRadius: 999, paddingVertical: 2 * k, paddingHorizontal: 6 * k }}>
+          <Text style={EYEBROW(5.5 * k, C.navy)}>{`${ring.label} ring`}</Text>
+        </View>
+      ) : null}
+      <View style={{ position: 'absolute', left: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 3, paddingVertical: 1 }}>
+        <Text style={{ fontFamily: 'Inter', fontSize: 4.5, color: C.soft }}>{m.attribution}</Text>
+      </View>
+    </View>
+  );
+}
+
+/** Where and when, then what to look for, beside the map. */
+function Where({ data, k, w, lines = 3 }) {
+  return (
+    <View style={{ width: w, justifyContent: 'center' }}>
+      <Text style={EYEBROW(8.25 * k)}>Last seen</Text>
+      {data.lastSeenWhen ? <Text maxLines={1} style={{ ...BODY(13.5 * k, C.navy, 700), marginTop: 2 * k, lineHeight: 1.2 }}>{data.lastSeenWhen}</Text> : null}
+      <Text maxLines={2} style={{ ...BODY(10.5 * k, C.soft, 500), lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
+      <Text maxLines={lines} style={{ ...BODY(11.25 * k), marginTop: 7 * k }}>
+        {data.lookFor}
+        {data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : ''}
+      </Text>
+    </View>
+  );
+}
+
 /** "LAST SEEN  Wed, Nov 4  Sach'a Yuntas" on one line, centred or not. */
 function LastSeen({ data, k, align = 'center', w }) {
   return (
@@ -214,11 +286,11 @@ function Sheet({ data, plan, photoSrc }) {
         <TightLine size={plan.wordSize}>{data.stamp}</TightLine>
       </View>
       <Text maxLines={1} style={{ ...NAME(fitInter(data.coverLine, contentW, 27 * k, 14 * k)), textAlign: 'center', marginTop: plan.nameGap, height: plan.name }}>{data.coverLine}</Text>
-      <View style={{ marginTop: plan.lastSeenGap, height: plan.lastSeen }}>
-        <LastSeen data={data} k={k} w={contentW} />
-      </View>
-      <View style={{ marginTop: plan.factsGap, height: plan.facts, alignItems: 'center' }}>
-        <Facts data={data} k={k} w={contentW - 60 * k} />
+      <View style={{ marginTop: plan.rowGap, height: plan.row, flexDirection: 'row' }}>
+        <MapTile data={data} w={plan.mapW} h={plan.row} k={k} />
+        <View style={{ marginLeft: plan.rowGapX, width: contentW - plan.mapW - plan.rowGapX, height: plan.row }}>
+          <Where data={data} k={k} w={contentW - plan.mapW - plan.rowGapX} />
+        </View>
       </View>
       <View style={{ marginTop: plan.pillGap, flexDirection: 'row', alignItems: 'center' }}>
         <Pill data={data} w={pillW} h={plan.pill} k={k} />
@@ -261,6 +333,9 @@ function Half({ data, plan, photoSrc, cut }) {
         </View>
         <View style={{ marginTop: 4 }}>
           <Facts data={data} k={k} w={detailsW} lines={3} align="left" />
+        </View>
+        <View style={{ marginTop: 8 }}>
+          <MapTile data={data} w={detailsW} h={96} k={k} />
         </View>
         <View style={{ flex: 1 }} />
         <Pill data={data} w={detailsW} h={62} k={k} phoneBase={26} align="flex-start" />

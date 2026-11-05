@@ -5,9 +5,9 @@
  *
  * The flyer is a sticker on a yellow sheet. The pet's photo is cut into a
  * circle with a cream ring and a hard navy shadow, as big as the sheet
- * allows. Under it, centred: LOST in a wide face, the name, where and
- * when, two lines of what to look for, and the phone number inside a navy
- * pill. The reward is a cream tag on the sticker; the QR code sits in a
+ * allows. Under it, centred: LOST in a wide face and the name; then the
+ * last-seen map beside where, when and what to look for; then the phone
+ * number inside a navy pill. The reward is a cream tag on the sticker; the QR code sits in a
  * cream tile beside the pill; tear tabs run along the foot on a cream
  * strip. Every block under the sticker has a set height; the sticker
  * takes what is left.
@@ -73,12 +73,12 @@ export function blocks(k = 1) {
     wordMax: 88 * k, // LOST at its largest (118 px)
     name: 30 * k, // "Milo, a tabby"
     nameGap: 7.5 * k,
-    lastSeen: 15 * k,
-    lastSeenGap: 7.5 * k,
-    facts: 36 * k, // two lines
-    factsGap: 4.5 * k,
-    pillGap: 15 * k,
-    pill: 84 * k, // the eyebrow and the phone on navy
+    rowGap: 10.5 * k,
+    row: 123 * k, // the last-seen map beside where, when and what to look for
+    mapW: 240 * k, // the map's width in that row
+    rowGapX: 15 * k,
+    pillGap: 12 * k,
+    pill: 75 * k, // the eyebrow and the phone on navy
     tabsGap: 12,
     tabs: 54,
     bottom: 10.5,
@@ -98,7 +98,7 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = 
   const aspect = photo?.aspect && Number.isFinite(photo.aspect) && photo.aspect > 0 ? photo.aspect : null;
   const wordSize = fitUnbounded(stamp, contentW, b.wordMax, 40 * k);
   const word = wordSize * UNBOUNDED.cap;
-  const below = b.gap + word + b.nameGap + b.name + b.lastSeenGap + b.lastSeen + b.factsGap + b.facts + b.pillGap + b.pill + tabsH + bottom;
+  const below = b.gap + word + b.nameGap + b.name + b.rowGap + b.row + b.pillGap + b.pill + tabsH + bottom;
   const room = page.h - b.top - below;
   const sticker = Math.floor(Math.min(contentW - 2 * STICKER.shadow * contentW, room));
   // A sticker held back by the width (the poster) leaves slack; it goes above and below.
@@ -115,10 +115,10 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = 
     word,
     name: b.name,
     nameGap: b.nameGap,
-    lastSeen: b.lastSeen,
-    lastSeenGap: b.lastSeenGap,
-    facts: b.facts,
-    factsGap: b.factsGap,
+    rowGap: b.rowGap,
+    row: b.row,
+    mapW: b.mapW,
+    rowGapX: b.rowGapX,
     pillGap: b.pillGap,
     pill: b.pill,
     tabs: tabs ? b.tabs : 0,
@@ -179,6 +179,6 @@ export function cropRect(w, h, focal, aspect, focalAt = 0.5) {
 /** The share images' stickers (px): a square cut, drawn as a circle, this big. */
 export const SOCIAL_FRAMES = {
   og: { w: 500, h: 500, focalAt: 0.5 },
-  square: { w: 560, h: 560, focalAt: 0.5 },
-  story: { w: 820, h: 820, focalAt: 0.5 },
+  square: { w: 480, h: 480, focalAt: 0.5 },
+  story: { w: 760, h: 760, focalAt: 0.5 },
 };

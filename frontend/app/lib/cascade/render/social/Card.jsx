@@ -19,6 +19,8 @@ const YEL = '#facc15';
 const NAVY = '#0f172a';
 const CREAM = '#fffbea';
 const SOFT = '#3b3a2e';
+const LOST = '#dc2626';
+const MAP_GROUND = '#eef2f8';
 
 const Row = ({ style, children }) => <div style={{ display: 'flex', flexDirection: 'row', ...style }}>{children}</div>;
 const Col = ({ style, children }) => <div style={{ display: 'flex', flexDirection: 'column', ...style }}>{children}</div>;
@@ -90,6 +92,53 @@ function QrTile({ data, size }) {
   );
 }
 
+/**
+ * The last-seen map (see Flyer.jsx MapTile). The cascade's tiles are in
+ * points, drawn here at 1.5× so street names stay readable on a screen.
+ */
+function MapTile({ data, w, h, radius = 14 }) {
+  const m = data.map;
+  if (!m) {
+    return (
+      <Col style={{ width: w, height: h, borderRadius: radius, backgroundColor: CREAM, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Txt style={eyebrow(11, SOFT)}>Map at the link</Txt>
+      </Col>
+    );
+  }
+  const sc = 1.5;
+  const cx = w / 2;
+  const cy = h / 2;
+  const ox = cx - m.pin.x * sc;
+  const oy = cy - m.pin.y * sc;
+  const halo = Math.min((m.halo?.r || 20) * sc, Math.min(w, h) * 0.3);
+  const ring = m.ring && m.ring.r * sc <= Math.min(w, h) * 0.46 ? { r: m.ring.r * sc, label: m.ring.label } : null;
+  return (
+    <div style={{ display: 'flex', position: 'relative', width: w, height: h, borderRadius: radius, overflow: 'hidden', backgroundColor: MAP_GROUND, border: `3px solid ${NAVY}`, flexShrink: 0 }}>
+      {m.tiles.map((t, i) => (
+        <img key={i} src={t.src} width={128 * sc} height={128 * sc} style={{ position: 'absolute', left: ox + t.left * sc, top: oy + t.top * sc, width: 128 * sc, height: 128 * sc }} />
+      ))}
+      {ring ? <div style={{ position: 'absolute', left: cx - ring.r, top: cy - ring.r, width: ring.r * 2, height: ring.r * 2, borderRadius: ring.r, border: `2px dashed ${NAVY}` }} /> : null}
+      <div style={{ position: 'absolute', left: cx - halo, top: cy - halo, width: halo * 2, height: halo * 2, borderRadius: halo, backgroundColor: 'rgba(220, 38, 38, 0.2)', border: `3px solid ${LOST}` }} />
+      <div style={{ position: 'absolute', left: cx - 10, top: cy - 10, width: 20, height: 20, borderRadius: 10, backgroundColor: LOST, border: `3px solid ${CREAM}` }} />
+      <Txt style={{ position: 'absolute', left: 10, top: 10, backgroundColor: NAVY, borderRadius: 999, padding: '4px 10px', ...eyebrow(10, CREAM) }}>Last seen here</Txt>
+      {ring ? <Txt style={{ position: 'absolute', right: 10, bottom: 10, backgroundColor: CREAM, borderRadius: 999, padding: '3px 8px', ...eyebrow(9, NAVY) }}>{`${ring.label} ring`}</Txt> : null}
+      <Txt style={{ position: 'absolute', left: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.85)', padding: '1px 4px', fontFamily: 'Inter', fontSize: 8, color: SOFT }}>{m.attribution}</Txt>
+    </div>
+  );
+}
+
+/** Where and when, then what to look for, beside the map. */
+function Where({ data, size, width, lines = 3 }) {
+  return (
+    <Col style={{ width, justifyContent: 'center' }}>
+      <Txt style={eyebrow(size * 0.72)}>Last seen</Txt>
+      {data.lastSeenWhen ? <Txt style={{ ...body(size * 1.15, NAVY, 700), marginTop: 2, lineHeight: 1.2 }}>{data.lastSeenWhen}</Txt> : null}
+      <Txt style={{ ...body(size * 0.92, SOFT, 500), width, lineClamp: 2, lineHeight: 1.3 }}>{data.lastSeenArea}</Txt>
+      <Txt style={{ ...body(size), width, lineClamp: lines, marginTop: size * 0.5 }}>{lookForLine(data)}</Txt>
+    </Col>
+  );
+}
+
 function LastSeen({ data, size, width, align = 'center' }) {
   return (
     <Row style={{ width, alignItems: 'baseline', justifyContent: align === 'center' ? 'center' : 'flex-start', ...body(size, SOFT, 400), whiteSpace: 'nowrap', overflow: 'hidden' }}>
@@ -116,12 +165,12 @@ function Og({ data, src }) {
       <Col style={{ position: 'absolute', left: 640, top: 60, width: W }}>
         <Txt style={disp(fitUnbounded(data.stamp, W, 132, 60))}>{data.stamp}</Txt>
         <Txt style={{ ...name(34), marginTop: 12, width: W, lineClamp: 1 }}>{data.coverLine}</Txt>
-        <Col style={{ marginTop: 10 }}>
-          <LastSeen data={data} size={15} width={W} align="left" />
-        </Col>
-        <Col style={{ marginTop: 8 }}>
-          <Facts data={data} size={17} width={W} align="left" />
-        </Col>
+        <Row style={{ marginTop: 14, height: 150 }}>
+          <MapTile data={data} w={210} h={150} />
+          <Col style={{ marginLeft: 14, width: W - 224 }}>
+            <Where data={data} size={15} width={W - 224} />
+          </Col>
+        </Row>
       </Col>
       <Col style={{ position: 'absolute', left: 640, bottom: 56, width: W }}>
         <Pill data={data} w={W} phoneMax={42} eye={12} />
@@ -134,15 +183,15 @@ function Square({ data, src }) {
   const W = 1000;
   return (
     <Col style={{ width: 1080, height: 1080, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '56px 40px 40px' }}>
-      <Sticker data={data} src={src} size={560} />
-      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 132, 60)), marginTop: 26 }}>{data.stamp}</Txt>
-      <Txt style={{ ...name(36), marginTop: 10, lineClamp: 1 }}>{data.coverLine}</Txt>
-      <Col style={{ marginTop: 10 }}>
-        <LastSeen data={data} size={16} width={W} />
-      </Col>
-      <Col style={{ marginTop: 6 }}>
-        <Facts data={data} size={18} width={860} />
-      </Col>
+      <Sticker data={data} src={src} size={480} />
+      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 120, 60)), marginTop: 24 }}>{data.stamp}</Txt>
+      <Txt style={{ ...name(34), marginTop: 10, lineClamp: 1 }}>{data.coverLine}</Txt>
+      <Row style={{ marginTop: 14, width: W, height: 160 }}>
+        <MapTile data={data} w={400} h={160} />
+        <Col style={{ marginLeft: 16, width: W - 416 }}>
+          <Where data={data} size={17} width={W - 416} />
+        </Col>
+      </Row>
       <Col style={{ flexGrow: 1 }} />
       <Row style={{ width: W, alignItems: 'center' }}>
         <Pill data={data} w={data.qrDataUrl ? W - 116 : W} phoneMax={50} eye={13} />
@@ -160,15 +209,15 @@ function Story({ data, src }) {
   const W = 968;
   return (
     <Col style={{ width: 1080, height: 1920, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '150px 56px 140px' }}>
-      <Sticker data={data} src={src} size={820} />
-      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 200, 80)), marginTop: 40 }}>{data.stamp}</Txt>
-      <Txt style={{ ...name(50), marginTop: 14, lineClamp: 1 }}>{data.coverLine}</Txt>
-      <Col style={{ marginTop: 14 }}>
-        <LastSeen data={data} size={22} width={W} />
-      </Col>
-      <Col style={{ marginTop: 8 }}>
-        <Facts data={data} size={26} width={880} />
-      </Col>
+      <Sticker data={data} src={src} size={760} />
+      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 180, 80)), marginTop: 36 }}>{data.stamp}</Txt>
+      <Txt style={{ ...name(48), marginTop: 14, lineClamp: 1 }}>{data.coverLine}</Txt>
+      <Row style={{ marginTop: 24, width: W, height: 250 }}>
+        <MapTile data={data} w={440} h={250} radius={20} />
+        <Col style={{ marginLeft: 24, width: W - 464 }}>
+          <Where data={data} size={24} width={W - 464} />
+        </Col>
+      </Row>
       <Col style={{ flexGrow: 1 }} />
       <Row style={{ width: W, alignItems: 'center' }}>
         <Pill data={data} w={data.qrDataUrl ? W - 166 : W} phoneMax={72} eye={17} />
