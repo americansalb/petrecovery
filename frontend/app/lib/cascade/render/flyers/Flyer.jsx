@@ -2,8 +2,8 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
 import { h, Fragment } from './pdfReact';
-import { Document, Font, Page, View, Text, Image } from '@react-pdf/renderer';
-import { PAGES, planSheet, planHalf, fitFraunces, FRAUNCES } from './plan';
+import { Document, Font, Page, View, Text, Image, Svg, Circle } from '@react-pdf/renderer';
+import { PAGES, planSheet, planHalf, fitUnbounded, UNBOUNDED, STICKER } from './plan';
 
 // Break lines at spaces only; never hyphenate mid-word.
 Font.registerHyphenationCallback((word) => [word]);
@@ -12,32 +12,31 @@ Font.registerHyphenationCallback((word) => [word]);
  * The flyer PDFs, drawn from the Claude Design canvas "Lost Pet Flyers,
  * second design" (design px × 0.75 = pt).
  *
- * A cover. The photo bleeds off the top and the sides of the sheet, cut
- * around the pet, with nothing on it: it is the evidence, and a word over
- * it would hide an ear or darken a coat. Under it, on warm paper, one
- * line: LOST in red and "Milo, a tabby cat" in the italic, both in
- * Fraunces, as large as the width allows. Then where and when, two lines
- * of what to look for, the phone number in the same face, the reward, the
- * QR code, and tear tabs. Paper, ink, one red.
+ * A sticker on a yellow sheet. The pet's photo, cut into a circle with a
+ * cream ring and a hard navy shadow, as big as the sheet allows. Under
+ * it, centred: LOST in Unbounded, a wide face; the name; where and when;
+ * two lines of what to look for; and the phone number inside a navy pill,
+ * the one thing to do. The reward is a cream tag on the sticker, the QR
+ * code a cream tile beside the pill, the tear tabs a cream strip along
+ * the foot. Yellow, navy, cream: the site's own colours.
  *
- * The layout comes from ./plan.js: every block under the photo has a set
- * height and the photo takes what is left. The photo arrives already cut
- * to that shape (index.js, render/photo.js) with the face set just above
- * the frame's middle.
+ * The layout comes from ./plan.js: every block under the sticker has a
+ * set height and the sticker takes what is left. The photo arrives already
+ * cut square around the pet (index.js, render/photo.js).
  *
  *  - FLYER_LETTER: Letter, tear tabs at the foot.
- *  - FLYER_HALF: two half sheets on one Letter page, the photo in a column.
+ *  - FLYER_HALF: two half sheets on one Letter page, the sticker beside the words.
  *  - FLYER_POSTER: 11 × 17, the Letter sheet scaled, no tabs.
  */
 
 const C = {
-  paper: '#f7f4ee',
-  ink: '#1c1917',
-  muted: '#78716c',
-  red: '#b91c1c',
-  line: '#ddd6ca',
-  dash: '#c4bbab',
-  nophoto: '#e9e2d6',
+  yellow: '#facc15',
+  navy: '#0f172a',
+  cream: '#fffbea',
+  soft: '#3b3a2e',
+  dash: '#0f172a',
+  lost: '#dc2626', // the pin: the brand's "lost" red
+  mapGround: '#eef2f8',
 };
 
 /* ---------------------------------------------------------------- helpers */
@@ -58,40 +57,35 @@ function interEm(text) {
 }
 const fitInter = (text, maxW, base, min) => Math.max(min, Math.min(base, maxW / (interEm(text) || 1)));
 
-const BODY = (fs, color = C.ink, weight = 500) => ({ fontFamily: 'Inter', fontWeight: weight, fontSize: fs, lineHeight: 1.4, color });
-const EYEBROW = (fs, color = C.muted) => ({
+const BODY = (fs, color = C.navy, weight = 500) => ({ fontFamily: 'Inter', fontWeight: weight, fontSize: fs, lineHeight: 1.4, color });
+const NAME = (fs, color = C.navy) => ({ fontFamily: 'Inter', fontWeight: 800, fontSize: fs, lineHeight: 1.1, letterSpacing: -fs * 0.02, color });
+const EYEBROW = (fs, color = C.navy) => ({
   fontFamily: 'Inter',
   fontWeight: 700,
   fontSize: fs,
-  letterSpacing: fs * 0.15,
+  letterSpacing: fs * 0.14,
   textTransform: 'uppercase',
   color,
 });
-const MONO = (fs, color = C.muted) => ({ fontFamily: 'Courier', fontSize: fs, color, lineHeight: 1.3 });
 
 /**
- * One line of Fraunces that takes exactly its cap height on the sheet and
- * ends on its baseline: the line box is pulled up by the air above the
- * caps (FRAUNCES.top) and trimmed to the baseline, so a word sits tight on
- * what follows and two lines of different sizes share a baseline when
- * their row aligns them at the end. react-pdf drops a line that does not
+ * One line of Unbounded that takes exactly its cap height on the sheet:
+ * the line box is pulled up by the air above the caps and trimmed to the
+ * baseline (UNBOUNDED in plan.js). react-pdf drops a line that does not
  * fit a fixed-height box, so the box here is never fixed.
  */
-function TightLine({ size, color = C.ink, italic = false, style = {}, children }) {
-  const font = italic ? { fontFamily: 'Fraunces', fontWeight: 600, fontStyle: 'italic' } : { fontFamily: 'Fraunces', fontWeight: 900 };
+function TightLine({ size, color = C.navy, style = {}, children }) {
   return (
-    <View style={{ marginTop: -FRAUNCES.top * size, marginBottom: (FRAUNCES.top + FRAUNCES.cap - 1) * size, ...style }}>
-      <Text maxLines={1} style={{ ...font, fontSize: size, lineHeight: 1, letterSpacing: italic ? -size * 0.01 : -size * 0.03, color }}>
+    <View style={{ marginTop: -UNBOUNDED.top * size, marginBottom: (UNBOUNDED.top + UNBOUNDED.cap - 1) * size, ...style }}>
+      <Text maxLines={1} style={{ fontFamily: 'Unbounded', fontSize: size, lineHeight: 1, letterSpacing: -size * 0.02, color }}>
         {children}
       </Text>
     </View>
   );
 }
 
-/** "$500 reward" or "Reward offered" */
 const rewardLine = (data) => (data.reward === 'REWARD' ? 'Reward offered' : `${data.reward} reward`);
 
-/** "Seen Milo? Call or text, any hour" */
 function contactEyebrow(data) {
   const who = `Seen ${data.petName}?`;
   if (data.hasPhone) return `${who} Call or text, any hour`;
@@ -101,49 +95,135 @@ function contactEyebrow(data) {
 
 /* ------------------------------------------------------------- primitives */
 
-/** The photo, filling its frame; without one, the description in its place. */
-function Photo({ data, src, w, h, k }) {
-  if (src) return <Image src={src} style={{ width: w, height: h, objectFit: 'cover' }} />;
+/** The photo as a round sticker: a cream ring, a hard navy shadow, the reward as a tag. Without a photo, the description in the circle. */
+function Sticker({ data, src, size, k, style = {} }) {
+  const ring = Math.round(size * STICKER.ring);
+  const off = Math.round(size * STICKER.shadow);
+  const inner = size - ring * 2;
   return (
-    <View style={{ width: w, height: h, backgroundColor: C.nophoto, paddingHorizontal: 30 * k, justifyContent: 'center' }}>
-      <Text style={{ ...EYEBROW(9 * k, C.muted), marginBottom: 10 * k }}>No photo yet. Please go by this.</Text>
-      <Text style={{ fontFamily: 'Fraunces', fontWeight: 600, fontStyle: 'italic', fontSize: fitFraunces(data.description || data.lookFor, w * 2.4, 27 * k, 15 * k), lineHeight: 1.15, color: C.ink }}>
-        {data.description || data.lookFor}
-      </Text>
-      <Text style={{ ...BODY(10.5 * k, C.muted), marginTop: 12 * k }}>A photo goes on the page at the link as soon as the family adds one. Scan the code to see it.</Text>
+    <View style={{ position: 'relative', width: size + off, height: size + off, ...style }}>
+      <View style={{ position: 'absolute', left: off, top: off, width: size, height: size, borderRadius: size / 2, backgroundColor: C.navy }} />
+      <View style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, backgroundColor: C.cream, alignItems: 'center', justifyContent: 'center' }}>
+        {src ? (
+          <Image src={src} style={{ width: inner, height: inner, borderRadius: inner / 2, objectFit: 'cover' }} />
+        ) : (
+          <View style={{ width: inner, height: inner, borderRadius: inner / 2, backgroundColor: C.cream, paddingHorizontal: inner * 0.14, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ ...EYEBROW(7.5 * k, C.soft), textAlign: 'center', marginBottom: 8 * k }}>No photo yet. Please go by this.</Text>
+            <Text style={{ ...NAME(fitInter(data.description || data.lookFor, inner * 2.2, 18 * k, 10 * k)), textAlign: 'center', lineHeight: 1.2 }}>{data.description || data.lookFor}</Text>
+            <Text style={{ ...BODY(8.25 * k, C.soft), textAlign: 'center', marginTop: 8 * k }}>A photo goes on the page at the link as soon as the family adds one.</Text>
+          </View>
+        )}
+      </View>
+      {data.reward ? (
+        <View
+          style={{
+            position: 'absolute',
+            right: -3 * k,
+            top: size * 0.08,
+            backgroundColor: C.cream,
+            borderWidth: 2.25 * k,
+            borderColor: C.navy,
+            borderRadius: 999,
+            paddingVertical: 6 * k,
+            paddingHorizontal: 13 * k,
+          }}
+        >
+          <Text style={EYEBROW(Math.round(size * 0.034))}>{rewardLine(data)}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-/** LOST in red and "Milo, a tabby cat" in the italic: one line, or two when the line is long. */
-function WordLine({ data, word, w, gap }) {
-  if (word.stacked) {
+/** The navy pill: the eyebrow in yellow, the phone in cream, centred. */
+function Pill({ data, w, h, k, phoneBase = 34.5, align = 'center' }) {
+  const padX = 24 * k;
+  const phone = fitUnbounded(data.contactValue, w - padX * 2, phoneBase * k, 10 * k);
+  return (
+    <View style={{ width: w, height: h, backgroundColor: C.navy, borderRadius: h / 2, paddingHorizontal: padX, alignItems: align, justifyContent: 'center' }}>
+      <Text maxLines={1} style={EYEBROW(9 * k, C.yellow)}>{contactEyebrow(data)}</Text>
+      <View style={{ marginTop: 7 * k }}>
+        <TightLine size={phone} color={C.cream}>{data.contactValue}</TightLine>
+      </View>
+      <View style={{ height: 5 * k }} />
+    </View>
+  );
+}
+
+/** The QR code in a cream tile. */
+function QrTile({ data, size }) {
+  if (!data.qrDataUrl) return null;
+  const pad = Math.round(size * 0.09);
+  return (
+    <View style={{ width: size, height: size, backgroundColor: C.cream, borderRadius: size * 0.16, padding: pad }}>
+      <Image src={data.qrDataUrl} style={{ width: size - pad * 2, height: size - pad * 2 }} />
+    </View>
+  );
+}
+
+/**
+ * The last-seen map: the cascade's tiles (render/staticMap.js) cropped
+ * around the pin, a red halo and dot on the spot, a dashed distance ring
+ * when one fits, "Last seen here" in a navy tag. Without a map (no point
+ * on record, or the tiles did not come), a cream tile says where to look.
+ */
+function MapTile({ data, w, h, k, radius }) {
+  const m = data.map;
+  const r = radius ?? 10 * k;
+  if (!m) {
     return (
-      <View style={{ width: w }}>
-        <TightLine size={word.wordSize} color={data.accentDeep}>{data.stamp}</TightLine>
-        <TightLine size={word.lineSize} italic style={{ marginTop: word.lineSize * 0.45 }}>{data.coverLine}</TightLine>
+      <View style={{ width: w, height: h, borderRadius: r, backgroundColor: C.cream, alignItems: 'center', justifyContent: 'center', padding: 10 * k }}>
+        <Text style={{ ...EYEBROW(7.5 * k, C.soft), textAlign: 'center' }}>Map at the link</Text>
       </View>
     );
   }
+  const cx = w / 2;
+  const cy = h / 2;
+  const ox = cx - m.pin.x;
+  const oy = cy - m.pin.y;
+  const halo = Math.min(m.halo?.r || 20, Math.min(w, h) * 0.3);
+  const ring = m.ring && m.ring.r <= Math.min(w, h) * 0.46 ? m.ring : null;
   return (
-    <View style={{ width: w, flexDirection: 'row', alignItems: 'flex-end' }}>
-      <TightLine size={word.wordSize} color={data.accentDeep}>{data.stamp}</TightLine>
-      <TightLine size={word.lineSize} italic style={{ marginLeft: gap, flexShrink: 1 }}>{data.coverLine}</TightLine>
+    <View style={{ width: w, height: h, borderRadius: r, overflow: 'hidden', backgroundColor: C.mapGround, borderWidth: 2.25 * k, borderColor: C.navy }}>
+      <View style={{ position: 'absolute', left: ox, top: oy, width: m.width, height: m.height }}>
+        {m.tiles.map((t, i) => (
+          <Image key={i} src={t.src} style={{ position: 'absolute', left: t.left, top: t.top, width: 128, height: 128 }} />
+        ))}
+      </View>
+      {ring ? (
+        <Svg style={{ position: 'absolute', left: cx - ring.r, top: cy - ring.r }} width={ring.r * 2} height={ring.r * 2} viewBox={`0 0 ${ring.r * 2} ${ring.r * 2}`}>
+          <Circle cx={ring.r} cy={ring.r} r={ring.r - 1} fill="none" stroke={C.navy} strokeWidth={1.2} strokeDasharray="4 3" />
+        </Svg>
+      ) : null}
+      <Svg style={{ position: 'absolute', left: cx - halo, top: cy - halo }} width={halo * 2} height={halo * 2} viewBox={`0 0 ${halo * 2} ${halo * 2}`}>
+        <Circle cx={halo} cy={halo} r={halo - 1.5} fill={C.lost} fillOpacity={0.2} stroke={C.lost} strokeWidth={2} />
+      </Svg>
+      <Svg style={{ position: 'absolute', left: cx - 7, top: cy - 7 }} width={14} height={14} viewBox="0 0 14 14">
+        <Circle cx={7} cy={7} r={5.2} fill={C.lost} stroke={C.cream} strokeWidth={2} />
+      </Svg>
+      <View style={{ position: 'absolute', left: 6 * k, top: 6 * k, backgroundColor: C.navy, borderRadius: 999, paddingVertical: 2.5 * k, paddingHorizontal: 7 * k }}>
+        <Text style={EYEBROW(6 * k, C.cream)}>Last seen here</Text>
+      </View>
+      {ring ? (
+        <View style={{ position: 'absolute', right: 6 * k, bottom: 7 * k, backgroundColor: C.cream, borderRadius: 999, paddingVertical: 2 * k, paddingHorizontal: 6 * k }}>
+          <Text style={EYEBROW(5.5 * k, C.navy)}>{`${ring.label} ring`}</Text>
+        </View>
+      ) : null}
+      <View style={{ position: 'absolute', left: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 3, paddingVertical: 1 }}>
+        <Text style={{ fontFamily: 'Inter', fontSize: 4.5, color: C.soft }}>{m.attribution}</Text>
+      </View>
     </View>
   );
 }
 
-/** Where and when, then two lines of what to look for. */
-function Facts({ data, w, k, lines = 2, lastSeen = 15, facts = 36, gap = 4.5 }) {
+/** Where and when, then what to look for, beside the map. */
+function Where({ data, k, w, lines = 3 }) {
   return (
-    <View style={{ width: w }}>
-      <Text maxLines={1} style={{ ...BODY(11.25 * k, C.muted, 400), height: lastSeen, lineHeight: 1.2 }}>
-        <Text style={EYEBROW(8.25 * k, C.red)}>Last seen  </Text>
-        <Text style={{ fontWeight: 600, color: C.ink }}>{data.lastSeenWhen}</Text>
-        {data.lastSeenWhen ? '   ' : ''}
-        {data.lastSeenArea}
-      </Text>
-      <Text maxLines={lines} style={{ ...BODY(12.75 * k), height: facts, marginTop: gap }}>
+    <View style={{ width: w, justifyContent: 'center' }}>
+      <Text style={EYEBROW(8.25 * k)}>Last seen</Text>
+      {data.lastSeenWhen ? <Text maxLines={1} style={{ ...BODY(13.5 * k, C.navy, 700), marginTop: 2 * k, lineHeight: 1.2 }}>{data.lastSeenWhen}</Text> : null}
+      <Text maxLines={2} style={{ ...BODY(10.5 * k, C.soft, 500), lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
+      <Text maxLines={lines} style={{ ...BODY(11.25 * k), marginTop: 7 * k }}>
         {data.lookFor}
         {data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : ''}
       </Text>
@@ -151,48 +231,39 @@ function Facts({ data, w, k, lines = 2, lastSeen = 15, facts = 36, gap = 4.5 }) 
   );
 }
 
-/** The rule, the eyebrow, the phone in the cover's face; the reward, the link and the QR code at the right. */
-function Contact({ data, w, h, k, phoneBase = 52.5, qr = 60, urlW = 108, url = true }) {
-  const qrW = data.qrDataUrl ? qr * k : 0;
-  const rightW = (url ? urlW * k : 0) + (qrW ? qrW + 12 * k : 0);
-  const phone = fitFraunces(data.contactValue, w - rightW - 12 * k, phoneBase * k, 14 * k);
+/** "LAST SEEN  Wed, Nov 4  Sach'a Yuntas" on one line, centred or not. */
+function LastSeen({ data, k, align = 'center', w }) {
   return (
-    <View style={{ width: w, height: h, borderTopWidth: 0.75, borderTopColor: C.line, paddingTop: 10.5 * k, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-      <View style={{ minWidth: 0 }}>
-        <Text maxLines={1} style={{ ...EYEBROW(9 * k), marginBottom: 6 * k }}>{contactEyebrow(data)}</Text>
-        <TightLine size={phone}>{data.contactValue}</TightLine>
-        {!url && data.reward ? <Text style={{ ...EYEBROW(9 * k, C.red), marginTop: 8 * k }}>{rewardLine(data)}</Text> : null}
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-        {url ? (
-          <View style={{ width: urlW * k, alignItems: 'flex-end' }}>
-            {data.reward ? <Text style={EYEBROW(9 * k, C.red)}>{rewardLine(data)}</Text> : null}
-            <Text style={{ ...MONO(7.5 * k), textAlign: 'right', marginTop: 3 * k }}>{`reunitepets.org/cases/\n${data.caseNumber}`}</Text>
-          </View>
-        ) : null}
-        {qrW ? (
-          <View style={{ width: qrW, alignItems: 'center', marginLeft: 12 * k }}>
-            <Image src={data.qrDataUrl} style={{ width: qrW, height: qrW }} />
-            <Text style={{ ...EYEBROW(5.5 * k, C.muted), letterSpacing: 0.3 * k, textAlign: 'center', marginTop: 3 * k, lineHeight: 1.2 }}>Scan to report a sighting</Text>
-          </View>
-        ) : null}
-      </View>
-    </View>
+    <Text maxLines={1} style={{ ...BODY(12 * k, C.soft, 400), textAlign: align, width: w, lineHeight: 1.2 }}>
+      <Text style={EYEBROW(8.25 * k)}>Last seen  </Text>
+      <Text style={{ fontWeight: 700, color: C.navy }}>{data.lastSeenWhen}</Text>
+      {data.lastSeenWhen ? '   ' : ''}
+      {data.lastSeenArea}
+    </Text>
   );
 }
 
-/** Tear-off strip: 8 tabs, the phone (or the case number) and the name. */
+function Facts({ data, k, w, lines = 2, align = 'center' }) {
+  return (
+    <Text maxLines={lines} style={{ ...BODY(12.75 * k), width: w, textAlign: align }}>
+      {data.lookFor}
+      {data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : ''}
+    </Text>
+  );
+}
+
+/** Tear-off strip on cream: 8 tabs, the phone (or the case number) and the name. */
 function TearTabs({ data, w, h }) {
   const count = 8;
   const tabW = w / count;
   const first = data.hasPhone ? data.contactValue : data.caseNumber;
   const second = data.hasPhone ? `${data.petName} · ${data.stamp}` : 'reunitepets.org';
   return (
-    <View style={{ width: w, flexDirection: 'row', height: h, borderTopWidth: 0.75, borderTopColor: C.dash, borderTopStyle: 'dashed' }}>
+    <View style={{ width: w, flexDirection: 'row', height: h, backgroundColor: C.cream, borderRadius: 9, borderTopWidth: 0.75, borderTopColor: C.dash, borderTopStyle: 'dashed' }}>
       {Array.from({ length: count }).map((_, i) => (
         <View key={i} style={{ width: tabW, height: h, borderLeftWidth: i ? 0.75 : 0, borderLeftColor: C.dash, borderLeftStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: fitInter(first, tabW - 8, 7.5, 5), color: C.ink }}>{first}</Text>
-          <Text style={{ fontFamily: 'Inter', fontWeight: 500, fontSize: fitInter(second, tabW - 8, 6, 4.5), color: C.muted, marginTop: 2 }}>{second}</Text>
+          <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: fitInter(first, tabW - 8, 7.5, 5), color: C.navy }}>{first}</Text>
+          <Text style={{ fontFamily: 'Inter', fontWeight: 500, fontSize: fitInter(second, tabW - 8, 6, 4.5), color: C.soft, marginTop: 2 }}>{second}</Text>
         </View>
       ))}
     </View>
@@ -204,54 +275,71 @@ function TearTabs({ data, w, h }) {
 /** One sheet, planned by plan.js: Letter (with tabs) or the poster (scaled). */
 function Sheet({ data, plan, photoSrc }) {
   const { k, page, side, contentW } = plan;
+  const qr = data.qrDataUrl ? 63 * k : 0;
+  const pillW = contentW - (qr ? qr + 12 * k : 0);
   return (
-    <Page size={[page.w, page.h]} style={{ backgroundColor: C.paper, fontFamily: 'Inter', color: C.ink }}>
-      <Photo data={data} src={photoSrc} w={page.w} h={plan.frame.h} k={k} />
-      <View style={{ paddingHorizontal: side }}>
-        <View style={{ marginTop: plan.panelTop }}>
-          <WordLine data={data} word={plan.word} w={contentW} gap={12 * k} />
+    <Page size={[page.w, page.h]} style={{ backgroundColor: C.yellow, fontFamily: 'Inter', color: C.navy, paddingTop: plan.top, paddingHorizontal: side }}>
+      <View style={{ alignItems: 'center' }}>
+        <Sticker data={data} src={photoSrc} size={plan.sticker} k={k} />
+      </View>
+      <View style={{ marginTop: plan.gap, alignItems: 'center' }}>
+        <TightLine size={plan.wordSize}>{data.stamp}</TightLine>
+      </View>
+      <Text maxLines={1} style={{ ...NAME(fitInter(data.coverLine, contentW, 27 * k, 14 * k)), textAlign: 'center', marginTop: plan.nameGap, height: plan.name }}>{data.coverLine}</Text>
+      <View style={{ marginTop: plan.rowGap, height: plan.row, flexDirection: 'row' }}>
+        <MapTile data={data} w={plan.mapW} h={plan.row} k={k} />
+        <View style={{ marginLeft: plan.rowGapX, width: contentW - plan.mapW - plan.rowGapX, height: plan.row }}>
+          <Where data={data} k={k} w={contentW - plan.mapW - plan.rowGapX} />
         </View>
-        <View style={{ marginTop: plan.gapA }}>
-          <Facts data={data} w={contentW} k={k} lastSeen={plan.lastSeen} facts={plan.facts} gap={plan.gapB} />
-        </View>
-        <View style={{ marginTop: plan.gapC }}>
-          <Contact data={data} w={contentW} h={plan.contact} k={k} />
-        </View>
-        {plan.tabs > 0 ? (
-          <View style={{ marginTop: plan.tabsGap }}>
-            <TearTabs data={data} w={contentW} h={plan.tabs} />
+      </View>
+      <View style={{ marginTop: plan.pillGap, flexDirection: 'row', alignItems: 'center' }}>
+        <Pill data={data} w={pillW} h={plan.pill} k={k} />
+        {qr ? (
+          <View style={{ marginLeft: 12 * k }}>
+            <QrTile data={data} size={qr} />
           </View>
         ) : null}
       </View>
+      {plan.tabs > 0 ? (
+        <View style={{ position: 'absolute', left: side, right: side, bottom: plan.bottom }}>
+          <TearTabs data={data} w={contentW} h={plan.tabs} />
+        </View>
+      ) : (
+        <Text style={{ ...BODY(9 * k, C.soft, 600), textAlign: 'center', marginTop: 12 * k }}>{data.caseUrlLabel}</Text>
+      )}
     </Page>
   );
 }
 
-/** One half sheet: the photo in a column, the cover's words beside it. */
+/** One half sheet: the sticker beside the words. */
 function Half({ data, plan, photoSrc, cut }) {
-  const k = 0.85;
-  const { pad, photoW, detailsW } = plan;
+  const k = 0.8;
+  const { pad, sticker, colX, detailsW } = plan;
   return (
-    <View
-      style={{
-        height: plan.halfH,
-        paddingHorizontal: pad,
-        paddingTop: pad,
-        paddingBottom: pad - (cut ? 1.5 : 0),
-        flexDirection: 'row',
-        borderBottomWidth: cut ? 0.75 : 0,
-        borderBottomColor: C.dash,
-        borderBottomStyle: 'dashed',
-      }}
-    >
-      <Photo data={data} src={photoSrc} w={photoW} h={plan.frame.h} k={k} />
-      <View style={{ width: detailsW, marginLeft: pad, height: plan.frame.h, paddingTop: 6 }}>
-        <WordLine data={data} word={plan.word} w={detailsW} gap={9} />
-        <View style={{ marginTop: 12 }}>
-          <Facts data={data} w={detailsW} k={k} lines={3} lastSeen={13} facts={50} gap={4} />
+    <View style={{ height: plan.halfH, position: 'relative', borderBottomWidth: cut ? 0.75 : 0, borderBottomColor: C.navy, borderBottomStyle: 'dashed' }}>
+      <View style={{ position: 'absolute', left: pad, top: plan.stickerTop }}>
+        <Sticker data={data} src={photoSrc} size={sticker} k={k} />
+      </View>
+      {data.qrDataUrl ? (
+        <View style={{ position: 'absolute', left: pad + sticker * 0.72, top: plan.stickerTop + sticker * 0.74 }}>
+          <QrTile data={data} size={54} />
+        </View>
+      ) : null}
+      <View style={{ position: 'absolute', left: colX, top: pad + 6, width: detailsW, height: plan.halfH - pad * 2 - 9 }}>
+        <TightLine size={plan.wordSize}>{data.stamp}</TightLine>
+        <Text maxLines={1} style={{ ...NAME(fitInter(data.coverLine, detailsW, 19.5, 12)), marginTop: 7 }}>{data.coverLine}</Text>
+        <View style={{ marginTop: 7 }}>
+          <LastSeen data={data} k={k} align="left" w={detailsW} />
+        </View>
+        <View style={{ marginTop: 4 }}>
+          <Facts data={data} k={k} w={detailsW} lines={3} align="left" />
+        </View>
+        <View style={{ marginTop: 8 }}>
+          <MapTile data={data} w={detailsW} h={96} k={k} />
         </View>
         <View style={{ flex: 1 }} />
-        <Contact data={data} w={detailsW} h={76} k={k} phoneBase={34} qr={70} url={false} />
+        <Pill data={data} w={detailsW} h={62} k={k} phoneBase={26} align="flex-start" />
+        <Text style={{ ...BODY(7.5, C.soft, 600), marginTop: 6 }}>{data.caseUrlLabel}</Text>
       </View>
     </View>
   );
@@ -259,7 +347,7 @@ function Half({ data, plan, photoSrc, cut }) {
 
 function HalfSheetPage({ data, plan, photoSrc }) {
   return (
-    <Page size={[PAGES.LETTER.w, PAGES.LETTER.h]} style={{ backgroundColor: C.paper, fontFamily: 'Inter', color: C.ink }}>
+    <Page size={[PAGES.LETTER.w, PAGES.LETTER.h]} style={{ backgroundColor: C.yellow, fontFamily: 'Inter', color: C.navy }}>
       <Half data={data} plan={plan} photoSrc={photoSrc} cut />
       <Half data={data} plan={plan} photoSrc={photoSrc} />
     </Page>
@@ -268,7 +356,7 @@ function HalfSheetPage({ data, plan, photoSrc }) {
 
 export function planFor(variant, data) {
   const photo = data.photos?.[0] || null;
-  const words = { stamp: data.stamp, coverLine: data.coverLine };
+  const words = { stamp: data.stamp };
   if (variant === 'half') return planHalf(PAGES.LETTER, photo, words);
   if (variant === 'poster') return planSheet(PAGES.TABLOID, photo, { k: PAGES.TABLOID.w / PAGES.LETTER.w, tabs: false, ...words });
   return planSheet(PAGES.LETTER, photo, { k: 1, tabs: true, ...words });

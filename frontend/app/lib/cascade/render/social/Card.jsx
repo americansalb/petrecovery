@@ -1,35 +1,37 @@
 import React from 'react';
-import { fitFraunces, planWord, FRAUNCES } from '../flyers/plan';
+import { fitUnbounded, STICKER } from '../flyers/plan';
 
 /**
  * Share images, from the Claude Design canvas "Lost Pet Flyers, second
- * design" (the three Share boards): the cover at the three sizes phones
- * pass around. The photo bleeds, with nothing on it; on the paper beside
- * or below it, LOST in red and "Milo, a tabby cat" in the italic, both in
- * Fraunces, then where and when, what to look for, and the phone number
- * in the same face. og 1200×630 (photo left), square 1080×1080 and story
- * 1080×1920 (photo above). SOCIAL_FRAMES in ../flyers/plan.js holds each
- * photo frame.
+ * design" (the three Share boards): the sticker on yellow at the three
+ * sizes phones pass around. The photo as a round sticker with a cream
+ * ring and a navy shadow; LOST in Unbounded; the name; where and when;
+ * what to look for; the phone number in a navy pill. og 1200×630 (sticker
+ * left, words right), square 1080×1080 and story 1080×1920 (sticker above,
+ * everything centred). SOCIAL_FRAMES in ../flyers/plan.js holds each
+ * sticker's size.
  *
  * satori only understands inline styles and needs display:flex on every
  * element with more than one child, hence the verbosity.
  */
 
-const PAPER = '#f7f4ee';
-const INK = '#1c1917';
-const MUTED = '#78716c';
-const RED = '#b91c1c';
-const LINE = '#ddd6ca';
-const NOPHOTO = '#e9e2d6';
+const YEL = '#facc15';
+const NAVY = '#0f172a';
+const CREAM = '#fffbea';
+const SOFT = '#3b3a2e';
+const LOST = '#dc2626';
+const MAP_GROUND = '#eef2f8';
 
 const Row = ({ style, children }) => <div style={{ display: 'flex', flexDirection: 'row', ...style }}>{children}</div>;
 const Col = ({ style, children }) => <div style={{ display: 'flex', flexDirection: 'column', ...style }}>{children}</div>;
 const Txt = ({ style, children }) => <div style={{ display: 'flex', ...style }}>{children}</div>;
 
-const serif = (size, color = INK) => ({ fontFamily: 'Fraunces', fontWeight: 900, fontSize: size, lineHeight: FRAUNCES.line, letterSpacing: -size * 0.03, color, whiteSpace: 'nowrap' });
-const ital = (size, color = INK) => ({ fontFamily: 'Fraunces', fontWeight: 600, fontStyle: 'italic', fontSize: size, lineHeight: 1.05, letterSpacing: -size * 0.01, color, whiteSpace: 'nowrap' });
-const body = (size, color = INK, weight = 500) => ({ fontFamily: 'Inter', fontWeight: weight, fontSize: size, lineHeight: 1.4, color });
-const eyebrow = (size, color = MUTED) => ({ fontFamily: 'Inter', fontWeight: 700, fontSize: size, letterSpacing: size * 0.15, textTransform: 'uppercase', color });
+const disp = (size, color = NAVY) => ({ fontFamily: 'Unbounded', fontWeight: 900, fontSize: size, lineHeight: 1, letterSpacing: -size * 0.02, color, whiteSpace: 'nowrap' });
+const name = (size, color = NAVY) => ({ fontFamily: 'Inter', fontWeight: 800, fontSize: size, lineHeight: 1.1, letterSpacing: -size * 0.02, color, whiteSpace: 'nowrap' });
+const eyebrow = (size, color = NAVY) => ({ fontFamily: 'Inter', fontWeight: 700, fontSize: size, letterSpacing: size * 0.14, textTransform: 'uppercase', color });
+const body = (size, color = NAVY, weight = 500) => ({ fontFamily: 'Inter', fontWeight: weight, fontSize: size, lineHeight: 1.4, color });
+
+const rewardLine = (data) => (data.reward === 'REWARD' ? 'Reward offered' : `${data.reward} reward`);
 
 function contactEyebrow(data) {
   const who = `Seen ${data.petName}?`;
@@ -45,131 +47,160 @@ function lookForLine(data) {
 
 /* ------------------------------------------------------------- primitives */
 
-function Photo({ src, w, h, data }) {
-  if (src) return <img src={src} width={w} height={h} style={{ width: w, height: h, objectFit: 'cover', flexShrink: 0 }} />;
+function Sticker({ data, src, size }) {
+  const ring = Math.round(size * STICKER.ring);
+  const off = Math.round(size * STICKER.shadow);
+  const inner = size - ring * 2;
   return (
-    <Col style={{ width: w, height: h, backgroundColor: NOPHOTO, justifyContent: 'center', padding: Math.round(w * 0.07), flexShrink: 0 }}>
-      <Txt style={{ ...eyebrow(Math.round(w * 0.024), MUTED), marginBottom: 14 }}>No photo yet. Please go by this.</Txt>
-      <Txt style={{ ...ital(Math.round(w * 0.05)), whiteSpace: 'normal', lineHeight: 1.15 }}>{data.description || data.lookFor}</Txt>
+    <div style={{ display: 'flex', position: 'relative', width: size + off, height: size + off, flexShrink: 0 }}>
+      <div style={{ position: 'absolute', left: off, top: off, width: size, height: size, borderRadius: size / 2, backgroundColor: NAVY }} />
+      <Col style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, backgroundColor: CREAM, alignItems: 'center', justifyContent: 'center' }}>
+        {src ? (
+          <img src={src} width={inner} height={inner} style={{ width: inner, height: inner, borderRadius: inner / 2, objectFit: 'cover' }} />
+        ) : (
+          <Col style={{ width: inner, height: inner, borderRadius: inner / 2, padding: inner * 0.16, alignItems: 'center', justifyContent: 'center' }}>
+            <Txt style={{ ...eyebrow(Math.round(size * 0.026), SOFT), textAlign: 'center', justifyContent: 'center', marginBottom: 12 }}>No photo yet. Please go by this.</Txt>
+            <Txt style={{ ...name(Math.round(size * 0.055)), whiteSpace: 'normal', textAlign: 'center', justifyContent: 'center', lineHeight: 1.2 }}>{data.description || data.lookFor}</Txt>
+          </Col>
+        )}
+      </Col>
+      {data.reward ? (
+        <Row style={{ position: 'absolute', right: -4, top: Math.round(size * 0.08), backgroundColor: CREAM, border: `3px solid ${NAVY}`, borderRadius: 999, padding: '10px 18px', ...eyebrow(Math.round(size * 0.034)) }}>{rewardLine(data)}</Row>
+      ) : null}
+    </div>
+  );
+}
+
+function Pill({ data, w, phoneMax, eye, align = 'center' }) {
+  const padX = Math.round(phoneMax * 0.9);
+  const phone = fitUnbounded(data.contactValue, w - padX * 2, phoneMax, phoneMax * 0.3);
+  return (
+    <Col style={{ width: w, backgroundColor: NAVY, borderRadius: 999, padding: `${Math.round(phoneMax * 0.42)}px ${padX}px`, alignItems: align }}>
+      <Txt style={eyebrow(eye, YEL)}>{contactEyebrow(data)}</Txt>
+      <Txt style={{ ...disp(phone, CREAM), marginTop: Math.round(eye * 0.5) }}>{data.contactValue}</Txt>
     </Col>
   );
 }
 
-/** LOST and the cover line on one baseline, or stacked when the line is long. */
-function WordLine({ data, width, wordMax, lineMax, lineMin, gap }) {
-  const word = planWord({ stamp: data.stamp, coverLine: data.coverLine, width, wordMax, lineMax, lineMin, gap });
-  if (word.stacked) {
+function QrTile({ data, size }) {
+  if (!data.qrDataUrl) return null;
+  const pad = Math.round(size * 0.09);
+  return (
+    <Col style={{ width: size, height: size, backgroundColor: CREAM, borderRadius: Math.round(size * 0.16), padding: pad, flexShrink: 0 }}>
+      <img src={data.qrDataUrl} width={size - pad * 2} height={size - pad * 2} style={{ width: size - pad * 2, height: size - pad * 2 }} />
+    </Col>
+  );
+}
+
+/**
+ * The last-seen map (see Flyer.jsx MapTile). The cascade's tiles are in
+ * points, drawn here at 1.5× so street names stay readable on a screen.
+ */
+export function MapTile({ data, w, h, radius = 14 }) {
+  const m = data.map;
+  if (!m) {
     return (
-      <Col style={{ width }}>
-        <Txt style={serif(word.wordSize, data.accentDeep)}>{data.stamp}</Txt>
-        <Txt style={{ ...ital(word.lineSize), marginTop: word.lineSize * 0.3 }}>{data.coverLine}</Txt>
+      <Col style={{ width: w, height: h, borderRadius: radius, backgroundColor: CREAM, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Txt style={eyebrow(11, SOFT)}>Map at the link</Txt>
       </Col>
     );
   }
+  const sc = 1.5;
+  const cx = w / 2;
+  const cy = h / 2;
+  const ox = cx - m.pin.x * sc;
+  const oy = cy - m.pin.y * sc;
+  const halo = Math.min((m.halo?.r || 20) * sc, Math.min(w, h) * 0.3);
+  const ring = m.ring && m.ring.r * sc <= Math.min(w, h) * 0.46 ? { r: m.ring.r * sc, label: m.ring.label } : null;
   return (
-    <Row style={{ width, alignItems: 'baseline' }}>
-      <Txt style={serif(word.wordSize, data.accentDeep)}>{data.stamp}</Txt>
-      <Txt style={{ ...ital(word.lineSize), marginLeft: gap }}>{data.coverLine}</Txt>
+    <div style={{ display: 'flex', position: 'relative', width: w, height: h, borderRadius: radius, overflow: 'hidden', backgroundColor: MAP_GROUND, border: `3px solid ${NAVY}`, flexShrink: 0 }}>
+      {m.tiles.map((t, i) => (
+        <img key={i} src={t.src} width={128 * sc} height={128 * sc} style={{ position: 'absolute', left: ox + t.left * sc, top: oy + t.top * sc, width: 128 * sc, height: 128 * sc }} />
+      ))}
+      {ring ? <div style={{ position: 'absolute', left: cx - ring.r, top: cy - ring.r, width: ring.r * 2, height: ring.r * 2, borderRadius: ring.r, border: `2px dashed ${NAVY}` }} /> : null}
+      <div style={{ position: 'absolute', left: cx - halo, top: cy - halo, width: halo * 2, height: halo * 2, borderRadius: halo, backgroundColor: 'rgba(220, 38, 38, 0.2)', border: `3px solid ${LOST}` }} />
+      <div style={{ position: 'absolute', left: cx - 10, top: cy - 10, width: 20, height: 20, borderRadius: 10, backgroundColor: LOST, border: `3px solid ${CREAM}` }} />
+      <Txt style={{ position: 'absolute', left: 10, top: 10, backgroundColor: NAVY, borderRadius: 999, padding: '4px 10px', ...eyebrow(10, CREAM) }}>Last seen here</Txt>
+      {ring ? <Txt style={{ position: 'absolute', right: 10, bottom: 10, backgroundColor: CREAM, borderRadius: 999, padding: '3px 8px', ...eyebrow(9, NAVY) }}>{`${ring.label} ring`}</Txt> : null}
+      <Txt style={{ position: 'absolute', left: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.85)', padding: '1px 4px', fontFamily: 'Inter', fontSize: 8, color: SOFT }}>{m.attribution}</Txt>
+    </div>
+  );
+}
+
+/** Where and when, then what to look for, beside the map. */
+function Where({ data, size, width, lines = 3 }) {
+  return (
+    <Col style={{ width, justifyContent: 'center' }}>
+      <Txt style={eyebrow(size * 0.72)}>Last seen</Txt>
+      {data.lastSeenWhen ? <Txt style={{ ...body(size * 1.15, NAVY, 700), marginTop: 2, lineHeight: 1.2 }}>{data.lastSeenWhen}</Txt> : null}
+      <Txt style={{ ...body(size * 0.92, SOFT, 500), width, lineClamp: 2, lineHeight: 1.3 }}>{data.lastSeenArea}</Txt>
+      <Txt style={{ ...body(size), width, lineClamp: lines, marginTop: size * 0.5 }}>{lookForLine(data)}</Txt>
+    </Col>
+  );
+}
+
+function LastSeen({ data, size, width, align = 'center' }) {
+  return (
+    <Row style={{ width, alignItems: 'baseline', justifyContent: align === 'center' ? 'center' : 'flex-start', ...body(size, SOFT, 400), whiteSpace: 'nowrap', overflow: 'hidden' }}>
+      <Txt style={{ ...eyebrow(size * 0.7), marginRight: size * 0.6, flexShrink: 0 }}>Last seen</Txt>
+      {data.lastSeenWhen ? <Txt style={{ fontWeight: 700, color: NAVY, marginRight: size * 0.6, flexShrink: 0 }}>{data.lastSeenWhen}</Txt> : null}
+      <Txt style={{ lineClamp: 1 }}>{data.lastSeenArea}</Txt>
     </Row>
   );
 }
 
-/** "LAST SEEN  Wed, Nov 4  Sach'a Yuntas": one line on a wide panel, the place on its own line on a narrow one. */
-function LastSeen({ data, size, width }) {
-  const narrow = width < 600;
-  const place = <Txt style={{ ...body(size, MUTED, 400), width, lineClamp: 1 }}>{data.lastSeenArea}</Txt>;
-  return (
-    <Col style={{ width }}>
-      <Row style={{ alignItems: 'baseline', ...body(size, MUTED, 400), whiteSpace: 'nowrap' }}>
-        <Txt style={{ ...eyebrow(size * 0.78, RED), marginRight: size * 0.6, flexShrink: 0 }}>Last seen</Txt>
-        {data.lastSeenWhen ? <Txt style={{ fontWeight: 600, color: INK, marginRight: size * 0.6, flexShrink: 0 }}>{data.lastSeenWhen}</Txt> : null}
-        {narrow ? null : place}
-      </Row>
-      {narrow ? <Col style={{ marginTop: size * 0.2 }}>{place}</Col> : null}
-    </Col>
-  );
-}
-
-function Facts({ data, size, width, lines = 2 }) {
-  return <Txt style={{ ...body(size), width, lineClamp: lines }}>{lookForLine(data)}</Txt>;
-}
-
-function Contact({ data, eyebrowSize, phoneMax, maxW, padTop = 14, align = 'flex-start', rule = true }) {
-  const phone = fitFraunces(data.contactValue, maxW, phoneMax, phoneMax * 0.3);
-  const ruleStyle = rule ? { borderTop: `1px solid ${LINE}` } : {};
-  return (
-    <Col style={{ ...ruleStyle, paddingTop: padTop, alignItems: align }}>
-      <Txt style={{ ...eyebrow(eyebrowSize), marginBottom: eyebrowSize * 0.45 }}>{contactEyebrow(data)}</Txt>
-      <Txt style={serif(phone)}>{data.contactValue}</Txt>
-    </Col>
-  );
-}
-
-function Reward({ data, size }) {
-  if (!data.reward) return null;
-  return <Txt style={eyebrow(size, RED)}>{data.reward === 'REWARD' ? 'Reward offered' : `${data.reward} reward`}</Txt>;
-}
-
-function Qr({ data, size, capSize }) {
-  if (!data.qrDataUrl) return null;
-  return (
-    <Col style={{ width: size + 8, alignItems: 'center', flexShrink: 0 }}>
-      <img src={data.qrDataUrl} width={size} height={size} style={{ width: size, height: size }} />
-      <Txt style={{ ...eyebrow(capSize, MUTED), letterSpacing: capSize * 0.08, textAlign: 'center', justifyContent: 'center', marginTop: 8, lineHeight: 1.25 }}>Scan to report a sighting</Txt>
-    </Col>
-  );
+function Facts({ data, size, width, lines = 2, align = 'center' }) {
+  return <Txt style={{ ...body(size), width, lineClamp: lines, textAlign: align, justifyContent: align === 'center' ? 'center' : 'flex-start' }}>{lookForLine(data)}</Txt>;
 }
 
 /* ------------------------------------------------------------------ sizes */
 
 function Og({ data, src }) {
-  const W = 426; // the panel inside its padding
+  const W = 510;
   return (
-    <Row style={{ width: 1200, height: 630, backgroundColor: PAPER, fontFamily: 'Inter', color: INK }}>
-      <Photo src={src} w={690} h={630} data={data} />
-      <Col style={{ width: 510, padding: '40px 42px 36px 42px' }}>
-        <WordLine data={data} width={W} wordMax={150} lineMax={30} lineMin={18} gap={14} />
-        <Col style={{ marginTop: 18 }}>
-          <LastSeen data={data} size={15} width={W} />
-        </Col>
-        <Col style={{ marginTop: 8 }}>
-          <Facts data={data} size={17} width={W} />
-        </Col>
-        <Col style={{ flexGrow: 1 }} />
-        <Contact data={data} eyebrowSize={12} phoneMax={56} maxW={W} />
-        <Row style={{ marginTop: 12, justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Reward data={data} size={12} />
-          <Txt style={body(13, MUTED, 600)}>reunitepets.org</Txt>
+    <Col style={{ width: 1200, height: 630, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, position: 'relative' }}>
+      <div style={{ position: 'absolute', left: 56, top: 58, display: 'flex' }}>
+        <Sticker data={data} src={src} size={500} />
+      </div>
+      <Col style={{ position: 'absolute', left: 640, top: 60, width: W }}>
+        <Txt style={disp(fitUnbounded(data.stamp, W, 132, 60))}>{data.stamp}</Txt>
+        <Txt style={{ ...name(34), marginTop: 12, width: W, lineClamp: 1 }}>{data.coverLine}</Txt>
+        <Row style={{ marginTop: 14, height: 150 }}>
+          <MapTile data={data} w={210} h={150} />
+          <Col style={{ marginLeft: 14, width: W - 224 }}>
+            <Where data={data} size={15} width={W - 224} />
+          </Col>
         </Row>
       </Col>
-    </Row>
+      <Col style={{ position: 'absolute', left: 640, bottom: 56, width: W }}>
+        <Pill data={data} w={W} phoneMax={42} eye={12} />
+      </Col>
+    </Col>
   );
 }
 
 function Square({ data, src }) {
   const W = 1000;
   return (
-    <Col style={{ width: 1080, height: 1080, backgroundColor: PAPER, fontFamily: 'Inter', color: INK }}>
-      <Photo src={src} w={1080} h={640} data={data} />
-      <Col style={{ flexGrow: 1, minHeight: 0, padding: '30px 40px 40px' }}>
-        <WordLine data={data} width={W} wordMax={190} lineMax={34} lineMin={20} gap={16} />
-        <Col style={{ flexGrow: 1 }} />
-        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <Col style={{ width: 560 }}>
-            <LastSeen data={data} size={16} width={560} />
-            <Col style={{ marginTop: 8 }}>
-              <Facts data={data} size={18} width={560} />
-            </Col>
+    <Col style={{ width: 1080, height: 1080, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '56px 40px 40px' }}>
+      <Sticker data={data} src={src} size={480} />
+      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 120, 60)), marginTop: 24 }}>{data.stamp}</Txt>
+      <Txt style={{ ...name(34), marginTop: 10, lineClamp: 1 }}>{data.coverLine}</Txt>
+      <Row style={{ marginTop: 14, width: W, height: 160 }}>
+        <MapTile data={data} w={400} h={160} />
+        <Col style={{ marginLeft: 16, width: W - 416 }}>
+          <Where data={data} size={17} width={W - 416} />
+        </Col>
+      </Row>
+      <Col style={{ flexGrow: 1 }} />
+      <Row style={{ width: W, alignItems: 'center' }}>
+        <Pill data={data} w={data.qrDataUrl ? W - 116 : W} phoneMax={50} eye={13} />
+        {data.qrDataUrl ? (
+          <Col style={{ marginLeft: 16 }}>
+            <QrTile data={data} size={100} />
           </Col>
-          <Col style={{ alignItems: 'flex-end' }}>
-            <Contact data={data} eyebrowSize={12} phoneMax={62} maxW={400} padTop={0} align="flex-end" rule={false} />
-            <Row style={{ marginTop: 8, alignItems: 'baseline' }}>
-              <Reward data={data} size={12} />
-              <Txt style={{ ...body(13, MUTED, 600), marginLeft: 14 }}>reunitepets.org</Txt>
-            </Row>
-          </Col>
-        </Row>
-      </Col>
+        ) : null}
+      </Row>
     </Col>
   );
 }
@@ -177,28 +208,26 @@ function Square({ data, src }) {
 function Story({ data, src }) {
   const W = 968;
   return (
-    <Col style={{ width: 1080, height: 1920, backgroundColor: PAPER, fontFamily: 'Inter', color: INK }}>
-      <Photo src={src} w={1080} h={1150} data={data} />
-      <Col style={{ flexGrow: 1, minHeight: 0, padding: '40px 56px 140px' }}>
-        <WordLine data={data} width={W} wordMax={190} lineMax={44} lineMin={26} gap={18} />
-        <Col style={{ marginTop: 24 }}>
-          <LastSeen data={data} size={22} width={W} />
+    <Col style={{ width: 1080, height: 1920, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '150px 56px 140px' }}>
+      <Sticker data={data} src={src} size={760} />
+      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 180, 80)), marginTop: 36 }}>{data.stamp}</Txt>
+      <Txt style={{ ...name(48), marginTop: 14, lineClamp: 1 }}>{data.coverLine}</Txt>
+      <Row style={{ marginTop: 24, width: W, height: 250 }}>
+        <MapTile data={data} w={440} h={250} radius={20} />
+        <Col style={{ marginLeft: 24, width: W - 464 }}>
+          <Where data={data} size={24} width={W - 464} />
         </Col>
-        <Col style={{ marginTop: 10 }}>
-          <Facts data={data} size={24} width={W} />
-        </Col>
-        <Col style={{ flexGrow: 1 }} />
-        <Row style={{ borderTop: `1px solid ${LINE}`, paddingTop: 20, justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <Col>
-            <Contact data={data} eyebrowSize={16} phoneMax={96} maxW={data.qrDataUrl ? 760 : W} padTop={0} rule={false} />
-            <Row style={{ marginTop: 14, alignItems: 'baseline' }}>
-              <Reward data={data} size={15} />
-              <Txt style={{ ...body(16, MUTED, 600), marginLeft: data.reward ? 18 : 0 }}>reunitepets.org/cases/{data.caseNumber}</Txt>
-            </Row>
+      </Row>
+      <Col style={{ flexGrow: 1 }} />
+      <Row style={{ width: W, alignItems: 'center' }}>
+        <Pill data={data} w={data.qrDataUrl ? W - 166 : W} phoneMax={72} eye={17} />
+        {data.qrDataUrl ? (
+          <Col style={{ marginLeft: 16 }}>
+            <QrTile data={data} size={150} />
           </Col>
-          <Qr data={data} size={150} capSize={12} />
-        </Row>
-      </Col>
+        ) : null}
+      </Row>
+      <Txt style={{ ...body(18, SOFT, 600), marginTop: 22 }}>reunitepets.org/cases/{data.caseNumber}</Txt>
     </Col>
   );
 }

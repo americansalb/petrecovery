@@ -16,7 +16,7 @@ import { ACTION_RUNNERS } from './actions/index.js';
 import { upsertStep, upsertAsset, rollupSummary } from './store';
 import { caseUrl, qrDataUrl } from './render/qr.js';
 import { loadPetPhoto } from './render/photo.js';
-import { buildFlyerMapSpec } from './render/staticMap.js';
+import { buildFlyerMapSpec, zoomForSpecies } from './render/staticMap.js';
 import { broadcastActivation } from '../sse/cascadeStream';
 import { piggybackDrain } from './followups';
 
@@ -72,10 +72,11 @@ export function makeGetShared(caseData) {
       // Voyager tiles + z15 match the poster design system. Best-effort: null
       // on any failure and the layouts render mapless.
       const map = await buildFlyerMapSpec(caseData.lastSeenLatitude, caseData.lastSeenLongitude, {
-        // Tall enough for the poster's map column (render/flyers/plan.js).
+        // Large enough for the story's map; the flyers crop it around the pin.
         width: 680,
         height: 480,
-        zoom: 15,
+        // A lost cat's world is a few houses; a dog's is a mile.
+        zoom: zoomForSpecies(caseData.petSpecies),
         style: 'voyager',
       }).catch(() => null);
       return {

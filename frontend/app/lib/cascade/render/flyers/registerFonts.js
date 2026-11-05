@@ -23,14 +23,8 @@ export function registerFlyerFonts() {
       { src: join(DIR, 'Inter-Black.ttf'), fontWeight: 900 },
     ],
   });
-  // The cover's face: LOST, "Milo, a tabby cat" in the italic, the phone number. OFL.
-  Font.register({
-    family: 'Fraunces',
-    fonts: [
-      { src: join(DIR, 'Fraunces-900.ttf'), fontWeight: 900 },
-      { src: join(DIR, 'Fraunces-Italic-600.ttf'), fontWeight: 600, fontStyle: 'italic' },
-    ],
-  });
+  // The word and the number: Unbounded, a wide display face. OFL.
+  Font.register({ family: 'Unbounded', src: join(DIR, 'Unbounded-900.ttf') });
   // Don't hyphenate long words (pet names, addresses) mid-line.
   Font.registerHyphenationCallback((word) => [word]);
   registered = true;
