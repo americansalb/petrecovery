@@ -1,4 +1,7 @@
-import React from 'react';
+/** @jsxRuntime classic */
+/** @jsx h */
+/** @jsxFrag Fragment */
+import { h, Fragment } from './pdfReact';
 import { Document, Font, Page, View, Text, Image, Svg, Circle } from '@react-pdf/renderer';
 import { PAGES, planSheet, planHalf } from './plan';
 

@@ -42,7 +42,7 @@ const OUTPUT_SCHEMA = {
         instagram: { type: 'string' },
       },
     },
-    hashtags: { type: 'array', items: { type: 'string' }, maxItems: 8 },
+    hashtags: { type: 'array', items: { type: 'string' } },
     searchPlan: {
       type: 'object',
       additionalProperties: false,
@@ -51,14 +51,13 @@ const OUTPUT_SCHEMA = {
         narrative: { type: 'string', description: '2-3 sentences: where to look first for THIS pet' },
         sections: {
           type: 'array',
-          maxItems: 4,
           items: {
             type: 'object',
             additionalProperties: false,
             required: ['title', 'items'],
             properties: {
               title: { type: 'string' },
-              items: { type: 'array', items: { type: 'string' }, maxItems: 6 },
+              items: { type: 'array', items: { type: 'string' } },
             },
           },
         },
