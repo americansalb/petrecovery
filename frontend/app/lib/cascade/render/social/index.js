@@ -16,6 +16,11 @@ import { cropPhoto, getSharp } from '../photo';
 import { groundOverlayDataUrl } from '../ground';
 
 const JPEG_QUALITY = 86;
+// Drawn larger than the board: a phone shows these at two or three device
+// pixels per CSS pixel, and the photo and the type stay crisp. The story is
+// drawn at one and a half, which Instagram scales down anyway, so the raster
+// stays within the server's small memory.
+const SCALE = { og: 2, square: 2, story: 1.5 };
 
 export const SOCIAL_SIZES = {
   SOCIAL_OG: { size: 'og', width: 1200, height: 630, label: 'Link preview (1200×630)' },
@@ -38,13 +43,14 @@ export async function generateSocialCard(caseData, kind, shared = {}) {
   ]);
 
   const spec = SOCIAL_SIZES[kind] || SOCIAL_SIZES.SOCIAL_OG;
+  const scale = SCALE[spec.size] || 2;
   const data = normalizeFlyerData(caseData, shared);
   const photo = data.photos[0] || null;
   const plan = planSocial(spec.size, photo?.aspect, data);
   const frame = plan.frame;
   const inner = printInner(frame.w, frame.h, 1.5);
   const [photoSrc, groundSrc] = await Promise.all([
-    photo ? cropPhoto(photo, inner.w / inner.h, { maxW: frame.w, focalAt: frame.focalAt }) : null,
+    photo ? cropPhoto(photo, inner.w / inner.h, { maxW: Math.round(frame.w * scale), focalAt: frame.focalAt }) : null,
     // The ground's rays and stripes, lit from behind the print (../ground.js); drawn once per size.
     groundOverlayDataUrl({ w: spec.width, h: spec.height, cx: frame.x + frame.w / 2, cy: frame.y + frame.h / 2, band: frame.band }),
   ]);
@@ -55,8 +61,11 @@ export async function generateSocialCard(caseData, kind, shared = {}) {
     fonts: fonts.SATORI_FONTS,
   });
 
-  const resvg = new Resvg(svg, {
-    fitTo: { mode: 'width', value: spec.width },
+  // resvg-js 2.6 ignores fitTo once font buffers are given, so the SVG's own
+  // size is doubled instead; its viewBox stays, and everything scales with it.
+  const scaled = svg.replace(/^<svg width="(\d+)" height="(\d+)"/, (m, w, h) => `<svg width="${Math.round(Number(w) * scale)}" height="${Math.round(Number(h) * scale)}"`);
+  const resvg = new Resvg(scaled, {
+    fitTo: { mode: 'original' },
     font: fonts.RESVG_FONT,
   });
   const png = resvg.render().asPng();
@@ -68,10 +77,10 @@ export async function generateSocialCard(caseData, kind, shared = {}) {
   if (sharp) {
     try {
       const jpeg = await sharp(png).jpeg({ quality: JPEG_QUALITY, progressive: true, mozjpeg: true }).toBuffer();
-      return { buffer: jpeg, width: spec.width, height: spec.height, mimeType: 'image/jpeg', ext: 'jpg' };
+      return { buffer: jpeg, width: Math.round(spec.width * scale), height: Math.round(spec.height * scale), mimeType: 'image/jpeg', ext: 'jpg' };
     } catch {
       /* the PNG below */
     }
   }
-  return { buffer: png, width: spec.width, height: spec.height, mimeType: 'image/png', ext: 'png' };
+  return { buffer: png, width: Math.round(spec.width * scale), height: Math.round(spec.height * scale), mimeType: 'image/png', ext: 'png' };
 }

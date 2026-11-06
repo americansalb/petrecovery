@@ -242,21 +242,27 @@ function LinkBlock({ data, k, w }) {
  * narrow (the half sheet). The link block is left out when the short
  * link is already the main line.
  */
-function ContactPanel({ data, w, h, k, stacked = false, phoneBase = 34.5 }) {
-  const padX = 18 * k;
-  const qr = data.qrDataUrl ? (stacked ? 40 : 58) * k : 0;
+function ContactPanel({ data, w, h, k: kBase, scale = 1, stacked = false, phoneBase = 34.5 }) {
+  // When the panel is given more height (a thin report, the poster), its type grows with `scale`
+  // and its tile, link and padding at half that rate, so the phone number gets the room.
+  const k = kBase * scale;
+  const kq = kBase * (1 + (scale - 1) * 0.5);
+  const padX = 18 * kq;
+  const qr = data.qrDataUrl ? (stacked ? 40 : 58) * kq : 0;
   const mainIsLink = !data.hasPhone && !data.email;
   const link = mainIsLink ? '' : data.caseUrlLabel;
-  const linkW = link ? Math.ceil(Math.max(interEm(link) * 10 * k, eyebrowW(LINK_EYEBROW, 7.5 * k))) : 0;
+  const linkW = link ? Math.ceil(Math.max(interEm(link) * 10 * kq, eyebrowW(LINK_EYEBROW, 7.5 * kq))) : 0;
   const innerW = w - padX * 2;
-  const leftW = stacked ? innerW : innerW - (qr ? qr + 12 * k : 0) - (linkW ? linkW + 9 * k : 0);
+  const leftW = stacked ? innerW : innerW - (qr ? qr + 12 * kq : 0) - (linkW ? linkW + 9 * kq : 0);
   const phone = fitUnbounded(data.contactValue, leftW, phoneBase * k, 10 * k);
   const emailLine = data.hasPhone && data.email ? `or email ${data.email}` : '';
   const emailSize = emailLine ? fitInter(emailLine, leftW, 9.75 * k, 7 * k) : 0;
+  const eyebrowText = contactEyebrow(data);
+  const eyebrowSize = Math.max(6.5 * kBase, Math.min(9 * k, (leftW / eyebrowW(eyebrowText, 1)) * 0.98));
 
   const main = (
     <View style={{ width: leftW }}>
-      <Text style={{ ...EYEBROW(9 * k, C.yellow), ...CLAMP(1) }}>{contactEyebrow(data)}</Text>
+      <Text style={{ ...EYEBROW(eyebrowSize, C.yellow), ...CLAMP(1) }}>{eyebrowText}</Text>
       <View style={{ marginTop: 6 * k }}>
         <TightLine size={phone} color={C.cream}>{data.contactValue}</TightLine>
       </View>
@@ -264,11 +270,11 @@ function ContactPanel({ data, w, h, k, stacked = false, phoneBase = 34.5 }) {
     </View>
   );
   const aside = qr || link ? (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: stacked ? 9 * k : 0, marginLeft: stacked ? 0 : 12 * k }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: stacked ? 9 * k : 0, marginLeft: stacked ? 0 : 12 * kq }}>
       {qr ? <QrTile data={data} size={qr} /> : null}
       {link ? (
-        <View style={{ marginLeft: qr ? 9 * k : 0 }}>
-          <LinkBlock data={data} k={k} w={linkW} />
+        <View style={{ marginLeft: qr ? 9 * kq : 0 }}>
+          <LinkBlock data={data} k={kq} w={linkW} />
         </View>
       ) : null}
     </View>
@@ -401,9 +407,9 @@ function Beside({ data, k, w, h, col }) {
   return (
     <View style={{ width: w, height: h, justifyContent: 'space-between' }}>
       <View>
-        <Text style={EYEBROW(COLUMN.eyebrow * k)}>Last seen</Text>
-        {data.lastSeenWhen ? <Text style={{ ...CLAMP(1), ...BODY(COLUMN.date * k, C.navy, 700), marginTop: 2 * k, lineHeight: 1.2 }}>{data.lastSeenWhen}</Text> : null}
-        <Text style={{ ...CLAMP(2), ...BODY(COLUMN.address * k, C.soft, 500), lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
+        <Text style={EYEBROW(COLUMN.eyebrow * k * col.kt)}>Last seen</Text>
+        {data.lastSeenWhen ? <Text style={{ ...CLAMP(1), ...BODY(COLUMN.date * k * col.kt, C.navy, 700), marginTop: 2 * k, lineHeight: 1.2 }}>{data.lastSeenWhen}</Text> : null}
+        <Text style={{ ...CLAMP(3), ...BODY(COLUMN.address * k * col.kt, C.soft, 500), lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
       </View>
       <View style={{ marginTop: col.gap }}>
         <MapTile data={data} w={w} h={col.tileH} k={k} />
@@ -489,7 +495,7 @@ function Sheet({ data, plan, photoSrc }) {
       </View>
       <Advice data={data} k={k} w={contentW} plan={plan.advice} marginTop={plan.rowToAdvice} />
       <View style={{ marginTop: plan.contactGap }}>
-        <ContactPanel data={data} w={contentW} h={plan.contact.h} k={k * plan.contact.scale} />
+        <ContactPanel data={data} w={contentW} h={plan.contact.h} k={k} scale={plan.contact.scale} />
       </View>
       {plan.tabs > 0 ? (
         <View style={{ position: 'absolute', left: side, right: side, bottom: plan.bottom }}>

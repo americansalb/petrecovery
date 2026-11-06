@@ -151,19 +151,20 @@ export const COLUMN = {
   date: 14,
   address: 10.5,
   body: 10.75,
-  bodyMax: 12.5, // the body grows this far while the tile keeps its share
-  bodyMaxNoMap: 14.5, // and this far when the tile is the QR card
+  bodyMax: 12.5, // with a map, the body grows this far while the map keeps its share
+  thinScale: 1.6, // without a map, all the column's type grows together, this far, to fill
   comes: 0.93,
   lineHeight: 1.35,
   gap: 8,
   tileMin: 90, // the tile is never shorter: the body loses lines first
-  tileShare: 0.45, // the tile keeps at least this much of the column while the body grows
+  tileShare: 0.45, // the map keeps at least this much of the column while the body grows
   mapMaxOfW: 1.6, // the map never grows taller than this times the column's width
-  qrMaxOfW: 1.2, // nor the QR card than this
+  qrOfW: 0.9, // the QR card is this wide and tall: scannable from arm's length, never a poster
+  qrMaxOfH: 0.55, // and never more than this much of the column
 };
 
 /** "If you see Max" on its card at scale 1 (pt): the eyebrow, the body, the card's padding and edge, and how many lines each text may take. */
-export const ADVICE = { eyebrow: 8.25, body: 10.5, padX: 10, padY: 6, edge: 2, healthMax: 2, linesMax: 5 };
+export const ADVICE = { eyebrow: 8.25, body: 10.5, padX: 10, padY: 6, edge: 2, healthMax: 4, linesMax: 7, min: 8.5 };
 
 /**
  * "If you see Max" on its card, `w` wide, at `size` (already scaled): the
@@ -192,31 +193,57 @@ export function planAdvice({ w, k = 1, words, size, linesMax = ADVICE.linesMax }
  */
 export function planColumn({ w, h, k = 1, words, hasMap }) {
   const c = COLUMN;
-  const eyebrow = c.eyebrow * k * 1.3;
-  const date = words.lastSeenWhen ? c.date * k * 1.2 + 2 * k : 0;
-  const addressLines = Math.min(2, interLines(words.lastSeenArea, c.address * k, w));
-  const address = addressLines * c.address * k * 1.3;
-  const gap = c.gap * k;
   const body = lookForLine(words);
-  const linesAt = (size) => interLines(body, size, w);
-  const comesAt = (size) => (words.comesTo ? Math.min(2, interLines(words.comesTo, size * c.comes, w)) : 0);
-  const comesH = (size) => (comesAt(size) ? comesAt(size) * size * c.comes * 1.3 + 4 * k : 0);
-  const textH = (size, lines) => eyebrow + date + address + gap + gap + lines * size * c.lineHeight + comesH(size);
-  const tileMax = (hasMap ? c.mapMaxOfW : c.qrMaxOfW) * w;
-  const bodyMax = (hasMap ? c.bodyMax : c.bodyMaxNoMap) * k;
-  const tileAt = (size) => h - textH(size, linesAt(size));
-  const step = 0.25 * k;
-  let size = c.body * k;
-  while (size + step <= bodyMax + 1e-6 && tileAt(size + step) >= c.tileShare * h) size += step;
-  let lines = linesAt(size);
-  let tile = tileAt(size);
-  if (tile < c.tileMin * k) {
-    tile = c.tileMin * k;
-    lines = Math.max(2, Math.floor((h - tile - textH(size, 0)) / (size * c.lineHeight)));
+  // The column's words at a type scale `kt` (the whole column together) and a body `size`.
+  const textAt = (kt, size) => {
+    const eyebrow = c.eyebrow * k * kt * 1.3;
+    const date = words.lastSeenWhen ? c.date * k * kt * 1.2 + 2 * k : 0;
+    const addressLines = Math.min(3, interLines(words.lastSeenArea, c.address * k * kt, w));
+    const address = addressLines * c.address * k * kt * 1.3;
+    const gap = c.gap * k * kt;
+    const lines = interLines(body, size, w);
+    const comesLines = words.comesTo ? Math.min(3, interLines(words.comesTo, size * c.comes, w)) : 0;
+    const comesH = comesLines ? comesLines * size * c.comes * 1.3 + 4 * k : 0;
+    const fixed = eyebrow + date + address + gap + gap + comesH;
+    return { fixed, h: fixed + lines * size * c.lineHeight, lines, comesLines, addressLines, gap };
+  };
+  const done = (kt, size, t, tile) => ({
+    kt,
+    size,
+    bodyLines: t.lines,
+    comesLines: t.comesLines,
+    addressLines: t.addressLines,
+    tileH: tile,
+    mapH: tile,
+    gap: t.gap,
+    used: Math.min(h, t.h + tile),
+    short: Math.max(0, h - t.h - tile),
+  });
+  if (hasMap) {
+    // The body grows a little while the map keeps its share; then the map takes what the words leave.
+    const step = 0.25 * k;
+    let size = c.body * k;
+    while (size + step <= c.bodyMax * k + 1e-6 && h - textAt(1, size + step).h >= c.tileShare * h) size += step;
+    let t = textAt(1, size);
+    let tile = h - t.h;
+    if (tile < c.tileMin * k) {
+      tile = c.tileMin * k;
+      const lines = Math.max(2, Math.floor((h - tile - t.fixed) / (size * c.lineHeight)));
+      t = { ...t, lines, h: t.fixed + lines * size * c.lineHeight };
+    }
+    return done(1, size, t, Math.floor(Math.min(tile, c.mapMaxOfW * w)));
   }
-  tile = Math.floor(Math.min(tile, tileMax));
-  const used = textH(size, lines) + tile;
-  return { size, bodyLines: lines, comesLines: comesAt(size), addressLines, tileH: tile, mapH: tile, gap, used: Math.min(h, used), short: Math.max(0, h - used) };
+  // No map: the tile is the QR card, a fixed size; the column's type grows together to fill.
+  const tile = Math.floor(Math.max(c.tileMin * k, Math.min(c.qrOfW * w, c.qrMaxOfH * h)));
+  let kt = 1;
+  while (kt + 0.05 <= c.thinScale + 1e-6 && textAt(kt + 0.05, c.body * k * (kt + 0.05)).h + tile <= h) kt = Math.round((kt + 0.05) * 100) / 100;
+  const size = c.body * k * kt;
+  let t = textAt(kt, size);
+  if (t.h + tile > h) {
+    const lines = Math.max(2, Math.floor((h - tile - t.fixed) / (size * c.lineHeight)));
+    t = { ...t, lines, h: t.fixed + lines * size * c.lineHeight };
+  }
+  return done(kt, size, t, tile);
 }
 
 /**
@@ -238,6 +265,9 @@ export function blocks(k = 1) {
     printMin: 250 * k, // the print's width, from the photo's shape, within these
     printMax: 330 * k,
     printAspectMin: 0.62, // the print is never narrower than this, so the row never grows past printMax / 0.62
+    printWide: 353 * k, // a thin report's print: the photo cut toward a square, this wide at most
+    thinShort: 0.12, // a column that cannot fill more than this share of the row makes the report thin
+    rowFloor: 0.74, // a thin report's row shrinks to no less than this share of the full row
     wordGrow: 1.15, // the band grows this much when there is room
     rowToAdvice: 10 * k,
     adviceSize: 10.5 * k, // "If you see Max" on its note card, the full width, as tall as its words
@@ -271,16 +301,32 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST', wor
   };
   const adviceAt = (size) => planAdvice({ w: contentW, k, words, size });
   const head0 = headAt(b.wordMax);
-  const advice0 = adviceAt(b.adviceSize);
-  const fixed = b.top + head0.head + b.headToRow + b.rowToAdvice + advice0.h + b.contactGap + b.contact + tabsH + bottom0;
-  const room = page.h - fixed;
+  let advice0 = adviceAt(b.adviceSize);
+  const roomAt = (adv) => page.h - (b.top + head0.head + b.headToRow + b.rowToAdvice + adv.h + b.contactGap + b.contact + tabsH + bottom0);
+  // Long words: the card's type shrinks (never under ADVICE.min, scaled) before the photo row drops under its floor.
+  for (let size = b.adviceSize - 0.25 * k; size >= ADVICE.min * k - 1e-6 && roomAt(advice0) < b.printMin; size -= 0.25 * k) advice0 = adviceAt(size);
+  const room = roomAt(advice0);
   // The row: as tall as the sheet allows, but the print is never a narrow strip. The column fills it (planColumn).
-  const row = Math.floor(Math.min(room, b.printMax / b.printAspectMin));
-  const printW = aspect ? clamp(Math.round(row * aspect), b.printMin, b.printMax) : Math.round(300 * k);
-  const off = Math.round(printW * PRINT.shadow);
-  const colW = contentW - printW - off - b.colGap;
-  const col = planColumn({ w: colW, h: row, k, words, hasMap });
-  // The slack (the poster's, mostly): the band grows, then the card's type, then the contact panel, then the gaps, then the margins.
+  const row0 = Math.floor(Math.min(room, b.printMax / b.printAspectMin));
+  const layoutAt = (r, wide) => {
+    const printW = aspect ? clamp(Math.round(r * (wide ? Math.max(aspect, 1) : aspect)), b.printMin, wide ? b.printWide : b.printMax) : Math.round((wide ? 353 : 300) * k);
+    const off = Math.round(printW * PRINT.shadow);
+    const colW = contentW - printW - off - b.colGap;
+    return { row: r, printW, off, colW, col: planColumn({ w: colW, h: r, k, words, hasMap }) };
+  };
+  let lay = layoutAt(row0, false);
+  const thin = (l) => l.col.short > b.thinShort * l.row;
+  if (thin(lay)) {
+    // A thin report. The print widens toward a square cut (a wide photo keeps its shape), the column's type
+    // grows (planColumn), and while the column still cannot fill the row, the row gives height to the band,
+    // the card, the panel and the gaps, down to its floor.
+    for (let r = row0; r >= Math.round(row0 * b.rowFloor); r -= Math.round(6 * k)) {
+      lay = layoutAt(r, true);
+      if (!thin(lay)) break;
+    }
+  }
+  const { row, printW, colW, col } = lay;
+  // The slack (the poster's, and a thin report's): the band grows, then the card's type, then the contact panel, then the gaps, then the margins.
   let slack = room - row;
   let head = head0;
   for (let max = b.wordMax + k; max <= b.wordMax * b.wordGrow + 1e-6; max += k) {
@@ -290,7 +336,7 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST', wor
   }
   slack -= head.head - head0.head;
   let advice = advice0;
-  for (let size = b.adviceSize + 0.25 * k; size <= b.adviceMax + 1e-6; size += 0.25 * k) {
+  for (let size = advice0.size + 0.25 * k; size <= b.adviceMax + 1e-6; size += 0.25 * k) {
     const a = adviceAt(size);
     if (a.h - advice0.h > slack * 0.5) break;
     advice = a;
@@ -396,10 +442,10 @@ export function cropRect(w, h, focal, aspect, focalAt = 0.5) {
  * from (ground.js); `band` is the caution stripes' height.
  */
 export const CARDS = {
-  square: { W: 1080, H: 1080, side: 40, top: 44, bottom: 38, band: 84, nameMax: 36, tag: 13, headGap: 20, headToRow: 14, colGap: 20, printMin: 440, printMax: 620, body: 17, advice: 18, adviceMax: 23, contact: 1.42, contactMax: 1.8, rowToAdvice: 12, contactGap: 12, gapMax: 40, stripe: 18 },
-  story: { W: 1080, H: 1920, side: 56, top: 140, bottom: 130, band: 130, nameMax: 44, tag: 18, headGap: 26, headToRow: 40, colGap: 24, printMin: 480, printMax: 600, body: 22, advice: 25, adviceMax: 32, contact: 968 / 516, contactMax: 2.4, rowToAdvice: 40, contactGap: 40, gapMax: 80, stripe: 22 },
+  square: { W: 1080, H: 1080, side: 40, top: 44, bottom: 38, band: 84, nameMax: 36, tag: 13, headGap: 20, headToRow: 14, colGap: 20, printMin: 440, printMax: 620, printWide: 640, body: 17, advice: 18, adviceMax: 23, contact: 1.42, contactMax: 1.8, rowToAdvice: 12, contactGap: 12, gapMax: 40, stripe: 18 },
+  story: { W: 1080, H: 1920, side: 56, top: 140, bottom: 130, band: 130, nameMax: 44, tag: 18, headGap: 26, headToRow: 40, colGap: 24, printMin: 480, printMax: 600, printWide: 620, body: 22, advice: 25, adviceMax: 32, contact: 968 / 516, contactMax: 2.4, rowToAdvice: 40, contactGap: 40, gapMax: 80, stripe: 22 },
 };
-export const OG = { W: 1200, H: 630, x: 56, y: 58, h: 514, printMin: 386, printMax: 560, colGap: 36, right: 50, top: 50, bottom: 44, band: 92, nameMax: 30, tag: 12, headGap: 16, where: 15.5, advice: 15.5, adviceMax: 18.5, mapW: 240, mapMin: 110, mapMax: 230, stripe: 16 };
+export const OG = { W: 1200, H: 630, x: 56, y: 58, h: 514, printMin: 386, printMax: 560, colGap: 36, right: 50, top: 50, bottom: 44, band: 92, nameMax: 30, tag: 12, headGap: 16, where: 15.5, whereScale: 1.5, advice: 15.5, adviceMax: 18.5, adviceMaxThin: 21, mapW: 240, mapMin: 110, mapMax: 230, stripe: 16 };
 
 export function planCard(size, aspect, words = {}) {
   const c = CARDS[size] || CARDS.square;
@@ -415,15 +461,29 @@ export function planCard(size, aspect, words = {}) {
   };
   const adviceAt = (s) => planAdvice({ w: W, k: ka, words, size: s });
   const head0 = headAt(c.band);
-  const advice0 = adviceAt(c.advice);
+  let advice0 = adviceAt(c.advice);
   const contact0 = Math.round(84 * c.contact);
-  const fixed = c.top + head0.head + c.headToRow + c.rowToAdvice + advice0.h + c.contactGap + contact0 + c.bottom;
-  const room = c.H - fixed;
-  const row = Math.floor(Math.min(room, c.printMax / 0.62));
-  const w = a ? clamp(Math.round(row * a), c.printMin, c.printMax) : Math.round((c.printMin + c.printMax) / 2);
-  const off = Math.round(w * PRINT.shadow);
-  const colW = W - w - off - c.colGap;
-  const col = planColumn({ w: colW, h: row, k: kc, words, hasMap });
+  const roomAt = (adv) => c.H - (c.top + head0.head + c.headToRow + c.rowToAdvice + adv.h + c.contactGap + contact0 + c.bottom);
+  // Long words: the card's type shrinks (never under ADVICE.min, scaled) before the photo row drops under its floor.
+  for (let s = c.advice - 0.5; s >= ADVICE.min * ka - 1e-6 && roomAt(advice0) < c.printMin; s -= 0.5) advice0 = adviceAt(s);
+  const room = roomAt(advice0);
+  const row0 = Math.floor(Math.min(room, c.printMax / 0.62));
+  const layoutAt = (r, wide) => {
+    const w = a ? clamp(Math.round(r * (wide ? Math.max(a, 1) : a)), c.printMin, wide ? c.printWide : c.printMax) : Math.round((c.printMin + c.printMax) / 2);
+    const off = Math.round(w * PRINT.shadow);
+    const colW = W - w - off - c.colGap;
+    return { row: r, w, off, colW, col: planColumn({ w: colW, h: r, k: kc, words, hasMap }) };
+  };
+  let lay = layoutAt(row0, false);
+  const thin = (l) => l.col.short > 0.12 * l.row;
+  if (thin(lay)) {
+    // A thin report (see planSheet): a wider cut, bigger type, and the row gives height down to its floor.
+    for (let r = row0; r >= Math.round(row0 * 0.74); r -= 8) {
+      lay = layoutAt(r, true);
+      if (!thin(lay)) break;
+    }
+  }
+  const { row, w, off, colW, col } = lay;
   let slack = room - row;
   let head = head0;
   for (let b = c.band + 2; b <= c.band * 1.15 + 1e-6; b += 2) {
@@ -433,7 +493,7 @@ export function planCard(size, aspect, words = {}) {
   }
   slack -= head.head - head0.head;
   let advice = advice0;
-  for (let s = c.advice + 0.5; s <= c.adviceMax + 1e-6; s += 0.5) {
+  for (let s = advice0.size + 0.5; s <= c.adviceMax + 1e-6; s += 0.5) {
     const x = adviceAt(s);
     if (x.h - advice0.h > slack * 0.5) break;
     advice = x;
@@ -468,7 +528,7 @@ export function planCard(size, aspect, words = {}) {
     rowToAdvice: c.rowToAdvice + gapExtra,
     advice,
     contactGap: c.contactGap + gapExtra,
-    contact: { h: contactH, k: contactK },
+    contact: { h: contactH, k: contactK, base: c.contact },
     bottom: c.bottom + slack / 2,
     stripe: c.stripe,
   };
@@ -478,53 +538,83 @@ export function planCard(size, aspect, words = {}) {
 export function planOg(aspect, words = {}) {
   const o = OG;
   const a = aspect && Number.isFinite(aspect) && aspect > 0 ? aspect : null;
-  const w = a ? clamp(Math.round(o.h * a), o.printMin, o.printMax) : Math.round((o.printMin + o.printMax) / 2);
-  const off = Math.round(w * PRINT.shadow);
-  const colX = o.x + w + off + o.colGap;
-  const W = o.W - colX - o.right;
-  const stamp = words.stamp || 'LOST';
-  const bandSize = fitUnbounded(stamp, W * 0.62, o.band, 56);
-  const band = bandBox(bandSize, stamp);
-  const head = band.h + band.off;
   const hasMap = Boolean(words.map);
+  const stamp = words.stamp || 'LOST';
+  const ka = o.advice / ADVICE.body;
   const pill = Math.round(40 * 0.42) * 2 + 12 * 1.3 + 6 + 40; // the phone pill: its paddings, the eyebrow, the number
   const available = o.H - o.bottom - pill - 14 - o.top;
-  const ka = o.advice / ADVICE.body;
-  const adviceAt = (s) => planAdvice({ w: W, k: ka, words, size: s });
-  let advice = adviceAt(o.advice);
   const gaps = 12 + 10;
-  const factsAt = (adv) => available - head - gaps - adv.h;
-  // The card's type grows while the facts row keeps a fair height; the row takes what is left, within its bounds.
-  for (let s = o.advice + 0.5; s <= o.adviceMax + 1e-6; s += 0.5) {
-    const x = adviceAt(s);
-    if (factsAt(x) < 150) break;
-    advice = x;
-  }
-  const facts = clamp(factsAt(advice), o.mapMin, o.mapMax);
-  const extra = Math.max(0, factsAt(advice) - facts);
-  const whereW = hasMap ? W - o.mapW - 14 : W;
-  const ws = o.where;
-  const whereFixed = ws * 0.72 * 1.3 + (words.lastSeenWhen ? ws * 1.15 * 1.2 + 2 : 0) + Math.min(2, interLines(words.lastSeenArea, ws * 0.92, whereW)) * ws * 0.92 * 1.3 + ws * 0.4;
-  const whereLines = Math.max(2, Math.min(6, Math.floor((facts - whereFixed) / (ws * 0.95 * 1.35))));
+  const whereHAt = (kt, whereW, lines) => {
+    const ws = o.where * kt;
+    return ws * 0.72 * 1.3 + (words.lastSeenWhen ? ws * 1.15 * 1.2 + 2 : 0) + Math.min(2, interLines(words.lastSeenArea, ws * 0.92, whereW)) * ws * 0.92 * 1.3 + ws * 0.4 + lines * ws * 0.95 * 1.35;
+  };
+  const layoutAt = (wide) => {
+    const w = a ? clamp(Math.round(o.h * (wide ? Math.max(a, 1) : a)), o.printMin, o.printMax) : Math.round((o.printMin + o.printMax) / 2);
+    const off = Math.round(w * PRINT.shadow);
+    const colX = o.x + w + off + o.colGap;
+    const W = o.W - colX - o.right;
+    const bandAt = (max) => {
+      const bandSize = fitUnbounded(stamp, W * 0.62, max, 56);
+      const band = bandBox(bandSize, stamp);
+      return { bandSize, band, head: band.h + band.off };
+    };
+    let hd = bandAt(o.band);
+    const adviceAt = (s) => planAdvice({ w: W, k: ka, words, size: s });
+    let advice = adviceAt(o.advice);
+    const factsAt = (adv, h) => available - h.head - gaps - adv.h;
+    // Long words: the card's type shrinks (never under ADVICE.min, scaled) before a line is cut, so the facts row keeps its minimum.
+    for (let s = o.advice - 0.5; s >= ADVICE.min * ka - 1e-6 && factsAt(advice, hd) < o.mapMin; s -= 0.5) advice = adviceAt(s);
+    // The card's type grows while the facts row keeps a fair height; the row takes what is left, within its bounds.
+    for (let s = advice.size + 0.5; s <= (wide ? o.adviceMaxThin : o.adviceMax) + 1e-6; s += 0.5) {
+      const x = adviceAt(s);
+      if (factsAt(x, hd) < 150) break;
+      advice = x;
+    }
+    const whereW = hasMap ? W - o.mapW - 14 : W;
+    const bodyLines = interLines(lookForLine(words), o.where * 0.95, whereW);
+    let facts = clamp(factsAt(advice, hd), o.mapMin, o.mapMax);
+    let kt = 1;
+    if (!hasMap) {
+      // No map: the facts are words alone. Their type grows to fill the row, then the band grows, then the row is as tall as the words.
+      const room = factsAt(advice, hd);
+      while (kt + 0.05 <= o.whereScale + 1e-6 && whereHAt(kt + 0.05, whereW, bodyLines) <= room) kt = Math.round((kt + 0.05) * 100) / 100;
+      for (let max = o.band + 2; max <= o.band * 1.15 + 1e-6; max += 2) {
+        const h2 = bandAt(max);
+        if (factsAt(advice, h2) < whereHAt(kt, whereW, bodyLines)) break;
+        hd = h2;
+      }
+      facts = clamp(factsAt(advice, hd), Math.min(o.mapMin, whereHAt(kt, whereW, bodyLines)), Math.max(o.mapMax, whereHAt(kt, whereW, bodyLines)));
+    }
+    const extra = Math.max(0, factsAt(advice, hd) - facts);
+    const ws = o.where * kt;
+    const whereLines = Math.max(2, Math.min(6, Math.floor((facts - whereHAt(kt, whereW, 0)) / (ws * 0.95 * 1.35))));
+    const short = hasMap ? 0 : Math.max(0, facts - whereHAt(kt, whereW, Math.min(bodyLines, whereLines)));
+    return { w, off, colX, W, hd, advice, facts, extra, whereW, ws, kt, whereLines, short };
+  };
+  let lay = layoutAt(false);
+  // A thin report: the words cannot fill their row, so the print widens to a square cut and the column narrows (see planSheet).
+  if (!hasMap && lay.short > 0.25 * lay.facts) lay = layoutAt(true);
+  const { w, off, colX, W, hd, advice, facts, extra, whereW, ws, kt, whereLines } = lay;
   return {
     size: 'og',
     frame: { x: o.x, y: o.y, w, h: o.h, off, focalAt: 0.42, band: o.stripe },
     colX,
     W,
     top: o.top,
-    bandSize,
-    band,
-    head,
+    bandSize: hd.bandSize,
+    band: hd.band,
+    head: hd.head,
     nameMax: o.nameMax,
     tag: o.tag,
     headGap: o.headGap,
-    headToFacts: 12 + extra / 2,
+    headToFacts: 12 + Math.min(40, extra / 2),
     facts,
     mapW: o.mapW,
     whereW,
     where: ws,
+    kt,
     whereLines,
-    factsToAdvice: 10 + extra / 2,
+    factsToAdvice: 10 + Math.min(40, extra / 2),
     advice,
     ka,
     pill,

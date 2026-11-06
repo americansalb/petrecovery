@@ -157,33 +157,38 @@ function QrTile({ data, size }) {
  * one navy block. `k` is pixels per Letter point, so the square and the
  * story keep the sheet's proportions.
  */
-function ContactPanel({ data, w, k }) {
-  const padX = Math.round(18 * k);
-  const qr = data.qrDataUrl ? Math.round(58 * k) : 0;
+function ContactPanel({ data, w, k: kBase, scale = 1 }) {
+  // Given more height (a thin report), the type grows with `scale` and the tile, link and padding at half that rate (see Flyer.jsx).
+  const k = kBase * scale;
+  const kq = kBase * (1 + (scale - 1) * 0.5);
+  const padX = Math.round(18 * kq);
+  const qr = data.qrDataUrl ? Math.round(58 * kq) : 0;
   const mainIsLink = !data.hasPhone && !data.email;
   const link = mainIsLink ? '' : data.caseUrlLabel;
-  const linkSize = Math.round(10 * k);
-  const linkW = link ? Math.ceil(Math.max(interEm(link) * linkSize, eyebrowW(LINK_EYEBROW, 7.5 * k))) : 0;
-  const leftW = w - padX * 2 - (qr ? qr + Math.round(12 * k) : 0) - (linkW ? linkW + Math.round(9 * k) : 0);
+  const linkSize = Math.round(10 * kq);
+  const linkW = link ? Math.ceil(Math.max(interEm(link) * linkSize, eyebrowW(LINK_EYEBROW, 7.5 * kq))) : 0;
+  const leftW = w - padX * 2 - (qr ? qr + Math.round(12 * kq) : 0) - (linkW ? linkW + Math.round(9 * kq) : 0);
   const phone = fitUnbounded(data.contactValue, leftW, 34.5 * k, 10 * k);
   const emailLine = data.hasPhone && data.email ? `or email ${data.email}` : '';
   const emailSize = emailLine ? fitInter(emailLine, leftW, 9.75 * k, 7 * k) : 0;
+  const eyebrowText = contactEyebrow(data);
+  const eyebrowSize = Math.max(6.5 * kBase, Math.min(9 * k, (leftW / eyebrowW(eyebrowText, 1)) * 0.98));
   return (
     <Row style={{ width: w, height: Math.round(84 * k), backgroundColor: NAVY, borderRadius: Math.round(20 * k), padding: `0 ${padX}px`, alignItems: 'center' }}>
       <Col style={{ width: leftW }}>
-        <Txt style={{ ...eyebrow(9 * k, YEL), whiteSpace: 'nowrap' }}>{contactEyebrow(data)}</Txt>
+        <Txt style={{ ...eyebrow(eyebrowSize, YEL), whiteSpace: 'nowrap' }}>{eyebrowText}</Txt>
         <Txt style={{ ...disp(phone, CREAM), marginTop: Math.round(6 * k) }}>{data.contactValue}</Txt>
         {emailLine ? <Txt style={{ ...body(emailSize, CREAM, 500), marginTop: Math.round(6 * k), lineHeight: 1.2, whiteSpace: 'nowrap' }}>{emailLine}</Txt> : null}
       </Col>
       {qr ? (
-        <Col style={{ marginLeft: Math.round(12 * k) }}>
+        <Col style={{ marginLeft: Math.round(12 * kq) }}>
           <QrTile data={data} size={qr} />
         </Col>
       ) : null}
       {link ? (
-        <Col style={{ marginLeft: Math.round(qr ? 9 * k : 12 * k), width: linkW }}>
-          <Txt style={eyebrow(7.5 * k, YEL)}>{LINK_EYEBROW}</Txt>
-          <Txt style={{ ...body(linkSize, CREAM, 700), marginTop: Math.round(3 * k), lineHeight: 1.2, whiteSpace: 'nowrap' }}>{link}</Txt>
+        <Col style={{ marginLeft: Math.round(qr ? 9 * kq : 12 * kq), width: linkW }}>
+          <Txt style={eyebrow(7.5 * kq, YEL)}>{LINK_EYEBROW}</Txt>
+          <Txt style={{ ...body(linkSize, CREAM, 700), marginTop: Math.round(3 * kq), lineHeight: 1.2, whiteSpace: 'nowrap' }}>{link}</Txt>
         </Col>
       ) : null}
     </Row>
@@ -242,9 +247,9 @@ function Beside({ data, k, width, height, col, radius = 14 }) {
   return (
     <Col style={{ width, height, justifyContent: 'space-between' }}>
       <Col>
-        <Txt style={eyebrow(COLUMN.eyebrow * k)}>Last seen</Txt>
-        {data.lastSeenWhen ? <Txt style={{ ...body(COLUMN.date * k, NAVY, 700), marginTop: 2, lineHeight: 1.2 }}>{data.lastSeenWhen}</Txt> : null}
-        <Clamp lines={2} style={{ ...body(COLUMN.address * k, SOFT, 500), width, lineHeight: 1.3 }}>{data.lastSeenArea}</Clamp>
+        <Txt style={eyebrow(COLUMN.eyebrow * k * col.kt)}>Last seen</Txt>
+        {data.lastSeenWhen ? <Txt style={{ ...body(COLUMN.date * k * col.kt, NAVY, 700), marginTop: 2, lineHeight: 1.2 }}>{data.lastSeenWhen}</Txt> : null}
+        <Clamp lines={3} style={{ ...body(COLUMN.address * k * col.kt, SOFT, 500), width, lineHeight: 1.3 }}>{data.lastSeenArea}</Clamp>
       </Col>
       <Col style={{ marginTop: Math.round(col.gap) }}>
         <MapTile data={data} w={width} h={col.tileH} radius={radius} k={k} />
@@ -278,7 +283,7 @@ function Where({ data, size, width, lines = 3 }) {
     <Col style={{ width, justifyContent: 'center' }}>
       <Txt style={eyebrow(size * 0.72)}>Last seen</Txt>
       {data.lastSeenWhen ? <Txt style={{ ...body(size * 1.15, NAVY, 700), marginTop: 2, lineHeight: 1.2 }}>{data.lastSeenWhen}</Txt> : null}
-      <Clamp lines={1} style={{ ...body(size * 0.92, SOFT, 500), width, lineHeight: 1.3 }}>{data.lastSeenArea}</Clamp>
+      <Clamp lines={2} style={{ ...body(size * 0.92, SOFT, 500), width, lineHeight: 1.3 }}>{data.lastSeenArea}</Clamp>
       <Clamp lines={lines} style={{ ...body(size * 0.95), width, marginTop: size * 0.4, lineHeight: 1.35 }}>{lookForLine(data)}</Clamp>
     </Col>
   );
@@ -350,7 +355,7 @@ function Card({ data, src, ground, plan }) {
         <Advice data={data} k={plan.ka} width={W} plan={plan.advice} />
       </Col>
       <Col style={{ flexGrow: 1 }} />
-      <ContactPanel data={data} w={W} k={plan.contact.k} />
+      <ContactPanel data={data} w={W} k={plan.contact.base} scale={plan.contact.k / plan.contact.base} />
     </Col>
   );
 }
