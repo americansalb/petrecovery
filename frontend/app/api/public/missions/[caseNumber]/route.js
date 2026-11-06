@@ -11,6 +11,7 @@
  */
 
 import { parsePlace } from '@/app/lib/placeLabel';
+import { publicDetails, finderGuide } from '@/app/lib/caseDetails';
 import { casePhone } from '@/app/lib/caseLabels';
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
@@ -62,6 +63,13 @@ export async function GET(request, { params }) {
         petSize: true,
         petPhotoUrl: true,
         petDescription: true,
+        // The questionnaire (app/lib/caseDetails.js): what a finder should
+        // know, minus the chip number, which is for the registry.
+        details: true,
+        needsMedication: true,
+        hasReward: true,
+        rewardAmount: true,
+        escapeScenario: true,
         // Location
         lastSeenLatitude: true,
         lastSeenLongitude: true,
@@ -161,6 +169,13 @@ export async function GET(request, { params }) {
       petSize: missionData.petSize,
       petPhotoUrl: normalizePhotoUrl(missionData.petPhotoUrl),
       petDescription: missionData.petDescription,
+      // The questionnaire, and the lines it produces for the page
+      details: publicDetails(missionData.details),
+      finderGuide: finderGuide(missionData.details, { name: missionData.petName, species: missionData.petSpecies }),
+      needsMedication: Boolean(missionData.needsMedication),
+      hasReward: Boolean(missionData.hasReward),
+      rewardAmount: missionData.hasReward ? missionData.rewardAmount || null : null,
+      escapeScenario: missionData.escapeScenario,
       // Location
       city,
       state,

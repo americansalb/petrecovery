@@ -763,6 +763,15 @@ model Case {
   hasReward    Boolean @default(false)
   rewardAmount Float?
 
+  // The report's questionnaire (docs/REPORT_QUESTIONNAIRE.md): the answers
+  // as JSON in the shape app/lib/caseDetails.js normalizeDetails() returns,
+  // plus the two the system acts on and the moment the owner ticked the
+  // reward-scam note.
+  details                  Json?
+  detailsUpdatedAt         DateTime?
+  needsMedication          Boolean   @default(false)
+  rewardScamAcknowledgedAt DateTime?
+
   // Engagement Metrics
   viewCount       Int @default(0)
   shareCount      Int @default(0)

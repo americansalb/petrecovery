@@ -18,6 +18,8 @@ import { withCaseNumberRetry } from '@/app/lib/caseNumber';
 import { forcesCovering, alertForceMembers } from '@/app/lib/forceCoverage';
 import { feedPost } from '@/app/lib/forceFeed';
 import { fillForceOutlineSoon } from '@/app/lib/forceOutlines';
+import { normalizeDetails, isEmptyDetails, needsMedication, healthUrgency, petFieldsFromDetails } from '@/app/lib/caseDetails';
+import { signDetailsToken } from '@/app/lib/detailsToken';
 
 // Allow large body for base64 image uploads and longer timeout
 export const maxDuration = 30;
@@ -54,7 +56,8 @@ export async function POST(request) {
       createAccount, password, // Account creation consent fields
       reporterLocation, // Reporter's auto-detected GPS [lat, lng]
       escapeScenario, // How the pet got out (wizard details step)
-      collarInfo, microchipId // Optional identifiers, stored on the Pet
+      collarInfo, microchipId, // Optional identifiers, stored on the Pet
+      details, hasReward, rewardAmount, rewardScamAcknowledged, // the questionnaire (docs/REPORT_QUESTIONNAIRE.md)
     } = body;
 
     // For dogs, use petSize if provided (more specific than generic size)
@@ -93,6 +96,26 @@ export async function POST(request) {
         { status: 400 }
       );
     }
+
+    // The questionnaire (app/lib/caseDetails.js). A reward needs the owner's
+    // tick on the scam note first: nobody pays before the pet is back in
+    // their hands. The answers also fill the Pet row's own columns.
+    const wantsReward = hasReward === true;
+    const rewardValue = wantsReward && Number.isFinite(Number(rewardAmount)) && Number(rewardAmount) > 0 ? Math.round(Number(rewardAmount)) : null;
+    if (wantsReward && rewardScamAcknowledged !== true) {
+      return NextResponse.json(
+        { error: 'Tick the note about reward scams before offering a reward.', code: 'REWARD_SCAM_ACK_REQUIRED' },
+        { status: 400 }
+      );
+    }
+    const answers = normalizeDetails(details);
+    const hasAnswers = !isEmptyDetails(answers);
+    const petExtras = petFieldsFromDetails(answers);
+    collarInfo = collarInfo || petExtras.collarInfo;
+    microchipId = microchipId || petExtras.microchipId;
+    distinctiveMarks = distinctiveMarks || petExtras.distinctiveMarks;
+    escapeScenario = answers.howOut || escapeScenario;
+    const urgency = healthUrgency(answers);
 
     // A pin-only report arrives with raw "lat, lng" as its address: all
     // three client geocoders failed, or the reporter tapped "use my
@@ -310,7 +333,14 @@ export async function POST(request) {
           reporterLongitude: reporterLocation?.[1] != null ? reporterLocation[1] : null,
           escapeScenario: escapeScenario || 'unknown',
           status: 'ACTIVE',
-          priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
+          // Lost within the hour, or a pet that needs its medication: urgent.
+          priority: timeElapsed === 'less_than_hour' || urgency === 'URGENT' ? 'URGENT' : urgency === 'HIGH' ? 'HIGH' : 'NORMAL',
+          details: hasAnswers ? answers : undefined,
+          detailsUpdatedAt: hasAnswers ? new Date() : undefined,
+          needsMedication: needsMedication(answers),
+          hasReward: wantsReward,
+          rewardAmount: rewardValue,
+          rewardScamAcknowledgedAt: wantsReward ? new Date() : null,
         }
       });
 
@@ -844,6 +874,12 @@ export async function POST(request) {
       petBreed: report.petBreed,
       petColor: report.petColor,
       petPhotoUrl: report.petPhotoUrl,
+      // The questionnaire, and a day-long token so the success screen can
+      // add to it before there is a session (app/lib/detailsToken.js).
+      details: answers,
+      hasReward: wantsReward,
+      rewardAmount: rewardValue,
+      detailsToken: signDetailsToken(report.id),
       activation: activationSnapshot,
       accountCreated,
       patrolAlerted: nearbyPatrol.length,

@@ -3,7 +3,9 @@
  * Phase 13-14: Lost Pet Missions MVP (TASK-C02)
  *
  * GET /api/missions/[id] - Get single case with notes
- * PATCH /api/missions/[id] - The owner changes the photo, the description or the phone on the report
+ * PATCH /api/missions/[id] - The owner changes the photo, the description, the phone or the
+ *   questionnaire (details, reward, breed, how they got out) on the report; the
+ *   details token from the create response works for the questionnaire alone
  * DELETE /api/missions/[id] - Delete a case (admin only)
  */
 
@@ -13,6 +15,9 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { normalizePhotoUrl } from '@/app/lib/utils';
+import { normalizeDetails, needsMedication, healthUrgency, petFieldsFromDetails, HOW_OUT_OPTIONS } from '@/app/lib/caseDetails';
+import { verifyDetailsToken, DETAILS_TOKEN_HEADER } from '@/app/lib/detailsToken';
+import { scheduleKitRedraw } from '@/app/lib/cascade/redrawLater';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -363,21 +368,35 @@ const DESCRIPTION_MAX = 1000;
 
 export async function PATCH(request, { params }) {
   try {
+    const id = params.missionId;
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // The person who just posted has no session yet; the success screen
+    // carries a token for the questionnaire fields of that one case
+    // (app/lib/detailsToken.js).
+    const token = request.headers.get(DETAILS_TOKEN_HEADER);
+    const byToken = !session?.user?.id && Boolean(token) && verifyDetailsToken(token, id);
+    if (!session?.user?.id && !byToken) {
       return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
     }
-    const id = params.missionId;
-    const existing = await prisma.case.findUnique({ where: { id }, select: { id: true, reporterId: true, caseNumber: true } });
+    const existing = await prisma.case.findUnique({
+      where: { id },
+      select: { id: true, reporterId: true, caseNumber: true, petId: true, priority: true, details: true, hasReward: true, rewardScamAcknowledgedAt: true },
+    });
     if (!existing) return NextResponse.json({ error: 'Case not found' }, { status: 404 });
-    const isOwner = existing.reporterId === session.user.id;
-    const isAdmin = session.user.role === 'ADMIN';
-    if (!isOwner && !isAdmin) {
+    const isOwner = Boolean(session?.user?.id) && existing.reporterId === session.user.id;
+    const isAdmin = session?.user?.role === 'ADMIN';
+    if (!isOwner && !isAdmin && !byToken) {
       return NextResponse.json({ error: 'Only the owner can change this report.' }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));
+    const QUESTIONNAIRE_FIELDS = ['details', 'hasReward', 'rewardAmount', 'rewardScamAcknowledged', 'petBreed', 'escapeScenario'];
+    if (byToken && Object.keys(body).some((k) => !QUESTIONNAIRE_FIELDS.includes(k))) {
+      return NextResponse.json({ error: 'Sign in to change that.' }, { status: 403 });
+    }
     const data = {};
+    let redraw = false;
+    let merged = null;
     if (body.petPhotoUrl !== undefined) {
       const url = String(body.petPhotoUrl || '').trim();
       if (!/^https:\/\/[^\s]+$/i.test(url)) {
@@ -399,6 +418,50 @@ export async function PATCH(request, { params }) {
       }
       data.ownerPhone = String(body.ownerPhone).trim();
     }
+    // The questionnaire (app/lib/caseDetails.js), merged over what is
+    // stored, so one answer at a time is fine. Medication raises the
+    // priority; it never lowers one.
+    if (body.details !== undefined) {
+      if (!body.details || typeof body.details !== 'object' || Array.isArray(body.details)) {
+        return NextResponse.json({ error: 'Details come as an object of answers.' }, { status: 400 });
+      }
+      merged = normalizeDetails({ ...(existing.details || {}), ...body.details });
+      data.details = merged;
+      data.detailsUpdatedAt = new Date();
+      data.needsMedication = needsMedication(merged);
+      const rank = { LOW: 0, NORMAL: 1, HIGH: 2, URGENT: 3 };
+      const urgency = healthUrgency(merged);
+      if (urgency && rank[urgency] > (rank[existing.priority] ?? 1)) data.priority = urgency;
+      if (merged.howOut) data.escapeScenario = merged.howOut;
+      redraw = true;
+    }
+    if (body.escapeScenario !== undefined) {
+      const how = String(body.escapeScenario || '');
+      if (!HOW_OUT_OPTIONS.some((o) => o.value === how)) {
+        return NextResponse.json({ error: 'Pick how they got out from the list.' }, { status: 400 });
+      }
+      data.escapeScenario = how;
+    }
+    if (body.petBreed !== undefined) {
+      const breed = String(body.petBreed || '').trim();
+      if (breed.length > 60) return NextResponse.json({ error: 'Keep the breed under 60 letters.' }, { status: 400 });
+      data.petBreed = breed || 'Unknown';
+      redraw = true;
+    }
+    if (body.hasReward !== undefined) {
+      const wants = body.hasReward === true;
+      const amount = wants && Number.isFinite(Number(body.rewardAmount)) && Number(body.rewardAmount) > 0 ? Math.round(Number(body.rewardAmount)) : null;
+      if (wants && body.rewardScamAcknowledged !== true && !existing.rewardScamAcknowledgedAt) {
+        return NextResponse.json(
+          { error: 'Tick the note about reward scams before offering a reward.', code: 'REWARD_SCAM_ACK_REQUIRED' },
+          { status: 400 }
+        );
+      }
+      data.hasReward = wants;
+      data.rewardAmount = amount;
+      if (wants && body.rewardScamAcknowledged === true) data.rewardScamAcknowledgedAt = new Date();
+      redraw = true;
+    }
     if (!Object.keys(data).length) {
       return NextResponse.json({ error: 'Nothing to change.' }, { status: 400 });
     }
@@ -406,17 +469,38 @@ export async function PATCH(request, { params }) {
     const updated = await prisma.case.update({
       where: { id },
       data,
-      select: { id: true, caseNumber: true, petPhotoUrl: true, petDescription: true, ownerPhone: true },
+      select: {
+        id: true,
+        caseNumber: true,
+        petPhotoUrl: true,
+        petDescription: true,
+        ownerPhone: true,
+        petBreed: true,
+        escapeScenario: true,
+        priority: true,
+        details: true,
+        hasReward: true,
+        rewardAmount: true,
+        rewardScamAcknowledgedAt: true,
+      },
     });
+    // The saved pet keeps its own columns in step with the answers.
+    if (merged && existing.petId) {
+      const extras = petFieldsFromDetails(merged);
+      const petData = Object.fromEntries(Object.entries(extras).filter(([, v]) => v));
+      if (Object.keys(petData).length) await prisma.pet.update({ where: { id: existing.petId }, data: petData }).catch(() => {});
+    }
     await logEvent({
       event_type: 'case.edited',
-      actor_user_id: session.user.id,
+      actor_user_id: session?.user?.id || null,
       resource_type: 'case',
       resource_id: id,
       action: 'update',
       result: 'success',
-      metadata: { fields: Object.keys(data) },
+      metadata: { fields: Object.keys(data), via: byToken ? 'details-token' : 'session' },
     }).catch(() => {});
+    // The flyers and share images carry the answers: redraw once the edits settle.
+    if (redraw) scheduleKitRedraw(id);
     return NextResponse.json({ success: true, case: updated });
   } catch (error) {
     console.error('Case edit failed:', error);

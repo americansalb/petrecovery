@@ -6,11 +6,14 @@
  * phone finders call, and "Mark as reunited". Each tool uses the route
  * that owns it: the owner's status (POST /api/mission/[id]/owner), an
  * update (POST /api/missions/[id]/notes, shown under "What happened"),
- * the report itself (PATCH /api/missions/[id]).
+ * the report itself (PATCH /api/missions/[id]), and the questionnaire
+ * (DetailsHub: the same checklist as the report wizard, saved at once).
  */
 
 import { useRef, useState } from 'react';
 import { Camera, Check, HeartHandshake, Loader2, MessageSquare, Phone } from 'lucide-react';
+import DetailsHub from '@/app/components/report/lost/DetailsHub';
+import ScamNote from '@/app/components/report/ScamNote';
 
 const STATUSES = [
   { id: 'SEARCHING', label: 'Out searching' },
@@ -32,7 +35,7 @@ async function send(url, method, body) {
   return data;
 }
 
-export default function OwnerPanel({ caseId, name, phone, ownerStatus, onChanged, onReunited }) {
+export default function OwnerPanel({ caseId, name, phone, ownerStatus, species, details, breed, onChanged, onReunited }) {
   const [status, setStatus] = useState(ownerStatus || null);
   const [statusBusy, setStatusBusy] = useState(false);
   const [update, setUpdate] = useState('');
@@ -213,6 +216,22 @@ export default function OwnerPanel({ caseId, name, phone, ownerStatus, onChanged
         </form>
       )}
       {error && <p role="alert" className="mt-3 text-sm font-semibold text-red-300">{error}</p>}
+
+      <div className="mt-5 rounded-2xl bg-white p-2 text-midnight-900">
+        <DetailsHub
+          caseId={caseId}
+          species={species}
+          name={name}
+          details={details}
+          breed={breed}
+          title="Details that help finders"
+          intro={`Each one goes on ${name}'s flyer and this page. Skip what you don't know.`}
+          onSaved={() => onChanged?.()}
+        />
+      </div>
+      <div className="mt-3">
+        <ScamNote compact />
+      </div>
     </section>
   );
 }

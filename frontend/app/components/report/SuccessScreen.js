@@ -13,6 +13,8 @@ import { Check, Sparkles, Camera, Copy, Share2, Heart, Mail, Facebook, MessageSq
 import { MatchCard } from '@/components/case/MatchCard';
 import { WIZARD_THEMES } from './wizardTheme';
 import RecoveryKit from './recoveryKit/RecoveryKit';
+import DetailsHub from './lost/DetailsHub';
+import ScamNote from './ScamNote';
 
 export default function SuccessScreen({
   variant = 'lost',
@@ -27,6 +29,11 @@ export default function SuccessScreen({
   squadsNotified = 0,
   assignedSquad,
   activation, // { caseNumber, status } snapshot from the create response; drives the live Recovery Kit
+  caseId, // the case's id, for the details hub
+  detailsToken, // from the create response: lets a guest add details before they have a session
+  details, // the questionnaire so far (app/lib/caseDetails.js)
+  species,
+  breed,
   // found
   matches = [],
   matchesNotified = 0,
@@ -107,6 +114,27 @@ export default function SuccessScreen({
             'We checked every nearby lost-pet report and will keep matching as new ones come in.'
           )}
         </p>
+
+        {/* Lost: the details that make the flyer stronger, answered here and saved at once */}
+        {variant === 'lost' && caseId && (detailsToken || isLoggedIn) && (
+          <div className="mt-6">
+            <DetailsHub
+              caseId={caseId}
+              token={detailsToken}
+              species={species}
+              name={petName}
+              details={details}
+              breed={breed}
+              title="While the flyers draw: make them stronger"
+              intro={`Each one is a tap, and each goes on ${petName}'s flyer and page. Skip what you don't know.`}
+            />
+          </div>
+        )}
+        {variant === 'lost' && (
+          <div className="mt-4">
+            <ScamNote compact />
+          </div>
+        )}
 
         {/* Found: matches are the payoff */}
         {variant === 'found' && matches.length > 0 && (

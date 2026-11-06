@@ -41,6 +41,7 @@ import { getBaseUrl } from '@/app/lib/config';
 import MarkReunitedModal from '@/app/mission-control/components/overlays/MarkReunitedModal';
 import JoinForceSheet from '@/app/components/help/JoinForceSheet';
 import { Activity, HowToHelp, OtherPets, OwnerPanel, RecoveryKitPanel, ShareSheet, SightingSheet, StickyActions } from './components';
+import FinderGuide from './components/FinderGuide';
 
 const LastSeenMap = dynamic(() => import('./components/LastSeenMap'), {
   ssr: false,
@@ -600,6 +601,10 @@ export default function CasePageClient() {
               {description && (
                 <p className="mt-6 whitespace-pre-line break-words leading-relaxed text-midnight-700">{description}</p>
               )}
+
+              {open && status.key === 'lost' && c.finderGuide && (
+                <FinderGuide name={name} guide={c.finderGuide} hasReward={c.hasReward} rewardAmount={c.rewardAmount} />
+              )}
             </div>
           </div>
         </div>
@@ -615,6 +620,9 @@ export default function CasePageClient() {
                 caseId={c.id}
                 name={name}
                 phone={phone}
+                species={c.petSpecies}
+                details={c.details}
+                breed={c.petBreed}
                 ownerStatus={room?.owner?.status || null}
                 onChanged={() => {
                   setAttempt((n) => n + 1);
