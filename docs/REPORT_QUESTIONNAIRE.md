@@ -225,16 +225,18 @@ unanswered ones first.
 | places | | | "May head for" with the force's needs | search plan |
 | notes | | | the owner's note | |
 
-On paper (renderers in `frontend/app/lib/cascade/render/`): the map row
-holds where and when, three lines of what to look for, then "If you see
-{name}" on a cream note card with the health line in red; "Needs
-medication" is a red tag on the photo print's left, the reward a cream tag
-on its right. Long answers are cut with an ellipsis rather than pushed
-into the contact panel. A report made before the questionnaire gets the
-species' general "don't chase" line. The sheet under it all is the
-brand's yellow lit from behind the photo, with sun rays, caution stripes
-and grain (`render/ground.js`). The design canvas "Lost Pet Flyers, the
-sticker" shows all six sizes.
+On paper (renderers in `frontend/app/lib/cascade/render/`): the head is
+LOST on its red band with the name beside it and, under the name, "Needs
+medication" (red) and the reward (cream) as pills. Nothing is ever drawn
+over the photo. The photo is a tall print beside the facts column (where
+and when, the map, what to look for, what the pet comes to), as wide as
+the photo's own shape asks; then "If you see {name}" on a cream note card
+with the health line in red. Long answers are cut with an ellipsis rather
+than pushed into the contact panel. A report made before the
+questionnaire gets the species' general "don't chase" line. The sheet
+under it all is the brand's yellow lit from behind the photo, with sun
+rays, caution stripes and grain (`render/ground.js`). The design canvas
+"Lost Pet Flyers, the sticker" shows all six sizes.
 
 ## 6. Storage
 

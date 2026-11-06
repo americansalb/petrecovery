@@ -4,15 +4,18 @@
  * 1 px = 0.75 pt).
  *
  * The flyer is a photo print on a lit yellow sheet (render/ground.js).
- * The pet's photo fills the width of the sheet, as tall as the sheet
- * allows, in a cream mat with a hard navy shadow. Under it, centred: LOST
- * in a wide face, cream on a red band set a touch askew, and the name;
- * then the last-seen map beside where, when and what to look for; then
- * "If you see Max" on a cream note card, the full width, never cut; then
- * the contact panel on navy: the phone number with the email under it,
- * the QR code and the short link. The reward and "Needs medication" are
- * tags on the print; tear tabs run along the foot. Every block under the
- * photo has a set height; the photo takes what is left.
+ * At the head: LOST in a wide face, cream on a red band set a touch
+ * askew, with the name beside it and, under the name, the reward and
+ * "Needs medication" as pills. Nothing is ever drawn over the photo.
+ * Then the print beside the facts: the photo as tall as the sheet allows,
+ * its width from the photo's own shape (a portrait phone photo keeps its
+ * shape; a wide one is cut to a tall print around the pet), in a cream
+ * mat with a hard navy shadow; beside it, where and when, the last-seen
+ * map, and what to look for. Then "If you see Max" on a cream note card,
+ * the full width, never cut; then the contact panel on navy: the phone
+ * number with the email under it, the QR code and the short link. Tear
+ * tabs run along the foot. Every block but the photo row has a set
+ * height; the row takes what is left.
  *
  * `planSheet` sizes one page (Letter with tear tabs, or the poster, the
  * Letter sheet scaled by its width); `planHalf` sizes the half sheet,
@@ -111,23 +114,23 @@ export const STICKER = { ring: 0.027, shadow: 0.028 };
 
 /**
  * The fixed heights of the Letter sheet at scale 1 (pt). The poster scales
- * them by k = 792 / 612. Tear tabs are Letter only. The photo, a print
- * the full width of the sheet, takes what is left.
+ * them by k = 792 / 612. Tear tabs are Letter only. The photo row, the
+ * print beside the facts, takes what is left.
  */
 export function blocks(k = 1) {
   return {
     side: 30 * k, // 40 px of sheet at the sides
     band: 12 * k, // the caution stripes along the head (and the foot, without tabs)
-    top: 26 * k, // above the photo
-    gap: 12 * k, // between the photo and the word
+    top: 26 * k, // above the head
     wordMax: 72 * k, // LOST at its largest
-    name: 24 * k, // "Milo, a tabby"
-    nameGap: 5 * k,
-    rowGap: 8 * k,
-    row: 110 * k, // the last-seen map beside where, when and what to look for
-    mapW: 240 * k, // the map's width in that row
-    rowGapX: 15 * k,
-    adviceGap: 8 * k,
+    wordShare: 0.58, // the band takes at most this much of the width, so the name has room beside it
+    headGap: 14 * k, // between the band and the name
+    headToRow: 10 * k,
+    colGap: 14 * k, // between the print and the facts column
+    printMin: 250 * k, // the print's width, from the photo's shape, within these
+    printMax: 330 * k,
+    printAspectMin: 0.62, // the print is never narrower than this, so the row never grows past printMax / 0.62
+    rowToAdvice: 10 * k,
     advice: 82 * k, // "If you see Max" on its note card: the health line and what to do, the full width
     contactGap: 9 * k,
     contact: 84 * k, // the navy panel: the phone and the email, the QR code and the short link
@@ -148,15 +151,19 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = 
   const tabsH = tabs ? b.tabsGap + b.tabs : 0;
   const bottom = tabs ? b.bottom : b.side;
   const aspect = photo?.aspect && Number.isFinite(photo.aspect) && photo.aspect > 0 ? photo.aspect : null;
-  const wordSize = fitUnbounded(stamp, contentW, b.wordMax, 40 * k);
+  const wordSize = fitUnbounded(stamp, contentW * b.wordShare, b.wordMax, 40 * k);
   const band = bandBox(wordSize, stamp);
-  const word = band.h + band.off;
-  const below = b.gap + word + b.nameGap + b.name + b.rowGap + b.row + b.adviceGap + b.advice + b.contactGap + b.contact + tabsH + bottom;
-  const room = page.h - b.top - below;
-  // The photo: the full width, as tall as the sheet allows, never taller than it is wide.
-  const photoH = Math.floor(Math.min(room, contentW));
-  const slack = (room - photoH) / 2;
-  const inner = printInner(contentW, photoH, k);
+  const head = band.h + band.off;
+  const nameW = contentW - band.w - band.off - b.headGap;
+  const below = b.headToRow + b.rowToAdvice + b.advice + b.contactGap + b.contact + tabsH + bottom;
+  const room = page.h - b.top - head - below;
+  // The row: as tall as the sheet allows, but the print is never a narrow strip.
+  const row = Math.floor(Math.min(room, b.printMax / b.printAspectMin));
+  const slack = (room - row) / 2;
+  const printW = aspect ? clamp(Math.round(row * aspect), b.printMin, b.printMax) : Math.round(300 * k);
+  const off = Math.round(printW * PRINT.shadow);
+  const colW = contentW - printW - off - b.colGap;
+  const inner = printInner(printW, row, k);
   return {
     k,
     page,
@@ -165,18 +172,18 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = 
     stripe: b.band,
     foot: !tabs,
     top: b.top + slack,
-    photo: { w: contentW, h: photoH },
-    gap: b.gap,
     wordSize,
-    word,
     band,
-    name: b.name,
-    nameGap: b.nameGap,
-    rowGap: b.rowGap,
-    row: b.row,
-    mapW: b.mapW,
-    rowGapX: b.rowGapX,
-    adviceGap: b.adviceGap,
+    head,
+    headGap: b.headGap,
+    nameW,
+    headToRow: b.headToRow,
+    row,
+    photo: { w: printW, h: row },
+    colGap: b.colGap,
+    colW,
+    mapH: Math.round(row * 0.56), // the last-seen map across the facts column
+    rowToAdvice: b.rowToAdvice,
     advice: b.advice,
     contactGap: b.contactGap,
     contact: b.contact,
@@ -185,7 +192,7 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = 
     bottom: bottom + slack,
     hasPhoto: Boolean(aspect),
     focalAt: 0.42,
-    frame: { w: contentW, h: photoH },
+    frame: { w: printW, h: row },
     frameAspect: aspect ? inner.w / inner.h : null,
   };
 }
@@ -199,14 +206,14 @@ export function planHalf(page = PAGES.LETTER, photo, { stamp = 'LOST' } = {}) {
   const photoH = halfH - pad * 2 - 3;
   const colX = pad + photoW + 6 + pad;
   const detailsW = page.w - colX - pad;
-  const wordSize = fitUnbounded(stamp, detailsW, 50, 36);
+  const wordSize = fitUnbounded(stamp, detailsW, 44, 36);
   const inner = printInner(photoW, photoH, 0.8);
   return {
     halfH,
     pad,
     stripe: 7, // the caution stripes along the head and the foot of each half
     photo: { w: photoW, h: photoH },
-    mapH: 62, // the last-seen map across the column
+    mapH: 50, // the last-seen map across the column
     colX,
     detailsW,
     wordSize,
@@ -241,12 +248,22 @@ export function cropRect(w, h, focal, aspect, focalAt = 0.5) {
 }
 
 /**
- * The share images' photo prints (px): the cut each size draws, this
- * big, and where the print sits, which is where the ground's light and
- * rays come from (ground.js); `band` is the caution stripes' height.
+ * The share images' photo prints (px): where each size's print sits and
+ * how tall it is; its width comes from the photo's shape, within `wMin`
+ * and `wMax` (`socialFrame`). The print's centre is where the ground's
+ * light and rays come from (ground.js); `band` is the caution stripes'
+ * height.
  */
 export const SOCIAL_FRAMES = {
-  og: { w: 520, h: 514, focalAt: 0.42, x: 56, y: 58, band: 16 },
-  square: { w: 1000, h: 430, focalAt: 0.42, x: 40, y: 44, band: 18 },
-  story: { w: 968, h: 700, focalAt: 0.42, x: 56, y: 140, band: 22 },
+  og: { x: 56, y: 58, h: 514, wMin: 386, wMax: 560, focalAt: 0.42, band: 16 },
+  square: { x: 40, y: 147, h: 634, wMin: 440, wMax: 620, focalAt: 0.42, band: 18 },
+  story: { x: 56, y: 368, h: 968, wMin: 480, wMax: 600, focalAt: 0.42, band: 22 },
 };
+
+/** The print one share image draws for a photo of `aspect` (width over height; null for no photo). */
+export function socialFrame(size, aspect) {
+  const f = SOCIAL_FRAMES[size] || SOCIAL_FRAMES.og;
+  const a = aspect && Number.isFinite(aspect) && aspect > 0 ? aspect : null;
+  const w = a ? clamp(Math.round(f.h * a), f.wMin, f.wMax) : Math.round((f.wMin + f.wMax) / 2);
+  return { ...f, w, off: Math.round(w * PRINT.shadow) };
+}

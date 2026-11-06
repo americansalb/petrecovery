@@ -6,66 +6,79 @@
 
 jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholderEmail: (e) => /placeholder|noemail/.test(e || '') }));
 
-import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, unboundedEm, fitUnbounded, UNBOUNDED, STICKER, bandBox, printInner, BAND } from '@/app/lib/cascade/render/flyers/plan';
+import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, socialFrame, unboundedEm, fitUnbounded, UNBOUNDED, STICKER, bandBox, printInner, BAND, PRINT } from '@/app/lib/cascade/render/flyers/plan';
 import { normalizeFlyerData, zoneFor } from '@/app/lib/cascade/render/flyers/normalize';
 
-const used = (p) => p.top + p.photo.h + p.gap + p.word + p.nameGap + p.name + p.rowGap + p.row + p.adviceGap + p.advice + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
+const used = (p) => p.top + p.head + p.headToRow + p.row + p.rowToAdvice + p.advice + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
 
 describe('planSheet', () => {
   const WORDS = { stamp: 'LOST' };
 
-  test('the photo takes the room the fixed blocks leave, the full width of the sheet', () => {
-    const p = planSheet(PAGES.LETTER, { aspect: 1.42 }, WORDS);
+  test('the photo row takes the room the fixed blocks leave: the print as tall as the sheet allows, the facts beside it', () => {
+    const p = planSheet(PAGES.LETTER, { aspect: 0.75 }, WORDS);
     expect(p.contentW).toBe(612 - 60);
-    expect(p.photo.w).toBe(p.contentW);
-    expect(p.photo.h).toBeGreaterThan(270);
-    expect(p.photo.h).toBeLessThanOrEqual(p.contentW);
-    // The last-seen map has a row of its own, beside the facts; "If you see" its note card under that; the contact panel last.
-    expect(p.row).toBe(110);
-    expect(p.mapW).toBe(240);
+    // The row: all the height the head, the note card, the panel and the tabs leave.
+    expect(p.row).toBeGreaterThan(400);
+    expect(p.photo.h).toBe(p.row);
+    expect(Math.round(used(p))).toBe(792);
+    // A portrait phone photo keeps its shape: the print is as wide as the photo asks.
+    expect(p.photo.w).toBe(Math.round(p.row * 0.75));
+    // The facts column fills the rest, past the print's shadow.
+    expect(p.colW).toBe(p.contentW - p.photo.w - Math.round(p.photo.w * PRINT.shadow) - p.colGap);
+    expect(p.mapH).toBe(Math.round(p.row * 0.56));
     expect(p.advice).toBe(82);
     expect(p.contact).toBe(84);
-    expect(p.frame).toEqual({ w: p.contentW, h: p.photo.h });
+    expect(p.frame).toEqual({ w: p.photo.w, h: p.row });
     // The picture sits inside the print's navy edge and cream mat; the crop has that shape.
-    const inner = printInner(p.contentW, p.photo.h, 1);
-    expect(inner).toEqual({ edge: 2, mat: 4, w: p.contentW - 12, h: p.photo.h - 12 });
+    const inner = printInner(p.photo.w, p.row, 1);
+    expect(inner).toEqual({ edge: 2, mat: 3, w: p.photo.w - 10, h: p.row - 10 });
     expect(p.frameAspect).toBeCloseTo(inner.w / inner.h, 5);
     expect(p.focalAt).toBe(0.42);
-    expect(Math.round(used(p))).toBe(792);
     expect(p.hasPhoto).toBe(true);
     // The caution stripes run along the head only: the foot is the tear tabs.
     expect(p.stripe).toBe(12);
     expect(p.foot).toBe(false);
   });
 
-  test('every photo is cut to the print: a tall one and a wide one get the same frame', () => {
-    const wide = planSheet(PAGES.LETTER, { aspect: 2.4 }, WORDS);
+  test("the print's width follows the photo's shape, within bounds, so a wide photo is cut to a tall print around the pet", () => {
     const tall = planSheet(PAGES.LETTER, { aspect: 0.6 }, WORDS);
-    expect(tall.frame).toEqual(wide.frame);
-    expect(tall.frameAspect).toBe(wide.frameAspect);
+    const square = planSheet(PAGES.LETTER, { aspect: 1 }, WORDS);
+    const wide = planSheet(PAGES.LETTER, { aspect: 2.4 }, WORDS);
+    expect(tall.row).toBe(square.row);
+    expect(tall.photo.w).toBe(Math.round(tall.row * 0.6));
+    expect(square.photo.w).toBe(330);
+    expect(wide.photo.w).toBe(330);
+    expect(wide.frameAspect).toBeLessThan(1);
+    expect(tall.colW).toBeGreaterThan(wide.colW);
   });
 
   test('no photo: the print stays, for the description', () => {
     const p = planSheet(PAGES.LETTER, null, WORDS);
     expect(p.hasPhoto).toBe(false);
     expect(p.frameAspect).toBeNull();
-    expect(p.photo.h).toBeGreaterThan(270);
+    expect(p.photo).toEqual({ w: 300, h: p.row });
+    expect(p.row).toBeGreaterThan(400);
   });
 
-  test('the word is set as large as the width allows, on its band; FOUND is wider and shrinks', () => {
+  test('the word is set as large as its share of the head allows, on its band, with the name beside it; FOUND is wider and shrinks', () => {
     const lost = planSheet(PAGES.LETTER, { aspect: 1.5 }, WORDS);
     const found = planSheet(PAGES.LETTER, { aspect: 1.5 }, { stamp: 'FOUND' });
     expect(lost.wordSize).toBe(72);
-    expect(found.wordSize).toBe(72); // FOUND still fits a Letter sheet at full size
-    // The block is the band (the caps with air above and below) plus its hard shadow.
+    expect(found.wordSize).toBeLessThan(72); // FOUND would take more than its share of the head
+    expect(found.wordSize).toBeGreaterThan(60);
+    // The head is the band (the caps with air above and below) plus its hard shadow.
     expect(lost.band).toEqual(bandBox(72, 'LOST'));
     expect(lost.band.h).toBeCloseTo(72 * (UNBOUNDED.cap + 2 * BAND.pad), 5);
     expect(lost.band.w).toBeCloseTo((unboundedEm('LOST') / 1.03) * 72 + 2 * BAND.padX * 72, 5);
     expect(lost.band.off).toBe(4);
-    expect(lost.word).toBeCloseTo(lost.band.h + lost.band.off, 5);
+    expect(lost.head).toBeCloseTo(lost.band.h + lost.band.off, 5);
+    // The name gets what the band leaves, less the gap.
+    expect(lost.nameW).toBeCloseTo(lost.contentW - lost.band.w - lost.band.off - lost.headGap, 5);
+    expect(lost.nameW).toBeGreaterThan(240);
     expect(found.band.w).toBeGreaterThan(lost.band.w);
+    expect(found.nameW).toBeGreaterThan(180);
     expect(Math.round(used(found))).toBe(792);
-    // On a narrower line it shrinks, and the room goes to the photo.
+    // On a narrower line it shrinks.
     expect(fitUnbounded('FOUND', 300, 72, 40)).toBeLessThan(fitUnbounded('LOST', 300, 72, 40));
   });
 
@@ -95,9 +108,10 @@ describe('planSheet', () => {
     expect(p.tabs).toBe(0);
     expect(p.tabsGap).toBe(0);
     expect(p.wordSize).toBeCloseTo(72 * k, 5);
-    // Never taller than the sheet is wide; any slack goes above and below it equally.
-    expect(p.photo.h).toBeLessThanOrEqual(p.contentW);
+    // The print is never a narrow strip: the row stops where the widest print would be 0.62 wide to tall, and the slack goes above and below equally.
+    expect(p.row).toBe(Math.floor((330 * k) / 0.62));
     expect(p.bottom - 30 * k).toBeCloseTo(p.top - 26 * k, 5);
+    expect(p.top - 26 * k).toBeGreaterThan(0);
     expect(p.photo.h).toBeGreaterThan(600);
     expect(Math.round(used(p))).toBe(1224);
     // No tabs: the caution stripes run along the foot as well as the head.
@@ -117,10 +131,10 @@ describe('planHalf', () => {
     expect(p.frameAspect).toBeCloseTo(inner.w / inner.h, 5);
     expect(p.colX).toBe(15 + 270 + 6 + 15);
     expect(p.detailsW).toBe(612 - p.colX - 15);
-    expect(p.wordSize).toBeLessThanOrEqual(50);
+    expect(p.wordSize).toBeLessThanOrEqual(44);
     expect(p.band).toEqual(bandBox(p.wordSize, 'LOST'));
     expect(p.stripe).toBe(7);
-    expect(p.mapH).toBe(62);
+    expect(p.mapH).toBe(50);
     expect(planHalf(PAGES.LETTER, { aspect: 1.5 }).frame).toEqual(planHalf(PAGES.LETTER, { aspect: 0.8 }).frame);
     const none = planHalf(PAGES.LETTER, null);
     expect(none.hasPhoto).toBe(false);
@@ -157,10 +171,20 @@ describe('cropRect', () => {
     expect(cropRect(100, 100, null, 0)).toBeNull();
   });
 
-  test('the share image prints are the cuts the boards draw', () => {
-    expect(SOCIAL_FRAMES.og).toEqual({ w: 520, h: 514, focalAt: 0.42, x: 56, y: 58, band: 16 });
-    expect(SOCIAL_FRAMES.square).toEqual({ w: 1000, h: 430, focalAt: 0.42, x: 40, y: 44, band: 18 });
-    expect(SOCIAL_FRAMES.story).toEqual({ w: 968, h: 700, focalAt: 0.42, x: 56, y: 140, band: 22 });
+  test("the share image prints are as tall as the boards draw, and as wide as the photo's shape asks, within bounds", () => {
+    expect(SOCIAL_FRAMES.og).toEqual({ x: 56, y: 58, h: 514, wMin: 386, wMax: 560, focalAt: 0.42, band: 16 });
+    expect(SOCIAL_FRAMES.square).toEqual({ x: 40, y: 147, h: 634, wMin: 440, wMax: 620, focalAt: 0.42, band: 18 });
+    expect(SOCIAL_FRAMES.story).toEqual({ x: 56, y: 368, h: 968, wMin: 480, wMax: 600, focalAt: 0.42, band: 22 });
+    // A portrait phone photo (3:4) keeps its shape where the bounds allow; a wide one is cut to the widest print.
+    expect(socialFrame('og', 0.75)).toMatchObject({ w: 386, h: 514, off: 5 });
+    expect(socialFrame('og', 1.5)).toMatchObject({ w: 560, h: 514 });
+    expect(socialFrame('square', 0.75)).toMatchObject({ w: 476, h: 634 });
+    expect(socialFrame('square', 2)).toMatchObject({ w: 620, h: 634 });
+    expect(socialFrame('story', 0.75)).toMatchObject({ w: 600, h: 968 });
+    expect(socialFrame('story', 0.45)).toMatchObject({ w: 480, h: 968 });
+    // No photo: a print in the middle of the range, for the description.
+    expect(socialFrame('story', null).w).toBe(540);
+    expect(socialFrame('nope', 1).h).toBe(514);
   });
 });
 
