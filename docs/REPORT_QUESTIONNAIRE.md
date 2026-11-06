@@ -227,11 +227,14 @@ unanswered ones first.
 
 On paper (renderers in `frontend/app/lib/cascade/render/`): the map row
 holds where and when, three lines of what to look for, then "If you see
-{name}" with the health line in red; "Needs medication" is a red tag on
-the sticker's left, the reward a cream tag on its right. Long answers are
-cut with an ellipsis rather than pushed into the contact panel. A report
-made before the questionnaire gets the species' general "don't chase" line.
-The design canvas "Lost Pet Flyers, the sticker" shows all six sizes.
+{name}" on a cream note card with the health line in red; "Needs
+medication" is a red tag on the photo print's left, the reward a cream tag
+on its right. Long answers are cut with an ellipsis rather than pushed
+into the contact panel. A report made before the questionnaire gets the
+species' general "don't chase" line. The sheet under it all is the
+brand's yellow lit from behind the photo, with sun rays, caution stripes
+and grain (`render/ground.js`). The design canvas "Lost Pet Flyers, the
+sticker" shows all six sizes.
 
 ## 6. Storage
 
