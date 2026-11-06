@@ -28,7 +28,7 @@ const CROP_MAX_W = 1600;
 const JPEG_QUALITY = 84;
 
 let sharpPromise = null;
-function getSharp() {
+export function getSharp() {
   if (!sharpPromise) {
     sharpPromise = import('sharp')
       .then((m) => {

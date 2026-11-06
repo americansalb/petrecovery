@@ -1,5 +1,6 @@
 import React from 'react';
 import { fitUnbounded, fitInter, interEm, eyebrowW, STICKER } from '../flyers/plan';
+import { grainDataUrl, GRAIN_TILE } from '../textures';
 
 /**
  * Share images, from the Claude Design canvas "Lost Pet Flyers, second
@@ -18,6 +19,13 @@ import { fitUnbounded, fitInter, interEm, eyebrowW, STICKER } from '../flyers/pl
  */
 
 const YEL = '#facc15';
+const YEL_LIGHT = '#fde047';
+const YEL_DEEP = '#eab308';
+/** The sheet: a radial light behind the sticker falling to amber at the edges, with paper grain over it. */
+const sheet = (lightAtPct) => `radial-gradient(circle at 50% ${lightAtPct}%, ${YEL_LIGHT} 0%, ${YEL} 50%, ${YEL_DEEP} 100%)`;
+const Grain = () => (
+  <div style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundImage: `url(${grainDataUrl()})`, backgroundRepeat: 'repeat', backgroundSize: `${GRAIN_TILE * 2}px ${GRAIN_TILE * 2}px`, opacity: 0.07 }} />
+);
 const NAVY = '#0f172a';
 const CREAM = '#fffbea';
 const SOFT = '#3b3a2e';
@@ -59,6 +67,7 @@ function Sticker({ data, src, size }) {
   const inner = size - ring * 2;
   return (
     <div style={{ display: 'flex', position: 'relative', width: size + off, height: size + off, flexShrink: 0 }}>
+      <div style={{ position: 'absolute', left: -size * 0.3, top: -size * 0.3, width: size * 1.6, height: size * 1.6, borderRadius: size * 0.8, backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.1) 60%, rgba(255,255,255,0) 100%)' }} />
       <div style={{ position: 'absolute', left: off, top: off, width: size, height: size, borderRadius: size / 2, backgroundColor: NAVY }} />
       <Col style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, backgroundColor: CREAM, alignItems: 'center', justifyContent: 'center' }}>
         {src ? (
@@ -209,7 +218,8 @@ function Facts({ data, size, width, lines = 2, align = 'center' }) {
 function Og({ data, src }) {
   const W = 510;
   return (
-    <Col style={{ width: 1200, height: 630, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, position: 'relative' }}>
+    <Col style={{ width: 1200, height: 630, backgroundColor: YEL, backgroundImage: sheet(50), fontFamily: 'Inter', color: NAVY, position: 'relative' }}>
+      <Grain />
       <div style={{ position: 'absolute', left: 56, top: 58, display: 'flex' }}>
         <Sticker data={data} src={src} size={500} />
       </div>
@@ -233,7 +243,8 @@ function Og({ data, src }) {
 function Square({ data, src }) {
   const W = 1000;
   return (
-    <Col style={{ width: 1080, height: 1080, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '48px 40px 40px' }}>
+    <Col style={{ width: 1080, height: 1080, backgroundColor: YEL, backgroundImage: sheet(28), fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '48px 40px 40px', position: 'relative' }}>
+      <Grain />
       <Sticker data={data} src={src} size={420} />
       <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 104, 60)), marginTop: 20 }}>{data.stamp}</Txt>
       <Txt style={{ ...name(34), marginTop: 8 }}>{data.coverLine}</Txt>
@@ -252,7 +263,8 @@ function Square({ data, src }) {
 function Story({ data, src }) {
   const W = 968;
   return (
-    <Col style={{ width: 1080, height: 1920, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '150px 56px 140px' }}>
+    <Col style={{ width: 1080, height: 1920, backgroundColor: YEL, backgroundImage: sheet(28), fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '150px 56px 140px', position: 'relative' }}>
+      <Grain />
       <Sticker data={data} src={src} size={760} />
       <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 180, 80)), marginTop: 36 }}>{data.stamp}</Txt>
       <Txt style={{ ...name(48), marginTop: 14 }}>{data.coverLine}</Txt>

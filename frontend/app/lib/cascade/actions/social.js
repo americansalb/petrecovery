@@ -25,15 +25,15 @@ export async function runSocial(ctx) {
   let ready = 0;
   for (const [kind, spec] of Object.entries(SOCIAL_SIZES)) {
     try {
-      const { buffer, width, height } = await generateSocialCard(ctx.case, kind, cardShared);
+      const { buffer, width, height, mimeType = 'image/png', ext = 'png' } = await generateSocialCard(ctx.case, kind, cardShared);
       const { url, sizeBytes } = await uploadBufferToCdn(buffer, {
-        key: `cases/${ctx.case.id}/${kind.toLowerCase()}.png`,
-        contentType: 'image/png',
+        key: `cases/${ctx.case.id}/${kind.toLowerCase()}.${ext}`,
+        contentType: mimeType,
       });
       await ctx.upsertAsset(kind, {
         status: 'ready',
         url,
-        mimeType: 'image/png',
+        mimeType,
         label: spec.label,
         width,
         height,
