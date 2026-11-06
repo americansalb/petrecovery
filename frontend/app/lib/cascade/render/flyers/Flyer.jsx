@@ -3,7 +3,7 @@
 /** @jsxFrag Fragment */
 import { h, Fragment } from './pdfReact';
 import { Document, Font, Page, View, Text, Image, Svg, Circle, Defs, RadialGradient, Stop, Rect, Polygon } from '@react-pdf/renderer';
-import { PAGES, planSheet, planHalf, fitUnbounded, fitInter, interEm, eyebrowW, unboundedEm, UNBOUNDED, PRINT, BAND, bandBox, printInner } from './plan';
+import { PAGES, planSheet, planHalf, planAdvice, fitUnbounded, fitInter, interEm, eyebrowW, unboundedEm, UNBOUNDED, PRINT, BAND, COLUMN, ADVICE, bandBox, printInner, lookForLine } from './plan';
 import { grainDataUrl, GRAIN_TILE } from '../textures';
 import { GROUND, LIGHT, rayPolygons, stripePolygons, bands } from '../ground';
 
@@ -291,6 +291,25 @@ function ContactPanel({ data, w, h, k, stacked = false, phoneBase = 34.5 }) {
 }
 
 /**
+ * Without a map on record, the tile is the link: the QR code as large as
+ * the card allows over "Map and updates at" and the short link, so the
+ * column is as useful as it is full. A short card gets the words alone.
+ */
+function LinkCard({ data, w, h, k, radius }) {
+  const pad = 8 * k;
+  const link = fitInter(data.caseUrlLabel, w - pad * 2, 9 * k, 6 * k);
+  const words = 7 * k * 1.3 + 2 * k + link * 1.2;
+  const qr = data.qrDataUrl ? Math.min(w - pad * 2, h - pad * 2 - words - 6 * k) : 0;
+  return (
+    <View style={{ width: w, height: h, borderRadius: radius, backgroundColor: C.cream, borderWidth: 2.25 * k, borderColor: C.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: pad }}>
+      {qr >= 40 * k ? <Image src={data.qrDataUrl} style={{ width: qr, height: qr, marginBottom: 6 * k }} /> : null}
+      <Text style={{ ...CLAMP(1), ...EYEBROW(7 * k, C.soft), textAlign: 'center' }}>{qr >= 40 * k ? 'Scan for the map' : 'Map at the link'}</Text>
+      <Text style={{ ...CLAMP(1), ...BODY(link, C.navy, 700), textAlign: 'center', marginTop: 2 * k, lineHeight: 1.2 }}>{data.caseUrlLabel}</Text>
+    </View>
+  );
+}
+
+/**
  * The last-seen map: the cascade's tiles (render/staticMap.js) cropped
  * around the pin, a red halo and dot on the spot, a dashed distance ring
  * when one fits, "Last seen here" in a navy tag. Without a map (no point
@@ -299,14 +318,7 @@ function ContactPanel({ data, w, h, k, stacked = false, phoneBase = 34.5 }) {
 function MapTile({ data, w, h, k, radius }) {
   const m = data.map;
   const r = radius ?? 10 * k;
-  if (!m) {
-    return (
-      <View style={{ width: w, height: h, borderRadius: r, backgroundColor: C.cream, borderWidth: 2.25 * k, borderColor: C.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 * k }}>
-        <Text style={{ ...CLAMP(1), ...EYEBROW(7 * k, C.soft), textAlign: 'center' }}>Map at the link</Text>
-        <Text style={{ ...CLAMP(1), ...BODY(8.5 * k, C.navy, 700), textAlign: 'center', marginTop: 2 * k, lineHeight: 1.2 }}>{data.caseUrlLabel}</Text>
-      </View>
-    );
-  }
+  if (!m) return <LinkCard data={data} w={w} h={h} k={k} radius={r} />;
   const cx = w / 2;
   const cy = h / 2;
   const ox = cx - m.pin.x;
@@ -363,43 +375,43 @@ function Where({ data, k, w, lines = 3, lookSize = 10 }) {
 
 /**
  * "IF YOU SEE MAX" on a cream note card with a navy edge: the health line
- * in red when there is one, then what to do. The full width, never cut.
- * `h` fixes the card's height on a planned sheet; the half sheet lets it
- * take its own.
+ * in red when there is one, then what to do. As tall as its words, at the
+ * size the plan gave it (plan.js planAdvice), never cut.
  */
-function Advice({ data, k, w, h, size = 10.5, lines = 3, marginTop = 0 }) {
+function Advice({ data, k, w, plan, marginTop = 0 }) {
   return (
-    <View style={{ width: w, height: h, marginTop, backgroundColor: C.cream, borderRadius: 10 * k, borderWidth: 2 * k, borderColor: C.navy, paddingVertical: 6 * k, paddingHorizontal: 10 * k }}>
-      <Text style={EYEBROW(8.25 * k)}>{`If you see ${data.petName}`}</Text>
-      {data.health ? (
-        <Text style={{ ...CLAMP(1), ...BODY(size * k, C.lost, 700), lineHeight: 1.3, marginTop: 2 * k }}>{data.health}</Text>
+    <View style={{ width: w, height: plan.h, marginTop, backgroundColor: C.cream, borderRadius: 10 * k, borderWidth: ADVICE.edge * k, borderColor: C.navy, paddingVertical: ADVICE.padY * k, paddingHorizontal: ADVICE.padX * k }}>
+      <Text style={EYEBROW(ADVICE.eyebrow * k)}>{`If you see ${data.petName}`}</Text>
+      {data.health && plan.healthLines ? (
+        <Text style={{ ...CLAMP(plan.healthLines), ...BODY(plan.size, C.lost, 700), lineHeight: 1.3, marginTop: 2 * k }}>{data.health}</Text>
       ) : null}
-      <Text style={{ ...CLAMP(lines), ...BODY(size * k, C.navy, 600), lineHeight: 1.3, marginTop: data.health ? 1 * k : 2 * k }}>{data.ifYouSee}</Text>
+      <Text style={{ ...CLAMP(plan.lines), ...BODY(plan.size, C.navy, 600), lineHeight: 1.3, marginTop: 2 * k }}>{data.ifYouSee}</Text>
     </View>
   );
 }
 
 /**
- * Beside the print, the facts: where and when, the last-seen map across
- * the column, then what to look for, as many lines as the column has
- * room for, and what the pet comes to.
+ * Beside the print, the facts, as plan.js planColumn laid them out to fill
+ * the column: where and when; the last-seen map, or without one the QR
+ * card for the map and updates at the link; what to look for and what
+ * the pet comes to. What the words cannot fill is spread between the
+ * three, never left at the foot.
  */
-function Beside({ data, k, w, h, mapH: mapRoom }) {
-  const look = `${data.lookFor}${data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : ''}`;
-  const textSize = 10.75 * k;
-  const mapH = data.map ? mapRoom : 36 * k; // without a map, a short strip that says where it is
-  const fixed = 8.25 * k * 1.3 + (data.lastSeenWhen ? 14 * k * 1.2 + 2 * k : 0) + 10.5 * k * 1.3 * 2 + 8 * k + mapH + 8 * k + (data.comesTo ? 10 * k * 1.3 * 2 + 4 * k : 0);
-  const lines = Math.max(3, Math.floor((h - fixed) / (textSize * 1.35)));
+function Beside({ data, k, w, h, col }) {
   return (
-    <View style={{ width: w, height: h }}>
-      <Text style={EYEBROW(8.25 * k)}>Last seen</Text>
-      {data.lastSeenWhen ? <Text style={{ ...CLAMP(1), ...BODY(14 * k, C.navy, 700), marginTop: 2 * k, lineHeight: 1.2 }}>{data.lastSeenWhen}</Text> : null}
-      <Text style={{ ...CLAMP(2), ...BODY(10.5 * k, C.soft, 500), lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
-      <View style={{ marginTop: 8 * k }}>
-        <MapTile data={data} w={w} h={mapH} k={k} />
+    <View style={{ width: w, height: h, justifyContent: 'space-between' }}>
+      <View>
+        <Text style={EYEBROW(COLUMN.eyebrow * k)}>Last seen</Text>
+        {data.lastSeenWhen ? <Text style={{ ...CLAMP(1), ...BODY(COLUMN.date * k, C.navy, 700), marginTop: 2 * k, lineHeight: 1.2 }}>{data.lastSeenWhen}</Text> : null}
+        <Text style={{ ...CLAMP(2), ...BODY(COLUMN.address * k, C.soft, 500), lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
       </View>
-      <Text style={{ ...CLAMP(lines), ...BODY(textSize), marginTop: 8 * k, lineHeight: 1.35 }}>{look}</Text>
-      {data.comesTo ? <Text style={{ ...CLAMP(2), ...BODY(10 * k, C.soft, 500), marginTop: 4 * k, lineHeight: 1.3 }}>{data.comesTo}</Text> : null}
+      <View style={{ marginTop: col.gap }}>
+        <MapTile data={data} w={w} h={col.tileH} k={k} />
+      </View>
+      <View style={{ marginTop: col.gap }}>
+        <Text style={{ ...CLAMP(col.bodyLines), ...BODY(col.size), lineHeight: COLUMN.lineHeight }}>{lookForLine(data)}</Text>
+        {data.comesTo && col.comesLines ? <Text style={{ ...CLAMP(col.comesLines), ...BODY(col.size * COLUMN.comes, C.soft, 500), marginTop: 4 * k, lineHeight: 1.3 }}>{data.comesTo}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -472,12 +484,12 @@ function Sheet({ data, plan, photoSrc }) {
       <View style={{ marginTop: plan.headToRow, height: plan.row, flexDirection: 'row' }}>
         <Print data={data} src={photoSrc} w={plan.photo.w} h={plan.row} k={k} />
         <View style={{ marginLeft: plan.colGap }}>
-          <Beside data={data} k={k} w={plan.colW} h={plan.row} mapH={plan.mapH} />
+          <Beside data={data} k={k} w={plan.colW} h={plan.row} col={plan.col} />
         </View>
       </View>
-      <Advice data={data} k={k} w={contentW} h={plan.advice} size={10.5} lines={3} marginTop={plan.rowToAdvice} />
+      <Advice data={data} k={k} w={contentW} plan={plan.advice} marginTop={plan.rowToAdvice} />
       <View style={{ marginTop: plan.contactGap }}>
-        <ContactPanel data={data} w={contentW} h={plan.contact} k={k} />
+        <ContactPanel data={data} w={contentW} h={plan.contact.h} k={k * plan.contact.scale} />
       </View>
       {plan.tabs > 0 ? (
         <View style={{ position: 'absolute', left: side, right: side, bottom: plan.bottom }}>
@@ -513,7 +525,7 @@ function Half({ data, plan, photoSrc, id, cut }) {
         <View style={{ marginTop: 4 }}>
           <MapTile data={data} w={detailsW} h={plan.mapH} k={k} />
         </View>
-        <Advice data={data} k={k} w={detailsW} size={9} lines={2} marginTop={4} />
+        <Advice data={data} k={k} w={detailsW} plan={planAdvice({ w: detailsW, k, words: data, size: 9 * k, linesMax: 2 })} marginTop={4} />
         <View style={{ flex: 1 }} />
         <ContactPanel data={data} w={detailsW} k={k} stacked phoneBase={28} />
       </View>
@@ -532,10 +544,9 @@ function HalfSheetPage({ data, plan, photoSrc }) {
 
 export function planFor(variant, data) {
   const photo = data.photos?.[0] || null;
-  const words = { stamp: data.stamp };
-  if (variant === 'half') return planHalf(PAGES.LETTER, photo, words);
-  if (variant === 'poster') return planSheet(PAGES.TABLOID, photo, { k: PAGES.TABLOID.w / PAGES.LETTER.w, tabs: false, ...words });
-  return planSheet(PAGES.LETTER, photo, { k: 1, tabs: true, ...words });
+  if (variant === 'half') return planHalf(PAGES.LETTER, photo, { stamp: data.stamp });
+  if (variant === 'poster') return planSheet(PAGES.TABLOID, photo, { k: PAGES.TABLOID.w / PAGES.LETTER.w, tabs: false, stamp: data.stamp, words: data });
+  return planSheet(PAGES.LETTER, photo, { k: 1, tabs: true, stamp: data.stamp, words: data });
 }
 
 /**

@@ -75,6 +75,34 @@ export function fitInter(text, maxW, base, min) {
   return Math.max(min, Math.min(base, maxW / (interEm(text) || 1)));
 }
 
+/**
+ * The lines `text` takes set in Inter at `size` across `width`: a greedy
+ * word wrap on interEm's padded widths, so never fewer than the real
+ * count. The sheet is planned on this, so no box is too small for its
+ * words and no box is left mostly empty.
+ */
+export function interLines(text, size, width) {
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length || !(width > 0) || !(size > 0)) return 0;
+  const space = 0.27 * 1.06 * size;
+  let lines = 1;
+  let line = 0;
+  for (const w of words) {
+    const ww = interEm(w) * size;
+    if (line > 0 && line + space + ww > width) {
+      lines += 1;
+      line = ww;
+    } else line += (line > 0 ? space : 0) + ww;
+  }
+  return lines;
+}
+
+/** What to look for with the facts after it: the column's body, built the same way everywhere. */
+export function lookForLine(data) {
+  const facts = data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : '';
+  return `${data.lookFor || ''}${facts}`.trim() || data.description || '';
+}
+
 /** The width of an eyebrow (Inter 700, uppercase, tracked 0.14 em) set at `size`. */
 export function eyebrowW(text, size) {
   const t = String(text || '').toUpperCase();
@@ -113,9 +141,89 @@ export function bandBox(size, text) {
 export const STICKER = { ring: 0.027, shadow: 0.028 };
 
 /**
+ * The facts column's type at scale 1 (pt): the eyebrow, the date, the
+ * address, the body (what to look for) and the "comes to" line as a share
+ * of the body; the gaps; and the tile's bounds. The tile is the last-seen
+ * map or, without one, the QR card for the map and updates at the link.
+ */
+export const COLUMN = {
+  eyebrow: 8.25,
+  date: 14,
+  address: 10.5,
+  body: 10.75,
+  bodyMax: 12.5, // the body grows this far while the tile keeps its share
+  bodyMaxNoMap: 14.5, // and this far when the tile is the QR card
+  comes: 0.93,
+  lineHeight: 1.35,
+  gap: 8,
+  tileMin: 90, // the tile is never shorter: the body loses lines first
+  tileShare: 0.45, // the tile keeps at least this much of the column while the body grows
+  mapMaxOfW: 1.6, // the map never grows taller than this times the column's width
+  qrMaxOfW: 1.2, // nor the QR card than this
+};
+
+/** "If you see Max" on its card at scale 1 (pt): the eyebrow, the body, the card's padding and edge, and how many lines each text may take. */
+export const ADVICE = { eyebrow: 8.25, body: 10.5, padX: 10, padY: 6, edge: 2, healthMax: 2, linesMax: 5 };
+
+/**
+ * "If you see Max" on its card, `w` wide, at `size` (already scaled): the
+ * height its words take and the lines each text gets. `linesMax` caps the
+ * instruction where the room is short (the half sheet).
+ */
+export function planAdvice({ w, k = 1, words, size, linesMax = ADVICE.linesMax }) {
+  const a = ADVICE;
+  const s = size ?? a.body * k;
+  const innerW = w - 2 * (a.padX + a.edge) * k;
+  const healthLines = words.health ? Math.min(a.healthMax, interLines(words.health, s, innerW)) : 0;
+  const lines = Math.max(1, Math.min(linesMax, interLines(words.ifYouSee, s, innerW)));
+  const h = 2 * (a.padY + a.edge) * k + a.eyebrow * k * 1.3 + (healthLines ? healthLines * s * 1.3 + 2 * k : 0) + lines * s * 1.3 + 2 * k;
+  return { size: s, h: Math.ceil(h), healthLines, lines };
+}
+
+/**
+ * The facts column beside the print, `w` wide, to fill `h`: where and
+ * when; the tile (the last-seen map, or without one the QR card for the
+ * map and updates at the link); what to look for; what the pet comes to.
+ * The words are measured (interLines). The body grows a little while the
+ * tile keeps its share, then the tile takes what the words leave, never
+ * less than tileMin (the body loses lines first) nor taller than its cap.
+ * `short` is what the column still cannot fill; the renderers spread it
+ * between the blocks, so it never pools at the foot.
+ */
+export function planColumn({ w, h, k = 1, words, hasMap }) {
+  const c = COLUMN;
+  const eyebrow = c.eyebrow * k * 1.3;
+  const date = words.lastSeenWhen ? c.date * k * 1.2 + 2 * k : 0;
+  const addressLines = Math.min(2, interLines(words.lastSeenArea, c.address * k, w));
+  const address = addressLines * c.address * k * 1.3;
+  const gap = c.gap * k;
+  const body = lookForLine(words);
+  const linesAt = (size) => interLines(body, size, w);
+  const comesAt = (size) => (words.comesTo ? Math.min(2, interLines(words.comesTo, size * c.comes, w)) : 0);
+  const comesH = (size) => (comesAt(size) ? comesAt(size) * size * c.comes * 1.3 + 4 * k : 0);
+  const textH = (size, lines) => eyebrow + date + address + gap + gap + lines * size * c.lineHeight + comesH(size);
+  const tileMax = (hasMap ? c.mapMaxOfW : c.qrMaxOfW) * w;
+  const bodyMax = (hasMap ? c.bodyMax : c.bodyMaxNoMap) * k;
+  const tileAt = (size) => h - textH(size, linesAt(size));
+  const step = 0.25 * k;
+  let size = c.body * k;
+  while (size + step <= bodyMax + 1e-6 && tileAt(size + step) >= c.tileShare * h) size += step;
+  let lines = linesAt(size);
+  let tile = tileAt(size);
+  if (tile < c.tileMin * k) {
+    tile = c.tileMin * k;
+    lines = Math.max(2, Math.floor((h - tile - textH(size, 0)) / (size * c.lineHeight)));
+  }
+  tile = Math.floor(Math.min(tile, tileMax));
+  const used = textH(size, lines) + tile;
+  return { size, bodyLines: lines, comesLines: comesAt(size), addressLines, tileH: tile, mapH: tile, gap, used: Math.min(h, used), short: Math.max(0, h - used) };
+}
+
+/**
  * The fixed heights of the Letter sheet at scale 1 (pt). The poster scales
  * them by k = 792 / 612. Tear tabs are Letter only. The photo row, the
- * print beside the facts, takes what is left.
+ * print beside the facts, takes what is left; the slack after that goes
+ * to the card's type, the contact panel and the gaps, never to one void.
  */
 export function blocks(k = 1) {
   return {
@@ -130,10 +238,14 @@ export function blocks(k = 1) {
     printMin: 250 * k, // the print's width, from the photo's shape, within these
     printMax: 330 * k,
     printAspectMin: 0.62, // the print is never narrower than this, so the row never grows past printMax / 0.62
+    wordGrow: 1.15, // the band grows this much when there is room
     rowToAdvice: 10 * k,
-    advice: 82 * k, // "If you see Max" on its note card: the health line and what to do, the full width
+    adviceSize: 10.5 * k, // "If you see Max" on its note card, the full width, as tall as its words
+    adviceMax: 13.5 * k, // its type grows this far when there is room
     contactGap: 9 * k,
     contact: 84 * k, // the navy panel: the phone and the email, the QR code and the short link
+    contactMax: 1.35, // it grows this much when there is room
+    gapMax: 22 * k, // each gap grows this far before the margins take the rest
     tabsGap: 10,
     tabs: 48,
     bottom: 10.5,
@@ -143,26 +255,52 @@ export function blocks(k = 1) {
 /**
  * @param {{w:number,h:number}} page
  * @param {{aspect:number}|null} photo width over height, or null for no photo
- * @param {{k?:number, tabs?:boolean, stamp?:string}} opts
+ * @param {{k?:number, tabs?:boolean, stamp?:string, words?:object}} opts `words` is the flyer data (normalize.js): what the boxes must hold
  */
-export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = {}) {
+export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST', words = {} } = {}) {
   const b = blocks(k);
   const contentW = page.w - b.side * 2;
   const tabsH = tabs ? b.tabsGap + b.tabs : 0;
-  const bottom = tabs ? b.bottom : b.side;
+  const bottom0 = tabs ? b.bottom : b.side;
   const aspect = photo?.aspect && Number.isFinite(photo.aspect) && photo.aspect > 0 ? photo.aspect : null;
-  const wordSize = fitUnbounded(stamp, contentW * b.wordShare, b.wordMax, 40 * k);
-  const band = bandBox(wordSize, stamp);
-  const head = band.h + band.off;
-  const nameW = contentW - band.w - band.off - b.headGap;
-  const below = b.headToRow + b.rowToAdvice + b.advice + b.contactGap + b.contact + tabsH + bottom;
-  const room = page.h - b.top - head - below;
-  // The row: as tall as the sheet allows, but the print is never a narrow strip.
+  const hasMap = Boolean(words.map);
+  const headAt = (max) => {
+    const wordSize = fitUnbounded(stamp, contentW * b.wordShare, max, 40 * k);
+    const band = bandBox(wordSize, stamp);
+    return { wordSize, band, head: band.h + band.off, nameW: contentW - band.w - band.off - b.headGap };
+  };
+  const adviceAt = (size) => planAdvice({ w: contentW, k, words, size });
+  const head0 = headAt(b.wordMax);
+  const advice0 = adviceAt(b.adviceSize);
+  const fixed = b.top + head0.head + b.headToRow + b.rowToAdvice + advice0.h + b.contactGap + b.contact + tabsH + bottom0;
+  const room = page.h - fixed;
+  // The row: as tall as the sheet allows, but the print is never a narrow strip. The column fills it (planColumn).
   const row = Math.floor(Math.min(room, b.printMax / b.printAspectMin));
-  const slack = (room - row) / 2;
   const printW = aspect ? clamp(Math.round(row * aspect), b.printMin, b.printMax) : Math.round(300 * k);
   const off = Math.round(printW * PRINT.shadow);
   const colW = contentW - printW - off - b.colGap;
+  const col = planColumn({ w: colW, h: row, k, words, hasMap });
+  // The slack (the poster's, mostly): the band grows, then the card's type, then the contact panel, then the gaps, then the margins.
+  let slack = room - row;
+  let head = head0;
+  for (let max = b.wordMax + k; max <= b.wordMax * b.wordGrow + 1e-6; max += k) {
+    const h = headAt(max);
+    if (h.head - head0.head > slack * 0.25) break;
+    head = h;
+  }
+  slack -= head.head - head0.head;
+  let advice = advice0;
+  for (let size = b.adviceSize + 0.25 * k; size <= b.adviceMax + 1e-6; size += 0.25 * k) {
+    const a = adviceAt(size);
+    if (a.h - advice0.h > slack * 0.5) break;
+    advice = a;
+  }
+  slack -= advice.h - advice0.h;
+  const contactScale = Math.min(b.contactMax, 1 + (slack * 0.5) / b.contact);
+  const contactH = Math.round(b.contact * contactScale);
+  slack -= contactH - b.contact;
+  const gapExtra = Math.max(0, Math.min(b.gapMax, slack / 3));
+  slack = Math.max(0, slack - gapExtra * 3);
   const inner = printInner(printW, row, k);
   return {
     k,
@@ -171,25 +309,26 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = 
     side: b.side,
     stripe: b.band,
     foot: !tabs,
-    top: b.top + slack,
-    wordSize,
-    band,
-    head,
+    top: b.top + slack / 2,
+    wordSize: head.wordSize,
+    band: head.band,
+    head: head.head,
     headGap: b.headGap,
-    nameW,
-    headToRow: b.headToRow,
+    nameW: head.nameW,
+    headToRow: b.headToRow + gapExtra,
     row,
     photo: { w: printW, h: row },
     colGap: b.colGap,
     colW,
-    mapH: Math.round(row * 0.56), // the last-seen map across the facts column
-    rowToAdvice: b.rowToAdvice,
-    advice: b.advice,
-    contactGap: b.contactGap,
-    contact: b.contact,
+    col,
+    mapH: col.tileH,
+    rowToAdvice: b.rowToAdvice + gapExtra,
+    advice,
+    contactGap: b.contactGap + gapExtra,
+    contact: { h: contactH, scale: contactScale },
     tabs: tabs ? b.tabs : 0,
     tabsGap: tabs ? b.tabsGap : 0,
-    bottom: bottom + slack,
+    bottom: bottom0 + slack / 2,
     hasPhoto: Boolean(aspect),
     focalAt: 0.42,
     frame: { w: printW, h: row },
@@ -248,22 +387,153 @@ export function cropRect(w, h, focal, aspect, focalAt = 0.5) {
 }
 
 /**
- * The share images' photo prints (px): where each size's print sits and
- * how tall it is; its width comes from the photo's shape, within `wMin`
- * and `wMax` (`socialFrame`). The print's centre is where the ground's
- * light and rays come from (ground.js); `band` is the caution stripes'
- * height.
+ * The share images (px). The square and the story are the sheet's plan
+ * at their own sizes (`planCard`): the head, the print beside the facts,
+ * the card, the contact panel, with the slack spread the same way. The
+ * link preview (`planOg`) keeps the print at the left, the full height,
+ * and plans its column. The print's width comes from the photo's shape
+ * within bounds; its centre is where the ground's light and rays come
+ * from (ground.js); `band` is the caution stripes' height.
  */
-export const SOCIAL_FRAMES = {
-  og: { x: 56, y: 58, h: 514, wMin: 386, wMax: 560, focalAt: 0.42, band: 16 },
-  square: { x: 40, y: 147, h: 634, wMin: 440, wMax: 620, focalAt: 0.42, band: 18 },
-  story: { x: 56, y: 368, h: 968, wMin: 480, wMax: 600, focalAt: 0.42, band: 22 },
+export const CARDS = {
+  square: { W: 1080, H: 1080, side: 40, top: 44, bottom: 38, band: 84, nameMax: 36, tag: 13, headGap: 20, headToRow: 14, colGap: 20, printMin: 440, printMax: 620, body: 17, advice: 18, adviceMax: 23, contact: 1.42, contactMax: 1.8, rowToAdvice: 12, contactGap: 12, gapMax: 40, stripe: 18 },
+  story: { W: 1080, H: 1920, side: 56, top: 140, bottom: 130, band: 130, nameMax: 44, tag: 18, headGap: 26, headToRow: 40, colGap: 24, printMin: 480, printMax: 600, body: 22, advice: 25, adviceMax: 32, contact: 968 / 516, contactMax: 2.4, rowToAdvice: 40, contactGap: 40, gapMax: 80, stripe: 22 },
 };
+export const OG = { W: 1200, H: 630, x: 56, y: 58, h: 514, printMin: 386, printMax: 560, colGap: 36, right: 50, top: 50, bottom: 44, band: 92, nameMax: 30, tag: 12, headGap: 16, where: 15.5, advice: 15.5, adviceMax: 18.5, mapW: 240, mapMin: 110, mapMax: 230, stripe: 16 };
 
-/** The print one share image draws for a photo of `aspect` (width over height; null for no photo). */
-export function socialFrame(size, aspect) {
-  const f = SOCIAL_FRAMES[size] || SOCIAL_FRAMES.og;
+export function planCard(size, aspect, words = {}) {
+  const c = CARDS[size] || CARDS.square;
+  const W = c.W - 2 * c.side;
   const a = aspect && Number.isFinite(aspect) && aspect > 0 ? aspect : null;
-  const w = a ? clamp(Math.round(f.h * a), f.wMin, f.wMax) : Math.round((f.wMin + f.wMax) / 2);
-  return { ...f, w, off: Math.round(w * PRINT.shadow) };
+  const stamp = words.stamp || 'LOST';
+  const hasMap = Boolean(words.map);
+  const ka = c.advice / ADVICE.body;
+  const kc = c.body / COLUMN.body;
+  const headAt = (bandSize) => {
+    const band = bandBox(bandSize, stamp);
+    return { bandSize, band, head: band.h + band.off };
+  };
+  const adviceAt = (s) => planAdvice({ w: W, k: ka, words, size: s });
+  const head0 = headAt(c.band);
+  const advice0 = adviceAt(c.advice);
+  const contact0 = Math.round(84 * c.contact);
+  const fixed = c.top + head0.head + c.headToRow + c.rowToAdvice + advice0.h + c.contactGap + contact0 + c.bottom;
+  const room = c.H - fixed;
+  const row = Math.floor(Math.min(room, c.printMax / 0.62));
+  const w = a ? clamp(Math.round(row * a), c.printMin, c.printMax) : Math.round((c.printMin + c.printMax) / 2);
+  const off = Math.round(w * PRINT.shadow);
+  const colW = W - w - off - c.colGap;
+  const col = planColumn({ w: colW, h: row, k: kc, words, hasMap });
+  let slack = room - row;
+  let head = head0;
+  for (let b = c.band + 2; b <= c.band * 1.15 + 1e-6; b += 2) {
+    const h = headAt(b);
+    if (h.head - head0.head > slack * 0.25) break;
+    head = h;
+  }
+  slack -= head.head - head0.head;
+  let advice = advice0;
+  for (let s = c.advice + 0.5; s <= c.adviceMax + 1e-6; s += 0.5) {
+    const x = adviceAt(s);
+    if (x.h - advice0.h > slack * 0.5) break;
+    advice = x;
+  }
+  slack -= advice.h - advice0.h;
+  const contactK = Math.min(c.contactMax, c.contact * (1 + (slack * 0.5) / contact0));
+  const contactH = Math.round(84 * contactK);
+  slack -= contactH - contact0;
+  const gapExtra = Math.max(0, Math.min(c.gapMax, slack / 3));
+  slack = Math.max(0, slack - gapExtra * 3);
+  const top = c.top + slack / 2;
+  const headToRow = c.headToRow + gapExtra;
+  return {
+    size,
+    W,
+    H: c.H,
+    side: c.side,
+    top,
+    bandSize: head.bandSize,
+    band: head.band,
+    head: head.head,
+    headGap: c.headGap,
+    nameMax: c.nameMax,
+    tag: c.tag,
+    headToRow,
+    frame: { x: c.side, y: top + head.head + headToRow, w, h: row, off, focalAt: 0.42, band: c.stripe },
+    colGap: c.colGap,
+    colW,
+    col,
+    kc,
+    ka,
+    rowToAdvice: c.rowToAdvice + gapExtra,
+    advice,
+    contactGap: c.contactGap + gapExtra,
+    contact: { h: contactH, k: contactK },
+    bottom: c.bottom + slack / 2,
+    stripe: c.stripe,
+  };
+}
+
+/** The link preview: the print at the left, the full height; at the right the head, the map beside where and when, the card, and the phone pill at the foot. */
+export function planOg(aspect, words = {}) {
+  const o = OG;
+  const a = aspect && Number.isFinite(aspect) && aspect > 0 ? aspect : null;
+  const w = a ? clamp(Math.round(o.h * a), o.printMin, o.printMax) : Math.round((o.printMin + o.printMax) / 2);
+  const off = Math.round(w * PRINT.shadow);
+  const colX = o.x + w + off + o.colGap;
+  const W = o.W - colX - o.right;
+  const stamp = words.stamp || 'LOST';
+  const bandSize = fitUnbounded(stamp, W * 0.62, o.band, 56);
+  const band = bandBox(bandSize, stamp);
+  const head = band.h + band.off;
+  const hasMap = Boolean(words.map);
+  const pill = Math.round(40 * 0.42) * 2 + 12 * 1.3 + 6 + 40; // the phone pill: its paddings, the eyebrow, the number
+  const available = o.H - o.bottom - pill - 14 - o.top;
+  const ka = o.advice / ADVICE.body;
+  const adviceAt = (s) => planAdvice({ w: W, k: ka, words, size: s });
+  let advice = adviceAt(o.advice);
+  const gaps = 12 + 10;
+  const factsAt = (adv) => available - head - gaps - adv.h;
+  // The card's type grows while the facts row keeps a fair height; the row takes what is left, within its bounds.
+  for (let s = o.advice + 0.5; s <= o.adviceMax + 1e-6; s += 0.5) {
+    const x = adviceAt(s);
+    if (factsAt(x) < 150) break;
+    advice = x;
+  }
+  const facts = clamp(factsAt(advice), o.mapMin, o.mapMax);
+  const extra = Math.max(0, factsAt(advice) - facts);
+  const whereW = hasMap ? W - o.mapW - 14 : W;
+  const ws = o.where;
+  const whereFixed = ws * 0.72 * 1.3 + (words.lastSeenWhen ? ws * 1.15 * 1.2 + 2 : 0) + Math.min(2, interLines(words.lastSeenArea, ws * 0.92, whereW)) * ws * 0.92 * 1.3 + ws * 0.4;
+  const whereLines = Math.max(2, Math.min(6, Math.floor((facts - whereFixed) / (ws * 0.95 * 1.35))));
+  return {
+    size: 'og',
+    frame: { x: o.x, y: o.y, w, h: o.h, off, focalAt: 0.42, band: o.stripe },
+    colX,
+    W,
+    top: o.top,
+    bandSize,
+    band,
+    head,
+    nameMax: o.nameMax,
+    tag: o.tag,
+    headGap: o.headGap,
+    headToFacts: 12 + extra / 2,
+    facts,
+    mapW: o.mapW,
+    whereW,
+    where: ws,
+    whereLines,
+    factsToAdvice: 10 + extra / 2,
+    advice,
+    ka,
+    pill,
+    bottom: o.bottom,
+    stripe: o.stripe,
+  };
+}
+
+/** The plan of one share image: the link preview's, or the square's or the story's. */
+export function planSocial(size, aspect, words = {}) {
+  return size === 'og' ? planOg(aspect, words) : planCard(size, aspect, words);
 }

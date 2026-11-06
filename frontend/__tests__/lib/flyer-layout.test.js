@@ -6,13 +6,38 @@
 
 jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholderEmail: (e) => /placeholder|noemail/.test(e || '') }));
 
-import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, socialFrame, unboundedEm, fitUnbounded, UNBOUNDED, STICKER, bandBox, printInner, BAND, PRINT } from '@/app/lib/cascade/render/flyers/plan';
+import { planSheet, planHalf, planColumn, planAdvice, planCard, planOg, interLines, lookForLine, cropRect, PAGES, CARDS, OG, COLUMN, ADVICE, unboundedEm, fitUnbounded, UNBOUNDED, STICKER, bandBox, printInner, BAND, PRINT } from '@/app/lib/cascade/render/flyers/plan';
 import { normalizeFlyerData, zoneFor } from '@/app/lib/cascade/render/flyers/normalize';
 
-const used = (p) => p.top + p.head + p.headToRow + p.row + p.rowToAdvice + p.advice + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
+const used = (p) => p.top + p.head + p.headToRow + p.row + p.rowToAdvice + p.advice.h + p.contactGap + p.contact.h + p.tabsGap + p.tabs + p.bottom;
+
+// A full report: the map on record, the questionnaire's lines, a long description.
+const MAX_WORDS = {
+  stamp: 'LOST',
+  map: { width: 680, height: 480 },
+  lastSeenWhen: 'Wed, Nov 4',
+  lastSeenArea: 'Sach’a Yuntas, Avenida Sánchez Bustamante',
+  lookFor: 'White, brown and tabby coat. Red collar, a tag with our number. Dragging a leash. White chest, one ear up.',
+  factsLine: 'Golden Retriever · Medium · Male · not neutered · Senior · Microchipped',
+  comesTo: 'Comes to their name and treats or a shaken food bag.',
+  health: 'Needs insulin twice a day. Please call the moment you see Max.',
+  ifYouSee: "Don't chase, call out or stare. Max will run. Sit or crouch sideways, toss food if you have some, and call us right away with the exact spot. Max is afraid of men.",
+};
+// A thin report: no map, a short description, the species' general line.
+const THIN_WORDS = {
+  stamp: 'LOST',
+  map: null,
+  lastSeenWhen: 'Wed, Nov 4',
+  lastSeenArea: 'Ministerio de Gobierno, 2468',
+  lookFor: 'White, brown, tabby coat. Black collar.',
+  factsLine: 'Medium',
+  comesTo: '',
+  health: '',
+  ifYouSee: "Don't chase. A frightened dog runs farther. Note the exact spot and time and call us right away.",
+};
 
 describe('planSheet', () => {
-  const WORDS = { stamp: 'LOST' };
+  const WORDS = { stamp: 'LOST', words: MAX_WORDS };
 
   test('the photo row takes the room the fixed blocks leave: the print as tall as the sheet allows, the facts beside it', () => {
     const p = planSheet(PAGES.LETTER, { aspect: 0.75 }, WORDS);
@@ -25,9 +50,17 @@ describe('planSheet', () => {
     expect(p.photo.w).toBe(Math.round(p.row * 0.75));
     // The facts column fills the rest, past the print's shadow.
     expect(p.colW).toBe(p.contentW - p.photo.w - Math.round(p.photo.w * PRINT.shadow) - p.colGap);
-    expect(p.mapH).toBe(Math.round(p.row * 0.56));
-    expect(p.advice).toBe(82);
-    expect(p.contact).toBe(84);
+    // The column is full: the words are measured and the map takes what they leave, never less than its share.
+    expect(p.col.short).toBeLessThan(1);
+    expect(p.col.tileH).toBe(p.mapH);
+    expect(p.mapH).toBeGreaterThanOrEqual(COLUMN.tileShare * p.row);
+    expect(p.mapH).toBeLessThanOrEqual(COLUMN.mapMaxOfW * p.colW);
+    expect(p.col.size).toBeGreaterThanOrEqual(COLUMN.body);
+    expect(p.col.size).toBeLessThanOrEqual(COLUMN.bodyMax);
+    // "If you see" is a card of its own under the row, as tall as its words.
+    expect(p.advice).toEqual(planAdvice({ w: p.contentW, k: 1, words: MAX_WORDS, size: p.advice.size }));
+    expect(p.advice.size).toBeGreaterThanOrEqual(10.5);
+    expect(p.contact.h).toBeGreaterThanOrEqual(84);
     expect(p.frame).toEqual({ w: p.photo.w, h: p.row });
     // The picture sits inside the print's navy edge and cream mat; the crop has that shape.
     const inner = printInner(p.photo.w, p.row, 1);
@@ -58,6 +91,30 @@ describe('planSheet', () => {
     expect(p.frameAspect).toBeNull();
     expect(p.photo).toEqual({ w: 300, h: p.row });
     expect(p.row).toBeGreaterThan(400);
+  });
+
+  test('a thin report without a map: the tile is the QR card for the link, the words grow, the card is short, and the row stays tall for the photo', () => {
+    const p = planSheet(PAGES.LETTER, { aspect: 0.75 }, { stamp: 'LOST', words: THIN_WORDS });
+    const full = planSheet(PAGES.LETTER, { aspect: 0.75 }, WORDS);
+    expect(p.row).toBe(full.row + (full.advice.h - p.advice.h)); // the shorter card gives its height to the row
+    expect(p.advice.healthLines).toBe(0);
+    expect(p.advice.h).toBeLessThan(full.advice.h);
+    expect(p.col.tileH).toBeLessThanOrEqual(COLUMN.qrMaxOfW * p.colW);
+    expect(p.col.tileH).toBeGreaterThanOrEqual(COLUMN.tileShare * p.row * 0.9);
+    expect(p.col.size).toBeGreaterThan(COLUMN.bodyMax);
+    expect(p.col.size).toBeLessThanOrEqual(COLUMN.bodyMaxNoMap);
+    // What the column cannot fill is spread between its blocks by the renderers; the sheet itself is full.
+    expect(p.col.short).toBeLessThan(p.row * 0.3);
+    expect(Math.round(used(p))).toBe(792);
+  });
+
+  test('every block is laid out at the size the plan gives it, so a long report still ends on the page', () => {
+    const long = { ...MAX_WORDS, ifYouSee: `${MAX_WORDS.ifYouSee} ${MAX_WORDS.ifYouSee}`, lookFor: `${MAX_WORDS.lookFor} ${MAX_WORDS.lookFor} ${MAX_WORDS.lookFor}` };
+    const p = planSheet(PAGES.LETTER, { aspect: 1.5 }, { stamp: 'LOST', words: long });
+    expect(Math.round(used(p))).toBe(792);
+    expect(p.advice.lines).toBeLessThanOrEqual(ADVICE.linesMax);
+    expect(p.col.short).toBeLessThan(1);
+    expect(p.mapH).toBeGreaterThanOrEqual(COLUMN.tileMin);
   });
 
   test('the word is set as large as its share of the head allows, on its band, with the name beside it; FOUND is wider and shrinks', () => {
@@ -107,12 +164,16 @@ describe('planSheet', () => {
     const p = planSheet(PAGES.TABLOID, { aspect: 1.5 }, { k, tabs: false, ...WORDS });
     expect(p.tabs).toBe(0);
     expect(p.tabsGap).toBe(0);
-    expect(p.wordSize).toBeCloseTo(72 * k, 5);
-    // The print is never a narrow strip: the row stops where the widest print would be 0.62 wide to tall, and the slack goes above and below equally.
+    // The print is never a narrow strip: the row stops where the widest print would be 0.62 wide to tall.
     expect(p.row).toBe(Math.floor((330 * k) / 0.62));
-    expect(p.bottom - 30 * k).toBeCloseTo(p.top - 26 * k, 5);
-    expect(p.top - 26 * k).toBeGreaterThan(0);
     expect(p.photo.h).toBeGreaterThan(600);
+    // The slack goes to the band, the card's type, the panel and the gaps before the margins, and the margins split what is left.
+    expect(p.wordSize).toBeGreaterThan(72 * k);
+    expect(p.wordSize).toBeLessThanOrEqual(72 * k * 1.15 + 1e-6);
+    expect(p.advice.size).toBeGreaterThan(10.5 * k);
+    expect(p.contact.scale).toBeGreaterThan(1);
+    expect(p.headToRow).toBeGreaterThan(10 * k);
+    expect(p.bottom - 30 * k).toBeCloseTo(p.top - 26 * k, 5);
     expect(Math.round(used(p))).toBe(1224);
     // No tabs: the caution stripes run along the foot as well as the head.
     expect(p.stripe).toBeCloseTo(12 * k, 5);
@@ -171,20 +232,64 @@ describe('cropRect', () => {
     expect(cropRect(100, 100, null, 0)).toBeNull();
   });
 
-  test("the share image prints are as tall as the boards draw, and as wide as the photo's shape asks, within bounds", () => {
-    expect(SOCIAL_FRAMES.og).toEqual({ x: 56, y: 58, h: 514, wMin: 386, wMax: 560, focalAt: 0.42, band: 16 });
-    expect(SOCIAL_FRAMES.square).toEqual({ x: 40, y: 147, h: 634, wMin: 440, wMax: 620, focalAt: 0.42, band: 18 });
-    expect(SOCIAL_FRAMES.story).toEqual({ x: 56, y: 368, h: 968, wMin: 480, wMax: 600, focalAt: 0.42, band: 22 });
-    // A portrait phone photo (3:4) keeps its shape where the bounds allow; a wide one is cut to the widest print.
-    expect(socialFrame('og', 0.75)).toMatchObject({ w: 386, h: 514, off: 5 });
-    expect(socialFrame('og', 1.5)).toMatchObject({ w: 560, h: 514 });
-    expect(socialFrame('square', 0.75)).toMatchObject({ w: 476, h: 634 });
-    expect(socialFrame('square', 2)).toMatchObject({ w: 620, h: 634 });
-    expect(socialFrame('story', 0.75)).toMatchObject({ w: 600, h: 968 });
-    expect(socialFrame('story', 0.45)).toMatchObject({ w: 480, h: 968 });
+  test("the share images are planned like the sheet: the print as wide as the photo's shape asks, the column full, the slack spread", () => {
+    const sq = planCard('square', 0.75, MAX_WORDS);
+    expect(sq.frame).toMatchObject({ x: 40, w: Math.round(sq.frame.h * 0.75), band: 18 });
+    expect(sq.frame.h).toBeLessThanOrEqual(CARDS.square.printMax / 0.62);
+    expect(sq.col.short).toBeLessThan(1);
+    expect(sq.advice.size).toBeGreaterThanOrEqual(CARDS.square.advice);
+    const total = sq.top + sq.head + sq.headToRow + sq.frame.h + sq.rowToAdvice + sq.advice.h + sq.contactGap + sq.contact.h + sq.bottom;
+    expect(Math.round(total)).toBe(1080);
+    // A wide photo is cut to the widest print; a thin report keeps the row tall, its tile the QR card, its card short.
+    expect(planCard('square', 2, MAX_WORDS).frame.w).toBe(620);
+    const thin = planCard('square', 0.75, THIN_WORDS);
+    expect(thin.frame.h).toBeGreaterThanOrEqual(sq.frame.h);
+    expect(thin.advice.h).toBeLessThan(sq.advice.h);
+    expect(thin.col.tileH).toBeLessThanOrEqual(COLUMN.qrMaxOfW * thin.colW);
+    // The story: its own numbers, the same rules.
+    const st = planCard('story', 0.75, MAX_WORDS);
+    expect(st.frame).toMatchObject({ x: 56, w: 600, band: 22 });
+    expect(st.frame.h).toBeLessThanOrEqual(CARDS.story.printMax / 0.62);
+    expect(st.col.short).toBeLessThan(1);
+    expect(Math.round(st.top + st.head + st.headToRow + st.frame.h + st.rowToAdvice + st.advice.h + st.contactGap + st.contact.h + st.bottom)).toBe(1920);
     // No photo: a print in the middle of the range, for the description.
-    expect(socialFrame('story', null).w).toBe(540);
-    expect(socialFrame('nope', 1).h).toBe(514);
+    expect(planCard('story', null, MAX_WORDS).frame.w).toBe(540);
+    // The link preview: the print at the left, the full height; the column plans its facts row and card between the head and the pill.
+    const og = planOg(0.75, MAX_WORDS);
+    expect(og.frame).toMatchObject({ x: 56, y: 58, w: 386, h: 514, off: 5, band: 16 });
+    expect(og.colX).toBe(56 + 386 + 5 + OG.colGap);
+    expect(og.W).toBe(1200 - og.colX - OG.right);
+    expect(og.facts).toBeGreaterThanOrEqual(OG.mapMin);
+    expect(og.facts).toBeLessThanOrEqual(OG.mapMax);
+    expect(og.top + og.head + og.headToFacts + og.facts + og.factsToAdvice + og.advice.h).toBeLessThanOrEqual(630 - og.bottom - og.pill - 14 + 0.5);
+    expect(planOg(1.5, MAX_WORDS).frame.w).toBe(560);
+    expect(planOg(0.75, THIN_WORDS).whereW).toBe(planOg(0.75, THIN_WORDS).W);
+  });
+
+  test('the words are measured so no box is too small for them: a greedy wrap on padded widths', () => {
+    expect(interLines('', 10, 200)).toBe(0);
+    expect(interLines('Max', 10, 200)).toBe(1);
+    expect(interLines('White, brown and tabby coat. Red collar, a tag with our number.', 10, 120)).toBeGreaterThanOrEqual(3);
+    expect(interLines('White, brown and tabby coat.', 10, 400)).toBe(1);
+    expect(interLines('a b c', 10, 1)).toBe(3);
+    expect(lookForLine({ lookFor: 'Tabby.', factsLine: 'Medium · Male' })).toBe('Tabby. Medium, Male.');
+    expect(lookForLine({ lookFor: '', factsLine: '', description: 'A grey cat' })).toBe('A grey cat');
+    // The column: with a map, the map takes what the words leave; without, the QR card does, up to its cap, and the words grow.
+    const withMap = planColumn({ w: 237, h: 425, words: MAX_WORDS, hasMap: true });
+    expect(withMap.short).toBeLessThan(1);
+    expect(withMap.used + withMap.short).toBe(425);
+    const noMap = planColumn({ w: 237, h: 425, words: THIN_WORDS, hasMap: false });
+    expect(noMap.tileH).toBe(Math.floor(COLUMN.qrMaxOfW * 237));
+    expect(noMap.size).toBeGreaterThan(COLUMN.body);
+    expect(noMap.short).toBeGreaterThan(0);
+    expect(noMap.used + noMap.short).toBe(425);
+    // The card: its height is its words'.
+    const one = planAdvice({ w: 552, words: THIN_WORDS });
+    const two = planAdvice({ w: 552, words: MAX_WORDS });
+    expect(one.healthLines).toBe(0);
+    expect(two.healthLines).toBe(1);
+    expect(two.h).toBeGreaterThan(one.h);
+    expect(planAdvice({ w: 300, words: MAX_WORDS, linesMax: 2 }).lines).toBe(2);
   });
 });
 

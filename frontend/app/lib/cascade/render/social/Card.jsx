@@ -1,5 +1,5 @@
 import React from 'react';
-import { fitUnbounded, fitInter, interEm, eyebrowW, PRINT, BAND, bandBox, printInner, socialFrame } from '../flyers/plan';
+import { fitUnbounded, fitInter, interEm, eyebrowW, PRINT, BAND, COLUMN, ADVICE, bandBox, printInner, planSocial, lookForLine } from '../flyers/plan';
 import { grainDataUrl, GRAIN_TILE } from '../textures';
 import { GROUND, LIGHT } from '../ground';
 
@@ -13,7 +13,7 @@ import { GROUND, LIGHT } from '../ground';
  * with the reward and "Needs medication" as pills under the name; the
  * pet's photo as a print in a cream mat with a hard navy shadow, nothing
  * ever drawn over it, as wide as the photo's own shape asks (`frame`,
- * from socialFrame in ../flyers/plan.js); beside it where and when, the
+ * from planSocial in ../flyers/plan.js); beside it where and when, the
  * map and what to look for; "If you see Max" on a cream note card, the
  * full width, never cut; then the contact panel on navy (the link
  * preview, which is itself the link, keeps the plain phone pill). og
@@ -66,11 +66,6 @@ function contactEyebrow(data) {
 }
 
 const LINK_EYEBROW = 'Report a sighting';
-
-function lookForLine(data) {
-  const facts = data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : '';
-  return `${data.lookFor || ''}${facts}`.trim() || data.description || '';
-}
 
 /* ------------------------------------------------------------- primitives */
 
@@ -195,21 +190,30 @@ function ContactPanel({ data, w, k }) {
   );
 }
 
+/** Without a map on record, the tile is the link: the QR code as large as the card allows over "Scan for the map and updates" and the short link (see Flyer.jsx LinkCard). */
+function LinkCard({ data, w, h, radius, k = 1.5 }) {
+  const pad = Math.round(8 * k);
+  const eye = 7 * k;
+  const link = fitInter(data.caseUrlLabel, w - pad * 2, 9 * k, 6 * k);
+  const words = eye * 1.3 + 3 + link * 1.2;
+  const qr = data.qrDataUrl ? Math.floor(Math.min(w - pad * 2, h - pad * 2 - words - 8)) : 0;
+  const big = qr >= 40 * k;
+  return (
+    <Col style={{ width: w, height: h, borderRadius: radius, backgroundColor: CREAM, border: `3px solid ${NAVY}`, alignItems: 'center', justifyContent: 'center', padding: `0 ${pad}px`, flexShrink: 0 }}>
+      {big ? <img src={data.qrDataUrl} width={qr} height={qr} style={{ width: qr, height: qr, marginBottom: Math.round(6 * k) }} /> : null}
+      <Txt style={{ ...eyebrow(eye, SOFT), whiteSpace: 'nowrap' }}>{big ? 'Scan for the map' : 'Map at the link'}</Txt>
+      <Txt style={{ ...body(link, NAVY, 700), marginTop: 3, lineHeight: 1.2, whiteSpace: 'nowrap' }}>{data.caseUrlLabel}</Txt>
+    </Col>
+  );
+}
+
 /**
  * The last-seen map (see Flyer.jsx MapTile). The cascade's tiles are in
  * points, drawn here at 1.5× so street names stay readable on a screen.
  */
-export function MapTile({ data, w, h, radius = 14 }) {
+export function MapTile({ data, w, h, radius = 14, k = 1.5 }) {
   const m = data.map;
-  if (!m) {
-    const t = Math.max(11, Math.round(h * 0.2));
-    return (
-      <Col style={{ width: w, height: h, borderRadius: radius, backgroundColor: CREAM, border: `3px solid ${NAVY}`, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Txt style={eyebrow(t * 0.85, SOFT)}>Map at the link</Txt>
-        <Txt style={{ ...body(t, NAVY, 700), marginTop: 2, lineHeight: 1.2, whiteSpace: 'nowrap' }}>{data.caseUrlLabel}</Txt>
-      </Col>
-    );
-  }
+  if (!m) return <LinkCard data={data} w={w} h={h} radius={radius} k={k} />;
   const sc = 1.5;
   const cx = w / 2;
   const cy = h / 2;
@@ -232,21 +236,23 @@ export function MapTile({ data, w, h, radius = 14 }) {
   );
 }
 
-/** Beside the print: where and when, the map across the column, what to look for (as many lines as fit) and what the pet comes to. */
-function Beside({ data, size, width, height, mapH: mapRoom, radius = 14 }) {
-  const mapH = data.map ? mapRoom : Math.round(size * 3.4); // without a map, a short strip that says where it is
-  const fixed = size * 0.72 * 1.3 + (data.lastSeenWhen ? size * 1.15 * 1.2 + 2 : 0) + size * 0.92 * 1.3 * 2 + size * 0.5 + mapH + size * 0.5 + (data.comesTo ? size * 0.9 * 1.3 * 2 + 4 : 0);
-  const lines = Math.max(3, Math.floor((height - fixed) / (size * 1.35)));
+/** Beside the print, the facts as planColumn laid them out (plan.js) to fill the column; `k` is the column's scale (its body size over the sheet's). */
+function Beside({ data, k, width, height, col, radius = 14 }) {
+  const size = col.size;
   return (
-    <Col style={{ width, height }}>
-      <Txt style={eyebrow(size * 0.72)}>Last seen</Txt>
-      {data.lastSeenWhen ? <Txt style={{ ...body(size * 1.15, NAVY, 700), marginTop: 2, lineHeight: 1.2 }}>{data.lastSeenWhen}</Txt> : null}
-      <Clamp lines={2} style={{ ...body(size * 0.92, SOFT, 500), width, lineHeight: 1.3 }}>{data.lastSeenArea}</Clamp>
-      <Col style={{ marginTop: Math.round(size * 0.5) }}>
-        <MapTile data={data} w={width} h={mapH} radius={radius} />
+    <Col style={{ width, height, justifyContent: 'space-between' }}>
+      <Col>
+        <Txt style={eyebrow(COLUMN.eyebrow * k)}>Last seen</Txt>
+        {data.lastSeenWhen ? <Txt style={{ ...body(COLUMN.date * k, NAVY, 700), marginTop: 2, lineHeight: 1.2 }}>{data.lastSeenWhen}</Txt> : null}
+        <Clamp lines={2} style={{ ...body(COLUMN.address * k, SOFT, 500), width, lineHeight: 1.3 }}>{data.lastSeenArea}</Clamp>
       </Col>
-      <Clamp lines={lines} style={{ ...body(size), width, marginTop: Math.round(size * 0.5), lineHeight: 1.35 }}>{lookForLine(data)}</Clamp>
-      {data.comesTo ? <Clamp lines={2} style={{ ...body(size * 0.9, SOFT, 500), width, marginTop: 4, lineHeight: 1.3 }}>{data.comesTo}</Clamp> : null}
+      <Col style={{ marginTop: Math.round(col.gap) }}>
+        <MapTile data={data} w={width} h={col.tileH} radius={radius} k={k} />
+      </Col>
+      <Col style={{ marginTop: Math.round(col.gap) }}>
+        <Clamp lines={col.bodyLines} style={{ ...body(size), width, lineHeight: COLUMN.lineHeight }}>{lookForLine(data)}</Clamp>
+        {data.comesTo && col.comesLines ? <Clamp lines={col.comesLines} style={{ ...body(size * COLUMN.comes, SOFT, 500), width, marginTop: 4, lineHeight: 1.3 }}>{data.comesTo}</Clamp> : null}
+      </Col>
     </Col>
   );
 }
@@ -278,25 +284,26 @@ function Where({ data, size, width, lines = 3 }) {
   );
 }
 
-/** "IF YOU SEE MAX" on a cream note card with a navy edge: the health line in red when there is one, then what to do, the full width. */
-function Advice({ data, size, width, lines = 3, healthLines = 1 }) {
-  const padX = Math.round(size * 0.9);
-  const inner = width - padX * 2 - 6;
+/** "IF YOU SEE MAX" on a cream note card with a navy edge, as tall as its words at the plan's size (plan.js planAdvice); `k` is the card's scale. */
+function Advice({ data, k, width, plan }) {
+  const padX = Math.round(ADVICE.padX * k);
+  const padY = Math.round(ADVICE.padY * k);
+  const edge = Math.round(ADVICE.edge * k);
+  const inner = width - padX * 2 - edge * 2;
   return (
-    <Col style={{ width, backgroundColor: CREAM, borderRadius: Math.round(size * 0.9), border: `3px solid ${NAVY}`, padding: `${Math.round(size * 0.55)}px ${padX}px` }}>
-      <Txt style={eyebrow(size * 0.72)}>{`If you see ${data.petName}`}</Txt>
-      {data.health ? <Clamp lines={healthLines} style={{ ...body(size, LOST, 700), width: inner, lineHeight: 1.3, marginTop: 3 }}>{data.health}</Clamp> : null}
-      <Clamp lines={lines} style={{ ...body(size, NAVY, 600), width: inner, lineHeight: 1.3, marginTop: 3 }}>{data.ifYouSee}</Clamp>
+    <Col style={{ width, height: plan.h, backgroundColor: CREAM, borderRadius: Math.round(10 * k), border: `${edge}px solid ${NAVY}`, padding: `${padY}px ${padX}px` }}>
+      <Txt style={eyebrow(ADVICE.eyebrow * k)}>{`If you see ${data.petName}`}</Txt>
+      {data.health && plan.healthLines ? <Clamp lines={plan.healthLines} style={{ ...body(plan.size, LOST, 700), width: inner, lineHeight: 1.3, marginTop: Math.round(2 * k) }}>{data.health}</Clamp> : null}
+      <Clamp lines={plan.lines} style={{ ...body(plan.size, NAVY, 600), width: inner, lineHeight: 1.3, marginTop: Math.round(2 * k) }}>{data.ifYouSee}</Clamp>
     </Col>
   );
 }
 
 /* ------------------------------------------------------------------ sizes */
 
-function Og({ data, src, ground, frame }) {
-  const f = frame;
-  const colX = f.x + f.w + f.off + 36;
-  const W = 1200 - colX - 50;
+function Og({ data, src, ground, plan }) {
+  const f = plan.frame;
+  const W = plan.W;
   return (
     <Col style={{ width: 1200, height: 630, backgroundColor: YEL, backgroundImage: lit(f, 1200, 630), fontFamily: 'Inter', color: NAVY, position: 'relative' }}>
       <Ground src={ground} w={1200} h={630} />
@@ -304,82 +311,58 @@ function Og({ data, src, ground, frame }) {
       <div style={{ position: 'absolute', left: f.x, top: f.y, display: 'flex' }}>
         <Print data={data} src={src} w={f.w} h={f.h} />
       </div>
-      <Col style={{ position: 'absolute', left: colX, top: 50, width: W }}>
-        <Head data={data} w={W} bandSize={fitUnbounded(data.stamp, W * 0.62, 92, 56)} nameMax={30} tagSize={12} gap={16} />
-        <Row style={{ marginTop: 12, height: 160, flexShrink: 0 }}>
-          <MapTile data={data} w={240} h={160} />
-          <Col style={{ marginLeft: 14, width: W - 254 }}>
-            <Where data={data} size={15.5} width={W - 254} lines={4} />
+      <Col style={{ position: 'absolute', left: plan.colX, top: plan.top, width: W }}>
+        <Head data={data} w={W} bandSize={plan.bandSize} nameMax={plan.nameMax} tagSize={plan.tag} gap={plan.headGap} />
+        <Row style={{ marginTop: Math.round(plan.headToFacts), height: plan.facts, flexShrink: 0 }}>
+          {data.map ? <MapTile data={data} w={plan.mapW} h={plan.facts} /> : null}
+          <Col style={{ marginLeft: data.map ? 14 : 0, width: plan.whereW }}>
+            <Where data={data} size={plan.where} width={plan.whereW} lines={plan.whereLines} />
           </Col>
         </Row>
-        <Col style={{ marginTop: 10, flexShrink: 0 }}>
-          <Advice data={data} size={15.5} width={W} lines={3} healthLines={2} />
+        <Col style={{ marginTop: Math.round(plan.factsToAdvice), flexShrink: 0 }}>
+          <Advice data={data} k={plan.ka} width={W} plan={plan.advice} />
         </Col>
       </Col>
-      <Col style={{ position: 'absolute', left: colX, bottom: 44, width: W }}>
+      <Col style={{ position: 'absolute', left: plan.colX, bottom: plan.bottom, width: W }}>
         <Pill data={data} w={W} phoneMax={40} eye={12} />
       </Col>
     </Col>
   );
 }
 
-function Square({ data, src, ground, frame }) {
-  const W = 1000;
-  const f = frame;
-  const colW = W - f.w - f.off - 20;
+/** The square and the story: the sheet's plan at the card's size (plan.js planCard). */
+function Card({ data, src, ground, plan }) {
+  const f = plan.frame;
+  const { W, H } = plan;
+  const whole = W + 2 * plan.side;
   return (
-    <Col style={{ width: 1080, height: 1080, backgroundColor: YEL, backgroundImage: lit(f, 1080, 1080), fontFamily: 'Inter', color: NAVY, padding: `44px ${f.x}px 38px`, position: 'relative' }}>
-      <Ground src={ground} w={1080} h={1080} />
+    <Col style={{ width: whole, height: H, backgroundColor: YEL, backgroundImage: lit(f, whole, H), fontFamily: 'Inter', color: NAVY, padding: `${plan.top}px ${plan.side}px ${plan.bottom}px`, position: 'relative' }}>
+      <Ground src={ground} w={whole} h={H} />
       <Grain />
-      <Head data={data} w={W} bandSize={84} nameMax={36} tagSize={13} gap={20} />
-      <Row style={{ marginTop: 14, height: f.h, flexShrink: 0 }}>
+      <Head data={data} w={W} bandSize={plan.bandSize} nameMax={plan.nameMax} tagSize={plan.tag} gap={plan.headGap} />
+      <Row style={{ marginTop: plan.headToRow, height: f.h, flexShrink: 0 }}>
         <Print data={data} src={src} w={f.w} h={f.h} />
-        <Col style={{ marginLeft: 20, width: colW }}>
-          <Beside data={data} size={17} width={colW} height={f.h} mapH={Math.round(f.h * 0.52)} />
+        <Col style={{ marginLeft: plan.colGap, width: plan.colW }}>
+          <Beside data={data} k={plan.kc} width={plan.colW} height={f.h} col={plan.col} radius={plan.size === 'story' ? 20 : 14} />
         </Col>
       </Row>
-      <Col style={{ marginTop: 12, width: W, flexShrink: 0 }}>
-        <Advice data={data} size={18} width={W} lines={2} />
+      <Col style={{ marginTop: plan.rowToAdvice, width: W, flexShrink: 0 }}>
+        <Advice data={data} k={plan.ka} width={W} plan={plan.advice} />
       </Col>
       <Col style={{ flexGrow: 1 }} />
-      <ContactPanel data={data} w={W} k={1.42} />
-    </Col>
-  );
-}
-
-function Story({ data, src, ground, frame }) {
-  const W = 968;
-  const f = frame;
-  const colW = W - f.w - f.off - 24;
-  return (
-    <Col style={{ width: 1080, height: 1920, backgroundColor: YEL, backgroundImage: lit(f, 1080, 1920), fontFamily: 'Inter', color: NAVY, padding: `140px ${f.x}px 130px`, position: 'relative' }}>
-      <Ground src={ground} w={1080} h={1920} />
-      <Grain />
-      <Head data={data} w={W} bandSize={130} nameMax={44} tagSize={18} gap={26} />
-      <Row style={{ marginTop: 90, height: f.h, flexShrink: 0 }}>
-        <Print data={data} src={src} w={f.w} h={f.h} />
-        <Col style={{ marginLeft: 24, width: colW }}>
-          <Beside data={data} size={22} width={colW} height={f.h} mapH={Math.round(f.h * 0.46)} radius={20} />
-        </Col>
-      </Row>
-      <Col style={{ marginTop: 90, width: W, flexShrink: 0 }}>
-        <Advice data={data} size={25} width={W} lines={3} healthLines={2} />
-      </Col>
-      <Col style={{ flexGrow: 1 }} />
-      <ContactPanel data={data} w={W} k={W / 516} />
+      <ContactPanel data={data} w={W} k={plan.contact.k} />
     </Col>
   );
 }
 
 /**
- * @param {{data:object, size:'og'|'square'|'story', photoSrc:string|null, groundSrc?:string|null, frame?:object}} props
+ * @param {{data:object, size:'og'|'square'|'story', photoSrc:string|null, groundSrc?:string|null, plan?:object}} props
  */
-export function SocialCard({ data, size = 'og', photoSrc, groundSrc = null, frame }) {
+export function SocialCard({ data, size = 'og', photoSrc, groundSrc = null, plan }) {
   const src = photoSrc ?? data.photos?.[0]?.src ?? null;
-  const f = frame || socialFrame(size, data.photos?.[0]?.aspect);
-  if (size === 'square') return <Square data={data} src={src} ground={groundSrc} frame={f} />;
-  if (size === 'story') return <Story data={data} src={src} ground={groundSrc} frame={f} />;
-  return <Og data={data} src={src} ground={groundSrc} frame={f} />;
+  const p = plan || planSocial(size, data.photos?.[0]?.aspect, data);
+  if (size === 'og') return <Og data={data} src={src} ground={groundSrc} plan={p} />;
+  return <Card data={data} src={src} ground={groundSrc} plan={p} />;
 }
 
 export default SocialCard;
