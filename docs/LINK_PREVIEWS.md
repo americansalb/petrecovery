@@ -83,7 +83,12 @@ segment default.
 ## House rules
 
 - **Photos beat logos.** Use the entity's photo via `shareImage()`; it falls
-  back to the official logo only when there is no photo.
+  back to the official logo only when there is no photo. A mission's card
+  goes one better: `missionShareSelect` brings the kit's link-preview image
+  (`CaseAsset` kind `SOCIAL_OG`, 1200×630, drawn for exactly this) and
+  `missionShareMetadata` uses it once it is ready, the pet's photo until
+  then. The kit redraws it when the report changes, and its URL carries the
+  content hash, so a stale card is never served.
 - **Raster only — never an SVG.** Facebook, Slack, iMessage, WhatsApp, X and
   LinkedIn all decline `image/svg+xml`, and they decline it silently: the tags
   validate, the URL returns 200, and the card unfurls with no picture. The
