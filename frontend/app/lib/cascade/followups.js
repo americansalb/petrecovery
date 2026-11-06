@@ -46,7 +46,9 @@ export function followUpMessage(day, c) {
       preheader: `Most pets are found close to home in the first 48 hours.`,
       heading: `Keep going. ${name} is likely still close`,
       bodyHtml: `<p style="margin:0 0 14px;">The first two days matter most, and most pets are found within a few blocks of where they went missing. Walk the immediate area again at dawn and dusk, when it's quiet. Bring their favorite treats and a familiar-smelling blanket.</p>
-        <p style="margin:0 0 14px;">Your flyers and share images are ready on your case page. Print a few, post them at eye level on corners and mailboxes, and share the link one more time. The person who spots ${nameHtml} is often just one share away.</p>`,
+        <p style="margin:0 0 14px;">Your flyers and share images are ready on your case page. Print a few, post them at eye level on corners and mailboxes, and share the link one more time. The person who spots ${nameHtml} is often just one share away.</p>
+        <p style="margin:0 0 14px;">If you have a minute, answer the few questions in "Details that help finders" on your case page: how ${nameHtml} acts with strangers, any medication, the collar. Each one goes on the flyer.</p>
+        <p style="margin:0 0 14px;"><strong>Watch for scams.</strong> Anyone who asks for money, gift cards or a "transport fee" before ${nameHtml} is back in your hands is a scammer, every time. Photos prove nothing; scammers reuse yours and make new ones with AI. Ask for a video call with the pet, or meet in a public place, and never pay a reward before ${nameHtml} is physically with you.</p>`,
       smsText: `Day 1 searching for ${name}: most pets are found close to home in the first 48h. Walk the area at dawn/dusk & re-share your case page:`,
     };
   }

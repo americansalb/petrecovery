@@ -4,8 +4,13 @@
  * Report Lost Pet - one-decision-at-a-time wizard.
  *
  * Flow (guests): species → name → size → when → where → photo (skippable) →
- * colors → contact (passwordless) → post/review → success. Logged-in owners
- * with saved pets start from a pet picker that short-circuits straight to
+ * colors → behaviour (how they act with strangers) → health (medication,
+ * conditions) → contact (passwordless) → reward (with the scam note) →
+ * review, with the optional details checklist (collar, microchip, facts,
+ * markings, how they got out, what they come to, fears, places, notes:
+ * app/lib/caseDetails.js, docs/REPORT_QUESTIONNAIRE.md) → success, where
+ * the same checklist saves straight to the report. Logged-in owners with
+ * saved pets start from a pet picker that short-circuits straight to
  * "when". Option taps advance immediately; typed steps use the footer
  * Continue. Geolocation is only requested from the Where step's button.
  *
@@ -15,7 +20,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import {
-  Heart, Clock, MapPin, Camera, Palette, Mail, Megaphone,
+  Heart, Clock, MapPin, Camera, Palette, Mail, Megaphone, HeartHandshake, Stethoscope, Gift,
 } from 'lucide-react';
 import WizardShell from '../../components/report/WizardShell';
 import StepScreen from '../../components/report/StepScreen';
@@ -27,7 +32,12 @@ import ContactFields, { contactIsValid } from '../../components/report/ContactFi
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
 import SuccessScreen from '../../components/report/SuccessScreen';
 import MyPetsStep from '../../components/report/lost/MyPetsStep';
-import DetailsStep from '../../components/report/lost/DetailsStep';
+import BehaviourStep from '../../components/report/lost/BehaviourStep';
+import HealthStep from '../../components/report/lost/HealthStep';
+import RewardStep, { rewardIsValid } from '../../components/report/lost/RewardStep';
+import DetailScreen from '../../components/report/lost/DetailScreen';
+import DetailsChecklist from '../../components/report/lost/DetailsChecklist';
+import { DETAIL_SCREENS, TEMPERAMENT_OPTIONS, HEALTH_OPTIONS, normalizeDetails, speciesKey } from '@/app/lib/caseDetails';
 import DraftPrompt from '../../components/report/DraftPrompt';
 import SwitchReportLink from '../../components/report/SwitchReportLink';
 import useWizardHistory from '../../components/report/useWizardHistory';
@@ -50,8 +60,11 @@ const DRAFT_KEY = 'reportDraft:lost';
 const GROUP_OF = {
   pets: 'pet', species: 'pet', name: 'pet', size: 'pet',
   when: 'when', where: 'where', photo: 'photo', colors: 'colors',
-  contact: 'contact', review: 'post', details: 'post',
+  behaviour: 'help', health: 'help',
+  contact: 'contact', reward: 'post', review: 'post',
+  ...Object.fromEntries(DETAIL_SCREENS.map((s) => [s.id, 'post'])),
 };
+const NO_REWARD = { hasReward: null, rewardMode: null, rewardAmount: null, scamAck: false };
 
 export default function ReportLostPet() {
   const { data: session, status: authStatus } = useSession();
@@ -76,9 +89,12 @@ export default function ReportLostPet() {
   const [color, setColor] = useState('');
   const [aiSuggested, setAiSuggested] = useState(false);
   const [contact, setContact] = useState({ firstName: '', method: 'email', email: '', phone: '' });
-  const [marks, setMarks] = useState('');
   const [breed, setBreed] = useState('');
-  const [escapeScenario, setEscapeScenario] = useState('');
+  // The questionnaire (app/lib/caseDetails.js): behaviour, health and the
+  // optional checklist, as one object of answers; the reward beside it.
+  const [details, setDetails] = useState({});
+  const [reward, setReward] = useState(NO_REWARD);
+  const patchDetails = (patch) => setDetails((d) => ({ ...d, ...patch }));
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -107,7 +123,7 @@ export default function ReportLostPet() {
   // ── Draft persistence (session-scoped, explicit restore) ──────────
   const dirty = Boolean(
     species || petName.trim() || timeElapsed || location || photos.length > 0 ||
-    color || marks || breed || contact.firstName.trim()
+    color || breed || contact.firstName.trim()
   );
 
   const draftCheckedRef = useRef(false);
@@ -122,7 +138,7 @@ export default function ReportLostPet() {
     if (!dirty || pendingDraft || result) return;
     saveDraft(DRAFT_KEY, {
       species, petName, petSize, isIndoorCat, timeElapsed, location,
-      photos, displayIndex, color, contact, marks, breed, escapeScenario,
+      photos, displayIndex, color, contact, breed, details, reward,
       selectedPet: selectedPet
         ? {
             id: selectedPet.id, name: selectedPet.name, species: selectedPet.species,
@@ -132,7 +148,7 @@ export default function ReportLostPet() {
         : null,
     });
   }, [dirty, pendingDraft, result, species, petName, petSize, isIndoorCat, timeElapsed,
-      location, photos, displayIndex, color, contact, marks, breed, escapeScenario, selectedPet]);
+      location, photos, displayIndex, color, contact, breed, details, reward, selectedPet]);
 
   const resumeDraft = () => {
     const d = pendingDraft;
@@ -146,9 +162,9 @@ export default function ReportLostPet() {
     setDisplayIndex(d.displayIndex || 0);
     setColor(d.color || '');
     setContact(d.contact || { firstName: '', method: 'email', email: '', phone: '' });
-    setMarks(d.marks || '');
     setBreed(d.breed || '');
-    setEscapeScenario(d.escapeScenario || '');
+    setDetails(d.details && typeof d.details === 'object' ? d.details : {});
+    setReward(d.reward && typeof d.reward === 'object' ? { ...NO_REWARD, ...d.reward } : NO_REWARD);
     if (d.selectedPet) setSelectedPet(d.selectedPet);
 
     // Land on the first incomplete step, with a plausible back-stack.
@@ -160,13 +176,17 @@ export default function ReportLostPet() {
       where: !!d.location,
       photo: true, // skippable - never blocks resume
       colors: !!d.color,
+      behaviour: Boolean(d.details?.temperament),
+      health: Array.isArray(d.details?.health) && d.details.health.length > 0,
       contact: isLoggedIn || contactIsValid(d.contact || {}, CONTACT_MODE),
+      reward: rewardIsValid(d.reward || {}),
     };
     const order = [
       'species', 'name',
       ...(d.species === 'dog' || d.species === 'cat' ? ['size'] : []),
-      'when', 'where', 'photo', 'colors',
+      'when', 'where', 'photo', 'colors', 'behaviour', 'health',
       ...(!isLoggedIn ? ['contact'] : []),
+      'reward',
     ];
     const chain = [];
     let resume = 'review';
@@ -231,10 +251,13 @@ export default function ReportLostPet() {
       size: 'when',
       when: 'where',
       where: 'photo',
-      photo: needsColors ? 'colors' : isLoggedIn ? 'review' : 'contact',
-      colors: isLoggedIn ? 'review' : 'contact',
-      contact: 'review',
-      details: 'review',
+      photo: needsColors ? 'colors' : 'behaviour',
+      colors: 'behaviour',
+      behaviour: 'health',
+      health: isLoggedIn ? 'reward' : 'contact',
+      contact: 'reward',
+      reward: 'review',
+      ...Object.fromEntries(DETAIL_SCREENS.map((s) => [s.id, 'review'])),
     };
     if (chain[stepId]) go(chain[stepId]);
   };
@@ -293,8 +316,11 @@ export default function ReportLostPet() {
           petName: petName.trim(),
           color,
           breed: breed || undefined,
-          distinctiveMarks: marks || undefined,
-          escapeScenario: escapeScenario || undefined,
+          escapeScenario: details.howOut || undefined,
+          details: normalizeDetails(details),
+          hasReward: reward.hasReward === true,
+          rewardAmount: reward.hasReward === true && reward.rewardMode !== 'unstated' ? reward.rewardAmount : undefined,
+          rewardScamAcknowledged: reward.hasReward === true ? Boolean(reward.scamAck) : undefined,
           lastSeenAddress: location.address,
           center: [location.lat, location.lng],
           radiusMiles: 0.1,
@@ -370,6 +396,13 @@ export default function ReportLostPet() {
         sidebarTitle: 'Colors',
         sidebarCopy: 'Colors go on the report and are compared with found-pet reports nearby.',
       },
+      {
+        id: 'help',
+        label: 'For finders',
+        sidebarIcon: HeartHandshake,
+        sidebarTitle: 'What a finder should do',
+        sidebarCopy: `How ${name} acts with strangers, and whether ${name} needs medication. These lines go on the flyer, where a stranger reads them first.`,
+      },
       ...(!isLoggedIn
         ? [{
             id: 'contact',
@@ -438,6 +471,11 @@ export default function ReportLostPet() {
           squadsNotified={result.squadsNotified || 0}
           assignedSquad={result.assignedSquad}
           activation={result.activation}
+          caseId={result.reportId}
+          detailsToken={result.detailsToken}
+          details={result.details}
+          species={speciesToApi(species)}
+          breed={result.petBreed}
         />
       </div>
     );
@@ -686,7 +724,6 @@ export default function ReportLostPet() {
             loading: isSubmitting,
             loadingLabel: 'Posting your alert…',
           }}
-          skip={{ label: 'Add details that help searchers (30 sec)', onClick: () => go('details') }}
         >
           <ReviewPosterCard
             variant={VARIANT}
@@ -715,6 +752,24 @@ export default function ReportLostPet() {
                 label: 'Missing since',
                 value: LOST_TIME_OPTIONS.find((o) => o.value === timeElapsed)?.label || '',
               },
+              {
+                id: 'behaviour',
+                icon: HeartHandshake,
+                label: 'With strangers',
+                value: TEMPERAMENT_OPTIONS[speciesKey(speciesToApi(species))].find((o) => o.value === details.temperament)?.label || 'Not sure',
+              },
+              {
+                id: 'health',
+                icon: Stethoscope,
+                label: 'Health',
+                value: (details.health || []).map((h) => HEALTH_OPTIONS.find((o) => o.value === h)?.label).filter(Boolean).join(', ') || 'Not answered',
+              },
+              {
+                id: 'reward',
+                icon: Gift,
+                label: 'Reward',
+                value: reward.hasReward ? (reward.rewardMode === 'unstated' || !reward.rewardAmount ? 'Yes, amount not printed' : `$${Number(reward.rewardAmount).toLocaleString('en-US')}`) : 'None',
+              },
               ...(!isLoggedIn
                 ? [{
                     id: 'contact',
@@ -728,29 +783,84 @@ export default function ReportLostPet() {
             ]}
             onEdit={editFromReview}
           />
+          <div className="mt-6">
+            <DetailsChecklist details={details} breed={breed} name={name} onOpen={editFromReview} />
+          </div>
         </StepScreen>
       )}
 
-      {stepId === 'details' && (
+      {stepId === 'behaviour' && (
         <StepScreen
-          stepKey="details"
+          stepKey="behaviour"
           variant={VARIANT}
-          question={`Anything that helps someone recognize ${name}?`}
-          hint="All optional. These go on the report and the flyer."
-          primary={{ label: 'Save details', onClick: advance }}
+          question={`How does ${name} act around strangers?`}
+          hint="This writes the most important line on the flyer: what someone should do when they see them."
+          wide
+          primary={{ label: 'Continue', onClick: advance, disabled: !details.temperament }}
+          skip={
+            !details.temperament
+              ? {
+                  label: 'Not sure, skip',
+                  onClick: () => {
+                    patchDetails({ temperament: 'UNKNOWN' });
+                    advance();
+                  },
+                }
+              : null
+          }
         >
-          <DetailsStep
-            variant={VARIANT}
-            species={species}
-            marks={marks}
-            onMarksChange={setMarks}
-            breed={breed}
-            onBreedChange={setBreed}
-            escapeScenario={escapeScenario}
-            onEscapeChange={setEscapeScenario}
-          />
+          <BehaviourStep variant={VARIANT} species={speciesToApi(species)} name={name} value={details} onChange={patchDetails} />
         </StepScreen>
       )}
+
+      {stepId === 'health' && (
+        <StepScreen
+          stepKey="health"
+          variant={VARIANT}
+          question={`Does ${name} take medication or have a health condition?`}
+          hint="Tap all that apply. Medication makes the search urgent and goes on the flyer."
+          wide
+          primary={{ label: 'Continue', onClick: advance, disabled: !(Array.isArray(details.health) && details.health.length) }}
+        >
+          <HealthStep variant={VARIANT} name={name} value={details} onChange={patchDetails} />
+        </StepScreen>
+      )}
+
+      {stepId === 'reward' && (
+        <StepScreen
+          stepKey="reward"
+          variant={VARIANT}
+          question="Offering a reward?"
+          hint="Either answer is fine. A reward goes on the flyer as a tag."
+          primary={{ label: 'Continue', onClick: advance, disabled: !rewardIsValid(reward) }}
+        >
+          <RewardStep variant={VARIANT} name={name} value={reward} onChange={(patch) => setReward((r) => ({ ...r, ...patch }))} onNo={advance} />
+        </StepScreen>
+      )}
+
+      {DETAIL_SCREENS.filter((s) => s.id === stepId).map((s) => (
+        <StepScreen
+          key={s.id}
+          stepKey={s.id}
+          variant={VARIANT}
+          question={s.question(name)}
+          hint="Optional. It goes on the flyer and the page."
+          wide
+          primary={{ label: 'Save', onClick: advance }}
+          skip={{ label: 'Skip this one', onClick: advance }}
+        >
+          <DetailScreen
+            id={s.id}
+            variant={VARIANT}
+            species={speciesToApi(species)}
+            name={name}
+            details={details}
+            onChange={patchDetails}
+            breed={breed}
+            onBreedChange={s.id === 'facts' ? setBreed : undefined}
+          />
+        </StepScreen>
+      ))}
     </WizardShell>
   );
 }
