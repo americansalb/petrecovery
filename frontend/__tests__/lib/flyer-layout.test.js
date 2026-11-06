@@ -6,53 +6,67 @@
 
 jest.mock('@/app/lib/placeholderEmail', () => ({ __esModule: true, isPlaceholderEmail: (e) => /placeholder|noemail/.test(e || '') }));
 
-import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, unboundedEm, fitUnbounded, UNBOUNDED, STICKER } from '@/app/lib/cascade/render/flyers/plan';
+import { planSheet, planHalf, cropRect, PAGES, SOCIAL_FRAMES, unboundedEm, fitUnbounded, UNBOUNDED, STICKER, bandBox, printInner, BAND } from '@/app/lib/cascade/render/flyers/plan';
 import { normalizeFlyerData, zoneFor } from '@/app/lib/cascade/render/flyers/normalize';
 
-const used = (p) => p.top + p.sticker + p.gap + p.word + p.nameGap + p.name + p.rowGap + p.row + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
+const used = (p) => p.top + p.photo.h + p.gap + p.word + p.nameGap + p.name + p.rowGap + p.row + p.adviceGap + p.advice + p.contactGap + p.contact + p.tabsGap + p.tabs + p.bottom;
 
 describe('planSheet', () => {
   const WORDS = { stamp: 'LOST' };
 
-  test('the sticker takes the room the fixed blocks leave, and fills the width', () => {
+  test('the photo takes the room the fixed blocks leave, the full width of the sheet', () => {
     const p = planSheet(PAGES.LETTER, { aspect: 1.42 }, WORDS);
     expect(p.contentW).toBe(612 - 60);
-    expect(p.sticker).toBeGreaterThan(290); // four inches across, with the taller map row
-    expect(p.sticker).toBeLessThanOrEqual(p.contentW);
-    // The last-seen map has a row of its own, beside the facts; the contact panel has its own under that.
-    expect(p.row).toBe(150);
+    expect(p.photo.w).toBe(p.contentW);
+    expect(p.photo.h).toBeGreaterThan(270);
+    expect(p.photo.h).toBeLessThanOrEqual(p.contentW);
+    // The last-seen map has a row of its own, beside the facts; "If you see" its note card under that; the contact panel last.
+    expect(p.row).toBe(110);
     expect(p.mapW).toBe(240);
-    expect(p.contact).toBe(90);
-    expect(p.frame).toEqual({ w: p.sticker, h: p.sticker });
-    expect(p.frameAspect).toBe(1);
-    expect(p.focalAt).toBe(0.5);
+    expect(p.advice).toBe(82);
+    expect(p.contact).toBe(84);
+    expect(p.frame).toEqual({ w: p.contentW, h: p.photo.h });
+    // The picture sits inside the print's navy edge and cream mat; the crop has that shape.
+    const inner = printInner(p.contentW, p.photo.h, 1);
+    expect(inner).toEqual({ edge: 2, mat: 4, w: p.contentW - 12, h: p.photo.h - 12 });
+    expect(p.frameAspect).toBeCloseTo(inner.w / inner.h, 5);
+    expect(p.focalAt).toBe(0.42);
     expect(Math.round(used(p))).toBe(792);
     expect(p.hasPhoto).toBe(true);
+    // The caution stripes run along the head only: the foot is the tear tabs.
+    expect(p.stripe).toBe(12);
+    expect(p.foot).toBe(false);
   });
 
-  test('every photo is cut square: a tall one and a wide one get the same sticker', () => {
+  test('every photo is cut to the print: a tall one and a wide one get the same frame', () => {
     const wide = planSheet(PAGES.LETTER, { aspect: 2.4 }, WORDS);
     const tall = planSheet(PAGES.LETTER, { aspect: 0.6 }, WORDS);
-    expect(tall.sticker).toBe(wide.sticker);
-    expect(tall.frameAspect).toBe(1);
+    expect(tall.frame).toEqual(wide.frame);
+    expect(tall.frameAspect).toBe(wide.frameAspect);
   });
 
-  test('no photo: the sticker stays, for the description', () => {
+  test('no photo: the print stays, for the description', () => {
     const p = planSheet(PAGES.LETTER, null, WORDS);
     expect(p.hasPhoto).toBe(false);
     expect(p.frameAspect).toBeNull();
-    expect(p.sticker).toBeGreaterThan(290); // four inches across, with the taller map row
+    expect(p.photo.h).toBeGreaterThan(270);
   });
 
-  test('the word is set as large as the width allows; FOUND is wider and shrinks', () => {
+  test('the word is set as large as the width allows, on its band; FOUND is wider and shrinks', () => {
     const lost = planSheet(PAGES.LETTER, { aspect: 1.5 }, WORDS);
     const found = planSheet(PAGES.LETTER, { aspect: 1.5 }, { stamp: 'FOUND' });
-    expect(lost.wordSize).toBe(88);
-    expect(found.wordSize).toBe(88); // FOUND still fits a Letter sheet at full size
-    expect(lost.word).toBeCloseTo(88 * UNBOUNDED.cap, 5);
+    expect(lost.wordSize).toBe(72);
+    expect(found.wordSize).toBe(72); // FOUND still fits a Letter sheet at full size
+    // The block is the band (the caps with air above and below) plus its hard shadow.
+    expect(lost.band).toEqual(bandBox(72, 'LOST'));
+    expect(lost.band.h).toBeCloseTo(72 * (UNBOUNDED.cap + 2 * BAND.pad), 5);
+    expect(lost.band.w).toBeCloseTo((unboundedEm('LOST') / 1.03) * 72 + 2 * BAND.padX * 72, 5);
+    expect(lost.band.off).toBe(4);
+    expect(lost.word).toBeCloseTo(lost.band.h + lost.band.off, 5);
+    expect(found.band.w).toBeGreaterThan(lost.band.w);
     expect(Math.round(used(found))).toBe(792);
-    // On a narrower line it shrinks, and the room goes to the sticker.
-    expect(fitUnbounded('FOUND', 300, 88, 40)).toBeLessThan(fitUnbounded('LOST', 300, 88, 40));
+    // On a narrower line it shrinks, and the room goes to the photo.
+    expect(fitUnbounded('FOUND', 300, 72, 40)).toBeLessThan(fitUnbounded('LOST', 300, 72, 40));
   });
 
   test('Unbounded is measured from the file, so the word and the number never wrap', () => {
@@ -68,41 +82,45 @@ describe('planSheet', () => {
 
   test('the Letter sheet keeps tear tabs at the foot', () => {
     const p = planSheet(PAGES.LETTER, { aspect: 1.5 }, WORDS);
-    expect(p.tabs).toBe(54);
-    expect(p.tabsGap).toBe(12);
-    // 10.5 plus the half-point the sticker's rounding leaves
+    expect(p.tabs).toBe(48);
+    expect(p.tabsGap).toBe(10);
+    // 10.5 plus the half-point the photo's rounding leaves
     expect(p.bottom).toBeGreaterThanOrEqual(10.5);
     expect(p.bottom).toBeLessThan(12);
   });
 
-  test('the poster scales the sheet, drops the tabs and gives the slack to the sticker', () => {
+  test('the poster scales the sheet, drops the tabs and gives the slack to the print', () => {
     const k = 792 / 612;
     const p = planSheet(PAGES.TABLOID, { aspect: 1.5 }, { k, tabs: false, ...WORDS });
     expect(p.tabs).toBe(0);
     expect(p.tabsGap).toBe(0);
-    expect(p.wordSize).toBeCloseTo(88 * k, 5);
-    // Never wider than the sheet allows; any slack goes above and below it equally.
-    expect(p.sticker).toBeLessThanOrEqual(Math.floor(p.contentW - 2 * STICKER.shadow * p.contentW));
-    expect(p.bottom - 30 * k).toBeCloseTo(p.top - 36 * k, 5);
-    expect(p.sticker).toBeGreaterThan(600);
+    expect(p.wordSize).toBeCloseTo(72 * k, 5);
+    // Never taller than the sheet is wide; any slack goes above and below it equally.
+    expect(p.photo.h).toBeLessThanOrEqual(p.contentW);
+    expect(p.bottom - 30 * k).toBeCloseTo(p.top - 26 * k, 5);
+    expect(p.photo.h).toBeGreaterThan(600);
     expect(Math.round(used(p))).toBe(1224);
+    // No tabs: the caution stripes run along the foot as well as the head.
+    expect(p.stripe).toBeCloseTo(12 * k, 5);
+    expect(p.foot).toBe(true);
   });
 });
 
 describe('planHalf', () => {
-  test('two half sheets: the sticker beside the words', () => {
+  test('the print stands beside the words, the full height of the half sheet', () => {
     const p = planHalf(PAGES.LETTER, { aspect: 0.8 }, { stamp: 'LOST' });
     expect(p.halfH).toBe(396);
-    expect(p.sticker).toBe(300);
-    expect(p.frame).toEqual({ w: 300, h: 300 });
-    expect(p.frameAspect).toBe(1);
-    expect(p.colX).toBeGreaterThan(15 + 300);
+    expect(p.photo).toEqual({ w: 270, h: 396 - 30 - 3 });
+    expect(p.frame).toEqual(p.photo);
+    const inner = printInner(270, 363, 0.8);
+    expect(inner).toEqual({ edge: 1.6, mat: 3, w: 270 - 9.2, h: 363 - 9.2 });
+    expect(p.frameAspect).toBeCloseTo(inner.w / inner.h, 5);
+    expect(p.colX).toBe(15 + 270 + 6 + 15);
     expect(p.detailsW).toBe(612 - p.colX - 15);
-    expect(p.hasPhoto).toBe(true);
-    expect(p.wordSize).toBeGreaterThan(36);
-  });
-
-  test('a wide photo gets the same sticker; without a photo there is no crop', () => {
+    expect(p.wordSize).toBeLessThanOrEqual(56);
+    expect(p.band).toEqual(bandBox(p.wordSize, 'LOST'));
+    expect(p.stripe).toBe(7);
+    expect(p.mapH).toBe(66);
     expect(planHalf(PAGES.LETTER, { aspect: 1.5 }).frame).toEqual(planHalf(PAGES.LETTER, { aspect: 0.8 }).frame);
     const none = planHalf(PAGES.LETTER, null);
     expect(none.hasPhoto).toBe(false);
@@ -139,10 +157,10 @@ describe('cropRect', () => {
     expect(cropRect(100, 100, null, 0)).toBeNull();
   });
 
-  test('the share image stickers are square cuts, the sizes the boards draw', () => {
-    expect(SOCIAL_FRAMES.og).toEqual({ w: 500, h: 500, focalAt: 0.5 });
-    expect(SOCIAL_FRAMES.square).toEqual({ w: 420, h: 420, focalAt: 0.5 });
-    expect(SOCIAL_FRAMES.story).toEqual({ w: 760, h: 760, focalAt: 0.5 });
+  test('the share image prints are the cuts the boards draw', () => {
+    expect(SOCIAL_FRAMES.og).toEqual({ w: 520, h: 514, focalAt: 0.42, x: 56, y: 58, band: 16 });
+    expect(SOCIAL_FRAMES.square).toEqual({ w: 1000, h: 430, focalAt: 0.42, x: 40, y: 44, band: 18 });
+    expect(SOCIAL_FRAMES.story).toEqual({ w: 968, h: 700, focalAt: 0.42, x: 56, y: 140, band: 22 });
   });
 });
 

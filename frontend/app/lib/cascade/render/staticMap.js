@@ -14,7 +14,16 @@ import { tileUrl, TILE_ATTRIBUTION_TEXT } from '@/app/lib/maps/tiles';
 
 const TILE_PT = 128; // one 256px @2x tile drawn at 128pt
 const MAX_TILES = 36;
-const FETCH_TIMEOUT_MS = 4000;
+const FETCH_TIMEOUT_MS = 6000;
+// OpenStreetMap's tile policy allows two download threads and refuses bulk
+// use; a redraw of every open case is bulk use if it fires 35 requests at
+// once per case. So: two at a time, a short wait between, and a retry with
+// a pause when a tile is refused.
+const CONCURRENCY = 2;
+const ATTEMPTS = 3;
+const RETRY_MS = [600, 1800];
+// A map with a hole at the edge beats no map; a hole over the pin does not.
+const MAX_MISSING_SHARE = 0.25;
 
 /** Species-aware zoom: a lost cat's world is a few houses; a dog's is a mile. */
 export function zoomForSpecies(species) {
@@ -33,25 +42,53 @@ const TILE_STYLES = {
   voyager: [tileUrl],
 };
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchTileOnce(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'ReunitePets-flyer/1.0 (+https://www.reunitepets.org)' },
+    });
+    if (!res.ok) return { status: res.status };
+    const buf = Buffer.from(await res.arrayBuffer());
+    return buf.length ? { buf } : { status: 0 };
+  } catch (err) {
+    return { status: err?.name === 'AbortError' ? 'timeout' : String(err?.message || err) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchTileDataUrl(z, x, y, style = 'light') {
-  for (const makeUrl of TILE_STYLES[style] || TILE_STYLES.light) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-      const res = await fetch(makeUrl(z, x, y), {
-        signal: controller.signal,
-        headers: { 'User-Agent': 'ReunitePets-flyer/1.0 (+https://www.reunitepets.org)' },
-      });
-      clearTimeout(timer);
-      if (!res.ok) continue;
-      const buf = Buffer.from(await res.arrayBuffer());
-      if (!buf.length) continue;
-      return `data:image/png;base64,${buf.toString('base64')}`;
-    } catch {
-      /* try the next source */
+  let last = null;
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    if (attempt > 0) await sleep(RETRY_MS[attempt - 1] || 2000);
+    for (const makeUrl of TILE_STYLES[style] || TILE_STYLES.light) {
+      const r = await fetchTileOnce(makeUrl(z, x, y));
+      if (r.buf) return `data:image/png;base64,${r.buf.toString('base64')}`;
+      last = r.status;
+      // Not found is final; anything else (429, 5xx, a timeout) gets the retry.
+      if (r.status === 404) return null;
     }
   }
+  console.warn(`[map] tile ${[z, x, y].join('/')} failed after ${ATTEMPTS} attempts: ${last}`);
   return null;
+}
+
+/** Run `jobs` through `fn`, `limit` at a time, with a breath between starts. */
+async function pooled(jobs, limit, fn) {
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, jobs.length) }, async () => {
+    while (i < jobs.length) {
+      const job = jobs[i++];
+      await fn(job);
+      await sleep(40);
+    }
+  });
+  await Promise.all(workers);
 }
 
 /**
@@ -87,16 +124,24 @@ export async function buildFlyerMapSpec(lat, lng, { width = 680, height = 210, z
 
   const tiles = [];
   let failed = 0;
-  await Promise.all(
-    jobs.map(async (j) => {
-      const xWrapped = ((j.tx % maxTile) + maxTile) % maxTile;
-      const src = await fetchTileDataUrl(zoom, xWrapped, j.ty, style);
-      if (src) tiles.push({ src, left: j.leftPt, top: j.topPt });
-      else failed += 1;
-    })
-  );
-  // A map with holes is worse than no map.
-  if (!tiles.length || failed > 0) return null;
+  let pinTileMissing = false;
+  const pinTx = Math.floor(cx / TILE_PT);
+  const pinTy = Math.floor(cy / TILE_PT);
+  await pooled(jobs, CONCURRENCY, async (j) => {
+    const xWrapped = ((j.tx % maxTile) + maxTile) % maxTile;
+    const src = await fetchTileDataUrl(zoom, xWrapped, j.ty, style);
+    if (src) tiles.push({ src, left: j.leftPt, top: j.topPt });
+    else {
+      failed += 1;
+      if (j.tx === pinTx && j.ty === pinTy) pinTileMissing = true;
+    }
+  });
+  // A hole at the edge shows the ground colour; a hole over the pin, or
+  // many holes, is no map.
+  if (!tiles.length || pinTileMissing || failed / jobs.length > MAX_MISSING_SHARE) {
+    console.warn(`[map] no map for ${lat.toFixed(4)},${lng.toFixed(4)} z${zoom}: ${failed} of ${jobs.length} tiles missing${pinTileMissing ? ', the pin tile among them' : ''}`);
+    return null;
+  }
 
   // Distance ring for scale: the largest of 1/10, 1/4, 1/2, or 1 mile that
   // fits the box. metersPerPt: a 128pt tile covers the same ground as the

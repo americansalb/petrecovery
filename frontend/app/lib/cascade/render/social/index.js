@@ -11,8 +11,9 @@
  */
 
 import { normalizeFlyerData } from '../flyers/normalize';
-import { SOCIAL_FRAMES } from '../flyers/plan';
+import { SOCIAL_FRAMES, printInner } from '../flyers/plan';
 import { cropPhoto, getSharp } from '../photo';
+import { groundOverlayDataUrl } from '../ground';
 
 const JPEG_QUALITY = 86;
 
@@ -40,9 +41,14 @@ export async function generateSocialCard(caseData, kind, shared = {}) {
   const data = normalizeFlyerData(caseData, shared);
   const frame = SOCIAL_FRAMES[spec.size];
   const photo = data.photos[0] || null;
-  const photoSrc = photo ? await cropPhoto(photo, frame.w / frame.h, { maxW: frame.w, focalAt: frame.focalAt }) : null;
+  const inner = printInner(frame.w, frame.h, 1.5);
+  const [photoSrc, groundSrc] = await Promise.all([
+    photo ? cropPhoto(photo, inner.w / inner.h, { maxW: frame.w, focalAt: frame.focalAt }) : null,
+    // The ground's rays and stripes, lit from behind the print (../ground.js); drawn once per size.
+    groundOverlayDataUrl({ w: spec.width, h: spec.height, cx: frame.x + frame.w / 2, cy: frame.y + frame.h / 2, band: frame.band }),
+  ]);
 
-  const svg = await satori(<SocialCard data={data} size={spec.size} photoSrc={photoSrc} />, {
+  const svg = await satori(<SocialCard data={data} size={spec.size} photoSrc={photoSrc} groundSrc={groundSrc} />, {
     width: spec.width,
     height: spec.height,
     fonts: fonts.SATORI_FONTS,

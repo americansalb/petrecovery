@@ -3,15 +3,16 @@
  * canvas "Lost Pet Flyers, second design" is drawn at 96 px per inch, so
  * 1 px = 0.75 pt).
  *
- * The flyer is a sticker on a yellow sheet. The pet's photo is cut into a
- * circle with a cream ring and a hard navy shadow, as big as the sheet
- * allows. Under it, centred: LOST in a wide face and the name; then the
- * last-seen map beside where, when, what to look for and "If you see Max",
- * the line a finder most needs; then the contact
- * panel on navy: the phone number with the email under it, the QR code
- * and the short link. The reward is a cream tag on the sticker; tear tabs
- * run along the foot on a cream strip. Every block under the sticker has
- * a set height; the sticker takes what is left.
+ * The flyer is a photo print on a lit yellow sheet (render/ground.js).
+ * The pet's photo fills the width of the sheet, as tall as the sheet
+ * allows, in a cream mat with a hard navy shadow. Under it, centred: LOST
+ * in a wide face, cream on a red band set a touch askew, and the name;
+ * then the last-seen map beside where, when and what to look for; then
+ * "If you see Max" on a cream note card, the full width, never cut; then
+ * the contact panel on navy: the phone number with the email under it,
+ * the QR code and the short link. The reward and "Needs medication" are
+ * tags on the print; tear tabs run along the foot. Every block under the
+ * photo has a set height; the photo takes what is left.
  *
  * `planSheet` sizes one page (Letter with tear tabs, or the poster, the
  * Letter sheet scaled by its width); `planHalf` sizes the half sheet,
@@ -85,29 +86,53 @@ export function eyebrowW(text, size) {
  */
 export const UNBOUNDED = { cap: 0.75, top: 0.245 };
 
-/** The sticker's ring and shadow, as shares of its diameter. */
+/** The photo print: its hard navy shadow and corner radius as shares of its width, and the cream mat inside the navy edge. */
+export const PRINT = { shadow: 0.014, radius: 0.03, mat: 0.008 };
+
+/** The photo inside a print `w` by `h` at scale `k`: the navy edge, the cream mat, and what is left for the picture. */
+export function printInner(w, h, k = 1) {
+  const edge = 2 * k;
+  const mat = Math.max(3, Math.round(w * PRINT.mat));
+  return { edge, mat, w: w - 2 * (edge + mat), h: h - 2 * (edge + mat) };
+}
+
+/** The word's band: the air above and below the caps, the air at the ends, and its hard shadow, as shares of the size. */
+export const BAND = { pad: 0.13, padX: 0.28, shadow: 0.05 };
+
+/** The band around `text` set in Unbounded at `size`: its width and height, and the shadow's offset, which adds to the block. */
+export function bandBox(size, text) {
+  const w = (unboundedEm(text) / 1.03) * size + 2 * BAND.padX * size;
+  const h = size * (UNBOUNDED.cap + 2 * BAND.pad);
+  return { w, h, off: Math.max(2, Math.round(h * BAND.shadow)) };
+}
+
+/** Kept for the share images' old sticker maths while they move to the print; unused on paper. */
 export const STICKER = { ring: 0.027, shadow: 0.028 };
 
 /**
  * The fixed heights of the Letter sheet at scale 1 (pt). The poster scales
- * them by k = 792 / 612. Tear tabs are Letter only.
+ * them by k = 792 / 612. Tear tabs are Letter only. The photo, a print
+ * the full width of the sheet, takes what is left.
  */
 export function blocks(k = 1) {
   return {
     side: 30 * k, // 40 px of sheet at the sides
-    top: 36 * k, // above the sticker
-    gap: 19.5 * k, // between the sticker and the word
-    wordMax: 88 * k, // LOST at its largest (118 px)
-    name: 30 * k, // "Milo, a tabby"
-    nameGap: 6 * k,
-    rowGap: 10.5 * k,
-    row: 150 * k, // the last-seen map beside where, when, what to look for and what to do
+    band: 12 * k, // the caution stripes along the head (and the foot, without tabs)
+    top: 26 * k, // above the photo
+    gap: 12 * k, // between the photo and the word
+    wordMax: 72 * k, // LOST at its largest
+    name: 24 * k, // "Milo, a tabby"
+    nameGap: 5 * k,
+    rowGap: 8 * k,
+    row: 110 * k, // the last-seen map beside where, when and what to look for
     mapW: 240 * k, // the map's width in that row
     rowGapX: 15 * k,
-    contactGap: 12 * k,
-    contact: 90 * k, // the navy panel: the phone and the email, the QR code and the short link
-    tabsGap: 12,
-    tabs: 54,
+    adviceGap: 8 * k,
+    advice: 82 * k, // "If you see Max" on its note card: the health line and what to do, the full width
+    contactGap: 9 * k,
+    contact: 84 * k, // the navy panel: the phone and the email, the QR code and the short link
+    tabsGap: 10,
+    tabs: 48,
     bottom: 10.5,
   };
 }
@@ -124,61 +149,72 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST' } = 
   const bottom = tabs ? b.bottom : b.side;
   const aspect = photo?.aspect && Number.isFinite(photo.aspect) && photo.aspect > 0 ? photo.aspect : null;
   const wordSize = fitUnbounded(stamp, contentW, b.wordMax, 40 * k);
-  const word = wordSize * UNBOUNDED.cap;
-  const below = b.gap + word + b.nameGap + b.name + b.rowGap + b.row + b.contactGap + b.contact + tabsH + bottom;
+  const band = bandBox(wordSize, stamp);
+  const word = band.h + band.off;
+  const below = b.gap + word + b.nameGap + b.name + b.rowGap + b.row + b.adviceGap + b.advice + b.contactGap + b.contact + tabsH + bottom;
   const room = page.h - b.top - below;
-  const sticker = Math.floor(Math.min(contentW - 2 * STICKER.shadow * contentW, room));
-  // A sticker held back by the width (the poster) leaves slack; it goes above and below.
-  const slack = (room - sticker) / 2;
+  // The photo: the full width, as tall as the sheet allows, never taller than it is wide.
+  const photoH = Math.floor(Math.min(room, contentW));
+  const slack = (room - photoH) / 2;
+  const inner = printInner(contentW, photoH, k);
   return {
     k,
     page,
     contentW,
     side: b.side,
+    stripe: b.band,
+    foot: !tabs,
     top: b.top + slack,
-    sticker,
+    photo: { w: contentW, h: photoH },
     gap: b.gap,
     wordSize,
     word,
+    band,
     name: b.name,
     nameGap: b.nameGap,
     rowGap: b.rowGap,
     row: b.row,
     mapW: b.mapW,
     rowGapX: b.rowGapX,
+    adviceGap: b.adviceGap,
+    advice: b.advice,
     contactGap: b.contactGap,
     contact: b.contact,
     tabs: tabs ? b.tabs : 0,
     tabsGap: tabs ? b.tabsGap : 0,
     bottom: bottom + slack,
     hasPhoto: Boolean(aspect),
-    focalAt: 0.5,
-    frame: { w: sticker, h: sticker },
-    frameAspect: aspect ? 1 : null,
+    focalAt: 0.42,
+    frame: { w: contentW, h: photoH },
+    frameAspect: aspect ? inner.w / inner.h : null,
   };
 }
 
-/** Two half sheets on one Letter page: the sticker beside the words. */
+/** Two half sheets on one Letter page: the photo beside the words. */
 export function planHalf(page = PAGES.LETTER, photo, { stamp = 'LOST' } = {}) {
   const halfH = page.h / 2;
   const pad = 15; // 20 px
   const aspect = photo?.aspect && photo.aspect > 0 ? photo.aspect : null;
-  const sticker = 300; // 400 px
-  const colX = pad + sticker + sticker * STICKER.shadow + pad;
+  const photoW = 270;
+  const photoH = halfH - pad * 2 - 3;
+  const colX = pad + photoW + 6 + pad;
   const detailsW = page.w - colX - pad;
+  const wordSize = fitUnbounded(stamp, detailsW, 56, 36);
+  const inner = printInner(photoW, photoH, 0.8);
   return {
     halfH,
     pad,
-    sticker,
+    stripe: 7, // the caution stripes along the head and the foot of each half
+    photo: { w: photoW, h: photoH },
     mapH: 66, // the last-seen map across the column
-    stickerTop: pad + (halfH - pad * 2 - 3 - sticker) / 2,
     colX,
     detailsW,
-    wordSize: fitUnbounded(stamp, detailsW, 60, 36),
-    frame: { w: sticker, h: sticker },
-    frameAspect: aspect ? 1 : null,
+    wordSize,
+    band: bandBox(wordSize, stamp),
+    frame: { w: photoW, h: photoH },
+    frameAspect: aspect ? inner.w / inner.h : null,
     hasPhoto: Boolean(aspect),
-    focalAt: 0.5,
+    focalAt: 0.42,
   };
 }
 
@@ -204,9 +240,13 @@ export function cropRect(w, h, focal, aspect, focalAt = 0.5) {
   return { left: 0, top, width: w, height: ch };
 }
 
-/** The share images' stickers (px): a square cut, drawn as a circle, this big. */
+/**
+ * The share images' photo prints (px): the cut each size draws, this
+ * big, and where the print sits, which is where the ground's light and
+ * rays come from (ground.js); `band` is the caution stripes' height.
+ */
 export const SOCIAL_FRAMES = {
-  og: { w: 500, h: 500, focalAt: 0.5 },
-  square: { w: 420, h: 420, focalAt: 0.5 },
-  story: { w: 760, h: 760, focalAt: 0.5 },
+  og: { w: 520, h: 514, focalAt: 0.42, x: 56, y: 58, band: 16 },
+  square: { w: 1000, h: 430, focalAt: 0.42, x: 40, y: 44, band: 18 },
+  story: { w: 968, h: 700, focalAt: 0.42, x: 56, y: 140, band: 22 },
 };
