@@ -40,13 +40,18 @@ const errText = (err) => String(err?.message || err).slice(0, 160);
 
 /**
  * The Prisma `where` for cases whose kit was drawn by an older renderer:
- * an open lost report with no FLYER_LETTER asset stamped with the current
- * version. A case with no activation at all (reported before the cascade
- * existed) counts as stale too. A failed draw is stamped as well, so one
- * case with a broken photo is tried once per version, not once per boot.
+ * an open lost report with no SOCIAL_STORY asset stamped with the current
+ * version. The story is the last thing a redraw writes, so a case counts
+ * as stale until the whole kit is through: a server that dies halfway (as
+ * it did on 2026-11-06, out of memory on a large share image, leaving
+ * letters at the new version and squares at the old) finds the case stale
+ * again at the next boot. A case with no activation at all (reported
+ * before the cascade existed) counts as stale too. A failed draw is
+ * stamped as well, so one case with a broken photo is tried once per
+ * version, not once per boot.
  */
 export function staleKitWhere(version = RENDERER_VERSION) {
-  const stamped = { kind: 'FLYER_LETTER', meta: { path: ['rendererVersion'], equals: version } };
+  const stamped = { kind: 'SOCIAL_STORY', meta: { path: ['rendererVersion'], equals: version } };
   return {
     reportType: 'LOST',
     status: { in: UNRESOLVED_STATUSES },
@@ -124,6 +129,8 @@ export async function regenerateCaseAssets(caseData, { correlationId } = {}) {
   } catch (err) {
     outcome.social = `failed: ${errText(err)}`;
     await upsertStep(activation, 'social', { status: 'FAILED', error: errText(err), finishedAt: new Date() }).catch(() => {});
+    // Stamp the story so the case is tried once per version, not once per boot (see staleKitWhere).
+    await upsertAsset(activation, 'SOCIAL_STORY', { status: 'failed', error: errText(err), meta: stamp }).catch(() => {});
   }
 
   try {

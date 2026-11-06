@@ -16,11 +16,14 @@ import { cropPhoto, getSharp } from '../photo';
 import { groundOverlayDataUrl } from '../ground';
 
 const JPEG_QUALITY = 86;
-// Drawn larger than the board: a phone shows these at two or three device
-// pixels per CSS pixel, and the photo and the type stay crisp. The story is
-// drawn at one and a half, which Instagram scales down anyway, so the raster
-// stays within the server's small memory.
-const SCALE = { og: 2, square: 2, story: 1.5 };
+// The link preview is drawn at one and a half times the board (1800 by 945),
+// so it stays crisp where a messenger shows it large. The square and the
+// story stay at the board's size: Instagram serves them at 1080 wide
+// whatever is uploaded. The raster is the ceiling: on the production
+// instance a 4.7-megapixel draw (the square at twice, the story at one and
+// a half) ran it out of memory mid-redraw on 2026-11-06 and the server
+// restarted; 2.1 megapixels (the story at its size) has always drawn.
+const SCALE = { og: 1.5, square: 1, story: 1 };
 
 export const SOCIAL_SIZES = {
   SOCIAL_OG: { size: 'og', width: 1200, height: 630, label: 'Link preview (1200×630)' },
