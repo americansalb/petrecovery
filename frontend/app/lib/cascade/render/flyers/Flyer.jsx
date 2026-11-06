@@ -18,17 +18,18 @@ Font.registerHyphenationCallback((word) => [word]);
  * yellow brightest behind the photo and deepening to amber at the
  * corners, sun rays fanning out from the same point, caution stripes
  * along the edge, fine grain over it all (render/ground.js). The pet's
- * photo fills the width of the sheet, as tall as the sheet allows, in a
- * cream mat with a navy edge and a hard navy shadow, like a print stuck
- * on. Under it, centred: LOST in Unbounded, cream on a red band set a
- * touch askew with the same hard shadow; the name; the last-seen map
- * beside where, when and what to look for; then "If you see Max" on a
- * cream note card the full width of the sheet, so the instruction is
- * never cut, with the health line in red; then the contact panel on
- * navy: the phone number with the email under it, the QR code, and the
- * short link for anyone who would rather type. The reward and "Needs
- * medication" are tags on the print's corners, the tear tabs a strip
- * along the foot.
+ * photo is a print in a cream mat with a navy edge and a hard navy
+ * shadow, like a print stuck on, and nothing is ever drawn over it. At
+ * the head: LOST in Unbounded, cream on a red band set a touch askew
+ * with the same hard shadow, the name beside it and, under the name, the
+ * reward and "Needs medication" as pills. Then the print, as tall as the
+ * sheet allows and as wide as the photo's own shape asks (plan.js),
+ * beside the facts: where and when, the last-seen map, what to look for;
+ * then "If you see Max" on a cream note card the full width of the
+ * sheet, so the instruction is never cut, with the health line in red;
+ * then the contact panel on navy: the phone number with the email under
+ * it, the QR code, and the short link for anyone who would rather type;
+ * the tear tabs a strip along the foot.
  *
  * The layout comes from ./plan.js: every block under the photo has a set
  * height and the photo takes what is left. The photo arrives already cut
@@ -84,14 +85,14 @@ function TightLine({ size, color = C.navy, style = {}, children }) {
  * touch askew, with the print's hard navy shadow behind it. The band and
  * the word turn about the same centre, so the word sits square in it.
  */
-function Band({ size, color, children }) {
+function Band({ size, color, align = 'center', children }) {
   const { w, h, off } = bandBox(size, children);
   const padX = BAND.padX * size;
   const pad = BAND.pad * size;
   const r = size * 0.1;
   const turn = 'rotate(-1.2deg)';
   return (
-    <View style={{ alignItems: 'center' }}>
+    <View style={{ alignItems: align }}>
       <View style={{ position: 'relative', width: w + off, height: h + off }}>
         <View style={{ position: 'absolute', left: off, top: off, width: w, height: h, borderRadius: r, backgroundColor: C.navy, transform: turn }} />
         <View style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, borderRadius: r, backgroundColor: color, transform: turn }} />
@@ -160,28 +161,36 @@ function SheetGround({ w, h, cx, cy, stripe, foot = true, id = 'lit' }) {
   );
 }
 
-/** A tag on the print's corner: the reward in cream, "Needs medication" in red. */
-function Tag({ k, side, top, red = false, children }) {
+/** The reward and "Needs medication" as pills in a row that wraps: beside the name, never on the photo. */
+function Tags({ data, k, justify = 'flex-start', marginTop = 0 }) {
+  const items = [];
+  if (data.needsMedication) items.push({ red: true, text: 'Needs medication' });
+  if (data.reward) items.push({ red: false, text: rewardLine(data) });
+  if (!items.length) return null;
   return (
-    <View
-      style={{
-        position: 'absolute',
-        [side]: 12 * k,
-        top,
-        backgroundColor: red ? C.lost : C.cream,
-        borderWidth: 2.25 * k,
-        borderColor: red ? C.cream : C.navy,
-        borderRadius: 999,
-        paddingVertical: 5 * k,
-        paddingHorizontal: 12 * k,
-      }}
-    >
-      <Text style={EYEBROW(8 * k, red ? C.cream : C.navy)}>{children}</Text>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: justify, marginTop, marginBottom: -4 * k }}>
+      {items.map((t) => (
+        <View
+          key={t.text}
+          style={{
+            backgroundColor: t.red ? C.lost : C.cream,
+            borderWidth: 1.5 * k,
+            borderColor: C.navy,
+            borderRadius: 999,
+            paddingVertical: 3.5 * k,
+            paddingHorizontal: 9 * k,
+            marginRight: 6 * k,
+            marginBottom: 4 * k,
+          }}
+        >
+          <Text style={EYEBROW(7.5 * k, t.red ? C.cream : C.navy)}>{t.text}</Text>
+        </View>
+      ))}
     </View>
   );
 }
 
-/** The photo as a print: a cream mat in a navy edge, a hard navy shadow, the tags on its corners. Without a photo, the description on the print. */
+/** The photo as a print: a cream mat in a navy edge, a hard navy shadow, nothing over it. Without a photo, the description on the print. */
 function Print({ data, src, w, h, k }) {
   const off = Math.round(w * PRINT.shadow);
   const r = Math.round(w * PRINT.radius);
@@ -200,16 +209,6 @@ function Print({ data, src, w, h, k }) {
           </View>
         )}
       </View>
-      {data.reward ? (
-        <Tag k={k} side="right" top={12 * k}>
-          {rewardLine(data)}
-        </Tag>
-      ) : null}
-      {data.needsMedication ? (
-        <Tag k={k} side="left" top={12 * k} red>
-          Needs medication
-        </Tag>
-      ) : null}
     </View>
   );
 }
@@ -302,9 +301,9 @@ function MapTile({ data, w, h, k, radius }) {
   const r = radius ?? 10 * k;
   if (!m) {
     return (
-      <View style={{ width: w, height: h, borderRadius: r, backgroundColor: C.cream, borderWidth: 2.25 * k, borderColor: C.navy, alignItems: 'center', justifyContent: 'center', padding: 10 * k }}>
-        <Text style={{ ...EYEBROW(7.5 * k, C.soft), textAlign: 'center' }}>Map at the link</Text>
-        <Text style={{ ...BODY(8 * k, C.soft), textAlign: 'center', marginTop: 4 * k }}>{data.caseUrlLabel}</Text>
+      <View style={{ width: w, height: h, borderRadius: r, backgroundColor: C.cream, borderWidth: 2.25 * k, borderColor: C.navy, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 * k }}>
+        <Text style={{ ...CLAMP(1), ...EYEBROW(7 * k, C.soft), textAlign: 'center' }}>Map at the link</Text>
+        <Text style={{ ...CLAMP(1), ...BODY(8.5 * k, C.navy, 700), textAlign: 'center', marginTop: 2 * k, lineHeight: 1.2 }}>{data.caseUrlLabel}</Text>
       </View>
     );
   }
@@ -380,6 +379,47 @@ function Advice({ data, k, w, h, size = 10.5, lines = 3, marginTop = 0 }) {
   );
 }
 
+/**
+ * Beside the print, the facts: where and when, the last-seen map across
+ * the column, then what to look for, as many lines as the column has
+ * room for, and what the pet comes to.
+ */
+function Beside({ data, k, w, h, mapH: mapRoom }) {
+  const look = `${data.lookFor}${data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : ''}`;
+  const textSize = 10.75 * k;
+  const mapH = data.map ? mapRoom : 36 * k; // without a map, a short strip that says where it is
+  const fixed = 8.25 * k * 1.3 + (data.lastSeenWhen ? 14 * k * 1.2 + 2 * k : 0) + 10.5 * k * 1.3 * 2 + 8 * k + mapH + 8 * k + (data.comesTo ? 10 * k * 1.3 * 2 + 4 * k : 0);
+  const lines = Math.max(3, Math.floor((h - fixed) / (textSize * 1.35)));
+  return (
+    <View style={{ width: w, height: h }}>
+      <Text style={EYEBROW(8.25 * k)}>Last seen</Text>
+      {data.lastSeenWhen ? <Text style={{ ...CLAMP(1), ...BODY(14 * k, C.navy, 700), marginTop: 2 * k, lineHeight: 1.2 }}>{data.lastSeenWhen}</Text> : null}
+      <Text style={{ ...CLAMP(2), ...BODY(10.5 * k, C.soft, 500), lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
+      <View style={{ marginTop: 8 * k }}>
+        <MapTile data={data} w={w} h={mapH} k={k} />
+      </View>
+      <Text style={{ ...CLAMP(lines), ...BODY(textSize), marginTop: 8 * k, lineHeight: 1.35 }}>{look}</Text>
+      {data.comesTo ? <Text style={{ ...CLAMP(2), ...BODY(10 * k, C.soft, 500), marginTop: 4 * k, lineHeight: 1.3 }}>{data.comesTo}</Text> : null}
+    </View>
+  );
+}
+
+/** The head of a sheet: the band, and beside it the name with the pills under it. */
+function Head({ data, plan }) {
+  const { k } = plan;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', height: plan.head }}>
+      <Band size={plan.wordSize} color={data.accentBg || C.lost} align="flex-start">
+        {data.stamp}
+      </Band>
+      <View style={{ marginLeft: plan.headGap, width: plan.nameW, justifyContent: 'center' }}>
+        <Text style={{ ...CLAMP(2), ...NAME(fitInter(data.coverLine, plan.nameW, 26 * k, 14 * k)), lineHeight: 1.05 }}>{data.coverLine}</Text>
+        <Tags data={data} k={k} marginTop={5 * k} />
+      </View>
+    </View>
+  );
+}
+
 /** "LAST SEEN  Wed, Nov 4  Sach'a Yuntas" on one line, centred or not. */
 function LastSeen({ data, k, align = 'center', w }) {
   return (
@@ -424,21 +464,18 @@ function TearTabs({ data, w, h }) {
 /** One sheet, planned by plan.js: Letter (with tabs) or the poster (scaled). */
 function Sheet({ data, plan, photoSrc }) {
   const { k, page, side, contentW } = plan;
+  const rowTop = plan.top + plan.head + plan.headToRow;
   return (
     <Page size={[page.w, page.h]} style={{ backgroundColor: C.yellow, fontFamily: 'Inter', color: C.navy, paddingTop: plan.top, paddingHorizontal: side }}>
-      <SheetGround w={page.w} h={page.h} cx={page.w / 2} cy={plan.top + plan.photo.h / 2} stripe={plan.stripe} foot={plan.foot} />
-      <Print data={data} src={photoSrc} w={plan.photo.w} h={plan.photo.h} k={k} />
-      <View style={{ marginTop: plan.gap }}>
-        <Band size={plan.wordSize} color={data.accentBg || C.lost}>{data.stamp}</Band>
-      </View>
-      <Text style={{ ...CLAMP(1), ...NAME(fitInter(data.coverLine, contentW, 22 * k, 14 * k)), lineHeight: 1, textAlign: 'center', marginTop: plan.nameGap }}>{data.coverLine}</Text>
-      <View style={{ marginTop: plan.rowGap, height: plan.row, flexDirection: 'row' }}>
-        <MapTile data={data} w={plan.mapW} h={plan.row} k={k} />
-        <View style={{ marginLeft: plan.rowGapX, width: contentW - plan.mapW - plan.rowGapX, height: plan.row }}>
-          <Where data={data} k={k} w={contentW - plan.mapW - plan.rowGapX} lines={3} lookSize={10} />
+      <SheetGround w={page.w} h={page.h} cx={side + plan.photo.w / 2} cy={rowTop + plan.row / 2} stripe={plan.stripe} foot={plan.foot} />
+      <Head data={data} plan={plan} />
+      <View style={{ marginTop: plan.headToRow, height: plan.row, flexDirection: 'row' }}>
+        <Print data={data} src={photoSrc} w={plan.photo.w} h={plan.row} k={k} />
+        <View style={{ marginLeft: plan.colGap }}>
+          <Beside data={data} k={k} w={plan.colW} h={plan.row} mapH={plan.mapH} />
         </View>
       </View>
-      <Advice data={data} k={k} w={contentW} h={plan.advice} size={10.5} lines={3} marginTop={plan.adviceGap} />
+      <Advice data={data} k={k} w={contentW} h={plan.advice} size={10.5} lines={3} marginTop={plan.rowToAdvice} />
       <View style={{ marginTop: plan.contactGap }}>
         <ContactPanel data={data} w={contentW} h={plan.contact} k={k} />
       </View>
@@ -462,20 +499,21 @@ function Half({ data, plan, photoSrc, id, cut }) {
         <Print data={data} src={photoSrc} w={plan.photo.w} h={plan.photo.h} k={k} />
       </View>
       <View style={{ position: 'absolute', left: colX, top: pad + 4, width: detailsW, height: plan.halfH - pad * 2 - 7 }}>
-        <View style={{ alignItems: 'flex-start' }}>
-          <Band size={plan.wordSize} color={data.accentBg || C.lost}>{data.stamp}</Band>
-        </View>
-        <Text style={{ ...CLAMP(1), ...NAME(fitInter(data.coverLine, detailsW, 19.5, 12)), marginTop: 5 }}>{data.coverLine}</Text>
-        <View style={{ marginTop: 5 }}>
+        <Band size={plan.wordSize} color={data.accentBg || C.lost} align="flex-start">
+          {data.stamp}
+        </Band>
+        <Text style={{ ...CLAMP(1), ...NAME(fitInter(data.coverLine, detailsW, 19.5, 12)), marginTop: 4 }}>{data.coverLine}</Text>
+        <Tags data={data} k={k} marginTop={4} />
+        <View style={{ marginTop: 4 }}>
           <LastSeen data={data} k={k} align="left" w={detailsW} />
         </View>
         <View style={{ marginTop: 3 }}>
           <Facts data={data} k={k} w={detailsW} lines={2} align="left" />
         </View>
-        <View style={{ marginTop: 5 }}>
+        <View style={{ marginTop: 4 }}>
           <MapTile data={data} w={detailsW} h={plan.mapH} k={k} />
         </View>
-        <Advice data={data} k={k} w={detailsW} size={9} lines={2} marginTop={5} />
+        <Advice data={data} k={k} w={detailsW} size={9} lines={2} marginTop={4} />
         <View style={{ flex: 1 }} />
         <ContactPanel data={data} w={detailsW} k={k} stacked phoneBase={28} />
       </View>
