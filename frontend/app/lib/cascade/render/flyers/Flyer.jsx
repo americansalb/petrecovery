@@ -15,12 +15,16 @@ Font.registerHyphenationCallback((word) => [word]);
  * A sticker on a yellow sheet. The pet's photo, cut into a circle with a
  * cream ring and a hard navy shadow, as big as the sheet allows. Under
  * it, centred: LOST in Unbounded, a wide face; the name; the last-seen
- * map beside where, when and what to look for; then the contact panel on
+ * map beside where, when, what to look for and "If you see Max", the
+ * line from the report's questionnaire (app/lib/caseDetails.js) that
+ * tells a stranger what to do, with the health line in red when the pet
+ * needs its medication; then the contact panel on
  * navy, every way to reach the family in one block: the phone number
  * with the email under it, the QR code, and the short link to the case
  * (reunitepets.org/p/HF27J2) for anyone who would rather type. The reward
- * is a cream tag on the sticker, the tear tabs a cream strip along the
- * foot. Yellow, navy, cream: the site's own colours.
+ * is a cream tag on the sticker's right, "Needs medication" a red one on
+ * its left, the tear tabs a cream strip along the foot. Yellow, navy,
+ * cream: the site's own colours.
  *
  * The layout comes from ./plan.js: every block under the sticker has a
  * set height and the sticker takes what is left. The photo arrives already
@@ -63,7 +67,7 @@ const EYEBROW = (fs, color = C.navy) => ({
 function TightLine({ size, color = C.navy, style = {}, children }) {
   return (
     <View style={{ marginTop: -UNBOUNDED.top * size, marginBottom: (UNBOUNDED.top + UNBOUNDED.cap - 1) * size, ...style }}>
-      <Text maxLines={1} style={{ fontFamily: 'Unbounded', fontSize: size, lineHeight: 1, letterSpacing: -size * 0.02, color }}>
+      <Text style={{ maxLines: 1, textOverflow: 'ellipsis', fontFamily: 'Unbounded', fontSize: size, lineHeight: 1, letterSpacing: -size * 0.02, color }}>
         {children}
       </Text>
     </View>
@@ -83,7 +87,7 @@ const LINK_EYEBROW = 'Report a sighting';
 
 /* ------------------------------------------------------------- primitives */
 
-/** The photo as a round sticker: a cream ring, a hard navy shadow, the reward as a tag. Without a photo, the description in the circle. */
+/** The photo as a round sticker: a cream ring, a hard navy shadow, the reward and "Needs medication" as tags. Without a photo, the description in the circle. */
 function Sticker({ data, src, size, k, style = {} }) {
   const ring = Math.round(size * STICKER.ring);
   const off = Math.round(size * STICKER.shadow);
@@ -119,6 +123,23 @@ function Sticker({ data, src, size, k, style = {} }) {
           <Text style={EYEBROW(Math.round(size * 0.034))}>{rewardLine(data)}</Text>
         </View>
       ) : null}
+      {data.needsMedication ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: -3 * k,
+            top: size * 0.08,
+            backgroundColor: C.lost,
+            borderWidth: 2.25 * k,
+            borderColor: C.cream,
+            borderRadius: 999,
+            paddingVertical: 6 * k,
+            paddingHorizontal: 13 * k,
+          }}
+        >
+          <Text style={EYEBROW(Math.round(size * 0.034), C.cream)}>Needs medication</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -138,8 +159,8 @@ function QrTile({ data, size }) {
 function LinkBlock({ data, k, w }) {
   return (
     <View style={{ width: w }}>
-      <Text maxLines={1} style={EYEBROW(7.5 * k, C.yellow)}>{LINK_EYEBROW}</Text>
-      <Text maxLines={1} style={{ ...BODY(10 * k, C.cream, 700), marginTop: 3 * k, lineHeight: 1.2 }}>{data.caseUrlLabel}</Text>
+      <Text style={{ ...EYEBROW(7.5 * k, C.yellow), maxLines: 1, textOverflow: 'ellipsis' }}>{LINK_EYEBROW}</Text>
+      <Text style={{ maxLines: 1, textOverflow: 'ellipsis', ...BODY(10 * k, C.cream, 700), marginTop: 3 * k, lineHeight: 1.2 }}>{data.caseUrlLabel}</Text>
     </View>
   );
 }
@@ -166,11 +187,11 @@ function ContactPanel({ data, w, h, k, stacked = false, phoneBase = 34.5 }) {
 
   const main = (
     <View style={{ width: leftW }}>
-      <Text maxLines={1} style={EYEBROW(9 * k, C.yellow)}>{contactEyebrow(data)}</Text>
+      <Text style={{ ...EYEBROW(9 * k, C.yellow), maxLines: 1, textOverflow: 'ellipsis' }}>{contactEyebrow(data)}</Text>
       <View style={{ marginTop: 6 * k }}>
         <TightLine size={phone} color={C.cream}>{data.contactValue}</TightLine>
       </View>
-      {emailLine ? <Text maxLines={1} style={{ ...BODY(emailSize, C.cream, 500), marginTop: 6 * k, lineHeight: 1.2 }}>{emailLine}</Text> : null}
+      {emailLine ? <Text style={{ maxLines: 1, textOverflow: 'ellipsis', ...BODY(emailSize, C.cream, 500), marginTop: 6 * k, lineHeight: 1.2 }}>{emailLine}</Text> : null}
     </View>
   );
   const aside = qr || link ? (
@@ -255,17 +276,31 @@ function MapTile({ data, w, h, k, radius }) {
   );
 }
 
-/** Where and when, then what to look for, beside the map. */
-function Where({ data, k, w, lines = 3 }) {
+/** Where and when, what to look for, then "If you see Max": what to do, beside the map. */
+function Where({ data, k, w, lines = 2, lookSize = 10 }) {
   return (
     <View style={{ width: w, justifyContent: 'center' }}>
       <Text style={EYEBROW(8.25 * k)}>Last seen</Text>
-      {data.lastSeenWhen ? <Text maxLines={1} style={{ ...BODY(13.5 * k, C.navy, 700), marginTop: 2 * k, lineHeight: 1.2 }}>{data.lastSeenWhen}</Text> : null}
-      <Text maxLines={2} style={{ ...BODY(10.5 * k, C.soft, 500), lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
-      <Text maxLines={lines} style={{ ...BODY(11.25 * k), marginTop: 7 * k }}>
+      {data.lastSeenWhen ? <Text style={{ maxLines: 1, textOverflow: 'ellipsis', ...BODY(13.5 * k, C.navy, 700), marginTop: 2 * k, lineHeight: 1.2 }}>{data.lastSeenWhen}</Text> : null}
+      <Text style={{ maxLines: 1, textOverflow: 'ellipsis', ...BODY(10.5 * k, C.soft, 500), lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
+      <Text style={{ maxLines: lines, textOverflow: 'ellipsis', ...BODY(lookSize * k), marginTop: 5 * k, lineHeight: 1.35 }}>
         {data.lookFor}
         {data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : ''}
       </Text>
+      <Advice data={data} k={k} size={10 * k} lines={data.health ? 2 : 3} marginTop={7 * k} />
+    </View>
+  );
+}
+
+/** "IF YOU SEE MAX", the health line in red when there is one, then what to do. */
+function Advice({ data, k, size, lines = 2, marginTop = 0, align = 'left' }) {
+  return (
+    <View style={{ marginTop }}>
+      <Text style={{ ...EYEBROW(8.25 * k), textAlign: align }}>{`If you see ${data.petName}`}</Text>
+      {data.health ? (
+        <Text style={{ maxLines: 1, textOverflow: 'ellipsis', ...BODY(size, C.lost, 700), lineHeight: 1.25, marginTop: 2 * k, textAlign: align }}>{data.health}</Text>
+      ) : null}
+      <Text style={{ maxLines: lines, textOverflow: 'ellipsis', ...BODY(size, C.navy, 600), lineHeight: 1.3, marginTop: data.health ? 1 * k : 2 * k, textAlign: align }}>{data.ifYouSee}</Text>
     </View>
   );
 }
@@ -273,7 +308,7 @@ function Where({ data, k, w, lines = 3 }) {
 /** "LAST SEEN  Wed, Nov 4  Sach'a Yuntas" on one line, centred or not. */
 function LastSeen({ data, k, align = 'center', w }) {
   return (
-    <Text maxLines={1} style={{ ...BODY(12 * k, C.soft, 400), textAlign: align, width: w, lineHeight: 1.2 }}>
+    <Text style={{ maxLines: 1, textOverflow: 'ellipsis', ...BODY(12 * k, C.soft, 400), textAlign: align, width: w, lineHeight: 1.2 }}>
       <Text style={EYEBROW(8.25 * k)}>Last seen  </Text>
       <Text style={{ fontWeight: 700, color: C.navy }}>{data.lastSeenWhen}</Text>
       {data.lastSeenWhen ? '   ' : ''}
@@ -284,7 +319,7 @@ function LastSeen({ data, k, align = 'center', w }) {
 
 function Facts({ data, k, w, lines = 2, align = 'center' }) {
   return (
-    <Text maxLines={lines} style={{ ...BODY(12.75 * k), width: w, textAlign: align }}>
+    <Text style={{ maxLines: lines, textOverflow: 'ellipsis', ...BODY(12.75 * k), width: w, textAlign: align }}>
       {data.lookFor}
       {data.factsLine ? ` ${data.factsLine.replace(/ · /g, ', ')}.` : ''}
     </Text>
@@ -322,11 +357,11 @@ function Sheet({ data, plan, photoSrc }) {
       <View style={{ marginTop: plan.gap, alignItems: 'center' }}>
         <TightLine size={plan.wordSize}>{data.stamp}</TightLine>
       </View>
-      <Text maxLines={1} style={{ ...NAME(fitInter(data.coverLine, contentW, 27 * k, 14 * k)), textAlign: 'center', marginTop: plan.nameGap, height: plan.name }}>{data.coverLine}</Text>
+      <Text style={{ maxLines: 1, textOverflow: 'ellipsis', ...NAME(fitInter(data.coverLine, contentW, 27 * k, 14 * k)), textAlign: 'center', marginTop: plan.nameGap, height: plan.name }}>{data.coverLine}</Text>
       <View style={{ marginTop: plan.rowGap, height: plan.row, flexDirection: 'row' }}>
         <MapTile data={data} w={plan.mapW} h={plan.row} k={k} />
         <View style={{ marginLeft: plan.rowGapX, width: contentW - plan.mapW - plan.rowGapX, height: plan.row }}>
-          <Where data={data} k={k} w={contentW - plan.mapW - plan.rowGapX} />
+          <Where data={data} k={k} w={contentW - plan.mapW - plan.rowGapX} lines={3} lookSize={9.5} />
         </View>
       </View>
       <View style={{ marginTop: plan.contactGap }}>
@@ -352,16 +387,17 @@ function Half({ data, plan, photoSrc, cut }) {
       </View>
       <View style={{ position: 'absolute', left: colX, top: pad + 6, width: detailsW, height: plan.halfH - pad * 2 - 9 }}>
         <TightLine size={plan.wordSize}>{data.stamp}</TightLine>
-        <Text maxLines={1} style={{ ...NAME(fitInter(data.coverLine, detailsW, 19.5, 12)), marginTop: 7 }}>{data.coverLine}</Text>
+        <Text style={{ maxLines: 1, textOverflow: 'ellipsis', ...NAME(fitInter(data.coverLine, detailsW, 19.5, 12)), marginTop: 7 }}>{data.coverLine}</Text>
         <View style={{ marginTop: 7 }}>
           <LastSeen data={data} k={k} align="left" w={detailsW} />
         </View>
         <View style={{ marginTop: 4 }}>
           <Facts data={data} k={k} w={detailsW} lines={2} align="left" />
         </View>
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 6 }}>
           <MapTile data={data} w={detailsW} h={plan.mapH} k={k} />
         </View>
+        <Advice data={data} k={k} size={9} lines={2} marginTop={6} />
         <View style={{ flex: 1 }} />
         <ContactPanel data={data} w={detailsW} k={k} stacked phoneBase={28} />
       </View>

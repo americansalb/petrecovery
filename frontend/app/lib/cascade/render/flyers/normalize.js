@@ -14,6 +14,7 @@ import { FLYER_THEME, SPECIES_LABEL, SPECIES_WORD } from './theme';
 import { resolveFlyerCopy } from './copy';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
 import { caseShortLabel } from '@/app/lib/caseShortLink';
+import { approachLine, healthLine, needsMedication as medicationNeeded, lookForBits, factsBits, lureLine } from '@/app/lib/caseDetails';
 
 function areaFromAddress(address) {
   if (!address) return 'this neighborhood';
@@ -142,26 +143,35 @@ function photosFrom(shared) {
   return out.slice(0, 3);
 }
 
-/** "Golden Retriever · Large · 4 years old · Microchipped" */
+/** "Golden Retriever · Large · Male, not neutered · Senior · Microchipped" */
 function factsLine(caseData, pet) {
+  const details = caseData.details || null;
   const sizeWord = caseData.petSize ? String(caseData.petSize).toLowerCase() : '';
   const age = Number(pet?.age);
+  const answered = details ? factsBits(details, { species: caseData.petSpecies }) : [];
   const bits = [
     caseData.petBreed && caseData.petBreed !== 'Unknown' ? caseData.petBreed : null,
     sizeWord ? sizeWord.charAt(0).toUpperCase() + sizeWord.slice(1) : null,
-    Number.isFinite(age) && age > 0 ? `${age} ${age === 1 ? 'year' : 'years'} old` : null,
-    pet?.microchipId || caseData.microchipId ? 'Microchipped' : null,
+    ...answered,
+    !details?.ageBand && Number.isFinite(age) && age > 0 ? `${age} ${age === 1 ? 'year' : 'years'} old` : null,
+    pet?.microchipId || caseData.microchipId || details?.microchip === 'YES' ? 'Microchipped' : null,
   ].filter(Boolean);
   return bits.join(' · ');
 }
 
-/** What to look for: the color, the markings, the collar, in the owner's words. */
+/**
+ * What to look for: the color, then the collar, the leash and the markings
+ * from the questionnaire (app/lib/caseDetails.js), or, for a report made
+ * before it asked, the owner's words from the Pet row.
+ */
 function lookFor(caseData, pet) {
-  const marks = String(caseData.distinctiveMarks || pet?.distinctiveMarks || '').trim();
-  const collar = String(pet?.collarInfo || '').trim();
+  const answered = caseData.details ? lookForBits(caseData.details) : [];
+  const marks = answered.length ? '' : String(caseData.distinctiveMarks || pet?.distinctiveMarks || '').trim();
+  const collar = answered.length ? '' : String(pet?.collarInfo || '').trim();
   const color = String(caseData.petColor || '').trim();
   const parts = [];
   if (color) parts.push(sentence(/\b(coat|fur|colou?r)\b/i.test(color) ? color : `${color} coat`));
+  parts.push(...answered);
   if (marks) parts.push(sentence(marks));
   if (collar) parts.push(sentence(/collar|harness|tag/i.test(collar) ? collar : `${collar} collar`));
   if (parts.length < 2 && caseData.petDescription) {
@@ -179,15 +189,15 @@ function lookFor(caseData, pet) {
   return cap(parts.join(' '), 180);
 }
 
-/** "If you see Max": the scenario's guidance with the real contact action. */
-function ifYouSee(copy, { ownerFirstName, hasPhone }) {
-  let s = String(copy.approachLine || '').trim();
-  const verb = hasPhone ? (ownerFirstName ? `call or text ${ownerFirstName}` : 'call or text') : 'report it with the QR code';
-  s = s.replace(/,?\s*and trying to get home/i, '');
-  s = s.replace(/get in touch right away\.?/i, `${verb} right away.`);
-  s = s.replace(/get in touch\.?/i, `${verb}.`);
-  s = s.replace(/\s+/g, ' ').trim();
-  return cap(s, 170);
+/**
+ * "If you see Max": from the questionnaire (how the pet acts with strangers,
+ * its fears, or the owner's own words). A report made before it asked gets
+ * the species' general line, which is "don't chase" either way; the old
+ * guesses from how the pet got out ("dashed out a door, so friendly") are
+ * gone.
+ */
+function ifYouSee(caseData) {
+  return cap(approachLine(caseData.details || {}, { name: caseData.petName || 'this pet', species: caseData.petSpecies }), 220);
 }
 
 /**
@@ -292,7 +302,10 @@ export function normalizeFlyerData(caseData, shared = {}) {
     approachLine: copy.approachLine,
     shareNudge: copy.shareNudge,
     scanCta: copy.scanCta,
-    ifYouSee: ifYouSee(copy, { ownerFirstName, hasPhone }),
+    ifYouSee: ifYouSee(caseData),
+    health: healthLine(caseData.details || {}, { name }), // "Needs insulin twice a day. Please call the moment you see Max." or ''
+    needsMedication: Boolean(caseData.needsMedication) || medicationNeeded(caseData.details || {}),
+    comesTo: lureLine(caseData.details || {}), // "Comes to their name and a shaken treat bag." or ''
     lookFor: lookFor(caseData, pet),
     factsLine: factsLine(caseData, pet),
     petName: name,

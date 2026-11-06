@@ -17,10 +17,10 @@ describe('planSheet', () => {
   test('the sticker takes the room the fixed blocks leave, and fills the width', () => {
     const p = planSheet(PAGES.LETTER, { aspect: 1.42 }, WORDS);
     expect(p.contentW).toBe(612 - 60);
-    expect(p.sticker).toBeGreaterThan(320);
+    expect(p.sticker).toBeGreaterThan(290); // four inches across, with the taller map row
     expect(p.sticker).toBeLessThanOrEqual(p.contentW);
     // The last-seen map has a row of its own, beside the facts; the contact panel has its own under that.
-    expect(p.row).toBe(120);
+    expect(p.row).toBe(150);
     expect(p.mapW).toBe(240);
     expect(p.contact).toBe(90);
     expect(p.frame).toEqual({ w: p.sticker, h: p.sticker });
@@ -41,7 +41,7 @@ describe('planSheet', () => {
     const p = planSheet(PAGES.LETTER, null, WORDS);
     expect(p.hasPhoto).toBe(false);
     expect(p.frameAspect).toBeNull();
-    expect(p.sticker).toBeGreaterThan(320);
+    expect(p.sticker).toBeGreaterThan(290); // four inches across, with the taller map row
   });
 
   test('the word is set as large as the width allows; FOUND is wider and shrinks', () => {
@@ -81,8 +81,8 @@ describe('planSheet', () => {
     expect(p.tabs).toBe(0);
     expect(p.tabsGap).toBe(0);
     expect(p.wordSize).toBeCloseTo(88 * k, 5);
-    // The sticker is held back by the width, so the slack goes above and below it equally.
-    expect(p.sticker).toBe(Math.floor(p.contentW - 2 * STICKER.shadow * p.contentW));
+    // Never wider than the sheet allows; any slack goes above and below it equally.
+    expect(p.sticker).toBeLessThanOrEqual(Math.floor(p.contentW - 2 * STICKER.shadow * p.contentW));
     expect(p.bottom - 30 * k).toBeCloseTo(p.top - 36 * k, 5);
     expect(p.sticker).toBeGreaterThan(600);
     expect(Math.round(used(p))).toBe(1224);
@@ -141,7 +141,7 @@ describe('cropRect', () => {
 
   test('the share image stickers are square cuts, the sizes the boards draw', () => {
     expect(SOCIAL_FRAMES.og).toEqual({ w: 500, h: 500, focalAt: 0.5 });
-    expect(SOCIAL_FRAMES.square).toEqual({ w: 460, h: 460, focalAt: 0.5 });
+    expect(SOCIAL_FRAMES.square).toEqual({ w: 420, h: 420, focalAt: 0.5 });
     expect(SOCIAL_FRAMES.story).toEqual({ w: 760, h: 760, focalAt: 0.5 });
   });
 });
@@ -179,7 +179,10 @@ describe('normalizeFlyerData', () => {
     expect(d.speciesLabel).toBe('DOG');
     expect(d.factsLine).toBe('Golden Retriever · Large · 4 years old · Microchipped');
     expect(d.lookFor).toBe('Golden coat. White patch on the chest. Blue, with a bone tag.');
-    expect(d.ifYouSee).toBe("Max is probably frightened and hiding. Please don't chase or call out. Note the exact spot and call or text Avery right away.");
+    // No questionnaire on the report: the species' general line, which is "don't chase" either way.
+    expect(d.ifYouSee).toBe("Don't chase. A frightened dog runs farther. Note the exact spot and time and call us right away.");
+    expect(d.health).toBe('');
+    expect(d.needsMedication).toBe(false);
     expect(d.contactValue).toBe('(512) 555-0100');
     expect(d.contactSecondary).toBe('avery@example.com');
     expect(d.email).toBe('avery@example.com');
@@ -223,7 +226,7 @@ describe('normalizeFlyerData', () => {
     expect(d.hasPhone).toBe(false);
     expect(d.email).toBe('');
     expect(d.contactValue).toBe('reunitepets.org/p/0001');
-    expect(d.ifYouSee).toMatch(/report it with the QR code right away\.$/);
+    expect(d.ifYouSee).toMatch(/^Don't chase\./);
     const e = normalizeFlyerData({ ...MAX, ownerPhone: 'Not provided' }, {});
     expect(e.contactValue).toBe('avery@example.com');
     expect(e.email).toBe('avery@example.com');
@@ -241,5 +244,58 @@ describe('normalizeFlyerData', () => {
     expect(b.photos[0]).toMatchObject({ w: 1000, h: 500, aspect: 2 });
     expect(b.photos[0].focal).toEqual({ x: 0.5, y: 0.45 });
     expect(normalizeFlyerData(MAX, {}).photos).toEqual([]);
+  });
+});
+
+describe('the questionnaire on the flyer (app/lib/caseDetails.js)', () => {
+  const MAX = {
+    caseNumber: 'AUS-2026-0001',
+    reportType: 'LOST',
+    petName: 'Max',
+    petSpecies: 'DOG',
+    petBreed: 'Golden Retriever',
+    petColor: 'Golden',
+    petSize: 'LARGE',
+    lastSeenAddress: '2100 Barton Springs Rd, Austin, TX 78704',
+    lastSeenAt: new Date('2026-11-02T18:30:00Z'),
+    ownerName: 'Avery Jones',
+    ownerPhone: '5125550100',
+    ownerEmail: 'avery@example.com',
+    pet: { age: 4, microchipId: '985141', distinctiveMarks: 'white patch on the chest', collarInfo: 'blue, with a bone tag' },
+    details: {
+      temperament: 'SCARED',
+      fears: ['MEN'],
+      health: ['DIABETIC'],
+      healthNote: 'insulin twice a day',
+      collar: 'COLLAR',
+      collarColor: 'red',
+      tag: 'PHONE',
+      leash: true,
+      marks: ['white_chest', 'one_ear_up'],
+      sex: 'MALE',
+      fixed: 'NO',
+      ageBand: 'SENIOR',
+      lure: ['NAME', 'TREATS'],
+    },
+    needsMedication: true,
+  };
+
+  test('the answers write what to do, what to look for and the facts; the old Pet-row words step aside', () => {
+    const d = normalizeFlyerData(MAX, {});
+    expect(d.ifYouSee).toBe("Don't chase, call out or stare. Max will run. Sit or crouch sideways, toss food if you have some, and call us right away with the exact spot. Max is afraid of men.");
+    expect(d.health).toBe('Needs insulin twice a day. Please call the moment you see Max.');
+    expect(d.needsMedication).toBe(true);
+    expect(d.lookFor).toBe('Golden coat. Red collar, a tag with our number. Dragging a leash. White chest, one ear up.');
+    expect(d.factsLine).toBe('Golden Retriever · Large · Male, not neutered · Senior · Microchipped');
+    expect(d.comesTo).toBe('Comes to their name and treats or a shaken food bag.');
+  });
+
+  test("the owner's own words win, and a healthy, friendly pet gets a friendly line and no tag", () => {
+    const d = normalizeFlyerData({ ...MAX, needsMedication: false, details: { temperament: 'FRIENDLY', approachNote: 'he comes to "biscuit"', health: ['NONE'], collar: 'NONE' } }, {});
+    expect(d.ifYouSee).toBe('He comes to "biscuit".');
+    expect(d.health).toBe('');
+    expect(d.needsMedication).toBe(false);
+    expect(d.lookFor).toBe('Golden coat. No collar.');
+    expect(d.factsLine).toBe('Golden Retriever · Large · 4 years old · Microchipped');
   });
 });

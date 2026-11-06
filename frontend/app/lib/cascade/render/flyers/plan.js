@@ -6,7 +6,8 @@
  * The flyer is a sticker on a yellow sheet. The pet's photo is cut into a
  * circle with a cream ring and a hard navy shadow, as big as the sheet
  * allows. Under it, centred: LOST in a wide face and the name; then the
- * last-seen map beside where, when and what to look for; then the contact
+ * last-seen map beside where, when, what to look for and "If you see Max",
+ * the line a finder most needs; then the contact
  * panel on navy: the phone number with the email under it, the QR code
  * and the short link. The reward is a cream tag on the sticker; tear tabs
  * run along the foot on a cream strip. Every block under the sticker has
@@ -100,7 +101,7 @@ export function blocks(k = 1) {
     name: 30 * k, // "Milo, a tabby"
     nameGap: 6 * k,
     rowGap: 10.5 * k,
-    row: 120 * k, // the last-seen map beside where, when and what to look for
+    row: 150 * k, // the last-seen map beside where, when, what to look for and what to do
     mapW: 240 * k, // the map's width in that row
     rowGapX: 15 * k,
     contactGap: 12 * k,
@@ -169,11 +170,11 @@ export function planHalf(page = PAGES.LETTER, photo, { stamp = 'LOST' } = {}) {
     halfH,
     pad,
     sticker,
-    mapH: 90, // the last-seen map across the column
+    mapH: 66, // the last-seen map across the column
     stickerTop: pad + (halfH - pad * 2 - 3 - sticker) / 2,
     colX,
     detailsW,
-    wordSize: fitUnbounded(stamp, detailsW, 72, 36),
+    wordSize: fitUnbounded(stamp, detailsW, 60, 36),
     frame: { w: sticker, h: sticker },
     frameAspect: aspect ? 1 : null,
     hasPhoto: Boolean(aspect),
@@ -206,6 +207,6 @@ export function cropRect(w, h, focal, aspect, focalAt = 0.5) {
 /** The share images' stickers (px): a square cut, drawn as a circle, this big. */
 export const SOCIAL_FRAMES = {
   og: { w: 500, h: 500, focalAt: 0.5 },
-  square: { w: 460, h: 460, focalAt: 0.5 },
+  square: { w: 420, h: 420, focalAt: 0.5 },
   story: { w: 760, h: 760, focalAt: 0.5 },
 };

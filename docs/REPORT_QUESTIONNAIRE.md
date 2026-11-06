@@ -225,8 +225,13 @@ unanswered ones first.
 | places | | | "May head for" with the force's needs | search plan |
 | notes | | | the owner's note | |
 
-The flyer work is its own change (the renderers, the design canvas, a
-renderer version bump that redraws every open case).
+On paper (renderers in `frontend/app/lib/cascade/render/`): the map row
+holds where and when, three lines of what to look for, then "If you see
+{name}" with the health line in red; "Needs medication" is a red tag on
+the sticker's left, the reward a cream tag on its right. Long answers are
+cut with an ellipsis rather than pushed into the contact panel. A report
+made before the questionnaire gets the species' general "don't chase" line.
+The design canvas "Lost Pet Flyers, the sticker" shows all six sizes.
 
 ## 6. Storage
 
@@ -252,8 +257,9 @@ a minute after the last change.
 
 1. This change: the question set, the wizard, the hub, the APIs, the pet's
    page, the scam acknowledgement, tests.
-2. The flyers and share images draw the new lines and tags; design canvas
-   updated; renderer version bumped so every open case is redrawn.
+2. Done with it: the flyers and share images draw the new lines and tags;
+   design canvas updated; renderer version bumped so every open case is
+   redrawn.
 3. Later: prefill from a saved pet's profile; the same questions in the
    found-pet flow where they apply; the force's feed post carries the
    "don't chase" line.
