@@ -1,3 +1,4 @@
+import { getBaseUrl } from '@/app/lib/config';
 import './globals.css';
 import localFont from 'next/font/local';
 import SessionProvider from './components/SessionProvider';
@@ -31,9 +32,23 @@ export const viewport = {
   themeColor: '#0F172A',
 };
 
+const BASE = getBaseUrl();
+// The link-preview card for the site itself (public/share/home.jpg, 1200 by
+// 630): a sample flyer on the lit yellow ground beside the pitch. Messengers
+// crop a square logo to a strip, which is what showed before.
+const HOME_CARD = {
+  url: `${BASE}/share/home.jpg`,
+  width: 1200,
+  height: 630,
+  alt: 'ReunitePets: one place for the whole search. A sample lost-pet flyer beside the pitch.',
+};
+const HOME_DESCRIPTION =
+  'Report a lost pet in a few minutes. The flyer, the share images and the map are made for you, and every sighting lands on one page.';
+
 export const metadata = {
-  title: 'ReunitePets.org - Reunite Lost Pets with Their Families',
-  description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
+  metadataBase: new URL(BASE),
+  title: 'ReunitePets: one place for the whole search for a lost pet',
+  description: HOME_DESCRIPTION,
   // Without this there is no <link rel="manifest"> in the document at all, so
   // public/manifest.json was inert and the app was never installable.
   manifest: '/manifest.json',
@@ -43,16 +58,17 @@ export const metadata = {
     apple: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png',
   },
   openGraph: {
-    title: 'ReunitePets.org - Reunite Lost Pets with Their Families',
-    description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
-    images: ['https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png'],
+    title: 'ReunitePets: one place for the whole search',
+    description: HOME_DESCRIPTION,
+    images: [HOME_CARD],
     type: 'website',
+    siteName: 'ReunitePets',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ReunitePets.org - Reunite Lost Pets',
-    description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
-    images: ['https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png'],
+    title: 'ReunitePets: one place for the whole search',
+    description: HOME_DESCRIPTION,
+    images: [HOME_CARD.url],
   },
 };
 
