@@ -231,12 +231,17 @@ medication" (red) and the reward (cream) as pills. Nothing is ever drawn
 over the photo. The photo is a tall print beside the facts column (where
 and when, the map, what to look for, what the pet comes to), as wide as
 the photo's own shape asks; then "If you see {name}" on a cream note card
-with the health line in red. Long answers are cut with an ellipsis rather
-than pushed into the contact panel. A report made before the
-questionnaire gets the species' general "don't chase" line. The sheet
-under it all is the brand's yellow lit from behind the photo, with sun
-rays, caution stripes and grain (`render/ground.js`). The design canvas
-"Lost Pet Flyers, the sticker" shows all six sizes.
+with the health line in red. The sheet is planned on the words
+(`render/flyers/plan.js`): every text is measured into lines, the card is
+as tall as its words, the map takes what the column's words leave (or,
+without a map on record, a QR card for the map and updates at the link
+does), and what is still spare goes to the band, the card's type, the
+contact panel and the gaps, never to one empty area. Long answers are cut
+with an ellipsis rather than pushed into the contact panel. A report made
+before the questionnaire gets the species' general "don't chase" line.
+The sheet under it all is the brand's yellow lit from behind the photo,
+with sun rays, caution stripes and grain (`render/ground.js`). The design
+canvas "Lost Pet Flyers, the sticker" shows all six sizes.
 
 ## 6. Storage
 
