@@ -11,6 +11,19 @@ import { uploadBufferToCdn } from '@/app/lib/cdnUpload';
 // Which renderer drew the row. refresh.js redraws cases whose stamp is older.
 const stamp = { rendererVersion: RENDERER_VERSION };
 
+/**
+ * Free what the last image left behind before the next is drawn. Each
+ * image leaves an SVG with the photo in it, a PNG and a JPEG for V8 to
+ * collect; drawn three in a row with no collection between, the third
+ * ran the production instance out of memory (2026-11-06). scripts/boot.js
+ * exposes gc; without it this is a short pause.
+ */
+export const BETWEEN_IMAGES_MS = Number(process.env.SOCIAL_BETWEEN_IMAGES_MS ?? 300);
+export async function freeMemory() {
+  if (typeof global.gc === 'function') global.gc();
+  if (BETWEEN_IMAGES_MS > 0) await new Promise((r) => setTimeout(r, BETWEEN_IMAGES_MS));
+}
+
 export async function runSocial(ctx) {
   const shared = await ctx.getShared();
   const cardShared = {
@@ -24,6 +37,7 @@ export async function runSocial(ctx) {
 
   let ready = 0;
   for (const [kind, spec] of Object.entries(SOCIAL_SIZES)) {
+    await freeMemory();
     try {
       const { buffer, width, height, mimeType = 'image/png', ext = 'png' } = await generateSocialCard(ctx.case, kind, cardShared);
       const { url, sizeBytes } = await uploadBufferToCdn(buffer, {

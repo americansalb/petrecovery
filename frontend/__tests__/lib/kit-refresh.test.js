@@ -101,6 +101,24 @@ test('a case whose flyers cannot be drawn is stamped anyway, so it is tried once
   expect(outcome.social).toBe('3 ready');
 });
 
+test('the social action collects memory before each image when gc is exposed, and pauses either way', async () => {
+  jest.resetModules();
+  process.env.SOCIAL_BETWEEN_IMAGES_MS = '0';
+  const gc = jest.fn();
+  global.gc = gc;
+  try {
+    const { freeMemory } = jest.requireActual('@/app/lib/cascade/actions/social');
+    await freeMemory();
+    await freeMemory();
+    expect(gc).toHaveBeenCalledTimes(2);
+    delete global.gc;
+    await expect(freeMemory()).resolves.toBeUndefined();
+  } finally {
+    delete global.gc;
+    delete process.env.SOCIAL_BETWEEN_IMAGES_MS;
+  }
+});
+
 test('a case whose share images cannot be drawn at all has its story stamped anyway, so it is not stale at every boot', async () => {
   runSocial.mockRejectedValueOnce(new Error('resvg missing'));
   const outcome = await regenerateCaseAssets(aCase(5));
