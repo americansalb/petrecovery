@@ -103,6 +103,16 @@ if (!/max-old-space-size/.test(env.NODE_OPTIONS || '')) {
   env.NODE_OPTIONS = `${env.NODE_OPTIONS || ''} --max-old-space-size=${cap}`.trim();
   process.stdout.write(`[boot] Heap capped at ${cap} MiB (NODE_OPTIONS=${env.NODE_OPTIONS})\n`);
 }
+// Let the renderers collect between images. A share image is drawn three
+// times in a row (link preview, square, story), and what the first two
+// leave behind (the SVG with the photo in it, the PNG, the JPEG) is only
+// freed when V8 gets round to it; on 2026-11-06 the third draw found no
+// room and the instance was killed. With gc exposed, the social action
+// collects after each image (app/lib/cascade/actions/social.js).
+if (!/expose-gc/.test(env.NODE_OPTIONS || '')) {
+  env.NODE_OPTIONS = `${env.NODE_OPTIONS || ''} --expose-gc`.trim();
+  process.stdout.write(`[boot] gc exposed to the renderers (NODE_OPTIONS=${env.NODE_OPTIONS})\n`);
+}
 // glibc gives every thread its own malloc arena and rarely hands memory
 // back, so the native buffers sharp, resvg and react-pdf allocate pile up
 // as fragmentation: the same twelve renders peaked at 470 MB with the
