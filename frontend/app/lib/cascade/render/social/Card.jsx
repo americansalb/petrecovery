@@ -27,9 +27,9 @@ import { GROUND, LIGHT } from '../ground';
  */
 
 const YEL = GROUND.yellow;
-const NAVY = GROUND.ink;
+const NAVY = GROUND.ink; // the brand's brown; the name stays from when it was the site's slate
 const CREAM = '#fffbea';
-const SOFT = '#3b3a2e';
+const SOFT = GROUND.soft;
 const LOST = '#dc2626';
 const MAP_GROUND = '#eef2f8';
 

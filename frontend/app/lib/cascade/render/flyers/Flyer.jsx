@@ -42,10 +42,10 @@ Font.registerHyphenationCallback((word) => [word]);
 
 const C = {
   yellow: GROUND.yellow,
-  navy: GROUND.ink,
+  navy: GROUND.ink, // the brand's brown; the name stays from when it was the site's slate
   cream: '#fffbea',
-  soft: '#3b3a2e',
-  dash: '#0f172a',
+  soft: GROUND.soft,
+  dash: GROUND.ink,
   lost: '#dc2626', // the pin and the health line: the brand's "lost" red
   mapGround: '#eef2f8',
 };
