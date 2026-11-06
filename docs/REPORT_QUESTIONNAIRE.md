@@ -225,6 +225,15 @@ unanswered ones first.
 | places | | | "May head for" with the force's needs | search plan |
 | notes | | | the owner's note | |
 
+In the wizard (`frontend/app/report/new/page.js`), the nine detail
+screens follow the health step in a fixed order: collar and tags,
+markings, sex and age and breed, microchip, how they got out, what they
+come to, fears, places they know, anything else. Every reporter sees
+every one. Four take an answer before Continue (collar, facts,
+microchip, how they got out), each with a "not sure" chip; the other
+five skip with one tap. The review's checklist and the success screen's
+hub reopen any of them.
+
 On paper (renderers in `frontend/app/lib/cascade/render/`): the head is
 LOST on its red band with the name beside it and, under the name, "Needs
 medication" (red) and the reward (cream) as pills. Nothing is ever drawn

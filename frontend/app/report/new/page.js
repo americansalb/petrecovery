@@ -37,7 +37,7 @@ import HealthStep from '../../components/report/lost/HealthStep';
 import RewardStep, { rewardIsValid } from '../../components/report/lost/RewardStep';
 import DetailScreen from '../../components/report/lost/DetailScreen';
 import DetailsChecklist from '../../components/report/lost/DetailsChecklist';
-import { DETAIL_SCREENS, TEMPERAMENT_OPTIONS, HEALTH_OPTIONS, normalizeDetails, speciesKey } from '@/app/lib/caseDetails';
+import { DETAIL_SCREENS, TEMPERAMENT_OPTIONS, HEALTH_OPTIONS, normalizeDetails, speciesKey, screenAnswered } from '@/app/lib/caseDetails';
 import DraftPrompt from '../../components/report/DraftPrompt';
 import SwitchReportLink from '../../components/report/SwitchReportLink';
 import useWizardHistory from '../../components/report/useWizardHistory';
@@ -62,7 +62,23 @@ const GROUP_OF = {
   when: 'when', where: 'where', photo: 'photo', colors: 'colors',
   behaviour: 'help', health: 'help',
   contact: 'contact', reward: 'post', review: 'post',
-  ...Object.fromEntries(DETAIL_SCREENS.map((s) => [s.id, 'post'])),
+  ...Object.fromEntries(DETAIL_SCREENS.map((s) => [s.id, 'help'])),
+};
+
+// The questionnaire's detail screens, in the order the wizard asks them,
+// right after health. Every reporter sees every question (founder,
+// 2026-11-06: a list nobody has to open is a list nobody fills in). The
+// ones a finder cannot do without take an answer, each of which has a
+// "not sure" chip; the rest can be skipped with one tap and come back on
+// the review and the success screen.
+const DETAIL_ORDER = ['collar', 'marks', 'facts', 'microchip', 'howOut', 'lure', 'fears', 'places', 'notes'];
+const DETAIL_REQUIRED = new Set(['collar', 'facts', 'microchip', 'howOut']);
+const DETAIL_SKIP = {
+  marks: 'Nothing stands out',
+  lure: 'Not sure',
+  fears: 'Not sure',
+  places: 'Nowhere in particular',
+  notes: 'Nothing else',
 };
 const NO_REWARD = { hasReward: null, rewardMode: null, rewardAmount: null, scamAck: false };
 
@@ -254,10 +270,10 @@ export default function ReportLostPet() {
       photo: needsColors ? 'colors' : 'behaviour',
       colors: 'behaviour',
       behaviour: 'health',
-      health: isLoggedIn ? 'reward' : 'contact',
+      health: DETAIL_ORDER[0],
+      ...Object.fromEntries(DETAIL_ORDER.map((id, i) => [id, DETAIL_ORDER[i + 1] || (isLoggedIn ? 'reward' : 'contact')])),
       contact: 'reward',
       reward: 'review',
-      ...Object.fromEntries(DETAIL_SCREENS.map((s) => [s.id, 'review'])),
     };
     if (chain[stepId]) go(chain[stepId]);
   };
@@ -844,10 +860,10 @@ export default function ReportLostPet() {
           stepKey={s.id}
           variant={VARIANT}
           question={s.question(name)}
-          hint="Optional. It goes on the flyer and the page."
+          hint={DETAIL_REQUIRED.has(s.id) ? 'It goes on the flyer and the page. Tap "Not sure" if you are not sure.' : 'It goes on the flyer and the page.'}
           wide
-          primary={{ label: 'Save', onClick: advance }}
-          skip={{ label: 'Skip this one', onClick: advance }}
+          primary={{ label: 'Continue', onClick: advance, disabled: DETAIL_REQUIRED.has(s.id) && !screenAnswered(s.id, details, { breed }) }}
+          skip={DETAIL_SKIP[s.id] ? { label: DETAIL_SKIP[s.id], onClick: advance } : undefined}
         >
           <DetailScreen
             id={s.id}

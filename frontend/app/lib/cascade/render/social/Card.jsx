@@ -278,7 +278,7 @@ function Where({ data, size, width, lines = 3 }) {
     <Col style={{ width, justifyContent: 'center' }}>
       <Txt style={eyebrow(size * 0.72)}>Last seen</Txt>
       {data.lastSeenWhen ? <Txt style={{ ...body(size * 1.15, NAVY, 700), marginTop: 2, lineHeight: 1.2 }}>{data.lastSeenWhen}</Txt> : null}
-      <Clamp lines={1} style={{ ...body(size * 0.92, SOFT, 500), width, lineHeight: 1.3 }}>{data.lastSeenArea}</Clamp>
+      <Clamp lines={2} style={{ ...body(size * 0.92, SOFT, 500), width, lineHeight: 1.3 }}>{data.lastSeenArea}</Clamp>
       <Clamp lines={lines} style={{ ...body(size * 0.95), width, marginTop: size * 0.4, lineHeight: 1.35 }}>{lookForLine(data)}</Clamp>
     </Col>
   );

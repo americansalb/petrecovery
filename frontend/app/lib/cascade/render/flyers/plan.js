@@ -163,7 +163,7 @@ export const COLUMN = {
 };
 
 /** "If you see Max" on its card at scale 1 (pt): the eyebrow, the body, the card's padding and edge, and how many lines each text may take. */
-export const ADVICE = { eyebrow: 8.25, body: 10.5, padX: 10, padY: 6, edge: 2, healthMax: 2, linesMax: 5 };
+export const ADVICE = { eyebrow: 8.25, body: 10.5, padX: 10, padY: 6, edge: 2, healthMax: 4, linesMax: 7, min: 8.5 };
 
 /**
  * "If you see Max" on its card, `w` wide, at `size` (already scaled): the
@@ -271,9 +271,11 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST', wor
   };
   const adviceAt = (size) => planAdvice({ w: contentW, k, words, size });
   const head0 = headAt(b.wordMax);
-  const advice0 = adviceAt(b.adviceSize);
-  const fixed = b.top + head0.head + b.headToRow + b.rowToAdvice + advice0.h + b.contactGap + b.contact + tabsH + bottom0;
-  const room = page.h - fixed;
+  let advice0 = adviceAt(b.adviceSize);
+  const roomAt = (adv) => page.h - (b.top + head0.head + b.headToRow + b.rowToAdvice + adv.h + b.contactGap + b.contact + tabsH + bottom0);
+  // Long words: the card's type shrinks (never under ADVICE.min, scaled) before the photo row drops under its floor.
+  for (let size = b.adviceSize - 0.25 * k; size >= ADVICE.min * k - 1e-6 && roomAt(advice0) < b.printMin; size -= 0.25 * k) advice0 = adviceAt(size);
+  const room = roomAt(advice0);
   // The row: as tall as the sheet allows, but the print is never a narrow strip. The column fills it (planColumn).
   const row = Math.floor(Math.min(room, b.printMax / b.printAspectMin));
   const printW = aspect ? clamp(Math.round(row * aspect), b.printMin, b.printMax) : Math.round(300 * k);
@@ -290,7 +292,7 @@ export function planSheet(page, photo, { k = 1, tabs = true, stamp = 'LOST', wor
   }
   slack -= head.head - head0.head;
   let advice = advice0;
-  for (let size = b.adviceSize + 0.25 * k; size <= b.adviceMax + 1e-6; size += 0.25 * k) {
+  for (let size = advice0.size + 0.25 * k; size <= b.adviceMax + 1e-6; size += 0.25 * k) {
     const a = adviceAt(size);
     if (a.h - advice0.h > slack * 0.5) break;
     advice = a;
@@ -415,10 +417,12 @@ export function planCard(size, aspect, words = {}) {
   };
   const adviceAt = (s) => planAdvice({ w: W, k: ka, words, size: s });
   const head0 = headAt(c.band);
-  const advice0 = adviceAt(c.advice);
+  let advice0 = adviceAt(c.advice);
   const contact0 = Math.round(84 * c.contact);
-  const fixed = c.top + head0.head + c.headToRow + c.rowToAdvice + advice0.h + c.contactGap + contact0 + c.bottom;
-  const room = c.H - fixed;
+  const roomAt = (adv) => c.H - (c.top + head0.head + c.headToRow + c.rowToAdvice + adv.h + c.contactGap + contact0 + c.bottom);
+  // Long words: the card's type shrinks (never under ADVICE.min, scaled) before the photo row drops under its floor.
+  for (let s = c.advice - 0.5; s >= ADVICE.min * ka - 1e-6 && roomAt(advice0) < c.printMin; s -= 0.5) advice0 = adviceAt(s);
+  const room = roomAt(advice0);
   const row = Math.floor(Math.min(room, c.printMax / 0.62));
   const w = a ? clamp(Math.round(row * a), c.printMin, c.printMax) : Math.round((c.printMin + c.printMax) / 2);
   const off = Math.round(w * PRINT.shadow);
@@ -433,7 +437,7 @@ export function planCard(size, aspect, words = {}) {
   }
   slack -= head.head - head0.head;
   let advice = advice0;
-  for (let s = c.advice + 0.5; s <= c.adviceMax + 1e-6; s += 0.5) {
+  for (let s = advice0.size + 0.5; s <= c.adviceMax + 1e-6; s += 0.5) {
     const x = adviceAt(s);
     if (x.h - advice0.h > slack * 0.5) break;
     advice = x;
@@ -494,8 +498,10 @@ export function planOg(aspect, words = {}) {
   let advice = adviceAt(o.advice);
   const gaps = 12 + 10;
   const factsAt = (adv) => available - head - gaps - adv.h;
+  // Long words: the card's type shrinks (never under ADVICE.min, scaled) before a line is cut, so the facts row keeps its minimum.
+  for (let s = o.advice - 0.5; s >= ADVICE.min * ka - 1e-6 && factsAt(advice) < o.mapMin; s -= 0.5) advice = adviceAt(s);
   // The card's type grows while the facts row keeps a fair height; the row takes what is left, within its bounds.
-  for (let s = o.advice + 0.5; s <= o.adviceMax + 1e-6; s += 0.5) {
+  for (let s = advice.size + 0.5; s <= o.adviceMax + 1e-6; s += 0.5) {
     const x = adviceAt(s);
     if (factsAt(x) < 150) break;
     advice = x;
