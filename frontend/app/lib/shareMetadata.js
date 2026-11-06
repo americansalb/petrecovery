@@ -137,7 +137,20 @@ export const missionShareSelect = {
   lastSeenAddress: true,
   lastSeenAt: true,
   status: true,
+  // The kit's link-preview image (SOCIAL_OG, 1200×630: the photo, LOST, where and
+  // when, what to do, the phone), once the cascade has drawn it.
+  activation: {
+    select: {
+      assets: { where: { kind: 'SOCIAL_OG', status: 'ready' }, select: { url: true }, take: 1 },
+    },
+  },
 };
+
+/** The kit's link-preview image for a mission, or null until the cascade has drawn one. */
+export function missionShareCard(mission) {
+  const asset = (mission?.activation?.assets || []).find((a) => a && a.url);
+  return asset ? asset.url : null;
+}
 
 function missionCity(address) {
   if (!address) return 'Unknown Location';
@@ -193,14 +206,17 @@ export function missionShareMetadata(mission, { canonicalPath, index, variant } 
       : `${petName} is a lost ${breedSpecies} last seen ${timeMissing} in ${city}. Help reunite them with their family!`;
   }
 
+  // The kit's link-preview image when there is one (it is drawn for exactly this,
+  // at the size messengers show); the pet's photo until the kit has drawn it.
+  const card = missionShareCard(mission);
   return buildShareMetadata({
     title,
     description,
     ogTitle,
     twitterTitle,
     twitterDescription,
-    image: shareImage(mission.petPhotoUrl),
-    imageAlt: `${petName} - ${isFound ? 'Found' : 'Lost'} ${species}`,
+    image: card || shareImage(mission.petPhotoUrl),
+    imageAlt: card ? `${isFound ? 'Found' : 'Lost'}: ${petName}, with where and when and how to reach the family` : `${petName} - ${isFound ? 'Found' : 'Lost'} ${species}`,
     canonical: canonicalPath,
     // Only the canonical case page should rank, and only while active
     index: index ?? false,

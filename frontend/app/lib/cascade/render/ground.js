@@ -16,7 +16,8 @@ export const GROUND = {
   lemon: '#ffe566', // the lit centre, behind the photo
   yellow: '#facc15', // the brand's yellow
   amber: '#e4a30c', // the far corners
-  ink: '#0f172a',
+  ink: '#4a2512', // the mascot's brown, deep: the ink, the panel, the stripes, the shadows. Not the site's slate, which prints as black on yellow.
+  soft: '#7a4a2e', // the quieter brown: the address, "comes to", the tabs' second line
   rayOpacity: 0.075,
   rayCount: 24, // wedges around the centre; every other one is drawn
 };
