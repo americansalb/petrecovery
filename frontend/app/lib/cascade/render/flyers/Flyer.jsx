@@ -2,7 +2,8 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
 import { h, Fragment } from './pdfReact';
-import { Document, Font, Page, View, Text, Image, Svg, Circle } from '@react-pdf/renderer';
+import { Document, Font, Page, View, Text, Image, Svg, Circle, Defs, RadialGradient, Stop, Rect } from '@react-pdf/renderer';
+import { grainDataUrl, GRAIN_TILE } from '../textures';
 import { PAGES, planSheet, planHalf, fitUnbounded, fitInter, interEm, eyebrowW, UNBOUNDED, STICKER } from './plan';
 
 // Break lines at spaces only; never hyphenate mid-word.
@@ -37,6 +38,8 @@ Font.registerHyphenationCallback((word) => [word]);
 
 const C = {
   yellow: '#facc15',
+  yellowLight: '#fde047', // the lit centre of the sheet, behind the sticker
+  yellowDeep: '#eab308', // the sheet's edges
   navy: '#0f172a',
   cream: '#fffbea',
   soft: '#3b3a2e',
@@ -87,6 +90,51 @@ const LINK_EYEBROW = 'Report a sighting';
 
 /* ------------------------------------------------------------- primitives */
 
+/**
+ * The sheet itself: not a flat fill but stock. A radial light behind the
+ * sticker falling to a deeper amber at the edges, and fine paper grain
+ * over it at a few percent. Drawn under everything on every page.
+ */
+function SheetGround({ w, h, lightAt = 0.3 }) {
+  const tiles = [];
+  const T = GRAIN_TILE * 1.5; // the tile in points: drawn at half density, which is grain enough on paper and keeps the file small
+  for (let y = 0; y < h; y += T) for (let x = 0; x < w; x += T) tiles.push([x, y]);
+  return (
+    <View style={{ position: 'absolute', left: 0, top: 0, width: w, height: h }}>
+      <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+        <Defs>
+          <RadialGradient id="sheet" cx="0.5" cy={String(lightAt)} r="0.85">
+            <Stop offset="0" stopColor={C.yellowLight} />
+            <Stop offset="0.5" stopColor={C.yellow} />
+            <Stop offset="1" stopColor={C.yellowDeep} />
+          </RadialGradient>
+        </Defs>
+        <Rect x={0} y={0} width={w} height={h} fill="url('#sheet')" />
+      </Svg>
+      {tiles.map(([x, y]) => (
+        <Image key={`${x}-${y}`} src={grainDataUrl()} style={{ position: 'absolute', left: x, top: y, width: T, height: T, opacity: 0.07 }} />
+      ))}
+    </View>
+  );
+}
+
+/** A soft light behind the sticker, so it sits on a lit stage rather than a flat field. */
+function Glow({ size }) {
+  const r = size * 0.8;
+  return (
+    <Svg style={{ position: 'absolute', left: -(r - size / 2), top: -(r - size / 2) }} width={r * 2} height={r * 2} viewBox={`0 0 ${r * 2} ${r * 2}`}>
+      <Defs>
+        <RadialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+          <Stop offset="0" stopColor="#ffffff" stopOpacity={0.35} />
+          <Stop offset="0.6" stopColor="#ffffff" stopOpacity={0.1} />
+          <Stop offset="1" stopColor="#ffffff" stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Circle cx={r} cy={r} r={r} fill="url('#glow')" />
+    </Svg>
+  );
+}
+
 /** The photo as a round sticker: a cream ring, a hard navy shadow, the reward and "Needs medication" as tags. Without a photo, the description in the circle. */
 function Sticker({ data, src, size, k, style = {} }) {
   const ring = Math.round(size * STICKER.ring);
@@ -94,6 +142,7 @@ function Sticker({ data, src, size, k, style = {} }) {
   const inner = size - ring * 2;
   return (
     <View style={{ position: 'relative', width: size + off, height: size + off, ...style }}>
+      <Glow size={size} />
       <View style={{ position: 'absolute', left: off, top: off, width: size, height: size, borderRadius: size / 2, backgroundColor: C.navy }} />
       <View style={{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2, backgroundColor: C.cream, alignItems: 'center', justifyContent: 'center' }}>
         {src ? (
@@ -351,6 +400,7 @@ function Sheet({ data, plan, photoSrc }) {
   const { k, page, side, contentW } = plan;
   return (
     <Page size={[page.w, page.h]} style={{ backgroundColor: C.yellow, fontFamily: 'Inter', color: C.navy, paddingTop: plan.top, paddingHorizontal: side }}>
+      <SheetGround w={page.w} h={page.h} lightAt={(plan.top + plan.sticker / 2) / page.h} />
       <View style={{ alignItems: 'center' }}>
         <Sticker data={data} src={photoSrc} size={plan.sticker} k={k} />
       </View>
@@ -408,6 +458,7 @@ function Half({ data, plan, photoSrc, cut }) {
 function HalfSheetPage({ data, plan, photoSrc }) {
   return (
     <Page size={[PAGES.LETTER.w, PAGES.LETTER.h]} style={{ backgroundColor: C.yellow, fontFamily: 'Inter', color: C.navy }}>
+      <SheetGround w={PAGES.LETTER.w} h={PAGES.LETTER.h} lightAt={0.5} />
       <Half data={data} plan={plan} photoSrc={photoSrc} cut />
       <Half data={data} plan={plan} photoSrc={photoSrc} />
     </Page>

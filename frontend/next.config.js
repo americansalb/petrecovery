@@ -54,7 +54,8 @@ const nextConfig = {
     // fell back to the site logo in the Docker deploy, because the
     // font module threw ENOENT and the OG route's catch swallowed it.
     // __tests__/geo/standalone-assets.test.js keeps this honest.
-    '/api/**': ['./app/lib/cascade/render/fonts/**', './app/lib/geo/server/fonts/**'],
+    // The flyers' paper grain (render/textures) is read the same way.
+    '/api/**': ['./app/lib/cascade/render/fonts/**', './app/lib/cascade/render/textures/**', './app/lib/geo/server/fonts/**'],
   },
   // Image optimization
   images: {

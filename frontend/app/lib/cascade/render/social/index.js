@@ -12,7 +12,9 @@
 
 import { normalizeFlyerData } from '../flyers/normalize';
 import { SOCIAL_FRAMES } from '../flyers/plan';
-import { cropPhoto } from '../photo';
+import { cropPhoto, getSharp } from '../photo';
+
+const JPEG_QUALITY = 86;
 
 export const SOCIAL_SIZES = {
   SOCIAL_OG: { size: 'og', width: 1200, height: 630, label: 'Link preview (1200×630)' },
@@ -24,7 +26,7 @@ export const SOCIAL_SIZES = {
  * @param {object} caseData Case row (+ pet)
  * @param {'SOCIAL_OG'|'SOCIAL_SQUARE'|'SOCIAL_STORY'} kind
  * @param {{photos?:Array, photoDataUrl?:string, qrDataUrl?:string, description?:string}} shared
- * @returns {Promise<{buffer:Buffer, width:number, height:number}>}
+ * @returns {Promise<{buffer:Buffer, width:number, height:number, mimeType:string, ext:string}>}
  */
 export async function generateSocialCard(caseData, kind, shared = {}) {
   const [{ default: satori }, { Resvg }, { SocialCard }, fonts] = await Promise.all([
@@ -52,5 +54,17 @@ export async function generateSocialCard(caseData, kind, shared = {}) {
   });
   const png = resvg.render().asPng();
 
-  return { buffer: png, width: spec.width, height: spec.height };
+  // A photo on a grained sheet is a JPEG's job: the same image is a fifth
+  // of the PNG, and a link preview loads in a moment on a phone. PNG only
+  // when sharp is not there to convert.
+  const sharp = await getSharp();
+  if (sharp) {
+    try {
+      const jpeg = await sharp(png).jpeg({ quality: JPEG_QUALITY, progressive: true, mozjpeg: true }).toBuffer();
+      return { buffer: jpeg, width: spec.width, height: spec.height, mimeType: 'image/jpeg', ext: 'jpg' };
+    } catch {
+      /* the PNG below */
+    }
+  }
+  return { buffer: png, width: spec.width, height: spec.height, mimeType: 'image/png', ext: 'png' };
 }
