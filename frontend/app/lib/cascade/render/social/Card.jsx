@@ -27,6 +27,8 @@ const MAP_GROUND = '#eef2f8';
 const Row = ({ style, children }) => <div style={{ display: 'flex', flexDirection: 'row', ...style }}>{children}</div>;
 const Col = ({ style, children }) => <div style={{ display: 'flex', flexDirection: 'column', ...style }}>{children}</div>;
 const Txt = ({ style, children }) => <div style={{ display: 'flex', ...style }}>{children}</div>;
+// satori truncates (lineClamp) only inside a block container with a width.
+const Clamp = ({ lines, style, children }) => <div style={{ display: 'block', lineClamp: lines, ...style }}>{children}</div>;
 
 const disp = (size, color = NAVY) => ({ fontFamily: 'Unbounded', fontWeight: 900, fontSize: size, lineHeight: 1, letterSpacing: -size * 0.02, color, whiteSpace: 'nowrap' });
 const name = (size, color = NAVY) => ({ fontFamily: 'Inter', fontWeight: 800, fontSize: size, lineHeight: 1.1, letterSpacing: -size * 0.02, color, whiteSpace: 'nowrap' });
@@ -70,6 +72,9 @@ function Sticker({ data, src, size }) {
       </Col>
       {data.reward ? (
         <Row style={{ position: 'absolute', right: -4, top: Math.round(size * 0.08), backgroundColor: CREAM, border: `3px solid ${NAVY}`, borderRadius: 999, padding: '10px 18px', ...eyebrow(Math.round(size * 0.034)) }}>{rewardLine(data)}</Row>
+      ) : null}
+      {data.needsMedication ? (
+        <Row style={{ position: 'absolute', left: -4, top: Math.round(size * 0.08), backgroundColor: LOST, border: `3px solid ${CREAM}`, borderRadius: 999, padding: '10px 18px', ...eyebrow(Math.round(size * 0.034), CREAM) }}>Needs medication</Row>
       ) : null}
     </div>
   );
@@ -170,14 +175,17 @@ export function MapTile({ data, w, h, radius = 14 }) {
   );
 }
 
-/** Where and when, then what to look for, beside the map. */
-function Where({ data, size, width, lines = 3 }) {
+/** Where and when, what to look for, then "If you see Max": what to do, beside the map. */
+function Where({ data, size, width, lines = 2 }) {
   return (
     <Col style={{ width, justifyContent: 'center' }}>
       <Txt style={eyebrow(size * 0.72)}>Last seen</Txt>
       {data.lastSeenWhen ? <Txt style={{ ...body(size * 1.15, NAVY, 700), marginTop: 2, lineHeight: 1.2 }}>{data.lastSeenWhen}</Txt> : null}
-      <Txt style={{ ...body(size * 0.92, SOFT, 500), width, lineClamp: 2, lineHeight: 1.3 }}>{data.lastSeenArea}</Txt>
-      <Txt style={{ ...body(size), width, lineClamp: lines, marginTop: size * 0.5 }}>{lookForLine(data)}</Txt>
+      <Clamp lines={1} style={{ ...body(size * 0.92, SOFT, 500), width, lineHeight: 1.3 }}>{data.lastSeenArea}</Clamp>
+      <Clamp lines={lines} style={{ ...body(size * 0.95), width, marginTop: size * 0.4, lineHeight: 1.35 }}>{lookForLine(data)}</Clamp>
+      <Txt style={{ ...eyebrow(size * 0.72), marginTop: size * 0.6 }}>{`If you see ${data.petName}`}</Txt>
+      {data.health ? <Clamp lines={2} style={{ ...body(size * 0.95, LOST, 700), width, lineHeight: 1.25, marginTop: 2 }}>{data.health}</Clamp> : null}
+      <Clamp lines={data.health ? 2 : 3} style={{ ...body(size * 0.95, NAVY, 600), width, lineHeight: 1.3, marginTop: 2 }}>{data.ifYouSee}</Clamp>
     </Col>
   );
 }
@@ -206,10 +214,10 @@ function Og({ data, src }) {
         <Sticker data={data} src={src} size={500} />
       </div>
       <Col style={{ position: 'absolute', left: 640, top: 60, width: W }}>
-        <Txt style={disp(fitUnbounded(data.stamp, W, 132, 60))}>{data.stamp}</Txt>
-        <Txt style={{ ...name(34), marginTop: 12, width: W, lineClamp: 1 }}>{data.coverLine}</Txt>
-        <Row style={{ marginTop: 14, height: 150 }}>
-          <MapTile data={data} w={210} h={150} />
+        <Txt style={disp(fitUnbounded(data.stamp, W, 120, 60))}>{data.stamp}</Txt>
+        <Clamp lines={1} style={{ ...name(34), marginTop: 10, width: W }}>{data.coverLine}</Clamp>
+        <Row style={{ marginTop: 12, height: 200 }}>
+          <MapTile data={data} w={210} h={200} />
           <Col style={{ marginLeft: 14, width: W - 224 }}>
             <Where data={data} size={15} width={W - 224} />
           </Col>
@@ -226,11 +234,11 @@ function Square({ data, src }) {
   const W = 1000;
   return (
     <Col style={{ width: 1080, height: 1080, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '48px 40px 40px' }}>
-      <Sticker data={data} src={src} size={460} />
-      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 110, 60)), marginTop: 22 }}>{data.stamp}</Txt>
-      <Txt style={{ ...name(34), marginTop: 10, lineClamp: 1 }}>{data.coverLine}</Txt>
-      <Row style={{ marginTop: 14, width: W, height: 150 }}>
-        <MapTile data={data} w={400} h={150} />
+      <Sticker data={data} src={src} size={420} />
+      <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 104, 60)), marginTop: 20 }}>{data.stamp}</Txt>
+      <Txt style={{ ...name(34), marginTop: 8 }}>{data.coverLine}</Txt>
+      <Row style={{ marginTop: 14, width: W, height: 215 }}>
+        <MapTile data={data} w={400} h={215} />
         <Col style={{ marginLeft: 16, width: W - 416 }}>
           <Where data={data} size={17} width={W - 416} />
         </Col>
@@ -247,9 +255,9 @@ function Story({ data, src }) {
     <Col style={{ width: 1080, height: 1920, backgroundColor: YEL, fontFamily: 'Inter', color: NAVY, alignItems: 'center', padding: '150px 56px 140px' }}>
       <Sticker data={data} src={src} size={760} />
       <Txt style={{ ...disp(fitUnbounded(data.stamp, W, 180, 80)), marginTop: 36 }}>{data.stamp}</Txt>
-      <Txt style={{ ...name(48), marginTop: 14, lineClamp: 1 }}>{data.coverLine}</Txt>
-      <Row style={{ marginTop: 24, width: W, height: 250 }}>
-        <MapTile data={data} w={440} h={250} radius={20} />
+      <Txt style={{ ...name(48), marginTop: 14 }}>{data.coverLine}</Txt>
+      <Row style={{ marginTop: 24, width: W, height: 330 }}>
+        <MapTile data={data} w={440} h={330} radius={20} />
         <Col style={{ marginLeft: 24, width: W - 464 }}>
           <Where data={data} size={24} width={W - 464} />
         </Col>
