@@ -245,7 +245,13 @@ with the health line in red. The sheet is planned on the words
 as tall as its words, the map takes what the column's words leave (or,
 without a map on record, a QR card for the map and updates at the link
 does), and what is still spare goes to the band, the card's type, the
-contact panel and the gaps, never to one empty area. Long answers are cut
+contact panel and the gaps, never to one empty area. A thin report (a
+name, a photo, where and when, nothing else) is laid out as thin: the
+photo is cut toward a square and the print widens, the column's type
+grows together, the QR card is a scannable size, and the row gives
+height to the band, the card and the panel. The sample seed has one of
+each: `AUS-2026-0001` (Max, every answer) and `AUS-2026-0004` (Pip,
+nothing but the basics). Long answers are cut
 with an ellipsis rather than pushed into the contact panel. A report made
 before the questionnaire gets the species' general "don't chase" line.
 The sheet under it all is the brand's yellow lit from behind the photo,

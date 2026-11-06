@@ -157,9 +157,66 @@ async function main() {
       escapeDetails: 'Slipped out the front door during a delivery.',
       hasReward: true,
       rewardAmount: 500,
+      rewardScamAcknowledgedAt: new Date(Date.now() - 18 * 3600e3),
+      // The rich report: every questionnaire answer, so the flyers and share
+      // images show the most a sheet can hold (app/lib/caseDetails.js).
+      details: {
+        temperament: 'SCARED',
+        health: ['MEDICATION', 'DIABETIC', 'SENIOR'],
+        healthNote: 'insulin twice a day, next dose by 8pm',
+        collar: 'COLLAR',
+        collarColor: 'blue',
+        tag: 'PHONE',
+        leash: true,
+        marks: ['white_chest', 'one_ear_up'],
+        marksNote: 'scar over the left eye',
+        microchip: 'YES',
+        sex: 'MALE',
+        fixed: 'NO',
+        ageBand: 'SENIOR',
+        howOut: 'door_dashed',
+        lure: ['NAME', 'TREATS', 'CAR'],
+        lureNote: 'car ride',
+        fears: ['MEN', 'NOISE'],
+        places: ['PARK', 'FRIEND'],
+        placesNote: "Grandma's at 12 Oak St, the dog park on Elm",
+        notes: 'Limps when cold. Loves kids. Will get in any car with the door open.',
+      },
+      detailsUpdatedAt: new Date(Date.now() - 17 * 3600e3),
+      needsMedication: true,
       viewCount: 312,
       shareCount: 47,
       activeSearchers: 6,
+    },
+    {
+      // The thin report: a name, a species, a photo, where and when, a phone.
+      // Nothing else, which is how most reports arrive. The sheet must still
+      // look finished (the column grows its words and shows the QR card).
+      caseNumber: 'AUS-2026-0004',
+      petName: 'Pip',
+      petSpecies: 'CAT',
+      petBreed: 'Unknown',
+      petColor: 'Grey',
+      petSize: 'SMALL',
+      petPhotoUrl: '/seed/luna.svg',
+      petDescription: '',
+      reporterId: mike.id,
+      ownerName: 'Mike Rivera',
+      ownerPhone: '512-555-0102',
+      ownerEmail: 'mike@localdev.test',
+      reportType: 'LOST',
+      status: 'ACTIVE',
+      priority: 'NORMAL',
+      lastSeenAt: new Date(Date.now() - 5 * 3600e3),
+      lastSeenLatitude: 30.2672,
+      lastSeenLongitude: -97.7431,
+      lastSeenAddress: 'E 6th St, Austin, TX 78701',
+      searchRadius: 2,
+      escapeScenario: 'unknown', // what the intake stores when the reporter has not said
+      hasReward: false,
+      viewCount: 4,
+      shareCount: 0,
+      activeSearchers: 0,
     },
     {
       caseNumber: 'AUS-2026-0002',
@@ -244,7 +301,13 @@ async function main() {
   for (const def of caseDefs) {
     cases[def.caseNumber] = await prisma.case.upsert({
       where: { caseNumber: def.caseNumber },
-      update: {},
+      // A case seeded before the questionnaire existed picks up its answers on the next run.
+      update: {
+        details: def.details,
+        detailsUpdatedAt: def.detailsUpdatedAt,
+        needsMedication: def.needsMedication,
+        rewardScamAcknowledgedAt: def.rewardScamAcknowledgedAt,
+      },
       create: def,
     });
   }

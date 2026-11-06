@@ -73,6 +73,7 @@ const GROUP_OF = {
 // the review and the success screen.
 const DETAIL_ORDER = ['collar', 'marks', 'facts', 'microchip', 'howOut', 'lure', 'fears', 'places', 'notes'];
 const DETAIL_REQUIRED = new Set(['collar', 'facts', 'microchip', 'howOut']);
+const DETAIL_NOT_SURE = new Set(['facts', 'microchip', 'howOut']); // the required screens with a "Not sure" chip (collar has "No collar")
 const DETAIL_SKIP = {
   marks: 'Nothing stands out',
   lure: 'Not sure',
@@ -860,7 +861,7 @@ export default function ReportLostPet() {
           stepKey={s.id}
           variant={VARIANT}
           question={s.question(name)}
-          hint={DETAIL_REQUIRED.has(s.id) ? 'It goes on the flyer and the page. Tap "Not sure" if you are not sure.' : 'It goes on the flyer and the page.'}
+          hint={DETAIL_NOT_SURE.has(s.id) ? 'It goes on the flyer and the page. Tap "Not sure" if you are not sure.' : 'It goes on the flyer and the page.'}
           wide
           primary={{ label: 'Continue', onClick: advance, disabled: DETAIL_REQUIRED.has(s.id) && !screenAnswered(s.id, details, { breed }) }}
           skip={DETAIL_SKIP[s.id] ? { label: DETAIL_SKIP[s.id], onClick: advance } : undefined}

@@ -93,19 +93,37 @@ describe('planSheet', () => {
     expect(p.row).toBeGreaterThan(400);
   });
 
-  test('a thin report without a map: the tile is the QR card for the link, the words grow, the card is short, and the row stays tall for the photo', () => {
+  test('a thin report without a map: a wider cut, bigger type, the QR card for the link, and the row gives height to the band, the card and the panel', () => {
     const p = planSheet(PAGES.LETTER, { aspect: 0.75 }, { stamp: 'LOST', words: THIN_WORDS });
     const full = planSheet(PAGES.LETTER, { aspect: 0.75 }, WORDS);
-    expect(p.row).toBe(full.row + (full.advice.h - p.advice.h)); // the shorter card gives its height to the row
+    // The photo is cut toward a square and the print widens past the full report's.
+    expect(p.photo.w).toBeGreaterThan(full.photo.w);
+    expect(p.photo.w).toBeLessThanOrEqual(353);
+    expect(p.frameAspect).toBeGreaterThan(full.frameAspect);
+    // The column's type grows together, and the QR card is a scannable size, not a poster.
+    expect(p.col.kt).toBeGreaterThan(1);
+    expect(p.col.kt).toBeLessThanOrEqual(COLUMN.thinScale);
+    expect(p.col.size).toBeCloseTo(COLUMN.body * p.col.kt, 5);
+    expect(p.col.tileH).toBeLessThanOrEqual(Math.max(COLUMN.tileMin, COLUMN.qrOfW * p.colW));
+    expect(p.col.tileH).toBeLessThanOrEqual(COLUMN.qrMaxOfH * p.row);
+    // The row shrank, no lower than its floor, and the column is close to full.
+    expect(p.row).toBeLessThan(full.row);
+    expect(p.row).toBeGreaterThanOrEqual(Math.round(full.row * 0.74) - 6);
+    expect(p.col.short).toBeLessThanOrEqual(0.12 * p.row + 6);
+    // What the row gave went to the band, the card's type, the panel and the gaps.
+    expect(p.wordSize).toBeGreaterThan(full.wordSize);
+    expect(p.advice.size).toBeGreaterThan(full.advice.size);
+    expect(p.contact.scale).toBeGreaterThan(full.contact.scale);
+    expect(p.headToRow).toBeGreaterThan(full.headToRow);
     expect(p.advice.healthLines).toBe(0);
-    expect(p.advice.h).toBeLessThan(full.advice.h);
-    expect(p.col.tileH).toBeLessThanOrEqual(COLUMN.qrMaxOfW * p.colW);
-    expect(p.col.tileH).toBeGreaterThanOrEqual(COLUMN.tileShare * p.row * 0.9);
-    expect(p.col.size).toBeGreaterThan(COLUMN.bodyMax);
-    expect(p.col.size).toBeLessThanOrEqual(COLUMN.bodyMaxNoMap);
-    // What the column cannot fill is spread between its blocks by the renderers; the sheet itself is full.
-    expect(p.col.short).toBeLessThan(p.row * 0.3);
     expect(Math.round(used(p))).toBe(792);
+  });
+
+  test("a full report is never thin: the print keeps the photo's own shape and the column fills at the base type", () => {
+    const p = planSheet(PAGES.LETTER, { aspect: 0.75 }, WORDS);
+    expect(p.col.kt).toBe(1);
+    expect(p.photo.w).toBe(Math.round(p.row * 0.75));
+    expect(p.col.short).toBeLessThan(1);
   });
 
   test('every block is laid out at the size the plan gives it, so a long report still ends on the page', () => {
@@ -240,12 +258,19 @@ describe('cropRect', () => {
     expect(sq.advice.size).toBeGreaterThanOrEqual(CARDS.square.advice);
     const total = sq.top + sq.head + sq.headToRow + sq.frame.h + sq.rowToAdvice + sq.advice.h + sq.contactGap + sq.contact.h + sq.bottom;
     expect(Math.round(total)).toBe(1080);
-    // A wide photo is cut to the widest print; a thin report keeps the row tall, its tile the QR card, its card short.
+    // A wide photo is cut to the widest print; a thin report gets a wider cut, bigger column type, a scannable QR card, and a shorter row.
     expect(planCard('square', 2, MAX_WORDS).frame.w).toBe(620);
     const thin = planCard('square', 0.75, THIN_WORDS);
-    expect(thin.frame.h).toBeGreaterThanOrEqual(sq.frame.h);
+    expect(thin.frame.w).toBeGreaterThan(sq.frame.w);
+    expect(thin.frame.w).toBeLessThanOrEqual(CARDS.square.printWide);
+    expect(thin.col.kt).toBeGreaterThan(1);
+    expect(thin.col.tileH).toBeLessThanOrEqual(Math.max(COLUMN.tileMin * thin.kc, COLUMN.qrOfW * thin.colW));
+    // The row gave height: the gaps grew past their base, and the print is still tall.
+    expect(thin.headToRow).toBeGreaterThan(CARDS.square.headToRow);
+    expect(thin.frame.h).toBeGreaterThanOrEqual(CARDS.square.printMin);
     expect(thin.advice.h).toBeLessThan(sq.advice.h);
-    expect(thin.col.tileH).toBeLessThanOrEqual(COLUMN.qrMaxOfW * thin.colW);
+    expect(thin.contact.k).toBeGreaterThan(sq.contact.k);
+    expect(thin.contact.base).toBe(CARDS.square.contact);
     // The story: its own numbers, the same rules.
     const st = planCard('story', 0.75, MAX_WORDS);
     expect(st.frame).toMatchObject({ x: 56, w: 600, band: 22 });
@@ -263,7 +288,15 @@ describe('cropRect', () => {
     expect(og.facts).toBeLessThanOrEqual(OG.mapMax);
     expect(og.top + og.head + og.headToFacts + og.facts + og.factsToAdvice + og.advice.h).toBeLessThanOrEqual(630 - og.bottom - og.pill - 14 + 0.5);
     expect(planOg(1.5, MAX_WORDS).frame.w).toBe(560);
-    expect(planOg(0.75, THIN_WORDS).whereW).toBe(planOg(0.75, THIN_WORDS).W);
+    // A thin link preview: no map, so the words span the column; the print widens to a square cut and the type grows.
+    const thinOg = planOg(0.75, THIN_WORDS);
+    expect(thinOg.whereW).toBe(thinOg.W);
+    expect(thinOg.frame.w).toBe(514);
+    expect(thinOg.kt).toBeGreaterThan(1);
+    expect(thinOg.where).toBeCloseTo(OG.where * thinOg.kt, 5);
+    expect(thinOg.advice.size).toBeGreaterThan(og.advice.size);
+    expect(thinOg.top + thinOg.head + thinOg.headToFacts + thinOg.facts + thinOg.factsToAdvice + thinOg.advice.h).toBeLessThanOrEqual(630 - thinOg.bottom - thinOg.pill - 14 + 0.5);
+    expect(og.kt).toBe(1);
   });
 
   test('the words are measured so no box is too small for them: a greedy wrap on padded widths', () => {
@@ -279,10 +312,12 @@ describe('cropRect', () => {
     expect(withMap.short).toBeLessThan(1);
     expect(withMap.used + withMap.short).toBe(425);
     const noMap = planColumn({ w: 237, h: 425, words: THIN_WORDS, hasMap: false });
-    expect(noMap.tileH).toBe(Math.floor(COLUMN.qrMaxOfW * 237));
-    expect(noMap.size).toBeGreaterThan(COLUMN.body);
+    expect(noMap.tileH).toBe(Math.floor(Math.min(COLUMN.qrOfW * 237, COLUMN.qrMaxOfH * 425)));
+    expect(noMap.kt).toBe(COLUMN.thinScale);
+    expect(noMap.size).toBeCloseTo(COLUMN.body * COLUMN.thinScale, 5);
     expect(noMap.short).toBeGreaterThan(0);
     expect(noMap.used + noMap.short).toBe(425);
+    expect(withMap.kt).toBe(1);
     // The card: its height is its words'.
     const one = planAdvice({ w: 552, words: THIN_WORDS });
     const two = planAdvice({ w: 552, words: MAX_WORDS });
