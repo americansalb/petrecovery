@@ -465,8 +465,8 @@ function Half({ data, plan, photoSrc, id, cut }) {
         <View style={{ alignItems: 'flex-start' }}>
           <Band size={plan.wordSize} color={data.accentBg || C.lost}>{data.stamp}</Band>
         </View>
-        <Text style={{ ...CLAMP(1), ...NAME(fitInter(data.coverLine, detailsW, 19.5, 12)), marginTop: 6 }}>{data.coverLine}</Text>
-        <View style={{ marginTop: 6 }}>
+        <Text style={{ ...CLAMP(1), ...NAME(fitInter(data.coverLine, detailsW, 19.5, 12)), marginTop: 5 }}>{data.coverLine}</Text>
+        <View style={{ marginTop: 5 }}>
           <LastSeen data={data} k={k} align="left" w={detailsW} />
         </View>
         <View style={{ marginTop: 3 }}>

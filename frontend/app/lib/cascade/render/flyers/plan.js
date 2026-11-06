@@ -199,14 +199,14 @@ export function planHalf(page = PAGES.LETTER, photo, { stamp = 'LOST' } = {}) {
   const photoH = halfH - pad * 2 - 3;
   const colX = pad + photoW + 6 + pad;
   const detailsW = page.w - colX - pad;
-  const wordSize = fitUnbounded(stamp, detailsW, 56, 36);
+  const wordSize = fitUnbounded(stamp, detailsW, 50, 36);
   const inner = printInner(photoW, photoH, 0.8);
   return {
     halfH,
     pad,
     stripe: 7, // the caution stripes along the head and the foot of each half
     photo: { w: photoW, h: photoH },
-    mapH: 66, // the last-seen map across the column
+    mapH: 62, // the last-seen map across the column
     colX,
     detailsW,
     wordSize,

@@ -117,10 +117,10 @@ describe('planHalf', () => {
     expect(p.frameAspect).toBeCloseTo(inner.w / inner.h, 5);
     expect(p.colX).toBe(15 + 270 + 6 + 15);
     expect(p.detailsW).toBe(612 - p.colX - 15);
-    expect(p.wordSize).toBeLessThanOrEqual(56);
+    expect(p.wordSize).toBeLessThanOrEqual(50);
     expect(p.band).toEqual(bandBox(p.wordSize, 'LOST'));
     expect(p.stripe).toBe(7);
-    expect(p.mapH).toBe(66);
+    expect(p.mapH).toBe(62);
     expect(planHalf(PAGES.LETTER, { aspect: 1.5 }).frame).toEqual(planHalf(PAGES.LETTER, { aspect: 0.8 }).frame);
     const none = planHalf(PAGES.LETTER, null);
     expect(none.hasPhoto).toBe(false);
