@@ -55,7 +55,7 @@ test('the renderer version is a dated string someone will remember to bump', () 
   expect(RENDERER_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/);
 });
 
-test('a stale case is an open lost report with no flyer stamped with the current version', () => {
+test('a stale case is an open lost report with no story (the last thing a redraw writes) stamped with the current version', () => {
   const where = staleKitWhere();
   expect(where.reportType).toBe('LOST');
   expect(where.status).toEqual({ in: UNRESOLVED_STATUSES });
@@ -65,7 +65,7 @@ test('a stale case is an open lost report with no flyer stamped with the current
   expect(where.OR[0]).toEqual({ activation: { is: null } });
   expect(where.OR[1]).toEqual({
     activation: {
-      assets: { none: { kind: 'FLYER_LETTER', meta: { path: ['rendererVersion'], equals: RENDERER_VERSION } } },
+      assets: { none: { kind: 'SOCIAL_STORY', meta: { path: ['rendererVersion'], equals: RENDERER_VERSION } } },
     },
   });
 });
@@ -99,6 +99,18 @@ test('a case whose flyers cannot be drawn is stamped anyway, so it is tried once
   );
   // The share images still get drawn.
   expect(outcome.social).toBe('3 ready');
+});
+
+test('a case whose share images cannot be drawn at all has its story stamped anyway, so it is not stale at every boot', async () => {
+  runSocial.mockRejectedValueOnce(new Error('resvg missing'));
+  const outcome = await regenerateCaseAssets(aCase(5));
+  expect(outcome.social).toMatch(/^failed: resvg missing/);
+  expect(upsertStep).toHaveBeenCalledWith(expect.anything(), 'social', expect.objectContaining({ status: 'FAILED' }));
+  expect(upsertAsset).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'act-id-5' }),
+    'SOCIAL_STORY',
+    expect.objectContaining({ status: 'failed', meta: { rendererVersion: RENDERER_VERSION } })
+  );
 });
 
 test('the refresh redraws the stale cases newest first, one at a time, and says how many remain', async () => {
