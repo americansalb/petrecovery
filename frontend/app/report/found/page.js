@@ -315,7 +315,7 @@ export default function ReportFoundPet() {
     [isLoggedIn]
   );
   const screenIndex = Math.max(0, screenOrder.indexOf(stepId));
-  const progress = { done: screenIndex, total: screenOrder.length };
+  const progress = { done: screenIndex + 1, total: screenOrder.length };
   const groupScreens = screenOrder.filter((id) => GROUP_OF[id] === GROUP_OF[stepId]);
   const position = { index: Math.max(1, groupScreens.indexOf(stepId) + 1), total: groupScreens.length };
   const substeps = groupScreens.map((id) => ({

@@ -30,7 +30,7 @@ import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import PhotoStep from '../../components/report/PhotoStep';
 import ContactFields, { contactIsValid } from '../../components/report/ContactFields';
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
-import FlyerPreview from '../../components/report/FlyerPreview';
+import FlyerPreview, { formatPhone } from '../../components/report/FlyerPreview';
 import SuccessScreen from '../../components/report/SuccessScreen';
 import MyPetsStep from '../../components/report/lost/MyPetsStep';
 import BehaviourStep from '../../components/report/lost/BehaviourStep';
@@ -47,7 +47,7 @@ import useWizardHistory from '../../components/report/useWizardHistory';
 import { loadDraft, saveDraft, clearDraft } from '../../components/report/wizardDraft';
 import ColorSelector from '../../components/ColorSelector';
 import {
-  SPECIES_OPTIONS, SPECIES_ICONS, DOG_SIZE_OPTIONS, CAT_LIVING_OPTIONS,
+  SPECIES_OPTIONS, DOG_SIZE_OPTIONS, CAT_LIVING_OPTIONS,
   LOST_TIME_OPTIONS, WIZARD_THEMES, speciesToApi,
 } from '../../components/report/wizardTheme';
 import { SARAMA_AVATAR } from '@/lib/brandAssets';
@@ -451,7 +451,7 @@ export default function ReportLostPet() {
     [isLoggedIn, myPets, selectedPet, sizeAsked, color]
   );
   const screenIndex = Math.max(0, screenOrder.indexOf(stepId));
-  const progress = { done: screenIndex, total: screenOrder.length };
+  const progress = { done: screenIndex + 1, total: screenOrder.length };
   const groupScreens = screenOrder.filter((id) => GROUP_OF[id] === GROUP_OF[stepId]);
   const position = { index: Math.max(1, groupScreens.indexOf(stepId) + 1), total: groupScreens.length };
   const substeps = groupScreens.map((id) => ({
@@ -837,7 +837,7 @@ export default function ReportLostPet() {
                     id: 'contact',
                     icon: Mail,
                     label: 'Finders reach you at',
-                    value: [contact.firstName, contact.method === 'phone' ? contact.phone : contact.email]
+                    value: [contact.firstName, contact.method === 'phone' ? formatPhone(contact.phone) : contact.email]
                       .filter(Boolean)
                       .join(', '),
                   }]
