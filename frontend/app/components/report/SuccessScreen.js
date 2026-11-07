@@ -26,7 +26,7 @@ import { MatchCard } from '@/components/case/MatchCard';
 import { bandLabel, matchIsActionable } from '@/components/case/matchGating';
 import { caseShortLabel, caseShortUrl } from '@/app/lib/caseShortLink';
 import { WIZARD_THEMES } from './wizardTheme';
-import FlyerPreview from './FlyerPreview';
+import FlyerPreview, { formatPhone } from './FlyerPreview';
 import DetailsHub from './lost/DetailsHub';
 import ScamNote from './ScamNote';
 import useRecoveryKit from './recoveryKit/useRecoveryKit';
@@ -268,12 +268,14 @@ function FoundNearby({ matches, name, word }) {
           );
         })}
       </div>
-      <p className="text-[13px] text-midnight-500">The finder has been told about {name}&apos;s report. We keep comparing as new found reports come in.</p>
+      <p className="text-[13px] text-midnight-500">
+        {strong > 0 ? `The finder of a strong match has been told about ${name}'s report. ` : ''}We keep comparing as new found reports come in.
+      </p>
     </section>
   );
 }
 
-function PhotoNudge({ caseUrl, word }) {
+function PhotoNudge({ caseUrl, word, isLoggedIn }) {
   return (
     <section className="flex items-start gap-3 rounded-2xl border border-flash-300 bg-flash-50 p-4">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-flash-400 text-midnight-900">
@@ -282,11 +284,14 @@ function PhotoNudge({ caseUrl, word }) {
       <div className="min-w-0 space-y-1.5">
         <p className="text-[15px] font-bold text-midnight-900">No photo yet</p>
         <p className="text-sm leading-snug text-midnight-700">
-          People recognize a {word} from a photo faster than from any description. A quick phone picture is enough. Add one from the page.
+          People recognize a {word} from a photo faster than from any description. A quick phone picture is enough.
+          {isLoggedIn ? ' Add one from the page.' : ' Sign in with the link we sent you and add one from the page.'}
         </p>
-        <Link href={caseUrl} className={`${OUTLINE} border-midnight-900`}>
-          Add a photo
-        </Link>
+        {isLoggedIn && (
+          <Link href={caseUrl} className={`${OUTLINE} border-midnight-900`}>
+            Add a photo
+          </Link>
+        )}
       </div>
     </section>
   );
@@ -338,7 +343,7 @@ function LostBody({
   return (
     <>
       {matches.length > 0 && <FoundNearby matches={matches} name={name} word={word} />}
-      {photoMissing && <PhotoNudge caseUrl={caseUrl} word={word} />}
+      {photoMissing && <PhotoNudge caseUrl={caseUrl} word={word} isLoggedIn={isLoggedIn} />}
 
       <p className={`${EYEBROW} pl-1`}>Do this now</p>
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5 lg:items-stretch">
@@ -365,7 +370,7 @@ function LostBody({
             <button
               type="button"
               onClick={() => link.share(`Help find ${name}`)}
-              className={`${shareIsPrimary ? FLASH : NAVY} flex-1`}
+              className={`${shareIsPrimary ? FLASH : NAVY} flex-1 whitespace-nowrap`}
             >
               {link.canShare ? <Share2 size={17} /> : <Copy size={17} />}
               {link.canShare ? 'Share the link' : 'Copy the link'}
@@ -553,14 +558,13 @@ function FoundBody({ caseNumber, word, matches, photoMissing, isLoggedIn, link }
                 />
               ))}
             </div>
-            {matches.length > 5 && <p className="text-[13px] text-midnight-500">{matches.length - 5} more possible matches are on the report page.</p>}
           </>
         ) : (
           <h2 id="matches-heading" className="text-[21px] font-extrabold leading-7 tracking-tight text-midnight-900">
             No lost report matches yet.
           </h2>
         )}
-        <p className="text-[13px] text-midnight-500">We keep comparing as new lost reports come in and email you when one matches.</p>
+        <p className="text-[13px] text-midnight-500">We keep comparing as new lost reports come in.</p>
       </section>
 
       <p className={`${EYEBROW} pl-1`}>While you have the {word}</p>
@@ -589,7 +593,7 @@ function FoundBody({ caseNumber, word, matches, photoMissing, isLoggedIn, link }
         </StepCard>
       </div>
 
-      {photoMissing && <PhotoNudge caseUrl={caseUrl} word={word} />}
+      {photoMissing && <PhotoNudge caseUrl={caseUrl} word={word} isLoggedIn={isLoggedIn} />}
 
       <Footer caseUrl={caseUrl} label="Open the report page" note="Messages from owners land there." isLoggedIn={isLoggedIn} />
     </>
@@ -629,7 +633,7 @@ export default function SuccessScreen({
       if (!contactEmail && contactPhone) {
         out.push(
           <>
-            We texted this link to <strong className="font-semibold text-white">{contactPhone}</strong>. Sightings come by text too.
+            We texted this link to <strong className="font-semibold text-white">{formatPhone(contactPhone)}</strong>. Sightings come by text too.
           </>
         );
       } else if (contactEmail && (accountCreated || !isLoggedIn)) {

@@ -51,7 +51,6 @@ export default function RecoveryKitPanel({ caseNumber, petName, onEmptyChange })
     >
       <RecoveryKit
         caseNumber={caseNumber}
-        mode="share"
         petName={petName}
         initialStatus="COMPLETE"
         onEmptyChange={handleEmptyChange}
