@@ -6,6 +6,7 @@
  * the others when tapped, and is cleared when anything else is.
  */
 
+import { Check } from 'lucide-react';
 import { WIZARD_THEMES } from './wizardTheme';
 
 export default function Chips({
@@ -54,6 +55,7 @@ export default function Chips({
               on ? theme.selectedCard : 'border-midnight-100 bg-white text-midnight-700 hover:border-midnight-300'
             }`}
           >
+            {on && <Check size={14} strokeWidth={3} aria-hidden="true" />}
             <span>{opt.label}</span>
             {opt.sublabel && <span className="text-xs font-medium text-midnight-400">{opt.sublabel}</span>}
           </button>

@@ -23,7 +23,7 @@ const FLYER_KINDS = ['FLYER_LETTER', 'FLYER_HALF', 'FLYER_POSTER'];
 const SOCIAL_KINDS = ['SOCIAL_OG', 'SOCIAL_SQUARE', 'SOCIAL_STORY'];
 
 export async function GET(_request, { params }) {
-  const { caseNumber } = params;
+  const { caseNumber } = await params;
 
   const activation = await prisma.caseActivation.findUnique({
     where: { caseNumber },

@@ -39,22 +39,15 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { cn } from '../ui/utils';
 import { matchIsActionable, bandLabel } from './matchGating';
+import { SPECIES_ICONS } from '@/app/components/report/wizardTheme';
 
 // The confidence floor lives in ONE place: the server (getConfidenceBand in
 // @/app/lib/matching). This card TRUSTS the server-computed `band`/`canConnect`
 // and never re-implements the threshold - so lowering the floor server-side can
 // never leave the card hiding a CTA the server intended to show.
 
-const SPECIES_EMOJI = {
-  DOG: '🐕',
-  CAT: '🐈',
-  BIRD: '🐦',
-  RABBIT: '🐇',
-  OTHER: '🐾',
-};
-
-function speciesEmoji(species) {
-  return SPECIES_EMOJI[(species || 'OTHER').toUpperCase()] || SPECIES_EMOJI.OTHER;
+function speciesIcon(species) {
+  return SPECIES_ICONS[(species || 'other').toLowerCase()] || SPECIES_ICONS.other;
 }
 
 function MatchPhoto({ photo, name, species }) {
@@ -67,12 +60,13 @@ function MatchPhoto({ photo, name, species }) {
       />
     );
   }
+  const Icon = speciesIcon(species);
   return (
     <div
-      className="w-16 h-16 rounded-xl bg-midnight-100 flex items-center justify-center text-2xl flex-shrink-0"
+      className="w-16 h-16 rounded-xl bg-midnight-100 flex items-center justify-center text-midnight-400 flex-shrink-0"
       aria-hidden="true"
     >
-      {speciesEmoji(species)}
+      <Icon size={28} strokeWidth={1.75} />
     </div>
   );
 }
@@ -153,7 +147,6 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage, connectAvail
     <Card
       variant="default"
       padding="md"
-      accent={isVerifiedOwner ? 'green' : actionable ? 'yellow' : 'midnight'}
       className="text-left"
     >
       <div className="flex items-start gap-4">

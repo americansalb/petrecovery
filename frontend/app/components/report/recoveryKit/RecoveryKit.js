@@ -1,94 +1,20 @@
 'use client';
 
 /**
- * RecoveryKit - the live "here is everything we just did for you" dashboard on
- * the lost-report success screen (and reused on the case page). Reads the
- * durable /recovery-kit endpoint (so it renders fully on a cold reload with no
- * live connection) and layers SSE + a 3s poll on top so the checklist lights up
- * as each cascade action lands.
+ * RecoveryKit - the share kit on the public case page: the scannable QR,
+ * the printable flyers, and the share images with their captions, all
+ * from the PII-safe /recovery-kit read (useRecoveryKit). Renders nothing
+ * for a case with no kit, and tells the page so through onEmptyChange.
+ *
+ * The page after posting has its own layout (SuccessScreen) and reads the
+ * same hook.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Check, Loader2, Sparkles, FileText, Image as ImageIcon, MapPin, Users, Search,
-  Megaphone, QrCode, Copy, Download, Heart, ChevronDown, ChevronUp, Mail, Bell, ExternalLink,
-} from 'lucide-react';
-import { MatchCard } from '@/components/case/MatchCard';
-import useRecoveryKitStream from './useRecoveryKitStream';
+import { useEffect, useState } from 'react';
+import { Check, Copy, Download, FileText, Image as ImageIcon, QrCode, Sparkles } from 'lucide-react';
+import useRecoveryKit from './useRecoveryKit';
 
-const STEP_META = {
-  qr: { icon: QrCode, doneLabel: () => 'QR code ready' },
-  ai_copy: { icon: Sparkles, doneLabel: () => 'Flyer copy written' },
-  reverse_match: {
-    icon: Heart,
-    doneLabel: (n) => (n > 0 ? `${n} possible match${n === 1 ? '' : 'es'} found` : 'Checked every found report'),
-  },
-  shelters: { icon: MapPin, doneLabel: (n) => (n > 0 ? `${n} shelters near you` : 'Shelter call-list ready') },
-  neighbor_alert: { icon: Megaphone, doneLabel: (n) => (n > 0 ? `${n} neighbor${n === 1 ? '' : 's'} alerted` : 'Neighbors notified') },
-  rescue_force: { icon: Users, doneLabel: () => 'Rescue force is on the case' },
-  flyers: { icon: FileText, doneLabel: (n) => `${n || 3} printable flyers ready` },
-  social: { icon: ImageIcon, doneLabel: (n) => `${n || 3} share images ready` },
-  search_plan: { icon: Search, doneLabel: () => 'Your search plan is ready' },
-  share_targets: {
-    icon: ExternalLink,
-    doneLabel: (n) => (n > 0 ? `${n} local places to post` : 'Local posting links ready'),
-  },
-  recovery_email: { icon: Mail, doneLabel: () => 'Recovery kit emailed to you' },
-  followups: { icon: Bell, doneLabel: () => 'We’ll check in with you along the way' },
-};
-const STEP_ORDER = ['reverse_match', 'flyers', 'social', 'share_targets', 'search_plan', 'shelters', 'neighbor_alert', 'rescue_force', 'recovery_email', 'followups', 'ai_copy', 'qr'];
-
-function isTerminal(status) {
-  return ['COMPLETE', 'PARTIAL', 'FAILED'].includes(status);
-}
-
-function ChecklistItem({ stepKey, step }) {
-  const meta = STEP_META[stepKey];
-  if (!meta) return null;
-  const Icon = meta.icon;
-  const status = step?.status || 'PENDING';
-  const running = status === 'PENDING' || status === 'RUNNING';
-  const done = status === 'SUCCESS';
-  const skipped = status === 'SKIPPED' || status === 'FAILED';
-  if (skipped) return null; // don't show N/A or failed items as noise
-
-  return (
-    <div className="flex items-center gap-3 py-2">
-      <span
-        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-          done ? 'bg-[#0B1133]' : 'bg-[#F3EFE7]'
-        }`}
-      >
-        {done ? (
-          <Check size={15} className="text-white" strokeWidth={3} />
-        ) : (
-          <Loader2 size={14} className="text-midnight-400 animate-spin" />
-        )}
-      </span>
-      <Icon size={16} className={done ? 'text-midnight-500' : 'text-midnight-300'} />
-      <span className={`text-sm ${done ? 'font-semibold text-midnight-800' : 'text-midnight-400'}`}>
-        {done ? meta.doneLabel(step.count || 0) : running ? meta.pendingLabel || 'Working on it…' : ''}
-      </span>
-    </div>
-  );
-}
-
-function AssetChip({ href, label, icon: Icon }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      download
-      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-midnight-100 text-midnight-700 text-sm font-semibold hover:bg-midnight-200 transition-colors"
-    >
-      <Icon size={15} />
-      {label}
-    </a>
-  );
-}
-
-function CopyButton({ text, label = 'Copy caption' }) {
+export function CopyButton({ text, label = 'Copy', className = '' }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -102,272 +28,56 @@ function CopyButton({ text, label = 'Copy caption' }) {
           /* ignore */
         }
       }}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-midnight-200 text-midnight-600 text-xs font-semibold hover:border-midnight-400 transition-colors"
+      className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border-2 border-midnight-300 bg-white px-3 text-[13px] font-bold text-midnight-900 hover:border-midnight-500 transition-colors ${className}`}
     >
-      {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+      {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
       {copied ? 'Copied' : label}
     </button>
   );
 }
 
-function Panel({ title, icon: Icon, children, defaultOpen = true }) {
-  const [open, setOpen] = useState(defaultOpen);
+function AssetChip({ href, label, icon: Icon }) {
   return (
-    <div className="rounded-2xl border border-midnight-100 bg-white overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-midnight-50 transition-colors"
-      >
-        {Icon && <Icon size={17} className="text-midnight-500" />}
-        <span className="flex-1 font-bold text-midnight-800 text-sm">{title}</span>
-        {open ? <ChevronUp size={16} className="text-midnight-400" /> : <ChevronDown size={16} className="text-midnight-400" />}
-      </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
-    </div>
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      download
+      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border-2 border-midnight-300 bg-white px-3.5 text-[13px] font-bold text-midnight-900 hover:border-midnight-500 transition-colors"
+    >
+      <Icon size={15} />
+      {label}
+    </a>
   );
 }
 
-export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fallback = null, mode = 'full', petName, shareUrl, onShare, onEmptyChange }) {
-  // 'full'  = live success-screen dashboard (checklist + matches + assets + plan)
-  // 'share' = public case-page toolkit (scannable QR + printable flyers + share
-  //           images/captions only; no internal checklist or owner-facing matches)
-  const shareMode = mode === 'share';
-  const [kit, setKit] = useState(null);
-  const [status, setStatus] = useState(initialStatus);
-  const pollRef = useRef(null);
+export default function RecoveryKit({ caseNumber, initialStatus = 'COMPLETE', fallback = null, petName, onEmptyChange }) {
+  const { kit } = useRecoveryKit(caseNumber, { initialStatus });
+  const hasShareable = Boolean(kit?.assets?.qr?.url || kit?.assets?.flyers?.length > 0 || kit?.assets?.social?.length > 0);
+  const isEmpty = !kit || kit.exists === false || !hasShareable;
 
-  const fetchKit = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/cases/${encodeURIComponent(caseNumber)}/recovery-kit`, { cache: 'no-store' });
-      if (!res.ok) return;
-      const data = await res.json();
-      setKit(data);
-      if (data.status) setStatus(data.status);
-    } catch {
-      /* transient - the poll retries */
-    }
-  }, [caseNumber]);
-
-  // initial load
-  useEffect(() => {
-    if (caseNumber) fetchKit();
-  }, [caseNumber, fetchKit]);
-
-  // Nothing more is coming: the cascade finished, or (on the public page)
-  // the case never had one. Older cases answer exists:false with status
-  // 'unknown', which is not terminal, so the public page used to poll this
-  // endpoint every 3 seconds for as long as anyone kept it open, and to
-  // open a live stream that answers 404.
-  const settled = isTerminal(status) || (shareMode && kit?.exists === false);
-
-  // poll until settled
-  useEffect(() => {
-    if (!caseNumber || settled) {
-      if (pollRef.current) clearInterval(pollRef.current);
-      return;
-    }
-    pollRef.current = setInterval(fetchKit, 3000);
-    return () => pollRef.current && clearInterval(pollRef.current);
-  }, [caseNumber, settled, fetchKit]);
-
-  // live SSE: refetch on any event (cheap; keeps the durable read authoritative)
-  const debRef = useRef(null);
-  useRecoveryKitStream(
-    caseNumber,
-    () => {
-      if (debRef.current) clearTimeout(debRef.current);
-      debRef.current = setTimeout(fetchKit, 400);
-    },
-    { enabled: Boolean(caseNumber) && !settled }
-  );
-
-  const steps = kit?.steps ? Object.fromEntries(kit.steps.map((s) => [s.key, s])) : {};
-  const anyStep = kit?.steps?.length > 0;
-  const working = !isTerminal(status);
-
-  // Whether this renders nothing, decided once so the caller can be told.
-  //
-  //   - share mode has no live "building…" state, so stay invisible until
-  //     loaded and the case page never flashes an empty panel
-  //   - no activation at all (older cases, cascade never seeded) means the
-  //     caller's legacy static list instead of an empty dashboard
-  //   - share mode is a pure asset toolkit: nothing shareable, nothing shown
-  const hasShareable = Boolean(
-    kit?.assets?.qr?.url || kit?.assets?.flyers?.length > 0 || kit?.assets?.social?.length > 0
-  );
-  const isEmpty =
-    (shareMode && !kit) ||
-    Boolean(kit && kit.exists === false) ||
-    Boolean(shareMode && kit && !hasShareable);
-
-  // Told to the parent rather than left for it to work out again. A wrapper
-  // that paints its own border and background around a child returning null
-  // is an empty white card on the public case page, which is what
-  // RecoveryKitPanel used to draw.
   useEffect(() => {
     if (onEmptyChange) onEmptyChange(isEmpty);
   }, [isEmpty, onEmptyChange]);
 
   if (isEmpty) return fallback;
 
+  const social = kit.assets.social || [];
+  const square = social.find((s) => s.kind === 'SOCIAL_SQUARE');
+  const story = social.find((s) => s.kind === 'SOCIAL_STORY');
+  const link = social.find((s) => s.kind === 'SOCIAL_OG');
+  const captions = kit.copy?.captions || null;
+
   return (
     <div className="text-left">
-      {/* Header */}
       <div className="flex items-center gap-2 mb-1">
         <Sparkles size={18} className="text-flash-500" />
-        <h3 className="font-extrabold text-midnight-900">
-          {shareMode
-            ? `${petName ? `${petName}'s` : 'Your'} share kit`
-            : working
-              ? 'Building your recovery kit…'
-              : 'Your recovery kit is ready'}
-        </h3>
+        <h3 className="font-extrabold text-midnight-900">{petName ? `${petName}'s` : 'The'} share kit</h3>
       </div>
-      <p className="text-sm text-midnight-500 mb-4">
-        {shareMode
-          ? 'Print a flyer, post an image, or share the link.'
-          : 'Here is what we made from your report: flyers, share images, and nearby shelters to call.'}
-      </p>
+      <p className="text-sm text-midnight-600 mb-4">Print a flyer, post an image, or share the link.</p>
 
-      {/* THE OWNER'S NEXT MOVES - the three actions that find most pets. */}
-      {!shareMode && (
-        <div className="rounded-2xl border-2 border-[#0A0D26] bg-white overflow-hidden mb-4">
-          <div className="h-1.5 bg-[#F2D21B]" />
-          <div className="px-4 py-4">
-            <h3 className="font-extrabold text-[#0A0D26]">Do these 3 things now</h3>
-            <p className="text-sm text-[#8A8377] mt-0.5 mb-4">
-              Most pets are found in the first 48 hours by someone nearby. These three moves reach them.
-            </p>
-            <ol className="space-y-4">
-              <li className="flex items-start gap-3">
-                <span className="w-7 h-7 rounded-full bg-[#F2D21B] text-[#0A0D26] flex items-center justify-center text-sm font-extrabold shrink-0">
-                  1
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-[#0A0D26] text-sm">Print flyers and post them near the last-seen spot</p>
-                  <p className="text-xs text-[#8A8377] mt-0.5 mb-2">
-                    Corners, mailboxes, store windows - eye level. Each has a map and a QR code back to your case.
-                  </p>
-                  {kit?.assets?.flyers?.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {kit.assets.flyers.map((f) => (
-                        <AssetChip key={f.kind} href={f.url} label={f.label} icon={Download} />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="flex items-center gap-2 text-xs text-[#8A8377]">
-                      <Loader2 size={13} className="animate-spin" /> Building your flyers… they&apos;ll appear here in a moment.
-                    </p>
-                  )}
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-7 h-7 rounded-full bg-[#F2D21B] text-[#0A0D26] flex items-center justify-center text-sm font-extrabold shrink-0">
-                  2
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-[#0A0D26] text-sm">Share the case link everywhere local</p>
-                  <p className="text-xs text-[#8A8377] mt-0.5 mb-2">
-                    Facebook, Nextdoor, neighborhood group chats. One share often reaches the person who spots {petName || 'your pet'}.
-                  </p>
-                  {shareUrl ? (
-                    <div className="flex flex-wrap gap-2">
-                      {onShare && (
-                        <button
-                          type="button"
-                          onClick={onShare}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0B1133] text-[#FFF9EE] text-sm font-semibold hover:opacity-90 transition-opacity"
-                        >
-                          <Copy size={14} /> Share the link
-                        </button>
-                      )}
-                      <a
-                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0B1133] text-[#FFF9EE] text-sm font-semibold hover:opacity-90 transition-opacity"
-                      >
-                        Facebook
-                      </a>
-                    </div>
-                  ) : null}
-                  {kit?.shareTargets?.length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[#8A8377] mb-1.5">
-                        Local places we found for you
-                      </p>
-                      <div className="space-y-1.5">
-                        {kit.shareTargets.slice(0, 12).map((t) => (
-                          <a
-                            key={t.url}
-                            href={t.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 p-2 rounded-xl bg-[#F3EFE7] hover:bg-[#EDE8DC] transition-colors"
-                          >
-                            <ExternalLink size={13} className="text-[#0B1133] shrink-0" />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-xs font-semibold text-[#0A0D26] truncate">{t.name}</span>
-                              {t.coverage ? (
-                                <span className="block text-[0.6rem] text-[#8A8377] truncate">Covers {t.coverage}</span>
-                              ) : null}
-                            </span>
-                            {t.kind === 'facebook_group' && (
-                              <span className="ml-auto shrink-0 text-[0.6rem] font-bold uppercase tracking-wide text-[#8A8377]">
-                                {t.category === 'COMMUNITY' ? 'Community' : 'Lost pets'}
-                              </span>
-                            )}
-                          </a>
-                        ))}
-                      </div>
-                      {kit.copy?.captions?.facebook && (
-                        <div className="mt-2">
-                          <CopyButton text={kit.copy.captions.facebook} label="Copy your post" />
-                        </div>
-                      )}
-                      <p className="mt-2 text-[0.65rem] leading-snug text-[#8A8377]">
-                        These are independent communities we found in public search results, not groups we run
-                        or endorse. Follow each group&apos;s posting rules.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="w-7 h-7 rounded-full bg-[#F2D21B] text-[#0A0D26] flex items-center justify-center text-sm font-extrabold shrink-0">
-                  3
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-[#0A0D26] text-sm">Call the shelters on your list today</p>
-                  <p className="text-xs text-[#8A8377] mt-0.5">
-                    File a lost report with each one. The call list is just below, with tap-to-call numbers.
-                  </p>
-                </div>
-              </li>
-            </ol>
-          </div>
-        </div>
-      )}
-
-      {/* Everything the system already did - demoted below the owner's moves. */}
-      {!shareMode && (
-        <div className="mb-4">
-          <Panel title="Everything we already did for you" icon={Sparkles} defaultOpen={false}>
-            {anyStep ? (
-              STEP_ORDER.filter((k) => steps[k]).map((k) => <ChecklistItem key={k} stepKey={k} step={steps[k]} />)
-            ) : (
-              <div className="flex items-center gap-3 py-3 text-sm text-[#8A8377]">
-                <Loader2 size={15} className="animate-spin" /> Starting…
-              </div>
-            )}
-          </Panel>
-        </div>
-      )}
-
-      {/* Scannable QR (share mode only) - the printable/postable link back here */}
-      {shareMode && kit?.assets?.qr?.url && (
-        <div className="mb-4 flex items-center gap-4 rounded-2xl border border-midnight-100 bg-white p-4">
+      {kit.assets.qr?.url && (
+        <div className="mb-4 flex items-center gap-4 rounded-2xl border border-midnight-200 bg-white p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={kit.assets.qr.url}
@@ -381,15 +91,15 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
               <QrCode size={15} className="text-midnight-500" />
               <p className="font-bold text-midnight-800 text-sm">Scan to open this page</p>
             </div>
-            <p className="text-xs text-midnight-500 leading-relaxed">
-              Point a phone camera at this code to jump straight here - it&apos;s printed on every flyer, too.
+            <p className="text-xs text-midnight-600 leading-relaxed">
+              Point a phone camera at this code to open this page. It is printed on every flyer too.
             </p>
             <a
               href={kit.assets.qr.url}
               target="_blank"
               rel="noopener noreferrer"
               download
-              className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-midnight-600 hover:text-midnight-900"
+              className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-midnight-700 hover:text-midnight-900"
             >
               <Download size={13} /> Download QR
             </a>
@@ -397,128 +107,65 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
         </div>
       )}
 
-      {/* Possible matches - the payoff (success screen only) */}
-      {!shareMode && kit?.matches?.length > 0 && (
-        <div className="mb-4">
-          <Panel title={`${kit.matches.length} possible match${kit.matches.length === 1 ? '' : 'es'} near you`} icon={Heart}>
-            <p className="text-xs text-midnight-500 mb-3">
-              We compared your report with found pets nearby. Strong matches alert the finder automatically.
-            </p>
-            <div className="space-y-3">
-              {kit.matches.slice(0, 5).map((m) => (
-                <MatchCard
-                  key={m.reportId}
-                  connectAvailable={false}
-                  match={{
-                    matchId: m.reportId,
-                    petPhoto: m.petPhoto,
-                    petName: m.petName,
-                    species: m.petSpecies,
-                    coarseArea: m.coarseArea,
-                    pTrueMatch: m.pTrueMatch,
-                    matchSource: m.matchSource,
-                    band: m.band,
-                    canConnect: m.canConnect,
-                  }}
-                />
-              ))}
-            </div>
-          </Panel>
+      {kit.assets.flyers?.length > 0 && (
+        <div className="mb-4 rounded-2xl border border-midnight-200 bg-white p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText size={17} className="text-midnight-500" />
+            <h4 className="font-bold text-midnight-800 text-sm">Printable flyers</h4>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {kit.assets.flyers.map((f) => (
+              <AssetChip key={f.kind} href={f.url} label={f.label} icon={Download} />
+            ))}
+          </div>
+          <p className="text-xs text-midnight-500 mt-2">Each one has the map and a QR code back to this page.</p>
         </div>
       )}
 
-      {/* Flyers */}
-      {kit?.assets?.flyers?.length > 0 && (
-        <div className="mb-3">
-          <Panel title="Printable flyers" icon={FileText}>
-            <div className="flex flex-wrap gap-2">
-              {kit.assets.flyers.map((f) => (
-                <AssetChip key={f.kind} href={f.url} label={f.label} icon={Download} />
-              ))}
-            </div>
-            <p className="text-xs text-midnight-400 mt-2">Print and post them around the neighborhood - each has a QR code back to this page.</p>
-          </Panel>
-        </div>
-      )}
-
-      {/* Social images + captions */}
-      {kit?.assets?.social?.length > 0 && (
-        <div className="mb-3">
-          <Panel title="Share on social" icon={ImageIcon}>
-            <div className="flex flex-wrap gap-2">
-              {kit.assets.social.map((s) => (
-                <AssetChip key={s.kind} href={s.url} label={s.label} icon={Download} />
-              ))}
-            </div>
-            {kit.copy?.captions && (
-              <div className="mt-3 space-y-2">
-                {['facebook', 'nextdoor', 'instagram'].map((p) =>
-                  kit.copy.captions[p] ? (
-                    <div key={p} className="flex items-start gap-2 p-2.5 rounded-xl bg-midnight-50">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[0.65rem] font-bold uppercase tracking-wide text-midnight-400 mb-0.5 capitalize">{p}</p>
-                        <p className="text-xs text-midnight-600 line-clamp-3">{kit.copy.captions[p]}</p>
-                      </div>
-                      <CopyButton text={kit.copy.captions[p]} label="Copy" />
-                    </div>
-                  ) : null
-                )}
-              </div>
+      {social.length > 0 && (
+        <div className="rounded-2xl border border-midnight-200 bg-white p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ImageIcon size={17} className="text-midnight-500" />
+            <h4 className="font-bold text-midnight-800 text-sm">Share images</h4>
+          </div>
+          <div className="flex flex-wrap gap-3 items-start">
+            {square && (
+              <a href={square.url} target="_blank" rel="noopener noreferrer" download className="block w-[150px]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={square.url} alt={`Square share image for ${petName || 'this pet'}`} className="w-[150px] h-[150px] rounded-lg border border-midnight-200 object-cover" />
+                <span className="mt-1.5 block text-center text-xs font-bold text-midnight-700">Square</span>
+              </a>
             )}
-          </Panel>
-        </div>
-      )}
-
-      {/* Search plan (success screen only) */}
-      {!shareMode && kit?.searchPlan?.sections?.length > 0 && (
-        <div className="mb-3">
-          <Panel title="Your search plan" icon={Search} defaultOpen={false}>
-            {kit.searchPlan.narrative && (
-              <p className="text-sm text-midnight-600 leading-relaxed mb-3">{kit.searchPlan.narrative}</p>
+            {story && (
+              <a href={story.url} target="_blank" rel="noopener noreferrer" download className="block w-[84px]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={story.url} alt={`Story share image for ${petName || 'this pet'}`} className="w-[84px] h-[150px] rounded-lg border border-midnight-200 object-cover" />
+                <span className="mt-1.5 block text-center text-xs font-bold text-midnight-700">Story</span>
+              </a>
             )}
-            <div className="space-y-3">
-              {kit.searchPlan.sections.map((sec, i) => (
-                <div key={i}>
-                  <p className="text-xs font-bold uppercase tracking-wide text-midnight-500 mb-1">{sec.title}</p>
-                  <ul className="space-y-1">
-                    {sec.items.map((it, j) => (
-                      <li key={j} className="text-sm text-midnight-600 flex gap-2">
-                        <span className="text-flash-500 mt-0.5">•</span>
-                        <span>{it}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </Panel>
-        </div>
-      )}
-
-      {/* Shelters to call (success screen only) */}
-      {!shareMode && (kit?.shelters?.length > 0 || kit?.sheltersGuidance) && (
-        <div className="mb-3">
-          <Panel title="Shelters to call today" icon={MapPin} defaultOpen={true}>
-            {kit.shelters?.length > 0 ? (
-              <div className="space-y-2">
-                {kit.shelters.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-midnight-50">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-midnight-800 truncate">{s.name}</p>
-                      <p className="text-xs text-midnight-400 truncate">{s.address}{s.distanceMi != null ? ` · ${s.distanceMi} mi` : ''}</p>
+            {link && (
+              <a href={link.url} target="_blank" rel="noopener noreferrer" download className="block w-[150px]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={link.url} alt={`Link preview image for ${petName || 'this pet'}`} className="w-[150px] h-[79px] rounded-lg border border-midnight-200 object-cover" />
+                <span className="mt-1.5 block text-center text-xs font-bold text-midnight-700">Link preview</span>
+              </a>
+            )}
+          </div>
+          {captions && (
+            <div className="mt-3 space-y-2">
+              {['facebook', 'nextdoor', 'instagram'].map((p) =>
+                captions[p] ? (
+                  <div key={p} className="flex items-start gap-2 p-2.5 rounded-xl bg-midnight-50">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-midnight-500 mb-0.5 capitalize">{p}</p>
+                      <p className="text-xs text-midnight-700 line-clamp-3">{captions[p]}</p>
                     </div>
-                    {s.phone && (
-                      <a href={`tel:${s.phone}`} className="shrink-0 px-3 py-1.5 rounded-lg bg-midnight-900 text-white text-xs font-semibold">
-                        Call
-                      </a>
-                    )}
+                    <CopyButton text={captions[p]} />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-midnight-600 leading-relaxed">{kit.sheltersGuidance}</p>
-            )}
-          </Panel>
+                ) : null
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

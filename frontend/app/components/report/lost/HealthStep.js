@@ -8,6 +8,7 @@
 
 import { HEALTH_OPTIONS, healthLine, needsMedication } from '@/app/lib/caseDetails';
 import Chips from '../Chips';
+import OnTheFlyer from '../OnTheFlyer';
 import { WIZARD_THEMES } from '../wizardTheme';
 
 export default function HealthStep({ variant = 'lost', name, value = {}, onChange }) {
@@ -48,11 +49,9 @@ export default function HealthStep({ variant = 'lost', name, value = {}, onChang
       )}
 
       {line && (
-        <div className={`rounded-2xl border ${theme.softBorder} ${theme.softBg} p-4`}>
-          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-midnight-600">On the flyer</p>
-          <p className="mt-1.5 text-[15px] font-semibold leading-snug text-midnight-900">{line}</p>
+        <OnTheFlyer line={line}>
           {meds && <p className="mt-1.5 text-sm text-midnight-600">The report is marked urgent, and the Rescue Forces see why.</p>}
-        </div>
+        </OnTheFlyer>
       )}
     </div>
   );

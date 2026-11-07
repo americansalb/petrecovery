@@ -16,7 +16,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import {
-  PawPrint, Clock, MapPin, Camera, Palette, Mail, Megaphone, Tag,
+  PawPrint, Clock, MapPin, Camera, Mail, Megaphone, Tag,
 } from 'lucide-react';
 import WizardShell from '../../components/report/WizardShell';
 import StepScreen from '../../components/report/StepScreen';
@@ -26,6 +26,7 @@ import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import PhotoStep from '../../components/report/PhotoStep';
 import ContactFields, { contactIsValid } from '../../components/report/ContactFields';
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
+import FlyerPreview from '../../components/report/FlyerPreview';
 import SuccessScreen from '../../components/report/SuccessScreen';
 import { captchaHeaders } from '@/app/lib/captchaClient';
 import TagDetailsStep from '../../components/report/found/TagDetailsStep';
@@ -35,7 +36,7 @@ import useWizardHistory from '../../components/report/useWizardHistory';
 import { loadDraft, saveDraft, clearDraft } from '../../components/report/wizardDraft';
 import ColorSelector from '../../components/ColorSelector';
 import {
-  SPECIES_OPTIONS, FOUND_TIME_OPTIONS, WIZARD_THEMES,
+  SPECIES_OPTIONS, FOUND_TIME_OPTIONS, GENERIC_SIZE_OPTIONS,
 } from '../../components/report/wizardTheme';
 
 const VARIANT = 'found';
@@ -44,8 +45,13 @@ const LOCATION_STORAGE_KEY = 'reportLocation';
 const DRAFT_KEY = 'reportDraft:found';
 
 const GROUP_OF = {
-  species: 'animal', where: 'where', when: 'when', photo: 'photo',
-  colors: 'colors', details: 'details', contact: 'contact', review: 'post',
+  species: 'animal', where: 'wherewhen', when: 'wherewhen', photo: 'photo',
+  colors: 'photo', details: 'details', contact: 'contact', review: 'post',
+};
+// What each screen is called in the sidebar's list of the current group.
+const SCREEN_LABEL = {
+  species: 'Kind of animal', where: 'Where', when: 'When', photo: 'Photo', colors: 'Colors',
+  details: 'Collar and tag', contact: 'Where we reach you', review: 'Review and post',
 };
 
 export default function ReportFoundPet() {
@@ -263,36 +269,22 @@ export default function ReportFoundPet() {
         sidebarCopy: 'We compare your report with lost-pet reports nearby and email owners whose pet looks like a close match.',
       },
       {
-        id: 'where',
-        label: 'Where',
+        id: 'wherewhen',
+        label: 'Where and when',
         sidebarIcon: MapPin,
         sidebarTitle: 'Where you found them',
-        sidebarCopy: 'Matches are compared by distance from this spot. Pin where you found them.',
-      },
-      {
-        id: 'when',
-        label: 'When',
-        sidebarIcon: Clock,
-        sidebarTitle: 'When you found them',
-        sidebarCopy: 'This goes on the report, so owners can tell whether it fits.',
+        sidebarCopy: 'Matches are compared by distance from this spot. The time goes on the report, so owners can tell whether it fits.',
       },
       {
         id: 'photo',
-        label: 'Photo',
+        label: 'Photo and colors',
         sidebarIcon: Camera,
         sidebarTitle: 'A photo',
-        sidebarCopy: 'An owner can recognize their pet from a photo. A quick phone picture is enough.',
-      },
-      {
-        id: 'colors',
-        label: 'Colors',
-        sidebarIcon: Palette,
-        sidebarTitle: 'Colors',
-        sidebarCopy: 'Colors are compared with lost-pet reports nearby.',
+        sidebarCopy: 'An owner can recognize their pet from a photo. A quick phone picture is enough. Colors are compared with lost-pet reports nearby.',
       },
       {
         id: 'details',
-        label: 'Details',
+        label: 'Collar and tag',
         sidebarIcon: Tag,
         sidebarTitle: 'Check the collar',
         sidebarCopy: 'A name on a tag or a microchip number can identify the owner. All optional.',
@@ -311,36 +303,47 @@ export default function ReportFoundPet() {
         label: 'Post it',
         sidebarIcon: Megaphone,
         sidebarTitle: 'Post the report',
-        sidebarCopy: 'It goes on the public Lost & Found board, and we compare it with lost-pet reports nearby.',
+        sidebarCopy: 'It goes on the public Lost and Found board, and we compare it with lost-pet reports nearby.',
       },
     ],
     [isLoggedIn]
   );
 
-  const summary = useMemo(() => {
-    const items = [];
-    if (species) {
-      const opt = SPECIES_OPTIONS.find((o) => o.value === species);
-      if (opt) items.push({ icon: opt.icon, text: `Found ${opt.label.toLowerCase()}` });
-    }
-    if (location?.address) {
-      // A pin-only spot stores raw coordinates; the reporter's summary
-      // should say what they did, not print latitude at them.
-      items.push({
-        icon: MapPin,
-        text: looksLikeCoordinates(location.address) ? 'Pinned on the map' : location.address,
-      });
-    }
-    if (timeElapsed) {
-      const opt = FOUND_TIME_OPTIONS.find((o) => o.value === timeElapsed);
-      if (opt) items.push({ icon: Clock, text: `Found: ${opt.label.toLowerCase()}` });
-    }
-    if (photos.length > 0) items.push({ icon: Camera, text: `${photos.length} photo${photos.length > 1 ? 's' : ''} added` });
-    return items;
-  }, [species, location, timeElapsed, photos]);
+  // ── Progress: every screen of this report, in order ───────────────
+  const screenOrder = useMemo(
+    () => ['species', 'where', 'when', 'photo', 'colors', 'details', ...(!isLoggedIn ? ['contact'] : []), 'review'],
+    [isLoggedIn]
+  );
+  const screenIndex = Math.max(0, screenOrder.indexOf(stepId));
+  const progress = { done: screenIndex, total: screenOrder.length };
+  const groupScreens = screenOrder.filter((id) => GROUP_OF[id] === GROUP_OF[stepId]);
+  const position = { index: Math.max(1, groupScreens.indexOf(stepId) + 1), total: groupScreens.length };
+  const substeps = groupScreens.map((id) => ({
+    id,
+    label: SCREEN_LABEL[id] || id,
+    state: id === stepId ? 'current' : screenOrder.indexOf(id) < screenIndex ? 'done' : 'todo',
+  }));
 
-  const theme = WIZARD_THEMES[VARIANT];
-  const speciesLabel = SPECIES_OPTIONS.find((o) => o.value === species)?.label?.toLowerCase() || 'pet';
+  // ── The report as a flyer, drawn from the answers so far ──────────
+  const flyer = useMemo(() => {
+    const colorLine = color ? `${color.split(',').map((c) => c.trim()).filter(Boolean).join(', ')} coat.` : '';
+    const sizeWord = details.size ? GENERIC_SIZE_OPTIONS.find((o) => o.value === details.size)?.label || '' : '';
+    const facts = [details.breed, sizeWord].filter(Boolean);
+    return {
+      variant: 'found',
+      species,
+      petName: details.petName || '',
+      photoUrl: photos[displayIndex] || photos[0] || '',
+      pills: details.microchipId ? ['Chip scanned'] : [],
+      when: FOUND_TIME_OPTIONS.find((o) => o.value === timeElapsed)?.label || '',
+      where: location ? location.city || (looksLikeCoordinates(location.address) ? 'the pinned spot' : location.address) : '',
+      lookFor: [colorLine, facts.length ? `${facts.join(', ')}.` : '', details.marks ? details.marks.trim().replace(/[.]?$/, '.') : ''].filter(Boolean).join(' '),
+      phone: isLoggedIn ? '' : contact.phone,
+      email: isLoggedIn ? session?.user?.email || '' : contact.email,
+    };
+  }, [species, details, photos, displayIndex, timeElapsed, location, color, isLoggedIn, contact, session]);
+  const preview = species ? <FlyerPreview {...flyer} width={272} /> : null;
+
 
   if (result) {
     return (
@@ -348,7 +351,8 @@ export default function ReportFoundPet() {
         <SuccessScreen
           variant={VARIANT}
           caseNumber={result.caseNumber}
-          petName={details.petName || `the ${speciesLabel}`}
+          petName={details.petName}
+          species={species}
           photoMissing={photos.length === 0}
           isLoggedIn={isLoggedIn}
           accountCreated={result.accountCreated}
@@ -386,7 +390,11 @@ export default function ReportFoundPet() {
       variant={VARIANT}
       steps={steps}
       activeStepId={GROUP_OF[stepId] || 'animal'}
-      summary={summary}
+      substeps={substeps}
+      progress={progress}
+      position={position}
+      preview={stepId === 'review' ? null : preview}
+      previewLabel="The report so far"
       onBack={history.length > 0 ? browserBack : null}
       closeHref={isLoggedIn ? '/dashboard' : '/'}
       dirty={dirty}
@@ -528,30 +536,29 @@ export default function ReportFoundPet() {
         <StepScreen
           stepKey="review"
           variant={VARIANT}
-          question="Ready to post?"
-          hint="Tap any detail to change it."
+          question="Here is the report."
+          hint="This is what owners see. Tap anything below to change it."
           error={error}
           errorLink={errorLink}
           primary={{
-            label: `Post ${theme.stamp} report`,
+            label: 'Post the found report',
             tone: 'post',
             onClick: handleSubmit,
             loading: isSubmitting,
             loadingLabel: 'Checking for matches…',
           }}
+          footerNote="It goes on the Lost and Found board, and we compare it with lost-pet reports nearby."
         >
           <ReviewPosterCard
             variant={VARIANT}
-            photoUrl={photos[displayIndex] || photos[0]}
-            species={species}
-            petName={details.petName || `Found ${speciesLabel}`}
-            chips={[
-              ...color.split(',').map((c) => c.trim()).filter(Boolean),
-              details.size ? details.size.toLowerCase() : null,
-              details.breed || null,
-              details.microchipId ? 'chip scanned' : null,
-            ]}
+            flyer={flyer}
             rows={[
+              {
+                id: 'photo',
+                icon: Camera,
+                label: 'Photo',
+                value: photos.length ? `${photos.length} photo${photos.length > 1 ? 's' : ''}` : 'No photo yet',
+              },
               {
                 id: 'where',
                 icon: MapPin,
@@ -570,17 +577,17 @@ export default function ReportFoundPet() {
               {
                 id: 'details',
                 icon: Tag,
-                label: 'Details',
+                label: 'Collar and tag',
                 value:
-                  [details.petName, details.breed, details.marks].filter(Boolean).join(' · ') ||
-                  'None added',
+                  [details.petName, details.breed, details.marks].filter(Boolean).join(', ') ||
+                  'Nothing added',
               },
               ...(!isLoggedIn
                 ? [{
                     id: 'contact',
                     icon: Mail,
-                    label: 'Contact',
-                    value: [contact.firstName, contact.email].filter(Boolean).join(' · '),
+                    label: 'We reach you at',
+                    value: [contact.firstName, contact.email].filter(Boolean).join(', '),
                   }]
                 : []),
             ]}
