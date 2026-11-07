@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  Camera, Check, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Loader2, MapPin, Phone, Printer, Share2,
+  Check, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Loader2, MapPin, Phone, Printer, Share2,
 } from 'lucide-react';
 import { MatchCard } from '@/components/case/MatchCard';
 import { bandLabel, matchIsActionable } from '@/components/case/matchGating';
@@ -42,22 +42,6 @@ const FLASH =
 const OUTLINE =
   'inline-flex items-center justify-center gap-2 min-h-[44px] rounded-xl border-2 border-midnight-300 bg-white px-3.5 text-[13px] font-bold text-midnight-900 hover:border-midnight-500 transition-colors';
 const SPECIES_WORD = { DOG: 'dog', CAT: 'cat', BIRD: 'bird', RABBIT: 'rabbit', OTHER: 'pet' };
-
-const STEP_META = {
-  reverse_match: (n) => (n > 0 ? `Compared with found reports nearby: ${n} possible match${n === 1 ? '' : 'es'}` : 'Compared with every found report nearby'),
-  flyers: () => 'Drew the flyers',
-  social: () => 'Drew the share images',
-  share_targets: (n) => (n > 0 ? `Found ${n} local place${n === 1 ? '' : 's'} to post` : 'Looked for local places to post'),
-  search_plan: () => 'Wrote a search plan',
-  shelters: (n) => (n > 0 ? `Listed ${n} shelters near the spot` : 'Looked up the shelters near the spot'),
-  neighbor_alert: (n) => (n > 0 ? `Alerted ${n} neighbor${n === 1 ? '' : 's'}` : 'Alerted neighbors'),
-  rescue_force: () => 'Sent the report to the Rescue Force',
-  recovery_email: () => 'Emailed you the kit',
-  followups: () => 'Set reminders to check in with you',
-  ai_copy: () => 'Wrote the flyer copy',
-  qr: () => 'Made the QR code',
-};
-const STEP_ORDER = ['reverse_match', 'flyers', 'social', 'share_targets', 'search_plan', 'shelters', 'neighbor_alert', 'rescue_force', 'recovery_email', 'followups', 'ai_copy', 'qr'];
 
 function useShareLink(caseNumber) {
   const [canShare, setCanShare] = useState(false);
@@ -275,28 +259,6 @@ function FoundNearby({ matches, name, word }) {
   );
 }
 
-function PhotoNudge({ caseUrl, word, isLoggedIn }) {
-  return (
-    <section className="flex items-start gap-3 rounded-2xl border border-flash-300 bg-flash-50 p-4">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-flash-400 text-midnight-900">
-        <Camera size={19} />
-      </span>
-      <div className="min-w-0 space-y-1.5">
-        <p className="text-[15px] font-bold text-midnight-900">No photo yet</p>
-        <p className="text-sm leading-snug text-midnight-700">
-          People recognize a {word} from a photo faster than from any description. A quick phone picture is enough.
-          {isLoggedIn ? ' Add one from the page.' : ' Sign in with the link we sent you and add one from the page.'}
-        </p>
-        {isLoggedIn && (
-          <Link href={caseUrl} className={`${OUTLINE} border-midnight-900`}>
-            Add a photo
-          </Link>
-        )}
-      </div>
-    </section>
-  );
-}
-
 function Footer({ caseUrl, label, note, isLoggedIn }) {
   return (
     <div className="pt-1">
@@ -319,7 +281,7 @@ function Footer({ caseUrl, label, note, isLoggedIn }) {
 }
 
 function LostBody({
-  caseNumber, caseId, name, word, species, breed, details, detailsToken, isLoggedIn, photoMissing, activation, flyer, link,
+  caseNumber, caseId, name, word, species, breed, details, detailsToken, isLoggedIn, activation, flyer, link,
 }) {
   const { kit, working } = useRecoveryKit(caseNumber, { initialStatus: activation?.status || 'PENDING' });
   const [allShelters, setAllShelters] = useState(false);
@@ -329,22 +291,15 @@ function LostBody({
   const square = social.find((s) => s.kind === 'SOCIAL_SQUARE');
   const story = social.find((s) => s.kind === 'SOCIAL_STORY');
   const letter = flyers.find((f) => f.kind === 'FLYER_LETTER');
-  const half = flyers.find((f) => f.kind === 'FLYER_HALF');
-  const poster = flyers.find((f) => f.kind === 'FLYER_POSTER');
   const caption = kit?.copy?.captions?.facebook || '';
   const matches = kit?.matches || [];
   const shelters = kit?.shelters || [];
-  const steps = kit?.steps || [];
-  const stepByKey = Object.fromEntries(steps.map((s) => [s.key, s]));
-  const done = STEP_ORDER.filter((k) => stepByKey[k]?.status === 'SUCCESS');
   const facebook = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`;
   const shareIsPrimary = matches.length === 0;
 
   return (
     <>
       {matches.length > 0 && <FoundNearby matches={matches} name={name} word={word} />}
-      {photoMissing && <PhotoNudge caseUrl={caseUrl} word={word} isLoggedIn={isLoggedIn} />}
-
       <p className={`${EYEBROW} pl-1`}>Do this now</p>
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5 lg:items-stretch">
         <StepCard n={1} title="Post it where neighbors look">
@@ -362,7 +317,7 @@ function LostBody({
           {caption && (
             <div className="min-w-0 space-y-2 rounded-xl bg-midnight-50 p-3">
               <p className={EYEBROW}>Your post</p>
-              <p className="text-[14px] leading-snug text-midnight-900 [overflow-wrap:anywhere]">{caption}</p>
+              <p className="line-clamp-3 text-[14px] leading-snug text-midnight-900 [overflow-wrap:anywhere]">{caption}</p>
               <CopyButton text={caption} label="Copy post" />
             </div>
           )}
@@ -407,20 +362,6 @@ function LostBody({
               {working ? 'Drawing the flyer, about a minute' : 'The flyer is on the page when it is ready'}
             </p>
           )}
-          {(half || poster) && (
-            <div className="flex gap-2.5 lg:mt-auto">
-              {half && (
-                <a href={half.url} target="_blank" rel="noopener noreferrer" className={`${OUTLINE} flex-1`}>
-                  Half sheets
-                </a>
-              )}
-              {poster && (
-                <a href={poster.url} target="_blank" rel="noopener noreferrer" className={`${OUTLINE} flex-1`}>
-                  Poster
-                </a>
-              )}
-            </div>
-          )}
         </StepCard>
 
         <StepCard n={3} title="Call the shelters near the spot today">
@@ -462,7 +403,6 @@ function LostBody({
               {working ? 'Finding the shelters near the spot' : 'The shelter list is on the page when it is ready.'}
             </p>
           )}
-          <p className="text-[13px] leading-snug text-midnight-500 lg:mt-auto">The list is on {name}&apos;s page too.</p>
         </StepCard>
       </div>
 
@@ -477,7 +417,7 @@ function LostBody({
             breed={breed}
             title="Make the flyer stronger"
             intro={`One tap each. Each answer goes on ${name}'s flyer and page within a minute.`}
-            limit={4}
+            limit={3}
           />
         ) : (
           <div className="hidden lg:block" />
@@ -487,44 +427,11 @@ function LostBody({
 
       <Footer caseUrl={caseUrl} label={`Open ${name}'s page`} note="Sightings, the map and your tools live there." isLoggedIn={isLoggedIn} />
 
-      {(done.length > 0 || kit?.searchPlan?.sections?.length > 0) && (
-        <div className="px-1">
-          <Collapsible title="What we did with your report">
-            <ul className="space-y-1.5 pt-1">
-              {done.map((k) => (
-                <li key={k} className="flex items-start gap-2 text-[14px] text-midnight-700">
-                  <Check size={15} strokeWidth={3} className="mt-0.5 shrink-0 text-green-600" />
-                  <span>{STEP_META[k](stepByKey[k].count || 0)}</span>
-                </li>
-              ))}
-            </ul>
-            {kit?.searchPlan?.sections?.length > 0 && (
-              <div className="mt-4 space-y-3 rounded-xl bg-midnight-50 p-3.5">
-                <p className="text-[15px] font-extrabold text-midnight-900">Your search plan</p>
-                {kit.searchPlan.narrative && <p className="text-[14px] leading-relaxed text-midnight-700">{kit.searchPlan.narrative}</p>}
-                {kit.searchPlan.sections.map((sec, i) => (
-                  <div key={i}>
-                    <p className={EYEBROW}>{sec.title}</p>
-                    <ul className="mt-1 space-y-1">
-                      {sec.items.map((it, j) => (
-                        <li key={j} className="flex gap-2 text-[14px] text-midnight-700">
-                          <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-midnight-400" aria-hidden="true" />
-                          <span>{it}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Collapsible>
-        </div>
-      )}
     </>
   );
 }
 
-function FoundBody({ caseNumber, word, matches, photoMissing, isLoggedIn, link }) {
+function FoundBody({ caseNumber, word, matches, isLoggedIn, link }) {
   const caseUrl = `/cases/${caseNumber}`;
   const facebook = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`;
   const shown = matches.slice(0, 5);
@@ -593,8 +500,6 @@ function FoundBody({ caseNumber, word, matches, photoMissing, isLoggedIn, link }
         </StepCard>
       </div>
 
-      {photoMissing && <PhotoNudge caseUrl={caseUrl} word={word} isLoggedIn={isLoggedIn} />}
-
       <Footer caseUrl={caseUrl} label="Open the report page" note="Messages from owners land there." isLoggedIn={isLoggedIn} />
     </>
   );
@@ -605,7 +510,6 @@ export default function SuccessScreen({
   caseNumber,
   petName,
   species,
-  photoMissing = false,
   isLoggedIn = false,
   accountCreated = false,
   contactEmail,
@@ -711,13 +615,12 @@ export default function SuccessScreen({
             details={details}
             detailsToken={detailsToken}
             isLoggedIn={isLoggedIn}
-            photoMissing={photoMissing}
             activation={activation}
             flyer={flyer}
             link={link}
           />
         ) : (
-          <FoundBody caseNumber={caseNumber} word={word} matches={matches} photoMissing={photoMissing} isLoggedIn={isLoggedIn} link={link} />
+          <FoundBody caseNumber={caseNumber} word={word} matches={matches} isLoggedIn={isLoggedIn} link={link} />
         )}
       </div>
     </div>

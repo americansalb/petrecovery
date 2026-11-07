@@ -101,6 +101,17 @@ describe('cityStateFromAddress', () => {
     expect(cityStateFromAddress('Elgin, Illinois, 60110')).toEqual({ city: 'Elgin', state: 'IL' });
   });
 
+  test('a business or a street in front of the address is not the city', () => {
+    expect(
+      cityStateFromAddress('Charles Schwab, 501 Congress Avenue, Downtown, Austin, Travis County, Texas, 78701, United States')
+    ).toEqual({ city: 'Austin', state: 'TX' });
+    expect(cityStateFromAddress('Calle Vizcarra, Austin, Travis County, Texas, United States')).toEqual({ city: 'Austin', state: 'TX' });
+    expect(cityStateFromAddress('Downtown, Traverse City, Grand Traverse County, Michigan, 49684, United States')).toEqual({
+      city: 'Traverse City',
+      state: 'MI',
+    });
+  });
+
   test('"Illinois" and "IL" addresses key the same directory area', () => {
     expect(cityStateFromAddress('Elgin, Illinois, 60110')).toEqual(
       cityStateFromAddress('12 Main St, Elgin, IL 60120')

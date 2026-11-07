@@ -69,10 +69,12 @@ posting.
 - Every optional question has a visible skip and a "Not sure" answer.
 - The three questions that change the flyer most (behaviour, health,
   reward) are asked before posting, one tap each.
-- Everything else is asked after the core, as a checklist the owner can
-  work through in any order, before or after posting. The checklist shows
-  what is answered and what is not. It is on the review screen, on the
-  success screen, and on the pet's page in the owner's panel.
+- Everything else is asked after posting, as a checklist the owner can
+  work through in any order: on the page after posting and on the pet's
+  page in the owner's panel, one tap each, with what is answered and what
+  is not. (2026-11-06 the nine questions were moved into the wizard, four
+  of them required; 2026-11-07 the founder cut them back out: twenty-one
+  screens before posting was too much friction. The alert goes out first.)
 - Each answer shows, right on the screen, the sentence it will put on the
   flyer. The owner can change the wording of the finder instruction.
 - Answers are saved the moment they are given. The flyers and share images
@@ -111,7 +113,8 @@ Names in `code` are the ids in `Case.details`. `{name}` is the pet.
 | reward | Offering a reward | tap, see 4.4 |
 | review | Ready to post, plus the details checklist | post |
 
-Twelve screens for a guest with a dog, nine of them a single tap.
+Twelve screens for a guest with a dog, seven of them a single tap. The
+checklist (4.5) is not in this list: it comes after posting.
 
 ### 4.2 Behaviour: `temperament`, `fears`, `approachNote`
 
@@ -289,7 +292,7 @@ answers for that one case and nothing else. The same details hub component
 runs in all three places. Saving a detail schedules one redraw of the kit,
 a minute after the last change.
 
-## 7a. The page after posting
+## 7a. The page after posting (simplified 2026-11-07, second pass)
 
 Redesigned 2026-11-07 from the report canvas (rows "After posting,
 redesigned"), `app/components/report/SuccessScreen.js`. It answers the
@@ -310,9 +313,10 @@ owner's questions in order, and nothing else:
    Open the flyer, half sheets, poster), call the shelters near the spot
    (the list with tap-to-call).
 4. What would make it better. The details checklist, unanswered questions
-   first, four shown and "All 9 questions"; each answer saves at once.
-5. One warning that matters once the calls start (the scam note), the way
-   to the pet's page, and "What we did with your report" folded away.
+   first, three shown and "All 9 questions"; each answer saves at once.
+5. One warning that matters once the calls start (the scam note) and the
+   way to the pet's page. Nothing is folded away: the half sheets, the
+   poster, the other captions and the search plan live on the pet's page.
 
 The found report's page: the link band, the lost pets reported nearby as
 the first thing (MatchCard), then three cards for the person holding the

@@ -6,13 +6,16 @@
  * Flow (guests): species → name → size → when → where → photo (skippable) →
  * colors → behaviour (how they act with strangers) → health (medication,
  * conditions) → contact (passwordless) → reward (with the scam note) →
- * review, with the optional details checklist (collar, microchip, facts,
- * markings, how they got out, what they come to, fears, places, notes:
- * app/lib/caseDetails.js, docs/REPORT_QUESTIONNAIRE.md) → success, where
- * the same checklist saves straight to the report. Logged-in owners with
- * saved pets start from a pet picker that short-circuits straight to
- * "when". Option taps advance immediately; typed steps use the footer
- * Continue. Geolocation is only requested from the Where step's button.
+ * review → the page after posting. Twelve screens for a guest with a dog,
+ * seven of them a single tap. The nine finder questions (collar, microchip,
+ * facts, markings, how they got out, what they come to, fears, places,
+ * notes: app/lib/caseDetails.js, docs/REPORT_QUESTIONNAIRE.md) are asked
+ * after posting, one tap each, on the page after posting and the pet's
+ * page (founder, 2026-11-07: asking them before posting was too much
+ * friction). Logged-in owners with saved pets start from a pet picker that
+ * short-circuits straight to "when". Option taps advance immediately; typed
+ * steps use the footer Continue. Geolocation is only requested from the
+ * Where step's button.
  *
  * All UI comes from the shared primitives in app/components/report/.
  */
@@ -36,9 +39,8 @@ import MyPetsStep from '../../components/report/lost/MyPetsStep';
 import BehaviourStep from '../../components/report/lost/BehaviourStep';
 import HealthStep from '../../components/report/lost/HealthStep';
 import RewardStep, { rewardIsValid } from '../../components/report/lost/RewardStep';
-import DetailScreen from '../../components/report/lost/DetailScreen';
 import {
-  DETAIL_SCREENS, TEMPERAMENT_OPTIONS, HEALTH_OPTIONS, normalizeDetails, speciesKey, screenAnswered,
+  TEMPERAMENT_OPTIONS, HEALTH_OPTIONS, normalizeDetails, speciesKey,
   approachLine, healthLine, needsMedication, lookForBits, factsBits,
 } from '@/app/lib/caseDetails';
 import DraftPrompt from '../../components/report/DraftPrompt';
@@ -65,7 +67,6 @@ const GROUP_OF = {
   when: 'whenwhere', where: 'whenwhere', photo: 'photo', colors: 'photo',
   behaviour: 'help', health: 'help',
   contact: 'contact', reward: 'post', review: 'post',
-  ...Object.fromEntries(DETAIL_SCREENS.map((s) => [s.id, 'help'])),
 };
 // What each screen is called in the sidebar's list of the current group.
 const SCREEN_LABEL = {
@@ -73,25 +74,8 @@ const SCREEN_LABEL = {
   when: 'When', where: 'Where', photo: 'Photo', colors: 'Colors',
   behaviour: 'With strangers', health: 'Medication and health',
   contact: 'How finders reach you', reward: 'Reward', review: 'Review and post',
-  ...Object.fromEntries(DETAIL_SCREENS.map((s) => [s.id, s.label])),
 };
 
-// The questionnaire's detail screens, in the order the wizard asks them,
-// right after health. Every reporter sees every question (founder,
-// 2026-11-06: a list nobody has to open is a list nobody fills in). The
-// ones a finder cannot do without take an answer, each of which has a
-// "not sure" chip; the rest can be skipped with one tap and come back on
-// the review and the success screen.
-const DETAIL_ORDER = ['collar', 'marks', 'facts', 'microchip', 'howOut', 'lure', 'fears', 'places', 'notes'];
-const DETAIL_REQUIRED = new Set(['collar', 'facts', 'microchip', 'howOut']);
-const DETAIL_NOT_SURE = new Set(['facts', 'microchip', 'howOut']); // the required screens with a "Not sure" chip (collar has "No collar")
-const DETAIL_SKIP = {
-  marks: 'Nothing stands out',
-  lure: 'Not sure',
-  fears: 'Not sure',
-  places: 'Nowhere in particular',
-  notes: 'Nothing else',
-};
 const NO_REWARD = { hasReward: null, rewardMode: null, rewardAmount: null, scamAck: false };
 
 export default function ReportLostPet() {
@@ -282,8 +266,7 @@ export default function ReportLostPet() {
       photo: needsColors ? 'colors' : 'behaviour',
       colors: 'behaviour',
       behaviour: 'health',
-      health: DETAIL_ORDER[0],
-      ...Object.fromEntries(DETAIL_ORDER.map((id, i) => [id, DETAIL_ORDER[i + 1] || (isLoggedIn ? 'reward' : 'contact')])),
+      health: isLoggedIn ? 'reward' : 'contact',
       contact: 'reward',
       reward: 'review',
     };
@@ -444,7 +427,7 @@ export default function ReportLostPet() {
       ...(selectedPet ? [] : ['species', 'name', ...(sizeAsked ? ['size'] : [])]),
       'when', 'where', 'photo',
       ...(!color || !selectedPet ? ['colors'] : []),
-      'behaviour', 'health', ...DETAIL_ORDER,
+      'behaviour', 'health',
       ...(!isLoggedIn ? ['contact'] : []),
       'reward', 'review',
     ],
@@ -897,30 +880,6 @@ export default function ReportLostPet() {
         </StepScreen>
       )}
 
-      {DETAIL_SCREENS.filter((s) => s.id === stepId).map((s) => (
-        <StepScreen
-          key={s.id}
-          stepKey={s.id}
-          variant={VARIANT}
-          eyebrow={DETAIL_REQUIRED.has(s.id) ? undefined : 'Optional'}
-          question={s.question(name)}
-          hint={DETAIL_NOT_SURE.has(s.id) ? 'It goes on the flyer and the page. Tap "Not sure" if you are not sure.' : 'It goes on the flyer and the page.'}
-          wide
-          primary={{ label: 'Continue', onClick: advance, disabled: DETAIL_REQUIRED.has(s.id) && !screenAnswered(s.id, details, { breed }) }}
-          skip={DETAIL_SKIP[s.id] ? { label: DETAIL_SKIP[s.id], onClick: advance } : undefined}
-        >
-          <DetailScreen
-            id={s.id}
-            variant={VARIANT}
-            species={speciesToApi(species)}
-            name={name}
-            details={details}
-            onChange={patchDetails}
-            breed={breed}
-            onBreedChange={s.id === 'facts' ? setBreed : undefined}
-          />
-        </StepScreen>
-      ))}
     </WizardShell>
   );
 }

@@ -39,23 +39,43 @@ const MAX_SEARCHES_PER_SWEEP = 4;
 const CATEGORIES = ['LOST_PET', 'COMMUNITY'];
 export const REFRESH_AFTER_DAYS = 30;
 
-/** City + state tokens from a stored address ("1847 W Addison St, Chicago,
- *  IL 60613, United States" -> { city: "Chicago", state: "IL" }). */
+const COUNTRY_RE = /^(united states( of america)?|usa|u\.s\.a?\.?|canada|m[eé]xico)$/i;
+const COUNTY_RE = /\b(county|parish|borough|census area|municipio)\b/i;
+const STREET_RE =
+  /\d|\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|hwy|highway|pl|place|trail|trl|pkwy|parkway|cir|circle|ter|terrace|calle|avenida|carrera|rua)\b\.?/i;
+
+/** City + state tokens from a stored address.
+ *
+ *  Geocoders write the address from the smallest place outwards, and the
+ *  first parts are whatever is nearest the pin: a business ("Charles
+ *  Schwab, 501 Congress Avenue, Downtown, Austin, Travis County, Texas"),
+ *  a street with no number ("Calle Vizcarra, ..."), a neighborhood. The
+ *  city is the last part before the county and the state, so the parse
+ *  walks in from the end: drop the country and the postcode, take the
+ *  state, skip counties, and the next part is the city. Taking the first
+ *  part sent owners to "Search Facebook groups: Calle Vizcarra lost found
+ *  pets" (founder, 2026-11-07: who creates groups for a street). */
 export function cityStateFromAddress(address) {
   let parts = String(address || '')
     .split(',')
     .map((p) => p.trim())
     .filter(Boolean);
-  if (parts.length > 1 && /^(united states( of america)?|usa|u\.s\.a?\.?|canada|m[eé]xico)$/i.test(parts[parts.length - 1])) {
+  if (parts.length > 1 && COUNTRY_RE.test(parts[parts.length - 1])) parts = parts.slice(0, -1);
+  if (parts.length > 1 && /^\d{5}(-\d{4})?$/.test(parts[parts.length - 1])) parts = parts.slice(0, -1);
+  let state = '';
+  if (parts.length > 1) {
+    // Normalize "Illinois" and "IL" to the same token so the group directory
+    // keys one area per city, however the geocoder spelled the state.
+    state = normalizeState(parts[parts.length - 1].replace(/\s*\d{5}(-\d{4})?$/, ''));
     parts = parts.slice(0, -1);
   }
-  if (parts.length > 1 && /^\d{5}(-\d{4})?$/.test(parts[parts.length - 1])) parts = parts.slice(0, -1);
-  const hasStreet = parts.length > 1 && /\d/.test(parts[0]);
-  const city = (hasStreet ? parts[1] : parts[0]) || '';
-  const stateRaw = (hasStreet ? parts[2] : parts[1]) || '';
-  // Normalize "Illinois" and "IL" to the same token so the group directory
-  // keys one area per city, however the geocoder spelled the state.
-  const state = normalizeState(stateRaw.replace(/\d{5}(-\d{4})?/, ''));
+  let city = '';
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (COUNTY_RE.test(parts[i])) continue;
+    if (STREET_RE.test(parts[i]) && i > 0) continue;
+    city = parts[i];
+    break;
+  }
   return { city: city.replace(/\d/g, '').trim(), state };
 }
 
@@ -345,7 +365,10 @@ export async function sweepArea(city, rawState, geo = null) {
 
 export async function runShareTargets(ctx) {
   const c = ctx.case;
-  const { city, state } = cityStateFromAddress(c.lastSeenAddress);
+  // The city the reporter picked, when the case carries one; else the address.
+  const parsed = cityStateFromAddress(c.lastSeenAddress);
+  const city = (c.city && String(c.city).trim()) || parsed.city;
+  const state = parsed.state;
   const speciesWord = SPECIES_WORD[c.petSpecies] || 'pet';
   const area = city || state || 'your area';
 
