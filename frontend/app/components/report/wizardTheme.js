@@ -13,16 +13,22 @@ import { Dog, Cat, Bird, Rabbit, PawPrint, Home, Trees } from 'lucide-react';
 export const WIZARD_THEMES = {
   lost: {
     stamp: 'LOST',
-    stampChip: 'bg-red-500 text-white',
-    stampOutline: 'border-red-500 text-red-600',
-    accentText: 'text-red-500',
-    accentBg: 'bg-red-500',
+    stampChip: 'bg-red-600 text-white',
+    stampOutline: 'border-red-600 text-red-700',
+    accentText: 'text-red-600',
+    accentBg: 'bg-red-600',
     softBg: 'bg-red-50',
     softBorder: 'border-red-200',
-    selectedCard: 'border-red-400 bg-red-50 ring-1 ring-red-400',
+    // A chosen answer is navy, the chrome colour. Red on the lost flow read
+    // as a validation error, and the pet colours are never buttons.
+    selectedCard: 'border-midnight-900 bg-midnight-50 ring-1 ring-midnight-900',
+    selectedMark: 'bg-midnight-900',
+    // The one yellow button on a screen: Continue, and Post on the last step.
+    primaryCta:
+      'bg-gradient-to-b from-flash-300 to-flash-400 text-midnight-900 shadow-lg shadow-flash-200/60 hover:from-flash-400 hover:to-flash-500',
     postCta:
-      'bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-200 hover:shadow-xl',
-    progressFill: 'bg-red-500',
+      'bg-gradient-to-b from-flash-300 to-flash-400 text-midnight-900 shadow-lg shadow-flash-200/60 hover:from-flash-400 hover:to-flash-500',
+    progressFill: 'bg-flash-400',
     posterGrad: 'bg-gradient-to-br from-red-400 via-orange-400 to-amber-300',
     mapHex: '#dc2626', // the lost-pet red of app/lib/petColors.js
     // Focus is the flash brand accent on BOTH variants - a red focus border
@@ -38,6 +44,8 @@ export const WIZARD_THEMES = {
     softBg: 'bg-blue-50',
     softBorder: 'border-blue-200',
     selectedCard: 'border-blue-700 bg-blue-50 ring-1 ring-blue-700',
+    selectedMark: 'bg-blue-800',
+    primaryCta: 'bg-blue-800 text-white shadow-lg shadow-blue-200 hover:bg-blue-900',
     postCta: 'bg-blue-800 text-white shadow-lg shadow-blue-200 hover:bg-blue-900',
     progressFill: 'bg-blue-800',
     posterGrad: 'bg-gradient-to-br from-blue-800 to-blue-500',
@@ -54,10 +62,13 @@ export const WIZARD_THEMES = {
     accentBg: 'bg-sky-600',
     softBg: 'bg-sky-50',
     softBorder: 'border-sky-200',
-    selectedCard: 'border-sky-500 bg-sky-50 ring-1 ring-sky-500',
+    selectedCard: 'border-midnight-900 bg-midnight-50 ring-1 ring-midnight-900',
+    selectedMark: 'bg-midnight-900',
+    primaryCta:
+      'bg-gradient-to-b from-flash-300 to-flash-400 text-midnight-900 shadow-lg shadow-flash-200/60 hover:from-flash-400 hover:to-flash-500',
     postCta:
-      'bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-lg shadow-sky-200 hover:shadow-xl',
-    progressFill: 'bg-sky-600',
+      'bg-gradient-to-b from-flash-300 to-flash-400 text-midnight-900 shadow-lg shadow-flash-200/60 hover:from-flash-400 hover:to-flash-500',
+    progressFill: 'bg-flash-400',
     posterGrad: 'bg-gradient-to-br from-sky-400 via-sky-500 to-blue-400',
     mapHex: '#0284c7',
     focusRing: 'focus:border-flash-400 focus:ring-2 focus:ring-flash-100',

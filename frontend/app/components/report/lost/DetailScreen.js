@@ -19,9 +19,15 @@ import {
   LURE_OPTIONS,
   FEAR_OPTIONS,
   PLACE_OPTIONS,
+  collarBits,
+  marksLine,
+  factsBits,
+  lureLine,
+  placesLine,
 } from '@/app/lib/caseDetails';
 import BreedSelector from '../../BreedSelector';
 import Chips from '../Chips';
+import OnTheFlyer from '../OnTheFlyer';
 import { WIZARD_THEMES } from '../wizardTheme';
 
 function Field({ label, hint, children }) {
@@ -74,6 +80,7 @@ export default function DetailScreen({ id, variant = 'lost', species, name, deta
           <Check checked={d.leash} onChange={(leash) => onChange({ leash })}>
             {name} is dragging a leash
           </Check>
+          <OnTheFlyer line={collarBits(d).join(' ')} />
         </div>
       );
 
@@ -119,6 +126,7 @@ export default function DetailScreen({ id, variant = 'lost', species, name, deta
               <BreedSelector species={String(species || '').toUpperCase()} value={breed} onChange={onBreedChange} />
             </Field>
           )}
+          <OnTheFlyer line={[breed && breed !== 'Unknown' ? breed : '', ...factsBits(d, { species }), d.microchip === 'YES' ? 'Microchipped' : ''].filter(Boolean).join(', ')} />
         </div>
       );
 
@@ -129,6 +137,7 @@ export default function DetailScreen({ id, variant = 'lost', species, name, deta
           <Field label="Anything else?">
             <textarea value={d.marksNote || ''} onChange={(e) => onChange({ marksNote: e.target.value })} rows={2} maxLength={160} placeholder="Scar over the left eye, one white toe" className={area} />
           </Field>
+          <OnTheFlyer line={marksLine(d)} />
         </div>
       );
 
@@ -149,6 +158,7 @@ export default function DetailScreen({ id, variant = 'lost', species, name, deta
           <Field label="Words or commands" hint="A searcher calling the right word is worth a lot.">
             <input type="text" value={d.lureNote || ''} onChange={(e) => onChange({ lureNote: e.target.value })} maxLength={80} placeholder="Come, treat, car ride" className={input} />
           </Field>
+          <OnTheFlyer line={lureLine(d)} />
         </div>
       );
 
@@ -162,6 +172,7 @@ export default function DetailScreen({ id, variant = 'lost', species, name, deta
           <Field label="Addresses, if you know them">
             <textarea value={d.placesNote || ''} onChange={(e) => onChange({ placesNote: e.target.value })} rows={2} maxLength={160} placeholder="Grandma's at 12 Oak St, the dog park on Elm" className={area} />
           </Field>
+          <OnTheFlyer label="On the page" line={placesLine(d)} />
         </div>
       );
 

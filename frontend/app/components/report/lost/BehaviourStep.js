@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { TEMPERAMENT_OPTIONS, approachLine, speciesKey } from '@/app/lib/caseDetails';
 import OptionCardGrid from '../OptionCardGrid';
+import OnTheFlyer from '../OnTheFlyer';
 import { WIZARD_THEMES } from '../wizardTheme';
 
 export default function BehaviourStep({ variant = 'lost', species, name, value = {}, onChange }) {
@@ -29,8 +30,7 @@ export default function BehaviourStep({ variant = 'lost', species, name, value =
       />
 
       {value.temperament && (
-        <div className={`rounded-2xl border ${theme.softBorder} ${theme.softBg} p-4`}>
-          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-midnight-600">On the flyer: if you see {name}</p>
+        <OnTheFlyer label={`On the flyer: if you see ${name}`}>
           {editing ? (
             <div className="mt-2">
               <textarea
@@ -42,11 +42,11 @@ export default function BehaviourStep({ variant = 'lost', species, name, value =
                 className={`w-full rounded-xl border-2 border-midnight-100 bg-white px-3.5 py-3 text-[16px] leading-relaxed outline-none ${theme.focusRing}`}
                 autoFocus
               />
-              <div className="mt-1.5 flex items-center justify-between text-xs text-midnight-400">
+              <div className="mt-1.5 flex items-center justify-between text-xs text-midnight-500">
                 <span>{(value.approachNote || '').length} of 160</span>
                 <button
                   type="button"
-                  className="font-semibold text-midnight-600 underline underline-offset-2"
+                  className="font-semibold text-midnight-700 underline underline-offset-2"
                   onClick={() => {
                     onChange({ approachNote: '' });
                     setEditing(false);
@@ -58,7 +58,7 @@ export default function BehaviourStep({ variant = 'lost', species, name, value =
             </div>
           ) : (
             <>
-              <p className="mt-1.5 text-[15px] font-semibold leading-snug text-midnight-900">{line}</p>
+              <p className="mt-1 text-[15px] font-bold leading-snug text-midnight-900">{line}</p>
               <button
                 type="button"
                 onClick={() => setEditing(true)}
@@ -69,7 +69,7 @@ export default function BehaviourStep({ variant = 'lost', species, name, value =
               </button>
             </>
           )}
-        </div>
+        </OnTheFlyer>
       )}
     </div>
   );

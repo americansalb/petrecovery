@@ -16,7 +16,7 @@ import { DETAILS_TOKEN_HEADER } from '@/app/lib/detailsToken';
 import DetailsChecklist from './DetailsChecklist';
 import DetailScreen from './DetailScreen';
 
-export default function DetailsHub({ caseId, token, species, name, details: initial, breed: initialBreed = '', title, intro, onSaved }) {
+export default function DetailsHub({ caseId, token, species, name, details: initial, breed: initialBreed = '', title, intro, limit, onSaved }) {
   const [details, setDetails] = useState(() => normalizeDetails(initial));
   const [breed, setBreed] = useState(initialBreed === 'Unknown' ? '' : initialBreed || '');
   const [openId, setOpenId] = useState(null);
@@ -67,7 +67,7 @@ export default function DetailsHub({ caseId, token, species, name, details: init
   if (screen) {
     const merged = { ...details, ...draft };
     return (
-      <section aria-labelledby="details-hub-question" className="rounded-2xl border border-midnight-100 bg-white p-4 text-left shadow-sm">
+      <section aria-labelledby="details-hub-question" className="rounded-2xl border border-midnight-200 bg-white p-4 text-left">
         <h2 id="details-hub-question" className="text-lg font-extrabold leading-tight text-midnight-900">
           {screen.question(name)}
         </h2>
@@ -112,7 +112,7 @@ export default function DetailsHub({ caseId, token, species, name, details: init
 
   return (
     <div className="space-y-2">
-      <DetailsChecklist details={details} breed={breed} name={name} onOpen={open} title={title} intro={intro} />
+      <DetailsChecklist details={details} breed={breed} name={name} onOpen={open} title={title} intro={intro} limit={limit} />
       {saved && (
         <p className="text-left text-sm text-midnight-600" role="status">
           Saved. The flyers and share images update in about a minute.

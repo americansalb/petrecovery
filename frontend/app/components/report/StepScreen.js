@@ -7,11 +7,18 @@
  * slide-up entrance, consistent measure/padding, error banner, and the sticky
  * footer action bar (safe-area aware). Steps whose options advance on tap
  * simply pass no primary action and get no footer.
+ *
+ * The footer holds one yellow button, Continue (or Post on the last step),
+ * and the skip beside it, not under it: two choices side by side read as
+ * two choices, a small link under a grey button read as an afterthought.
  */
 
 import { useEffect, useRef } from 'react';
 import { Loader2, AlertTriangle, ChevronRight } from 'lucide-react';
 import { WIZARD_THEMES } from './wizardTheme';
+
+const SIDE_BUTTON =
+  'shrink-0 max-w-[48%] min-h-[54px] px-3.5 rounded-xl border-2 border-midnight-300 bg-white text-[14px] leading-tight font-bold text-midnight-700 hover:border-midnight-500 transition-colors';
 
 export default function StepScreen({
   stepKey, // unique per step - remounts content so the entrance replays
@@ -20,9 +27,10 @@ export default function StepScreen({
   question,
   hint,
   children,
-  primary, // { label, onClick, disabled, loading, tone: 'default'|'post' }
+  primary, // { label, onClick, disabled, loading, loadingLabel, tone: 'default'|'post' }
   secondary, // { label, onClick }
   skip, // { label, onClick }
+  footerNote, // one line under the buttons
   error,
   errorLink, // { href, label }: the one thing that resolves the error, e.g. sign in
   wide = false, // wider measure (review poster, option grids)
@@ -37,6 +45,7 @@ export default function StepScreen({
 
   const measure = wide ? 'max-w-3xl' : 'max-w-xl';
   const hasFooter = Boolean(primary || secondary || skip);
+  const primaryOff = Boolean(primary && (primary.disabled || primary.loading));
 
   return (
     <div key={stepKey} className="flex-1 flex flex-col min-h-0 animate-slide-up">
@@ -47,7 +56,7 @@ export default function StepScreen({
           }`}
         >
           {eyebrow && (
-            <p className={`text-xs font-extrabold uppercase tracking-[0.18em] mb-2 ${theme.accentText}`}>
+            <p className="text-xs font-extrabold uppercase tracking-[0.14em] mb-2 text-midnight-500">
               {eyebrow}
             </p>
           )}
@@ -61,7 +70,7 @@ export default function StepScreen({
           </h1>
           {hint && <p className="text-midnight-500 mt-2 leading-relaxed">{hint}</p>}
 
-          <div className={fillBody ? 'flex-1 flex flex-col min-h-0 mt-5' : 'mt-7'}>{children}</div>
+          <div className={fillBody ? 'flex-1 flex flex-col min-h-0 mt-5' : 'mt-6'}>{children}</div>
 
           {error && (
             <div
@@ -86,27 +95,28 @@ export default function StepScreen({
       {hasFooter && (
         <footer className="shrink-0 border-t border-midnight-100 bg-white/95 backdrop-blur px-5 sm:px-8 pt-3 pb-[max(0.85rem,env(safe-area-inset-bottom))]">
           <div className={`w-full mx-auto ${measure}`}>
-            <div className="flex items-center gap-3">
+            <div className="flex items-stretch gap-2.5">
               {secondary && (
-                <button
-                  type="button"
-                  onClick={secondary.onClick}
-                  className="px-5 py-3.5 rounded-2xl font-semibold text-midnight-600 bg-midnight-100 hover:bg-midnight-200 transition-colors"
-                >
+                <button type="button" onClick={secondary.onClick} className={SIDE_BUTTON}>
                   {secondary.label}
+                </button>
+              )}
+              {skip && (
+                <button type="button" onClick={skip.onClick} className={SIDE_BUTTON}>
+                  {skip.label}
                 </button>
               )}
               {primary && (
                 <button
                   type="button"
                   onClick={primary.onClick}
-                  disabled={primary.disabled || primary.loading}
-                  className={`flex-1 py-3.5 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-[0.985] ${
-                    primary.disabled || primary.loading
-                      ? 'bg-midnight-100 text-midnight-300 cursor-not-allowed'
+                  disabled={primaryOff}
+                  className={`flex-1 min-h-[54px] rounded-xl font-extrabold text-base flex items-center justify-center gap-1.5 transition-all active:scale-[0.985] ${
+                    primaryOff
+                      ? 'bg-midnight-100 text-midnight-400 cursor-not-allowed'
                       : primary.tone === 'post'
                         ? theme.postCta
-                        : 'bg-midnight-900 text-white shadow-lg hover:bg-midnight-800'
+                        : theme.primaryCta
                   }`}
                 >
                   {primary.loading ? (
@@ -123,16 +133,8 @@ export default function StepScreen({
                 </button>
               )}
             </div>
-            {skip && (
-              <div className="text-center mt-2.5">
-                <button
-                  type="button"
-                  onClick={skip.onClick}
-                  className="text-sm font-medium text-midnight-400 hover:text-midnight-600 underline underline-offset-4 decoration-midnight-200 transition-colors"
-                >
-                  {skip.label}
-                </button>
-              </div>
+            {footerNote && (
+              <p className="mt-2.5 text-center text-[13px] leading-snug text-midnight-500">{footerNote}</p>
             )}
           </div>
         </footer>

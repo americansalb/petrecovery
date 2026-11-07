@@ -13,7 +13,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request, { params }) {
-  const { caseNumber } = params;
+  const { caseNumber } = await params;
 
   // Only open a stream for a real case (avoid unbounded map growth from probes).
   const exists = await prisma.caseActivation.findUnique({

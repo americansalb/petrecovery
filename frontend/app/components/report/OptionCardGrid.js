@@ -47,7 +47,7 @@ export default function OptionCardGrid({
                 size={26}
                 className={`mb-2 transition-transform duration-150 group-hover:scale-110 ${
                   centered ? 'mx-auto' : ''
-                } ${selected ? theme.accentText : 'text-midnight-400'}`}
+                } ${selected ? 'text-midnight-900' : 'text-midnight-400'}`}
               />
             )}
             <span className="block font-bold text-midnight-900 leading-snug">{opt.label}</span>
@@ -61,7 +61,7 @@ export default function OptionCardGrid({
             )}
             {selected && (
               <span
-                className={`absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center ${theme.accentBg}`}
+                className={`absolute top-2.5 right-2.5 w-5 h-5 rounded-full flex items-center justify-center ${theme.selectedMark || theme.accentBg}`}
               >
                 <Check size={12} className="text-white" strokeWidth={3} />
               </span>

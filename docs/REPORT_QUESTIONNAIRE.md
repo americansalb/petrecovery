@@ -78,6 +78,17 @@ posting.
 - Answers are saved the moment they are given. The flyers and share images
   are redrawn in the background when a detail changes.
 - Wording is species-aware. A cat is not asked whether it jumps fences.
+- The form shows where you are. A progress line fills across the whole
+  report, and the label under it says the group and the place inside it
+  ("For finders, 4 of 11"), so the long middle never looks stuck. On a
+  computer the sidebar lists the screens of the current group.
+- One yellow button per screen: Continue, and Post on the last step. A
+  skip sits beside it, never under it. A chosen answer is navy, not red:
+  red on the lost flow read as an error.
+- The flyer is drawn from the answers as they are given
+  (`app/components/report/FlyerPreview.js`): in the sidebar on a
+  computer, and as the whole review screen, "Here is Max's flyer", where
+  every line taps back to its question.
 
 ## 4. The questions
 
@@ -278,6 +289,38 @@ answers for that one case and nothing else. The same details hub component
 runs in all three places. Saving a detail schedules one redraw of the kit,
 a minute after the last change.
 
+## 7a. The page after posting
+
+Redesigned 2026-11-07 from the report canvas (rows "After posting,
+redesigned"), `app/components/report/SuccessScreen.js`. It answers the
+owner's questions in order, and nothing else:
+
+1. Is it live, and how do I get back here. A navy band: the stamp, "Max's
+   report is live.", the short link (`reunitepets.org/p/CODE`) with Copy,
+   one line saying where the link went (emailed, or texted to a phone-only
+   guest) and that sightings land there, one line saying which Rescue
+   Force got the report.
+2. Is there a lead already. A found pet reported near the spot (the
+   cascade's reverse match) goes first, each with "See it". The strongest
+   one gets the yellow button.
+3. What do I do now. Three numbered cards, in a row on a computer: post it
+   (the square and story share images as themselves, drawn in as the
+   cascade lands them, the caption with Copy post, Share the link,
+   Facebook, the local groups found), print it (the flyer as a miniature,
+   Open the flyer, half sheets, poster), call the shelters near the spot
+   (the list with tap-to-call).
+4. What would make it better. The details checklist, unanswered questions
+   first, four shown and "All 9 questions"; each answer saves at once.
+5. One warning that matters once the calls start (the scam note), the way
+   to the pet's page, and "What we did with your report" folded away.
+
+The found report's page: the link band, the lost pets reported nearby as
+the first thing (MatchCard), then three cards for the person holding the
+animal (keep them calm, get the chip scanned, share the report), the photo
+nudge, the report page. `useRecoveryKit` (recoveryKit/useRecoveryKit.js)
+feeds the lost page; the case page's share kit (RecoveryKit.js) reads the
+same hook.
+
 ## 8. Phases
 
 1. This change: the question set, the wizard, the hub, the APIs, the pet's
@@ -285,6 +328,8 @@ a minute after the last change.
 2. Done with it: the flyers and share images draw the new lines and tags;
    design canvas updated; renderer version bumped so every open case is
    redrawn.
-3. Later: prefill from a saved pet's profile; the same questions in the
+3. Done (2026-11-07): the wizard chrome and the page after posting
+   redesigned from the canvas, with the flyer drawn live from the answers.
+4. Later: prefill from a saved pet's profile; the same questions in the
    found-pet flow where they apply; the force's feed post carries the
    "don't chase" line.
