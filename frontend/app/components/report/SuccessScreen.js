@@ -130,7 +130,7 @@ function Header({ variant, title, link, lines, aside }) {
 
 function StepCard({ n, title, children, className = '' }) {
   return (
-    <section className={`${CARD} flex flex-col gap-3 ${className}`} aria-labelledby={`step-${n}-heading`}>
+    <section className={`${CARD} flex min-w-0 flex-col gap-3 ${className}`} aria-labelledby={`step-${n}-heading`}>
       <div className="flex items-center gap-2.5">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-midnight-900 text-sm font-extrabold text-flash-400">{n}</span>
         <h2 id={`step-${n}-heading`} className="text-[19px] font-extrabold leading-6 text-midnight-900">
@@ -341,7 +341,7 @@ function LostBody({
       {photoMissing && <PhotoNudge caseUrl={caseUrl} word={word} />}
 
       <p className={`${EYEBROW} pl-1`}>Do this now</p>
-      <div className="grid gap-4 lg:grid-cols-3 lg:gap-5 lg:items-stretch">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5 lg:items-stretch">
         <StepCard n={1} title="Post it where neighbors look">
           <p className={BODY}>Facebook, Nextdoor, the neighborhood group chat. One share often reaches the person who sees {name}.</p>
           <div className="flex items-start gap-3">
@@ -355,9 +355,9 @@ function LostBody({
             )}
           </div>
           {caption && (
-            <div className="space-y-2 rounded-xl bg-midnight-50 p-3">
+            <div className="min-w-0 space-y-2 rounded-xl bg-midnight-50 p-3">
               <p className={EYEBROW}>Your post</p>
-              <p className="text-[14px] leading-snug text-midnight-900">{caption}</p>
+              <p className="text-[14px] leading-snug text-midnight-900 [overflow-wrap:anywhere]">{caption}</p>
               <CopyButton text={caption} label="Copy post" />
             </div>
           )}
@@ -461,7 +461,7 @@ function LostBody({
         </StepCard>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr] lg:gap-5">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:gap-5">
         {caseId && (detailsToken || isLoggedIn) ? (
           <DetailsHub
             caseId={caseId}
@@ -564,7 +564,7 @@ function FoundBody({ caseNumber, word, matches, photoMissing, isLoggedIn, link }
       </section>
 
       <p className={`${EYEBROW} pl-1`}>While you have the {word}</p>
-      <div className="grid gap-4 lg:grid-cols-3 lg:gap-5 lg:items-stretch">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5 lg:items-stretch">
         <StepCard n={1} title="Keep them somewhere calm">
           <p className={BODY}>A quiet room, water, away from other pets and traffic. A found pet is often scared and may bolt from an open door.</p>
         </StepCard>
