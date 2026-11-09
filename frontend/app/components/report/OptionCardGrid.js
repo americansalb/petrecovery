@@ -38,21 +38,21 @@ export default function OptionCardGrid({
             type="button"
             onClick={() => onSelect(opt.value)}
             aria-pressed={selected}
-            className={`group relative rounded-2xl border-2 p-4 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-card-hover active:translate-y-0 active:scale-[0.985] ${
+            className={`group relative min-h-[76px] rounded-2xl border-2 p-4 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-card-hover active:translate-y-0 active:scale-[0.985] lg:min-h-[120px] lg:p-6 ${
               centered ? 'text-center' : 'text-left'
             } ${selected ? theme.selectedCard : 'border-midnight-100 bg-white hover:border-midnight-300'}`}
           >
             {Icon && (
               <Icon
                 size={26}
-                className={`mb-2 transition-transform duration-150 group-hover:scale-110 ${
+                className={`mb-2 transition-transform duration-150 group-hover:scale-110 lg:h-9 lg:w-9 ${
                   centered ? 'mx-auto' : ''
                 } ${selected ? 'text-midnight-900' : 'text-midnight-400'}`}
               />
             )}
-            <span className="block font-bold text-midnight-900 leading-snug">{opt.label}</span>
+            <span className="block font-bold text-midnight-900 leading-snug lg:text-lg">{opt.label}</span>
             {opt.sublabel && (
-              <span className="block text-xs text-midnight-400 mt-1 leading-snug">{opt.sublabel}</span>
+              <span className="block text-xs text-midnight-500 mt-1 leading-snug lg:text-sm">{opt.sublabel}</span>
             )}
             {opt.urgent && (
               <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[0.65rem] font-bold uppercase tracking-wide">
