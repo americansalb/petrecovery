@@ -10,6 +10,8 @@ import { authOptions } from '@/app/lib/auth';
 import { findMatches } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
+import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
+import { sendSms } from '@/app/lib/sms';
 import { withCaseNumberRetry } from '@/app/lib/caseNumber';
 import { routeFoundReport, alertForceMembers } from '@/app/lib/forceCoverage';
 
@@ -40,9 +42,19 @@ export async function POST(request) {
     // would create an account that credentials login (which lowercases) can
     // never find, and a duplicate once the user registers properly.
     email = email?.toLowerCase().trim() || null;
+    phone = phone?.trim() || null;
 
-    // Validate required fields (phone not required for logged-in users)
-    if (!email || !firstName || !color || !foundAddress || !center) {
+    // A finder who gives only a phone number gets the same deterministic
+    // placeholder address the lost-pet report uses (User.email is required
+    // and unique); nothing is emailed to it, the link is texted instead.
+    let phoneOnly = false;
+    if (!email && phone) {
+      email = placeholderEmailForPhone(phone);
+      phoneOnly = true;
+    }
+
+    // Validate required fields: a phone or an email, a name, the rest
+    if ((!email && !phone) || !firstName || !color || !foundAddress || !center) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -356,9 +368,16 @@ export async function POST(request) {
       }
     }));
 
-    // 6. Email a new finder a link to the report and a way to set a password
-    // (never the password itself), in the background.
-    if (accountCreated) {
+    // 6. A phone-only finder is texted the link to the report. Anyone else
+    // new is emailed it with a way to set a password (never the password
+    // itself), in the background.
+    if (phoneOnly && phone) {
+      sendSms(
+        phone,
+        `ReunitePets: your found-${(petType || 'pet').toLowerCase()} report is posted. Owners nearby can see it here: ${getEmailBaseUrl()}/cases/${report.caseNumber}`
+      ).catch((err) => console.error('SMS send failed:', err?.message));
+    }
+    if (accountCreated && !phoneOnly) {
       const baseUrl = getEmailBaseUrl();
       const caseUrl = `${baseUrl}/cases/${report.caseNumber}`;
       const setPasswordUrl = `${baseUrl}/forgot-password?email=${encodeURIComponent(email)}`;

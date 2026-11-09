@@ -25,17 +25,18 @@ export default function TagDetailsStep({
     <div className="space-y-7">
       <div>
         <label htmlFor="tag-name" className="block text-sm font-semibold text-midnight-700 mb-1.5">
-          Name on the tag (if any)
+          The pet&apos;s name, if the tag shows one
         </label>
         <input
           id="tag-name"
           type="text"
           value={value.petName || ''}
           onChange={(e) => set({ petName: e.target.value })}
-          placeholder="e.g. Max"
+          placeholder="Max"
           className={`w-full px-4 py-3.5 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors ${theme.focusRing}`}
           autoFocus
         />
+        <p className="mt-1.5 text-xs text-midnight-500">Your own name comes on the next screen.</p>
       </div>
 
       <div>

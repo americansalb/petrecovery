@@ -68,6 +68,7 @@ export default function PhotoStep({
   maxPhotos = 5,
   variant = 'lost',
   petName,
+  controlRef, // a ref the parent fills to open the picker from its own button
 }) {
   const theme = WIZARD_THEMES[variant];
   const [uploading, setUploading] = useState(false);
@@ -76,6 +77,7 @@ export default function PhotoStep({
   const [error, setError] = useState(null);
   const [dragging, setDragging] = useState(false);
   const analyzedRef = useRef(false);
+  const pickerRef = useRef(null);
 
   const analyzePhoto = async (url) => {
     if (analyzedRef.current || !onAnalysis) return;
@@ -170,6 +172,7 @@ export default function PhotoStep({
       e.target.value = '';
     },
   };
+  if (controlRef) controlRef.current = { openPicker: () => pickerRef.current?.click() };
 
   return (
     <div>
@@ -205,13 +208,11 @@ export default function PhotoStep({
                 <p className="font-bold text-midnight-900 text-lg">
                   Tap to add {petName ? `a photo of ${petName}` : 'a photo'}
                 </p>
-                <p className="text-sm text-midnight-400 mt-1">
-                  or drag &amp; drop · any size, we optimize it for you
-                </p>
+                <p className="text-sm text-midnight-400 mt-1">From your camera or your photos. Any size.</p>
               </>
             )}
           </div>
-          <input {...inputProps} />
+          <input {...inputProps} ref={pickerRef} />
         </label>
       ) : (
         <div>
@@ -261,7 +262,7 @@ export default function PhotoStep({
                     <span className="text-[0.65rem] font-medium text-midnight-400">Add</span>
                   </>
                 )}
-                <input {...inputProps} />
+                <input {...inputProps} ref={pickerRef} />
               </label>
             )}
           </div>

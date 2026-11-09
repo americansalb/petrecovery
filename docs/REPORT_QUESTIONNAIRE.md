@@ -81,9 +81,23 @@ posting.
   are redrawn in the background when a detail changes.
 - Wording is species-aware. A cat is not asked whether it jumps fences.
 - The form shows where you are. A progress line fills across the whole
-  report, and the label under it says the group and the place inside it
-  ("For finders, 4 of 11"), so the long middle never looks stuck. On a
-  computer the sidebar lists the screens of the current group.
+  report, and the label under it says the group and one running count
+  over the whole report ("For finders, 7 of 12"). It used to count inside
+  the group ("Your pet, 3 of 3"), and two of the ten people in the
+  2026-11-09 walks read "3 of 3" as done. On a computer the sidebar lists
+  the screens of the current group.
+- The common answer is the one yellow button, and where the tap is the
+  answer the screen moves on by itself (2026-11-09, after ten persona
+  walks of the live site): on the where screen the yellow button is "Use
+  my location" and the screen moves on once the device answers (the typed
+  street stays beside it, Enter takes the first match, and the search is
+  biased to the device's country and position instead of fenced to the
+  US); on the photo screen the yellow button opens the camera roll and
+  "Skip for now" sits beside it (a grey Continue read as broken); how
+  they act around strangers moves on at the tap; health has one big "No,
+  {name} is healthy" that moves on, with the conditions as chips below;
+  contact is text-first, Enter moves on, and the found report takes a
+  phone number alone (the link is texted).
 - One yellow button per screen: Continue, and Post on the last step. A
   skip sits beside it, never under it. A chosen answer is navy, not red:
   red on the lost flow read as an error.
@@ -104,12 +118,12 @@ Names in `code` are the ids in `Case.details`. `{name}` is the pet.
 | name | Name | text |
 | size | Dog: size. Cat: indoor only or goes outside | tap |
 | when | When last seen | the time bands (tap) |
-| where | Where last seen | map pin |
-| photo | A photo | upload, skippable |
+| where | Where last seen | "Use my location" (one tap, moves on) or a typed street, then the pin |
+| photo | A photo | the yellow button opens the picker; "Skip for now" beside it |
 | colors | Colours | chips, prefilled from the photo |
-| `temperament` | How {name} acts around strangers | tap, see 4.2 |
-| `health` | Medication or a health condition | chips, see 4.3 |
-| contact | Name, phone or email | text |
+| `temperament` | How {name} acts around strangers | tap, moves on, see 4.2 |
+| `health` | Medication or a health condition | one big No, or chips, see 4.3 |
+| contact | Name, then text (default) or email | text; Enter moves on |
 | reward | Offering a reward | tap, see 4.4 |
 | review | Ready to post, plus the details checklist | post |
 
@@ -166,8 +180,10 @@ replaces the line above.
 
 ### 4.3 Health: `health`, `healthNote`
 
-"Does {name} take medication or have a health condition?" Chips, more than
-one allowed. "No, healthy" clears the rest.
+"Does {name} take medication or have a health condition?" One big "No,
+{name} is healthy" button that moves on by itself (most pets are healthy;
+twelve small pills with a greyed Continue made one of the 2026-11-09 walkers
+close the browser), then the conditions as chips, more than one allowed.
 
 | Chip | Flyer | Urgency |
 | --- | --- | --- |

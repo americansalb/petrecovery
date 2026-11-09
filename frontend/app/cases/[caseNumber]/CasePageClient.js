@@ -124,7 +124,13 @@ function Photo({ c, alt }) {
       {src && !failed ? (
         <a href={src} target="_blank" rel="noopener noreferrer" aria-label="Open the full-size photo" className="block h-full w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt={alt} onError={() => setFailed(true)} className="h-full w-full object-cover" />
+          <img
+            src={src}
+            alt={alt}
+            fetchPriority="high"
+            onError={() => setFailed(true)}
+            className="h-full w-full object-cover"
+          />
         </a>
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-midnight-400">
@@ -292,7 +298,7 @@ export default function CasePageClient() {
     : hasCoords
       ? `${seenWord} at the spot pinned on the map below`
       : `${seenWord}: no location given`;
-  const since = shortDate(c.lastSeenAt || c.createdAt);
+  const since = shortDate(c.lastSeenAt || c.createdAt, Date.now(), c.timeZone || undefined);
   const whenText =
     status.key === 'lost' ? `${caseTimeline(c)}, since ${since}` : isFound ? `${caseTimeline(c)}, on ${since}` : caseTimeline(c);
   const facts = [
@@ -431,16 +437,22 @@ export default function CasePageClient() {
         </Button>
         <div className={`grid gap-3 ${phone ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {phone && (
-            <a href={`tel:${phone.tel}`} className={OUTLINE_LINK}>
-              <Phone className="h-4 w-4" aria-hidden="true" />
-              Call the owner
+            // The number itself is the label: eight of ten people in the
+            // 2026-11-09 walks looked for the digits on the first screen and
+            // found an icon, or small grey text that phones did not show.
+            <a
+              href={`tel:${phone.tel}`}
+              aria-label={`Call the owner, ${phone.display}`}
+              className={`${OUTLINE_LINK} min-w-0 px-2 tabular-nums`}
+            >
+              <Phone className="hidden h-4 w-4 shrink-0 min-[390px]:block" aria-hidden="true" />
+              <span className="truncate text-[15px] font-bold">{phone.display}</span>
             </a>
           )}
           <Button variant="outline" size="lg" leftIcon={Share2} onClick={share}>
             Share
           </Button>
         </div>
-        {phone && <p className="hidden text-sm text-midnight-500 md:block">Owner&apos;s phone: {phone.display}</p>}
       </div>
     );
   } else if (isFound) {
@@ -696,8 +708,15 @@ export default function CasePageClient() {
             <Share2 size={20} aria-hidden="true" />
           </button>
           {phone && !isOwner && (
-            <a href={`tel:${phone.tel}`} aria-label="Call the owner" className={ICON_BUTTON}>
+            <a
+              href={`tel:${phone.tel}`}
+              aria-label={`Call the owner, ${phone.display}`}
+              className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-midnight-100 px-3 text-midnight-700 transition hover:bg-midnight-200"
+            >
               <Phone size={20} aria-hidden="true" />
+              {/* The number as text on the first screen: people who have the pet
+                  in front of them want the digits, not an icon. */}
+              <span className="hidden text-[15px] font-bold tabular-nums min-[380px]:inline">{phone.display}</span>
             </a>
           )}
         </StickyActions>

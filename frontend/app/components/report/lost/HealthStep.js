@@ -11,20 +11,37 @@ import Chips from '../Chips';
 import OnTheFlyer from '../OnTheFlyer';
 import { WIZARD_THEMES } from '../wizardTheme';
 
-export default function HealthStep({ variant = 'lost', name, value = {}, onChange }) {
+export default function HealthStep({ variant = 'lost', name, value = {}, onChange, onNone }) {
   const theme = WIZARD_THEMES[variant];
   const health = Array.isArray(value.health) ? value.health : [];
   const meds = needsMedication(value);
   const other = health.includes('OTHER');
+  const none = health.includes('NONE');
   const line = healthLine(value, { name });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Most pets are healthy, so "No" is the one big answer and moves on by
+          itself; the conditions are the exception and stay as chips. */}
+      <button
+        type="button"
+        onClick={() => {
+          onChange({ health: ['NONE'], healthNote: '' });
+          onNone?.();
+        }}
+        aria-pressed={none}
+        className={`w-full rounded-2xl border-2 px-5 py-4 text-left text-lg font-bold transition-colors ${
+          none ? theme.selectedCard : 'border-midnight-200 bg-white text-midnight-900 hover:border-midnight-400'
+        }`}
+      >
+        No, {name} is healthy
+      </button>
+      <p className="text-sm font-semibold text-midnight-500">Or tap what applies:</p>
       <Chips
         variant={variant}
         multi
         exclusive={['NONE']}
-        options={HEALTH_OPTIONS}
+        options={HEALTH_OPTIONS.filter((o) => o.value !== 'NONE')}
         value={health}
         onChange={(next) => onChange({ health: next })}
         ariaLabel="Medication and health conditions"

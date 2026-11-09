@@ -17,6 +17,7 @@
 import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef } from 'react';
+import { searchBiasParams } from '@/app/lib/geo/searchBias';
 import { Search, Loader2, Navigation, MapPin } from 'lucide-react';
 import { searchAutocomplete, getPlaceFromAutocomplete } from '@/app/lib/maps/appleMapKit';
 import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
@@ -38,16 +39,18 @@ async function reverseGeocode(lat, lon) {
   return { address: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, city: '' };
 }
 
-async function searchWithNominatim(query) {
+async function searchWithNominatim(query, near = null) {
   try {
+    // Biased toward where the person is, never fenced to one country: the
+    // old countrycodes=us made a typed address useless outside the US.
     const params = new URLSearchParams({
       q: query,
       format: 'json',
       limit: '8',
       addressdetails: '1',
-      countrycodes: 'us',
       'accept-language': 'en',
       dedupe: '1',
+      ...searchBiasParams({ near }),
     });
     const response = await fetch(`/api/geocode?${params.toString()}`);
     if (!response.ok) return [];
@@ -110,7 +113,14 @@ async function searchWithPhoton(query, near) {
   }
 }
 
-export default function LocationPicker({ value, onChange, variant = 'lost', storageKey }) {
+export default function LocationPicker({
+  value,
+  onChange,
+  variant = 'lost',
+  storageKey,
+  onLocated, // (spot) after "Use my location" lands: the screen can move on by itself
+  controlRef, // a ref the parent fills to call locate() from its own button
+}) {
   const mapHex = variant === 'found' ? '#10b981' : '#ef4444';
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -127,6 +137,9 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
   const searchTimeoutRef = useRef(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onLocatedRef = useRef(onLocated);
+  onLocatedRef.current = onLocated;
+  const lastFixRef = useRef(null); // the last device fix, to bias a typed search before a pin exists
 
   // Surface the last confirmed location as an OFFER (legacy `reportLocation`
   // shape) - never auto-apply it. A stale pin from a previous report that a
@@ -167,12 +180,15 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
         const parts = knownAddress.split(',');
         return parts.length >= 2 ? parts[parts.length - 2]?.trim() : '';
       })();
-      onChangeRef.current({ lat, lng, address: knownAddress, city: cityGuess });
-    } else {
-      onChangeRef.current({ lat, lng, address: '', city: '' });
-      const geo = await reverseGeocode(lat, lng);
-      onChangeRef.current({ lat, lng, address: geo.address, city: geo.city });
+      const spot = { lat, lng, address: knownAddress, city: cityGuess };
+      onChangeRef.current(spot);
+      return spot;
     }
+    onChangeRef.current({ lat, lng, address: '', city: '' });
+    const geo = await reverseGeocode(lat, lng);
+    const spot = { lat, lng, address: geo.address, city: geo.city };
+    onChangeRef.current(spot);
+    return spot;
   };
 
   // Map lifecycle - create once a position exists, then keep pin in sync
@@ -271,12 +287,12 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
       // an unchanged panel - whether the address had no matches or every
       // geocoder was unreachable. A person in a panic reads that as "the
       // app is broken". Say so, and point at the by-hand path.
+      const near = value ? { lat: value.lat, lng: value.lng } : lastFixRef.current;
       let found = [];
       try {
-        const near = value ? { lat: value.lat, lng: value.lng } : null;
         const [photonResults, nominatimResults, appleResults] = await Promise.allSettled([
           searchWithPhoton(q, near),
-          searchWithNominatim(q),
+          searchWithNominatim(q, near),
           searchAutocomplete(q, {
             latitude: near?.lat,
             longitude: near?.lng,
@@ -302,7 +318,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
         found = merged.slice(0, 8);
       } catch (err) {
         console.error('Search error:', err);
-        found = await searchWithNominatim(q).catch(() => []);
+        found = await searchWithNominatim(q, near).catch(() => []);
       } finally {
         setResults(found);
         setNoResults(found.length === 0);
@@ -348,9 +364,11 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        await applyPosition(latitude, longitude);
+        lastFixRef.current = { lat: latitude, lng: longitude };
+        const spot = await applyPosition(latitude, longitude);
         mapInstanceRef.current?.setView([latitude, longitude], 17);
         setIsLocating(false);
+        onLocatedRef.current?.(spot);
       },
       () => {
         setLocateError("Couldn't get your location - try searching for the address instead.");
@@ -359,6 +377,8 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
       { timeout: 10000, enableHighAccuracy: true }
     );
   };
+
+  if (controlRef) controlRef.current = { locate: useMyLocation };
 
   return (
     <div className="flex-1 flex flex-col min-h-0 gap-3">
@@ -369,7 +389,16 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
           type="text"
           value={query}
           onChange={(e) => runSearch(e.target.value)}
-          placeholder="Search an address, park, or cross-streets…"
+          onKeyDown={(e) => {
+            // Enter takes the first match; the list needed a click before.
+            if (e.key === 'Enter' && results.length > 0) {
+              e.preventDefault();
+              selectResult(results[0]);
+            }
+          }}
+          aria-label="Street, park or cross streets"
+          enterKeyHint="search"
+          placeholder="Street, park or cross streets"
           className="w-full pl-10 pr-10 py-3.5 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors focus:border-flash-400 focus:ring-2 focus:ring-flash-100"
         />
         {isSearching && (
@@ -397,7 +426,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
           No matches for that search. Try a cross-street or a nearby landmark,
           {value
             ? ' or tap the map to move the pin yourself.'
-            : " or tap 'Use my location' below and drag the pin to the spot."}
+            : ' or use your location and drag the pin to the spot.'}
         </p>
       )}
 
@@ -410,7 +439,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
               <span className="w-14 h-14 rounded-full bg-white shadow-card flex items-center justify-center mx-auto mb-4">
                 <MapPin size={26} className="text-midnight-400" />
               </span>
-              <p className="font-bold text-midnight-900">Search above to drop a pin</p>
+              <p className="font-bold text-midnight-900">Type the street above</p>
               <p className="text-sm text-midnight-500 mt-1 mb-4">or</p>
               <button
                 type="button"
@@ -439,7 +468,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
         {value && (
           <>
             <div className="absolute top-3 left-3 z-[500] px-3 py-1.5 rounded-full bg-midnight-900/85 text-white text-xs font-medium backdrop-blur pointer-events-none">
-              Drag the pin to the exact spot
+              Not the exact spot? Drag the pin.
             </div>
             <button
               type="button"

@@ -15,7 +15,7 @@
  * fills the viewport with h-full.
  */
 
-import { createContext, useContext, useState } from 'react';
+import { cloneElement, createContext, isValidElement, useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, X, Check, Search } from 'lucide-react';
@@ -46,6 +46,26 @@ export default function WizardShell({
   const theme = WIZARD_THEMES[variant];
   const router = useRouter();
   const [confirmLeave, setConfirmLeave] = useState(false);
+
+  // The flyer in the sidebar fits the height the sidebar has left; a short
+  // laptop at 110% zoom used to cut it off at the bottom edge.
+  const previewBoxRef = useRef(null);
+  const [previewWidth, setPreviewWidth] = useState(272);
+  const hasPreview = Boolean(preview);
+  useEffect(() => {
+    const el = previewBoxRef.current;
+    if (!el || !hasPreview || typeof ResizeObserver === 'undefined') return undefined;
+    const fit = () => {
+      const room = el.clientHeight - 34; // the label above the sheet
+      const w = Math.round(room / 1.3); // a letter sheet is 1.3 times as tall as it is wide
+      setPreviewWidth(Math.max(120, Math.min(272, Number.isFinite(w) ? w : 272)));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hasPreview]);
+  const sizedPreview = isValidElement(preview) ? cloneElement(preview, { width: previewWidth }) : preview;
   const activeIndex = Math.max(0, steps.findIndex((s) => s.id === activeStepId));
   const active = steps[activeIndex] || {};
   const pct =
@@ -80,9 +100,9 @@ export default function WizardShell({
       </div>
       <div className="flex items-baseline justify-between gap-3 text-[13px] leading-tight">
         <span className="font-bold text-midnight-900 truncate">{active.label}</span>
-        {position && (
+        {progress && progress.total > 0 && (
           <span className="shrink-0 text-midnight-500">
-            {position.index} of {position.total}
+            {Math.min(progress.done, progress.total)} of {progress.total}
           </span>
         )}
       </div>
@@ -177,9 +197,10 @@ export default function WizardShell({
         </nav>
 
         {/* The group's copy right under the steps, and the flyer so far under that */}
-        <div className="mt-8 flex flex-col gap-6">
+        <div className="mt-8 flex min-h-0 flex-1 flex-col gap-6">
+          {/* On a short window the copy gives way to the flyer */}
           {(active.sidebarTitle || active.sidebarCopy) && (
-            <div>
+            <div className="[@media(max-height:720px)]:hidden">
               {active.sidebarTitle && (
                 <h2 className="text-lg font-extrabold leading-snug tracking-tight">{active.sidebarTitle}</h2>
               )}
@@ -187,9 +208,9 @@ export default function WizardShell({
             </div>
           )}
           {preview ? (
-            <div>
+            <div ref={previewBoxRef} className="min-h-[200px] flex-1">
               <p className="text-[0.7rem] font-bold uppercase tracking-[0.15em] text-white/50">{previewLabel}</p>
-              <div className="mt-2.5 overflow-hidden rounded-lg shadow-2xl shadow-black/50">{preview}</div>
+              <div className="mt-2.5 w-fit overflow-hidden rounded-lg shadow-2xl shadow-black/50">{sizedPreview}</div>
             </div>
           ) : (
             summary.length > 0 && (

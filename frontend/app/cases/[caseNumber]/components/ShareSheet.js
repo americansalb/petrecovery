@@ -12,6 +12,7 @@ import { Modal, Button } from '@/components/ui';
 
 export default function ShareSheet({ open, onClose, url, title, text }) {
   const [copied, setCopied] = useState(false);
+  const [byHand, setByHand] = useState(false);
 
   const copy = async () => {
     try {
@@ -19,8 +20,10 @@ export default function ShareSheet({ open, onClose, url, title, text }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // No clipboard permission: the link is in the box, selected, to copy by hand.
+      // No clipboard permission (in-app browsers refuse it): select the link
+      // and say so, instead of a button that still reads "Copy link".
       document.getElementById('share-link')?.select();
+      setByHand(true);
     }
   };
 
@@ -54,6 +57,9 @@ export default function ShareSheet({ open, onClose, url, title, text }) {
           {copied ? 'Copied' : 'Copy link'}
         </Button>
       </div>
+      {byHand && !copied && (
+        <p className="mt-2 text-sm text-midnight-600">This browser will not copy for us. The link is selected: hold it and choose Copy.</p>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {targets.map((t) => (

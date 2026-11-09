@@ -61,6 +61,14 @@ export async function GET(request) {
         params.append('countrycodes', countrycodes);
       }
 
+      // A preferred box around where the person is (bounded=0 keeps it a
+      // preference, not a fence). Four numbers or nothing.
+      const viewbox = searchParams.get('viewbox') || '';
+      if (/^-?\d+(\.\d+)?(,-?\d+(\.\d+)?){3}$/.test(viewbox)) {
+        params.append('viewbox', viewbox);
+        params.append('bounded', searchParams.get('bounded') === '1' ? '1' : '0');
+      }
+
       if (polygon_geojson) {
         params.append('polygon_geojson', polygon_geojson);
       }

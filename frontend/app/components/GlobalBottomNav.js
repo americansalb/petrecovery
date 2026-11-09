@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Home, Search, PawPrint, Plus, MapPin } from 'lucide-react';
 import { hidesBottomNav } from '@/app/lib/navChrome';
+import ReportChooser from './ReportChooser';
 
 /**
  * Four tabs and the Report button, identical for every person on every
@@ -28,6 +30,9 @@ export default function GlobalBottomNav() {
   const pathname = usePathname();
   const leftItems = LEFT_TABS;
   const rightItems = RIGHT_TABS;
+  // The "+" asks lost or found before either wizard opens (ReportChooser).
+  const [chooser, setChooser] = useState(false);
+  useEffect(() => setChooser(false), [pathname]);
 
   // Shared chrome policy (app/lib/navChrome.js): hidden only inside
   // immersive takeovers and focused flows whose own fixed bars would
@@ -63,16 +68,20 @@ export default function GlobalBottomNav() {
         {leftItems.map(renderItem)}
 
         {/* Report: the one action that matters most, front and center */}
-        <Link
-          href="/report/new"
-          aria-label="Report a pet"
+        <button
+          type="button"
+          onClick={() => setChooser(true)}
+          aria-haspopup="dialog"
+          aria-expanded={chooser}
+          aria-label="Report a lost or found pet"
           className="flex flex-col items-center justify-center flex-1 h-full -mt-6"
         >
           <span className="w-14 h-14 rounded-full bg-flash-400 bg-gradient-to-b from-flash-300 to-flash-400 border-4 border-white shadow-lg shadow-flash-400/40 flex items-center justify-center text-midnight-900 active:scale-95 transition-transform">
             <Plus className="w-7 h-7 stroke-[2.5]" />
           </span>
           <span className="text-[11px] mt-0.5 font-semibold text-midnight-900">Report</span>
-        </Link>
+        </button>
+        <ReportChooser open={chooser} onClose={() => setChooser(false)} />
 
         {rightItems.map(renderItem)}
       </div>

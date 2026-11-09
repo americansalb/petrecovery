@@ -132,21 +132,21 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'COMPLETE', fa
             {square && (
               <a href={square.url} target="_blank" rel="noopener noreferrer" download className="block w-[150px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={square.url} alt={`Square share image for ${petName || 'this pet'}`} className="w-[150px] h-[150px] rounded-lg border border-midnight-200 object-cover" />
+                <img loading="lazy" src={square.url} alt={`Square share image for ${petName || 'this pet'}`} className="w-[150px] h-[150px] rounded-lg border border-midnight-200 object-cover" />
                 <span className="mt-1.5 block text-center text-xs font-bold text-midnight-700">Square</span>
               </a>
             )}
             {story && (
               <a href={story.url} target="_blank" rel="noopener noreferrer" download className="block w-[84px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={story.url} alt={`Story share image for ${petName || 'this pet'}`} className="w-[84px] h-[150px] rounded-lg border border-midnight-200 object-cover" />
+                <img loading="lazy" src={story.url} alt={`Story share image for ${petName || 'this pet'}`} className="w-[84px] h-[150px] rounded-lg border border-midnight-200 object-cover" />
                 <span className="mt-1.5 block text-center text-xs font-bold text-midnight-700">Story</span>
               </a>
             )}
             {link && (
               <a href={link.url} target="_blank" rel="noopener noreferrer" download className="block w-[150px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={link.url} alt={`Link preview image for ${petName || 'this pet'}`} className="w-[150px] h-[79px] rounded-lg border border-midnight-200 object-cover" />
+                <img loading="lazy" src={link.url} alt={`Link preview image for ${petName || 'this pet'}`} className="w-[150px] h-[79px] rounded-lg border border-midnight-200 object-cover" />
                 <span className="mt-1.5 block text-center text-xs font-bold text-midnight-700">Link preview</span>
               </a>
             )}

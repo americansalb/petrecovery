@@ -16,9 +16,13 @@ import { getBaseUrl } from '@/app/lib/config';
 
 export const SITE_NAME = 'ReunitePets';
 
-// Same logo the root layout uses - the fallback when an entity has no photo
-export const FALLBACK_SHARE_IMAGE =
-  'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png';
+// The mark, served by the site itself (public/brand): the fallback when an
+// entity has no photo. It was a 1.9 MB PNG on the CDN; this one is 100 KB.
+// A path here; fallbackShareImage() makes it absolute, which messengers need.
+export const FALLBACK_SHARE_IMAGE = '/brand/logo-1024.png';
+export function fallbackShareImage() {
+  return new URL(FALLBACK_SHARE_IMAGE, getBaseUrl()).toString();
+}
 
 /**
  * Absolute base for canonical URLs and relative images (messengers require
@@ -32,7 +36,7 @@ export function shareMetadataBase() {
 
 /** Entity photo → preview-safe URL (protocol fixed, logo fallback). */
 export function shareImage(url) {
-  return normalizePhotoUrl(url) || FALLBACK_SHARE_IMAGE;
+  return normalizePhotoUrl(url) || fallbackShareImage();
 }
 
 /**
@@ -55,7 +59,7 @@ export function buildShareMetadata({
   twitterTitle,
   twitterDescription,
 }) {
-  const imageUrl = image || FALLBACK_SHARE_IMAGE;
+  const imageUrl = image || fallbackShareImage();
   return {
     metadataBase: shareMetadataBase(),
     title,

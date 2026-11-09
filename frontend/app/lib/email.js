@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 import { getBaseUrl } from '@/app/lib/config';
+import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
 
 /**
  * Outbound email with a provider chain:
@@ -145,6 +146,10 @@ function injectUnsubscribeFooter(html, token) {
 }
 
 export async function sendEmail({ to, subject, html, attachments, unsubscribeToken }) {
+  // Phone-only reporters carry an undeliverable placeholder address
+  // (placeholderEmail.js); nothing is ever sent to it.
+  if (isPlaceholderEmail(to)) return { success: false, skipped: true, error: 'placeholder address' };
+
   const from = process.env.EMAIL_FROM
     || (process.env.EMAIL_USER ? `ReunitePets <${process.env.EMAIL_USER}>` : FROM_FALLBACK);
 
