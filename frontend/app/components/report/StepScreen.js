@@ -13,7 +13,7 @@
  * two choices, a small link under a grey button read as an afterthought.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, AlertTriangle, ChevronRight } from 'lucide-react';
 import { WIZARD_THEMES } from './wizardTheme';
 import { useWizardShell } from './WizardShell';
@@ -45,13 +45,34 @@ export default function StepScreen({
     headingRef.current?.focus({ preventScroll: true });
   }, [stepKey]);
 
+  // When the body can scroll further, a fade at its foot says so: on a short
+  // laptop the last option or the flyer line used to end mid-word against
+  // the Continue bar with nothing to show that more was below.
+  const scrollRef = useRef(null);
+  const [moreBelow, setMoreBelow] = useState(false);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || fillBody) return undefined;
+    const check = () => setMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 12);
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
+    ro?.observe(el);
+    if (ro && el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => {
+      el.removeEventListener('scroll', check);
+      ro?.disconnect();
+    };
+  }, [stepKey, fillBody]);
+
   const measure = wide ? 'max-w-3xl' : 'max-w-xl';
   const hasFooter = Boolean(primary || secondary || skip);
   const primaryOff = Boolean(primary && (primary.disabled || primary.loading));
 
   return (
     <div key={stepKey} className="flex-1 flex flex-col min-h-0 animate-slide-up">
-      <div className={`flex-1 min-h-0 ${fillBody ? 'flex flex-col' : 'overflow-y-auto'}`}>
+      <div className="relative flex-1 min-h-0 flex flex-col">
+      <div ref={scrollRef} className={`flex-1 min-h-0 ${fillBody ? 'flex flex-col' : 'overflow-y-auto'}`}>
         {/* A short question sits in the middle of the room it has instead of
             at the top of a white page; the strip, on a phone, takes the foot.
             my-auto on the block, not justify-center on the parent, so a tall
@@ -99,6 +120,13 @@ export default function StepScreen({
           </div>
           {strip && !fillBody && <div className="mt-6 shrink-0 lg:hidden">{strip}</div>}
         </div>
+      </div>
+      {moreBelow && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-white via-white/80 to-transparent"
+        />
+      )}
       </div>
 
       {hasFooter && (

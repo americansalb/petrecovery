@@ -101,7 +101,9 @@ export default function ReportLostPet() {
   const [displayIndex, setDisplayIndex] = useState(0);
   const [color, setColor] = useState('');
   const [aiSuggested, setAiSuggested] = useState(false);
-  const [contact, setContact] = useState({ firstName: '', method: 'email', email: '', phone: '' });
+  const [contact, setContact] = useState({ firstName: '', method: 'phone', email: '', phone: '' });
+  const locationControl = useRef(null); // LocationPicker's locate(), for the footer button
+  const photoControl = useRef(null); // PhotoStep's openPicker(), for the footer button
   const [breed, setBreed] = useState('');
   // The questionnaire (app/lib/caseDetails.js): behaviour, health and the
   // optional checklist, as one object of answers; the reward beside it.
@@ -174,7 +176,7 @@ export default function ReportLostPet() {
     setPhotos(d.photos || []);
     setDisplayIndex(d.displayIndex || 0);
     setColor(d.color || '');
-    setContact(d.contact || { firstName: '', method: 'email', email: '', phone: '' });
+    setContact(d.contact || { firstName: '', method: 'phone', email: '', phone: '' });
     setBreed(d.breed || '');
     setDetails(d.details && typeof d.details === 'object' ? d.details : {});
     setReward(d.reward && typeof d.reward === 'object' ? { ...NO_REWARD, ...d.reward } : NO_REWARD);
@@ -617,6 +619,7 @@ export default function ReportLostPet() {
               if (e.key === 'Enter' && petName.trim()) advance();
             }}
             placeholder="Max, Bella, Charlie…"
+            aria-label="Your pet's name"
             autoFocus
             className={`w-full text-xl font-semibold px-5 py-4 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors placeholder:text-midnight-200 placeholder:font-normal ${theme.focusRing}`}
           />
@@ -686,12 +689,22 @@ export default function ReportLostPet() {
           question={`Where was ${name} last seen?`}
           wide
           fillBody
-          primary={{ label: 'Confirm this spot', onClick: advance, disabled: !location }}
+          primary={
+            location
+              ? { label: 'Confirm this spot', onClick: advance }
+              : { label: 'Use my location', onClick: () => locationControl.current?.locate() }
+          }
         >
           <LocationPicker
             variant={VARIANT}
             value={location}
             onChange={setLocation}
+            onLocated={(spot) => {
+              // The device's fix is the answer for most people: no second tap.
+              setLocation(spot);
+              advance();
+            }}
+            controlRef={locationControl}
             storageKey={LOCATION_STORAGE_KEY}
           />
         </StepScreen>
@@ -703,10 +716,15 @@ export default function ReportLostPet() {
           variant={VARIANT}
           question={`Add a photo of ${name}`}
           hint={`A clear photo helps people recognize ${name}.`}
-          primary={{ label: 'Continue', onClick: advance, disabled: photos.length === 0 }}
-          skip={photos.length === 0 ? { label: "I don't have a photo right now", onClick: advance } : null}
+          primary={
+            photos.length
+              ? { label: 'Continue', onClick: advance }
+              : { label: 'Add a photo', onClick: () => photoControl.current?.openPicker() }
+          }
+          skip={photos.length === 0 ? { label: 'Skip for now', onClick: advance } : null}
         >
           <PhotoStep
+            controlRef={photoControl}
             variant={VARIANT}
             petName={petName}
             photos={photos}
@@ -751,8 +769,9 @@ export default function ReportLostPet() {
             mode={CONTACT_MODE}
             value={contact}
             onChange={setContact}
+            onSubmit={advance}
             emailHint="Sighting alerts and your manage link land here."
-            phoneHint="We'll text you when someone reports a sighting."
+            phoneHint="We text you when someone reports a sighting."
           />
         </StepScreen>
       )}
@@ -853,7 +872,17 @@ export default function ReportLostPet() {
               : null
           }
         >
-          <BehaviourStep variant={VARIANT} species={speciesToApi(species)} name={name} value={details} onChange={patchDetails} />
+          <BehaviourStep
+            variant={VARIANT}
+            species={speciesToApi(species)}
+            name={name}
+            value={details}
+            onChange={(patch) => {
+              patchDetails(patch);
+              // One tap answers it; the line it writes is on the review flyer.
+              if (patch.temperament && patch.temperament !== details.temperament) advance();
+            }}
+          />
         </StepScreen>
       )}
 
@@ -866,7 +895,7 @@ export default function ReportLostPet() {
           wide
           primary={{ label: 'Continue', onClick: advance, disabled: !(Array.isArray(details.health) && details.health.length) }}
         >
-          <HealthStep variant={VARIANT} name={name} value={details} onChange={patchDetails} />
+          <HealthStep variant={VARIANT} name={name} value={details} onChange={patchDetails} onNone={advance} />
         </StepScreen>
       )}
 

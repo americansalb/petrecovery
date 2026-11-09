@@ -1,19 +1,25 @@
 /**
- * Brand Assets - Centralized CDN URLs for logos and mascots
+ * Brand Assets - the logos and the mascot, from one place.
  *
- * All brand imagery should be imported from here to ensure consistency
- * and make future URL changes easy.
- * 
- * FINAL 2025 LOGOS - Updated Dec 2025
+ * The mark itself is served from public/brand as small PNGs. The CDN's SVG
+ * of it is a 3.2 MB traced drawing, and it loaded on every page, under the
+ * loading spinner included: on a slow connection nothing could be tapped for
+ * fifteen seconds while it came down (measured 2026-11-09). The 192px PNG is
+ * 12 KB and covers the navbar at three times its size; the 1024px one is for
+ * link previews and the home-screen icon.
+ *
+ * FINAL 2025 LOGOS - Updated Dec 2025; served locally Nov 2026.
  */
 
 const CDN_BASE = 'https://petrescue.b-cdn.net';
+const MARK_SMALL = '/brand/logo-192.png';
+const MARK_LARGE = '/brand/logo-1024.png';
 
 export const BRAND_ASSETS = {
   // Sarama mascot - the divine guide (Sanskrit: सरमा, "the fleet one")
   sarama: {
-    avatar: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(8).svg`,  // Main logo SVG
-    avatarPng: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(1).png`,  // Hero PNG
+    avatar: MARK_SMALL, // the mark, small (was the 3.2 MB SVG)
+    avatarPng: MARK_LARGE, // the mark, large (was a 1.9 MB PNG)
     name: 'Sarama',
     tagline: 'Your Guide Home',
   },
@@ -21,8 +27,8 @@ export const BRAND_ASSETS = {
   // PetRecovery logos - FINAL 2025
   logos: {
     primary: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(9).svg`,  // Front page hero (Dog Image)
-    icon: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(8).svg`,  // Nav bar & favicon (Logo)
-    favicon: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(8).svg`,  // Browser tab
+    icon: MARK_SMALL, // Nav bar (Logo)
+    favicon: MARK_SMALL, // Browser tab
     ogImage: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(1).png`,  // Social sharing
   },
 };

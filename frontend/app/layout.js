@@ -53,9 +53,9 @@ export const metadata = {
   // public/manifest.json was inert and the app was never installable.
   manifest: '/manifest.json',
   icons: {
-    icon: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(8).svg',
-    shortcut: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(8).svg',
-    apple: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png',
+    icon: '/brand/logo-192.png',
+    shortcut: '/brand/logo-192.png',
+    apple: '/brand/logo-512.png',
   },
   openGraph: {
     title: 'ReunitePets: one place for the whole search',

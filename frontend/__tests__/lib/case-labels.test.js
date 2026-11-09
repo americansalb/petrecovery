@@ -142,3 +142,23 @@ describe('dates', () => {
     expect(shortDate(undefined, now)).toBe('');
   });
 });
+
+describe("shortDate in the pet's zone", () => {
+  const now = new Date('2026-11-08T12:00:00Z').getTime();
+
+  test('names the day where the pet was lost, not where the server runs', () => {
+    // 10 pm in Orlando on Oct 28 is 02:00 UTC on Oct 29: the flyer says the
+    // 28th, so the page must too.
+    expect(shortDate('2026-10-29T02:00:00Z', now, 'America/New_York')).toBe('Oct 28');
+    expect(shortDate('2026-10-29T02:00:00Z', now, 'UTC')).toBe('Oct 29');
+  });
+
+  test('an unknown zone falls back to the reader\'s clock instead of throwing', () => {
+    expect(shortDate('2026-10-29T12:00:00Z', now, 'Not/AZone')).toBe('Oct 29');
+  });
+
+  test('the year is judged in the same zone', () => {
+    // 11 pm in Austin on Dec 31, 2025 is already 2026 in UTC.
+    expect(shortDate('2026-01-01T05:00:00Z', now, 'America/Chicago')).toBe('Dec 31, 2025');
+  });
+});

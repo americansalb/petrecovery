@@ -41,7 +41,7 @@ import {
 } from '../../components/report/wizardTheme';
 
 const VARIANT = 'found';
-const CONTACT_MODE = 'email-first'; // matches are emailed - email stays required
+const CONTACT_MODE = 'either'; // a phone number or an email, whichever they have
 const LOCATION_STORAGE_KEY = 'reportLocation';
 const DRAFT_KEY = 'reportDraft:found';
 
@@ -73,7 +73,9 @@ export default function ReportFoundPet() {
   const [color, setColor] = useState('');
   const [aiSuggested, setAiSuggested] = useState(false);
   const [details, setDetails] = useState({ petName: '', breed: '', size: '', marks: '', microchipId: '' });
-  const [contact, setContact] = useState({ firstName: '', method: 'email', email: '', phone: '' });
+  const [contact, setContact] = useState({ firstName: '', method: 'phone', email: '', phone: '' });
+  const locationControl = useRef(null); // LocationPicker's locate(), for the footer button
+  const photoControl = useRef(null); // PhotoStep's openPicker(), for the footer button
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -358,6 +360,7 @@ export default function ReportFoundPet() {
           isLoggedIn={isLoggedIn}
           accountCreated={result.accountCreated}
           contactEmail={effectiveEmail}
+          contactPhone={isLoggedIn ? '' : contact.phone.trim()}
           matches={result.potentialMatches || []}
           matchesNotified={result.matchesNotified || 0}
         />
@@ -431,12 +434,22 @@ export default function ReportFoundPet() {
           question="Where did you find them?"
           wide
           fillBody
-          primary={{ label: 'Confirm this spot', onClick: advance, disabled: !location }}
+          primary={
+            location
+              ? { label: 'Confirm this spot', onClick: advance }
+              : { label: 'Use my location', onClick: () => locationControl.current?.locate() }
+          }
         >
           <LocationPicker
             variant={VARIANT}
             value={location}
             onChange={setLocation}
+            onLocated={(spot) => {
+              // The device's fix is the answer for most people: no second tap.
+              setLocation(spot);
+              advance();
+            }}
+            controlRef={locationControl}
             storageKey={LOCATION_STORAGE_KEY}
           />
         </StepScreen>
@@ -466,12 +479,17 @@ export default function ReportFoundPet() {
         <StepScreen
           stepKey="photo"
           variant={VARIANT}
-          question="Snap a photo if you can"
+          question="Add a photo of them"
           hint="A photo is the easiest way for an owner to recognize their pet."
-          primary={{ label: 'Continue', onClick: advance, disabled: photos.length === 0 }}
-          skip={photos.length === 0 ? { label: "I can't take a photo right now", onClick: advance } : null}
+          primary={
+            photos.length
+              ? { label: 'Continue', onClick: advance }
+              : { label: 'Add a photo', onClick: () => photoControl.current?.openPicker() }
+          }
+          skip={photos.length === 0 ? { label: 'Skip for now', onClick: advance } : null}
         >
           <PhotoStep
+            controlRef={photoControl}
             variant={VARIANT}
             photos={photos}
             displayIndex={displayIndex}
@@ -515,8 +533,8 @@ export default function ReportFoundPet() {
         <StepScreen
           stepKey="contact"
           variant={VARIANT}
-          question="Where should we send matches?"
-          hint="We email you about this report here."
+          question="How can the owner reach you?"
+          hint="A text or an email, whichever you check."
           primary={{
             label: 'Continue',
             onClick: advance,
@@ -528,8 +546,7 @@ export default function ReportFoundPet() {
             mode={CONTACT_MODE}
             value={contact}
             onChange={setContact}
-            emailHint="Match alerts land here - that's why we need it."
-            phoneHint="Optional - for faster coordination on a strong match."
+            onSubmit={advance}
           />
         </StepScreen>
       )}

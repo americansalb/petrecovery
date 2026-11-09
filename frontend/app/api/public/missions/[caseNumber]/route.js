@@ -13,6 +13,7 @@
 import { parsePlace } from '@/app/lib/placeLabel';
 import { publicDetails, finderGuide } from '@/app/lib/caseDetails';
 import { casePhone } from '@/app/lib/caseLabels';
+import { zoneFor } from '@/app/lib/caseZone';
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
@@ -184,6 +185,7 @@ export async function GET(request, { params }) {
       lastSeenLatitude: missionData.lastSeenLatitude,
       lastSeenLongitude: missionData.lastSeenLongitude,
       lastSeenAt: missionData.lastSeenAt,
+      timeZone: zoneFor(missionData), // dates on the page are written in the pet's own zone, like the flyer
       searchRadius: missionData.searchRadius,
       // Status
       status: missionData.status,

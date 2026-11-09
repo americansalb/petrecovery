@@ -139,12 +139,24 @@ export function casePhone(c) {
   return { display, tel: `${raw.startsWith('+') ? '+' : ''}${digits}` };
 }
 
-/** "Aug 18", or "Aug 18, 2025" when it was another year. */
-export function shortDate(date, now = Date.now()) {
+/**
+ * "Aug 18", or "Aug 18, 2025" when it was another year. In `zone` (an IANA
+ * name) when the caller knows the pet's own zone: the server runs in UTC and
+ * a reader may be anywhere, but the page and the flyer must name the same day.
+ */
+export function shortDate(date, now = Date.now(), zone = undefined) {
   const d = date == null || date === '' ? new Date(NaN) : new Date(date);
   if (!Number.isFinite(d.getTime())) return '';
-  const sameYear = d.getFullYear() === new Date(now).getFullYear();
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
+  const tz = zone ? { timeZone: zone } : {};
+  let year;
+  let nowYear;
+  try {
+    year = d.toLocaleDateString('en-US', { ...tz, year: 'numeric' });
+    nowYear = new Date(now).toLocaleDateString('en-US', { ...tz, year: 'numeric' });
+  } catch {
+    return shortDate(date, now); // an unknown zone name: the reader's own clock
+  }
+  return d.toLocaleDateString('en-US', { ...tz, month: 'short', day: 'numeric', ...(year === nowYear ? {} : { year: 'numeric' }) });
 }
 
 /** "just now", "12 minutes ago", "3 hours ago", "4 days ago", then the date. */

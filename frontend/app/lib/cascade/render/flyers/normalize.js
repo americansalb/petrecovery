@@ -9,7 +9,7 @@
  * or the owner's own words; nothing is invented to fill a box.
  */
 
-import tzLookup from 'tz-lookup';
+import { zoneFor } from '@/app/lib/caseZone';
 import { FLYER_THEME, SPECIES_LABEL, SPECIES_WORD } from './theme';
 import { resolveFlyerCopy } from './copy';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
@@ -40,18 +40,7 @@ function formatPhone(phone) {
 }
 
 /** The IANA zone where the pet was lost, from the last-seen point; Central when there is none. */
-export function zoneFor(caseData) {
-  const lat = Number(caseData?.lastSeenLatitude);
-  const lon = Number(caseData?.lastSeenLongitude);
-  if (Number.isFinite(lat) && Number.isFinite(lon) && (lat !== 0 || lon !== 0)) {
-    try {
-      return tzLookup(lat, lon);
-    } catch {
-      /* fall through */
-    }
-  }
-  return 'America/Chicago';
-}
+export { zoneFor };
 
 function cap(str, n) {
   if (!str) return '';

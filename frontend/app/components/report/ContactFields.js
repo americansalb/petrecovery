@@ -31,10 +31,17 @@ export default function ContactFields({
   variant = 'lost',
   emailHint,
   phoneHint,
+  onSubmit, // Enter in a field, once the contact is complete
 }) {
   const theme = WIZARD_THEMES[variant];
   const set = (patch) => onChange({ ...value, ...patch });
-  const method = value.method || 'email';
+  const method = value.method || 'phone';
+  const submitOnEnter = (e) => {
+    if (e.key === 'Enter' && onSubmit && contactIsValid(value, mode)) {
+      e.preventDefault();
+      onSubmit();
+    }
+  };
 
   const emailOk = isValidEmail(value.email);
   const phoneOk = isValidPhone(value.phone);
@@ -53,6 +60,8 @@ export default function ContactFields({
           autoComplete="email"
           value={value.email || ''}
           onChange={(e) => set({ email: e.target.value })}
+          onKeyDown={submitOnEnter}
+          enterKeyHint="done"
           placeholder="you@example.com"
           className={`w-full pl-10 pr-10 py-3.5 bg-white border-2 rounded-2xl outline-none transition-colors ${
             value.email && !emailOk ? 'border-red-300' : `border-midnight-100 ${theme.focusRing}`
@@ -78,6 +87,8 @@ export default function ContactFields({
           autoComplete="tel"
           value={value.phone || ''}
           onChange={(e) => set({ phone: e.target.value })}
+          onKeyDown={submitOnEnter}
+          enterKeyHint="done"
           placeholder="(555) 123-4567"
           className={`w-full pl-10 pr-10 py-3.5 bg-white border-2 rounded-2xl outline-none transition-colors ${
             value.phone && !phoneOk ? 'border-red-300' : `border-midnight-100 ${theme.focusRing}`
@@ -103,6 +114,8 @@ export default function ContactFields({
             autoComplete="given-name"
             value={value.firstName || ''}
             onChange={(e) => set({ firstName: e.target.value })}
+            onKeyDown={submitOnEnter}
+            enterKeyHint="next"
             placeholder="Jane"
             autoFocus
             className={`w-full pl-10 pr-4 py-3.5 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors ${theme.focusRing}`}
@@ -114,8 +127,8 @@ export default function ContactFields({
         <div>
           <div className="flex gap-2 p-1 rounded-2xl bg-midnight-100 mb-4" role="tablist" aria-label="How should we reach you?">
             {[
-              { key: 'email', label: 'Email me', icon: Mail },
               { key: 'phone', label: 'Text me', icon: Phone },
+              { key: 'email', label: 'Email me', icon: Mail },
             ].map((opt) => {
               const OptIcon = opt.icon;
               const active = method === opt.key;
@@ -146,7 +159,7 @@ export default function ContactFields({
       )}
 
       <p className="text-sm text-midnight-400 leading-relaxed">
-        No password needed - we&apos;ll send you a link to manage your report.
+        No password. We {mode === 'either' && method === 'phone' ? 'text' : 'email'} you a link to your report.
       </p>
     </div>
   );
