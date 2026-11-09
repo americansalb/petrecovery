@@ -98,10 +98,12 @@ export async function POST(request) {
       if (phoneExists && phoneExists.email !== email) {
         return NextResponse.json(
           {
-            error: 'Phone number already registered with a different email. Please login or use the email associated with this phone number.',
+            error: 'That phone number already has a ReunitePets account. Sign in and your report will be filed to it, or use another number.',
+            code: 'PHONE_EXISTS',
+            signInUrl: '/login?callbackUrl=%2Freport%2Ffound',
             existingEmail: phoneExists.email.substring(0, 3) + '***@' + phoneExists.email.split('@')[1]
           },
-          { status: 400 }
+          { status: 409 }
         );
       }
     }

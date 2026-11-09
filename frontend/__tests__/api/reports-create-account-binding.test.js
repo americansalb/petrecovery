@@ -123,3 +123,34 @@ describe('POST /api/reports/create - anonymous account binding', () => {
     expect(body.error).toMatch(/sign in/i);
   }, 15000);
 });
+
+describe('POST /api/reports/create - a phone number that belongs to another account', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    getServerSession.mockResolvedValue(null);
+  });
+
+  it('refuses the phone-only report, names the way in, and writes nothing', async () => {
+    // A phone-only guest gets a placeholder email, so no user is found by
+    // email; the number itself belongs to a real account.
+    mockTx.user.findUnique.mockResolvedValue(null);
+    mockTx.user.findFirst.mockResolvedValue({ ...VERIFIED_VICTIM, email: 'other@example.com' });
+
+    const body = { ...VALID_BODY, phone: '555-0147' };
+    delete body.email;
+    const res = await POST(
+      new NextRequest('http://localhost:3000/api/reports/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(json.code).toBe('PHONE_EXISTS');
+    expect(json.signInUrl).toBe('/login?callbackUrl=%2Freport%2Fnew');
+    expect(json.error).toMatch(/already has a ReunitePets account/);
+    expect(mockTx.case.create).not.toHaveBeenCalled();
+  }, 15000);
+});

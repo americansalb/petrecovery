@@ -913,10 +913,12 @@ export async function POST(request) {
       const maskedEmail = error.message.split('PHONE_CONFLICT:')[1];
       return NextResponse.json(
         {
-          error: 'Phone number already registered with a different email. Please login or use the email associated with this phone number.',
+          error: 'That phone number already has a ReunitePets account. Sign in and your report will be filed to it, or use another number.',
+          code: 'PHONE_EXISTS',
+          signInUrl: '/login?callbackUrl=%2Freport%2Fnew',
           existingEmail: maskedEmail
         },
-        { status: 400 }
+        { status: 409 }
       );
     }
 
