@@ -15,11 +15,17 @@
  * fills the viewport with h-full.
  */
 
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, X, Check, Search } from 'lucide-react';
 import { WIZARD_THEMES } from './wizardTheme';
+
+/** What a step screen can ask the shell for: the strip it shows at its foot on a phone. */
+const WizardContext = createContext({ strip: null });
+export function useWizardShell() {
+  return useContext(WizardContext);
+}
 
 export default function WizardShell({
   variant = 'lost',
@@ -30,6 +36,7 @@ export default function WizardShell({
   position = null, // { index, total } inside the current group
   preview = null, // the flyer so far, shown in the sidebar
   previewLabel = 'The flyer so far',
+  strip = null, // the flyer so far as a small card at the foot of each screen on a phone
   summary = [], // [{ icon: Icon, text }] - collected info, shown on desktop when there is no preview
   onBack, // undefined/null hides the back button
   closeHref = '/',
@@ -41,7 +48,6 @@ export default function WizardShell({
   const [confirmLeave, setConfirmLeave] = useState(false);
   const activeIndex = Math.max(0, steps.findIndex((s) => s.id === activeStepId));
   const active = steps[activeIndex] || {};
-  const SidebarIcon = active.sidebarIcon;
   const pct =
     progress && progress.total > 0
       ? Math.round((Math.min(progress.done, progress.total) / progress.total) * 100)
@@ -170,43 +176,38 @@ export default function WizardShell({
           })}
         </nav>
 
-        {/* The flyer so far, or the group's copy until there is one */}
-        <div className="mt-auto pt-8">
+        {/* The group's copy right under the steps, and the flyer so far under that */}
+        <div className="mt-8 flex flex-col gap-6">
+          {(active.sidebarTitle || active.sidebarCopy) && (
+            <div>
+              {active.sidebarTitle && (
+                <h2 className="text-lg font-extrabold leading-snug tracking-tight">{active.sidebarTitle}</h2>
+              )}
+              {active.sidebarCopy && <p className="mt-1.5 text-[14px] leading-relaxed text-white/60">{active.sidebarCopy}</p>}
+            </div>
+          )}
           {preview ? (
             <div>
               <p className="text-[0.7rem] font-bold uppercase tracking-[0.15em] text-white/50">{previewLabel}</p>
               <div className="mt-2.5 overflow-hidden rounded-lg shadow-2xl shadow-black/50">{preview}</div>
             </div>
           ) : (
-            <div>
-              {SidebarIcon && (
-                <span className="w-12 h-12 rounded-xl bg-flash-400 flex items-center justify-center mb-4">
-                  <SidebarIcon size={24} className="text-midnight-900" />
-                </span>
-              )}
-              {active.sidebarTitle && (
-                <h2 className="text-2xl font-extrabold leading-snug tracking-tight mb-2.5">{active.sidebarTitle}</h2>
-              )}
-              {active.sidebarCopy && <p className="text-white/60 leading-relaxed">{active.sidebarCopy}</p>}
-              {summary.length > 0 && (
-                <div className="mt-8 p-5 rounded-2xl bg-white/[0.06] border border-white/10">
-                  <p className="text-[0.7rem] font-bold uppercase tracking-[0.15em] text-white/40 mb-3">
-                    Building your report
-                  </p>
-                  <div className="space-y-2.5">
-                    {summary.map((item, i) => {
-                      const ItemIcon = item.icon;
-                      return (
-                        <div key={i} className="flex items-center gap-2.5 min-w-0">
-                          {ItemIcon && <ItemIcon size={15} className="text-flash-400 shrink-0" />}
-                          <span className="text-sm text-white/75 truncate">{item.text}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+            summary.length > 0 && (
+              <div className="p-5 rounded-2xl bg-white/[0.06] border border-white/10">
+                <p className="text-[0.7rem] font-bold uppercase tracking-[0.15em] text-white/40 mb-3">Building your report</p>
+                <div className="space-y-2.5">
+                  {summary.map((item, i) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <div key={i} className="flex items-center gap-2.5 min-w-0">
+                        {ItemIcon && <ItemIcon size={15} className="text-flash-400 shrink-0" />}
+                        <span className="text-sm text-white/75 truncate">{item.text}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
+              </div>
+            )
           )}
         </div>
       </aside>
@@ -264,7 +265,9 @@ export default function WizardShell({
           <div className="lg:hidden mt-1">{progressLine}</div>
         </header>
 
-        <main className="flex-1 flex flex-col min-h-0">{children}</main>
+        <main className="flex-1 flex flex-col min-h-0">
+          <WizardContext.Provider value={{ strip }}>{children}</WizardContext.Provider>
+        </main>
       </div>
 
       {/* Leave confirmation */}

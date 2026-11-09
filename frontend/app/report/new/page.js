@@ -33,6 +33,7 @@ import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import PhotoStep from '../../components/report/PhotoStep';
 import ContactFields, { contactIsValid } from '../../components/report/ContactFields';
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
+import FlyerStrip from '../../components/report/FlyerStrip';
 import FlyerPreview, { formatPhone } from '../../components/report/FlyerPreview';
 import SuccessScreen from '../../components/report/SuccessScreen';
 import MyPetsStep from '../../components/report/lost/MyPetsStep';
@@ -557,6 +558,7 @@ export default function ReportLostPet() {
       progress={progress}
       position={position}
       preview={stepId === 'review' ? null : preview}
+      strip={species && stepId !== 'review' ? <FlyerStrip flyer={flyer} label={petName ? `${petName}'s flyer so far` : 'The flyer so far'} /> : null}
       previewLabel={petName ? `${petName}'s flyer so far` : 'The flyer so far'}
       onBack={history.length > 0 ? browserBack : null}
       closeHref={isLoggedIn ? '/dashboard' : '/'}

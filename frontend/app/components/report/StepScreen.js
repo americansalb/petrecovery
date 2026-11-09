@@ -16,6 +16,7 @@
 import { useEffect, useRef } from 'react';
 import { Loader2, AlertTriangle, ChevronRight } from 'lucide-react';
 import { WIZARD_THEMES } from './wizardTheme';
+import { useWizardShell } from './WizardShell';
 
 const SIDE_BUTTON =
   'shrink-0 max-w-[48%] min-h-[54px] px-3.5 rounded-xl border-2 border-midnight-300 bg-white text-[14px] leading-tight font-bold text-midnight-700 hover:border-midnight-500 transition-colors';
@@ -38,6 +39,7 @@ export default function StepScreen({
 }) {
   const theme = WIZARD_THEMES[variant];
   const headingRef = useRef(null);
+  const { strip } = useWizardShell();
 
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
@@ -50,11 +52,16 @@ export default function StepScreen({
   return (
     <div key={stepKey} className="flex-1 flex flex-col min-h-0 animate-slide-up">
       <div className={`flex-1 min-h-0 ${fillBody ? 'flex flex-col' : 'overflow-y-auto'}`}>
+        {/* A short question sits in the middle of the room it has instead of
+            at the top of a white page; the strip, on a phone, takes the foot.
+            my-auto on the block, not justify-center on the parent, so a tall
+            screen still scrolls from its top. */}
         <div
           className={`w-full mx-auto px-5 sm:px-8 pt-5 lg:pt-10 ${measure} ${
-            fillBody ? 'flex-1 flex flex-col min-h-0 pb-4' : 'pb-8'
+            fillBody ? 'flex-1 flex flex-col min-h-0 pb-4' : 'flex min-h-full flex-col pb-6'
           }`}
         >
+          <div className={fillBody ? 'flex-1 flex flex-col min-h-0' : 'my-auto'}>
           {eyebrow && (
             <p className="text-xs font-extrabold uppercase tracking-[0.14em] mb-2 text-midnight-500">
               {eyebrow}
@@ -63,14 +70,14 @@ export default function StepScreen({
           <h1
             ref={headingRef}
             tabIndex={-1}
-            className="text-[1.65rem] leading-tight lg:text-[2.1rem] font-extrabold tracking-tight text-midnight-900"
+            className="text-[1.65rem] leading-tight lg:text-[2.4rem] font-extrabold tracking-tight text-midnight-900"
             style={{ outline: 'none' }} /* beats the global :focus-visible rule */
           >
             {question}
           </h1>
           {hint && <p className="text-midnight-500 mt-2 leading-relaxed">{hint}</p>}
 
-          <div className={fillBody ? 'flex-1 flex flex-col min-h-0 mt-5' : 'mt-6'}>{children}</div>
+          <div className={fillBody ? 'flex-1 flex flex-col min-h-0 mt-5' : 'mt-6 lg:mt-8'}>{children}</div>
 
           {error && (
             <div
@@ -89,6 +96,8 @@ export default function StepScreen({
               </div>
             </div>
           )}
+          </div>
+          {strip && !fillBody && <div className="mt-6 shrink-0 lg:hidden">{strip}</div>}
         </div>
       </div>
 

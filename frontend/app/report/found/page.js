@@ -26,6 +26,7 @@ import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import PhotoStep from '../../components/report/PhotoStep';
 import ContactFields, { contactIsValid } from '../../components/report/ContactFields';
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
+import FlyerStrip from '../../components/report/FlyerStrip';
 import FlyerPreview from '../../components/report/FlyerPreview';
 import SuccessScreen from '../../components/report/SuccessScreen';
 import { captchaHeaders } from '@/app/lib/captchaClient';
@@ -394,6 +395,7 @@ export default function ReportFoundPet() {
       progress={progress}
       position={position}
       preview={stepId === 'review' ? null : preview}
+      strip={species && stepId !== 'review' ? <FlyerStrip flyer={flyer} label="The report so far" /> : null}
       previewLabel="The report so far"
       onBack={history.length > 0 ? browserBack : null}
       closeHref={isLoggedIn ? '/dashboard' : '/'}
