@@ -135,3 +135,28 @@ test('the route is rate limited', async () => {
   expect(res.status).toBe(429);
   expect(prisma.user.findUnique).not.toHaveBeenCalled();
 });
+
+test('signed out, a phone number that belongs to another account is refused with the way in', async () => {
+  prisma.user.findUnique.mockResolvedValue(null); // the placeholder email finds nobody
+  prisma.user.findFirst.mockResolvedValue({ id: 'victim', email: 'other@example.com', phone: '5550147' });
+  const body = { ...BODY, phone: '5550147' };
+  delete body.email;
+  const res = await POST(req(body));
+  expect(res.status).toBe(409);
+  expect(await res.json()).toMatchObject({ code: 'PHONE_EXISTS', signInUrl: '/login?callbackUrl=%2Freport%2Ffound' });
+  expect(prisma.case.create).not.toHaveBeenCalled();
+  expect(prisma.user.create).not.toHaveBeenCalled();
+});
+
+test('signed out, a phone number alone posts the report and nothing is emailed to the placeholder', async () => {
+  prisma.user.findUnique.mockResolvedValue(null);
+  prisma.user.findFirst.mockResolvedValue(null);
+  const body = { ...BODY, phone: '5550199' };
+  delete body.email;
+  const res = await POST(req(body));
+  expect(res.status).toBe(200);
+  expect(prisma.user.create).toHaveBeenCalledWith(
+    expect.objectContaining({ data: expect.objectContaining({ email: expect.stringMatching(/@phone-only\.invalid$/), phone: '5550199' }) })
+  );
+  expect(sendEmail).not.toHaveBeenCalledWith(expect.objectContaining({ to: expect.stringMatching(/@phone-only\.invalid$/) }));
+});

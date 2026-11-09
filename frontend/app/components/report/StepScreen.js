@@ -34,6 +34,7 @@ export default function StepScreen({
   footerNote, // one line under the buttons
   error,
   errorLink, // { href, label }: the one thing that resolves the error, e.g. sign in
+  errorAction, // { label, onClick }: the other way out, e.g. change the number
   wide = false, // wider measure (review poster, option grids)
   fillBody = false, // body stretches (map screens)
 }) {
@@ -69,6 +70,50 @@ export default function StepScreen({
   const hasFooter = Boolean(primary || secondary || skip);
   const primaryOff = Boolean(primary && (primary.disabled || primary.loading));
 
+  // The error used to sit at the end of the body, under the flyer: on a
+  // computer the founder pressed Post, nothing seemed to happen, and he
+  // found out why only after scrolling. It sits above the buttons now, in
+  // view, takes focus when it appears, and offers the ways out.
+  const errorRef = useRef(null);
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
+  const errorBox = error ? (
+    <div
+      ref={errorRef}
+      tabIndex={-1}
+      role="alert"
+      className="mb-3 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 outline-none"
+    >
+      <AlertTriangle size={19} className="mt-0.5 shrink-0 text-red-500" />
+      <div className="min-w-0 text-sm">
+        <p className="font-semibold text-red-700">Not posted yet</p>
+        <p className="mt-0.5 text-red-600">{error}</p>
+        {(errorLink || errorAction) && (
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {errorLink && (
+              <a
+                href={errorLink.href}
+                className="inline-flex min-h-[40px] items-center rounded-xl bg-red-600 px-3.5 text-[14px] font-bold text-white no-underline hover:bg-red-700"
+              >
+                {errorLink.label}
+              </a>
+            )}
+            {errorAction && (
+              <button
+                type="button"
+                onClick={errorAction.onClick}
+                className="inline-flex min-h-[40px] items-center rounded-xl border-2 border-red-300 bg-white px-3.5 text-[14px] font-bold text-red-700 hover:border-red-500"
+              >
+                {errorAction.label}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div key={stepKey} className="flex-1 flex flex-col min-h-0 animate-slide-up">
       <div className="relative flex-1 min-h-0 flex flex-col">
@@ -100,23 +145,7 @@ export default function StepScreen({
 
           <div className={fillBody ? 'flex-1 flex flex-col min-h-0 mt-5' : 'mt-6 lg:mt-8'}>{children}</div>
 
-          {error && (
-            <div
-              role="alert"
-              className="mt-5 p-4 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-3"
-            >
-              <AlertTriangle size={19} className="text-red-500 shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-semibold text-red-700">Something went wrong</p>
-                <p className="text-red-600 mt-0.5">{error}</p>
-                {errorLink && (
-                  <a href={errorLink.href} className="mt-2 inline-flex font-semibold text-red-700 underline underline-offset-2">
-                    {errorLink.label}
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
+          {!hasFooter && errorBox && <div className="mt-5">{errorBox}</div>}
           </div>
           {strip && !fillBody && <div className="mt-6 shrink-0 lg:hidden">{strip}</div>}
         </div>
@@ -132,6 +161,7 @@ export default function StepScreen({
       {hasFooter && (
         <footer className="shrink-0 border-t border-midnight-100 bg-white/95 backdrop-blur px-5 sm:px-8 pt-3 pb-[max(0.85rem,env(safe-area-inset-bottom))]">
           <div className={`w-full mx-auto ${measure}`}>
+            {errorBox}
             <div className="flex items-stretch gap-2.5">
               {secondary && (
                 <button type="button" onClick={secondary.onClick} className={SIDE_BUTTON}>

@@ -98,6 +98,14 @@ posting.
   {name} is healthy" that moves on, with the conditions as chips below;
   contact is text-first, Enter moves on, and the found report takes a
   phone number alone (the link is texted).
+- A posting error sits above the Post button, in view, and takes focus:
+  it used to sit under the flyer, where on a computer the founder pressed
+  Post, saw nothing happen, and found out why only after scrolling. It
+  names the way out: a phone or email that belongs to an account gets
+  "Sign in to post it" and "Use another number", which opens the contact
+  screen and returns to the review.
+- On a computer the sidebar's finished groups and screens are links back
+  to that screen; from the review, the answer returns to the review.
 - One yellow button per screen: Continue, and Post on the last step. A
   skip sits beside it, never under it. A chosen answer is navy, not red:
   red on the lost flow read as an error.

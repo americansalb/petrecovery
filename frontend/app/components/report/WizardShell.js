@@ -39,6 +39,7 @@ export default function WizardShell({
   strip = null, // the flyer so far as a small card at the foot of each screen on a phone
   summary = [], // [{ icon: Icon, text }] - collected info, shown on desktop when there is no preview
   onBack, // undefined/null hides the back button
+  onStepSelect, // (id) a finished group or screen in the sidebar was chosen
   closeHref = '/',
   dirty = false, // unsaved report data - closing asks for confirmation
   children,
@@ -145,9 +146,19 @@ export default function WizardShell({
           {steps.map((step, i) => {
             const done = i < activeIndex;
             const current = i === activeIndex;
+            const RowTag = done && onStepSelect ? 'button' : 'div';
+            const rowProps =
+              done && onStepSelect
+                ? { type: 'button', onClick: () => onStepSelect(step.id), 'aria-label': `Back to ${step.label}` }
+                : {};
             return (
               <div key={step.id}>
-                <div className="flex items-center gap-3.5 min-h-[32px]">
+                <RowTag
+                  {...rowProps}
+                  className={`flex w-full items-center gap-3.5 min-h-[32px] text-left ${
+                    done && onStepSelect ? 'group/row cursor-pointer rounded-lg -mx-1.5 px-1.5 hover:bg-white/[0.06]' : ''
+                  }`}
+                >
                   <span
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                       current
@@ -171,7 +182,10 @@ export default function WizardShell({
                       {position.index} of {position.total}
                     </span>
                   )}
-                </div>
+                  {done && onStepSelect && (
+                    <span className="ml-auto text-xs text-white/0 group-hover/row:text-white/50">Change</span>
+                  )}
+                </RowTag>
                 {current && substeps.length > 1 && (
                   <ol className="ml-[2.4rem] mt-0.5 mb-1.5">
                     {substeps.map((s) => (
@@ -186,7 +200,13 @@ export default function WizardShell({
                         }`}
                         aria-current={s.state === 'current' ? 'step' : undefined}
                       >
-                        {s.label}
+                        {s.state === 'done' && onStepSelect ? (
+                          <button type="button" onClick={() => onStepSelect(s.id)} className="hover:text-white hover:underline">
+                            {s.label}
+                          </button>
+                        ) : (
+                          s.label
+                        )}
                       </li>
                     ))}
                   </ol>

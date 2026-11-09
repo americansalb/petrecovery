@@ -80,6 +80,7 @@ export default function ReportFoundPet() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [errorLink, setErrorLink] = useState(null);
+  const [errorAction, setErrorAction] = useState(null); // the other way out of a posting error
   const [result, setResult] = useState(null);
   const [pendingDraft, setPendingDraft] = useState(null); // unfinished draft awaiting resume/fresh choice
 
@@ -218,6 +219,7 @@ export default function ReportFoundPet() {
     setIsSubmitting(true);
     setError(null);
     setErrorLink(null);
+    setErrorAction(null);
     try {
       const orderedPhotos = photos.length
         ? [photos[displayIndex], ...photos.filter((_, i) => i !== displayIndex)]
@@ -249,6 +251,14 @@ export default function ReportFoundPet() {
       const data = await response.json();
       if (!response.ok) {
         if (data.signInUrl) setErrorLink({ href: data.signInUrl, label: 'Sign in to post it' });
+        // A contact that belongs to an account: the other way out is a
+        // different number or email, one tap away on the contact screen.
+        if (data.code === 'PHONE_EXISTS' || data.code === 'ACCOUNT_EXISTS') {
+          setErrorAction({
+            label: data.code === 'PHONE_EXISTS' ? 'Use another number' : 'Use another email',
+            onClick: () => editFromReview('contact'),
+          });
+        }
         throw new Error(data.error || 'Failed to create report');
       }
       clearDraft(DRAFT_KEY);
@@ -327,6 +337,15 @@ export default function ReportFoundPet() {
     state: id === stepId ? 'current' : screenOrder.indexOf(id) < screenIndex ? 'done' : 'todo',
   }));
 
+  // The sidebar's finished groups and screens are links back; a group opens
+  // at its first screen, and a jump from the review screen returns to it.
+  const jumpTo = (id) => {
+    const target = screenOrder.includes(id) ? id : screenOrder.find((s) => GROUP_OF[s] === id);
+    if (!target || target === stepId) return;
+    if (stepId === 'review') returnToRef.current = 'review';
+    go(target);
+  };
+
   // ── The report as a flyer, drawn from the answers so far ──────────
   const flyer = useMemo(() => {
     const colorLine = color ? `${color.split(',').map((c) => c.trim()).filter(Boolean).join(', ')} coat.` : '';
@@ -395,6 +414,7 @@ export default function ReportFoundPet() {
       steps={steps}
       activeStepId={GROUP_OF[stepId] || 'animal'}
       substeps={substeps}
+      onStepSelect={jumpTo}
       progress={progress}
       position={position}
       preview={stepId === 'review' ? null : preview}
@@ -559,6 +579,7 @@ export default function ReportFoundPet() {
           hint="This is what owners see. Tap anything below to change it."
           error={error}
           errorLink={errorLink}
+          errorAction={errorAction}
           primary={{
             label: 'Post the found report',
             tone: 'post',
