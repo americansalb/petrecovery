@@ -14,12 +14,16 @@
 const CDN_BASE = 'https://petrescue.b-cdn.net';
 const MARK_SMALL = '/brand/logo-192.png';
 const MARK_LARGE = '/brand/logo-1024.png';
+// Sarama standing in the vest: the other drawing. The home page's two cards
+// used to show one each; a 2026-11-09 change pointed both at the mark.
+const SARAMA_STANDING = '/brand/sarama-480.png';
+const SARAMA_STANDING_LARGE = '/brand/sarama-1024.png';
 
 export const BRAND_ASSETS = {
   // Sarama mascot - the divine guide (Sanskrit: सरमा, "the fleet one")
   sarama: {
     avatar: MARK_SMALL, // the mark, small (was the 3.2 MB SVG)
-    avatarPng: MARK_LARGE, // the mark, large (was a 1.9 MB PNG)
+    avatarPng: SARAMA_STANDING, // the standing dog (was the same drawing as a 1.9 MB PNG)
     name: 'Sarama',
     tagline: 'Your Guide Home',
   },
@@ -29,12 +33,13 @@ export const BRAND_ASSETS = {
     primary: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(9).svg`,  // Front page hero (Dog Image)
     icon: MARK_SMALL, // Nav bar (Logo)
     favicon: MARK_SMALL, // Browser tab
-    ogImage: `${CDN_BASE}/ReunitePets%20Official%20Logo%20Final%202025%20(1).png`,  // Social sharing
+    ogImage: SARAMA_STANDING_LARGE, // Social sharing (the standing dog, as before, 185 KB instead of 1.9 MB)
   },
 };
 
 // Convenience exports
 export const SARAMA_AVATAR = BRAND_ASSETS.sarama.avatar;
+export const SARAMA_AVATAR_LARGE = '/brand/logo-512.png'; // the mark where it is drawn large (a card), sharp on a retina screen
 export const SARAMA_AVATAR_PNG = BRAND_ASSETS.sarama.avatarPng;
 export const SARAMA_NAME = BRAND_ASSETS.sarama.name;
 export const SARAMA_TAGLINE = BRAND_ASSETS.sarama.tagline;

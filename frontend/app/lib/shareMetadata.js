@@ -16,10 +16,10 @@ import { getBaseUrl } from '@/app/lib/config';
 
 export const SITE_NAME = 'ReunitePets';
 
-// The mark, served by the site itself (public/brand): the fallback when an
-// entity has no photo. It was a 1.9 MB PNG on the CDN; this one is 100 KB.
-// A path here; fallbackShareImage() makes it absolute, which messengers need.
-export const FALLBACK_SHARE_IMAGE = '/brand/logo-1024.png';
+// Sarama standing, served by the site itself (public/brand): the fallback
+// when an entity has no photo, the same drawing as before, 185 KB instead of
+// the CDN's 1.9 MB. A path here; fallbackShareImage() makes it absolute.
+export const FALLBACK_SHARE_IMAGE = '/brand/sarama-1024.png';
 export function fallbackShareImage() {
   return new URL(FALLBACK_SHARE_IMAGE, getBaseUrl()).toString();
 }
