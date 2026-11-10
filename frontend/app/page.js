@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/components/ui';
 import { casePlace } from '@/app/lib/caseLabels';
-import { SARAMA_AVATAR, SARAMA_AVATAR_PNG } from '@/lib/brandAssets';
+import { SARAMA_AVATAR_LARGE, SARAMA_AVATAR_PNG } from '@/lib/brandAssets';
 import { displayFont } from '@/app/lib/fonts';
 
 // "Last seen 3 days ago", in words a person reads at a glance.
@@ -242,7 +242,7 @@ function Hero({ openCount, neighbors }) {
             cta="Report a found pet"
             art={
               <img
-                src={SARAMA_AVATAR}
+                src={SARAMA_AVATAR_LARGE}
                 alt=""
                 className="hidden md:block absolute -right-5 -bottom-10 w-[190px] h-[236px] object-contain pointer-events-none"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
