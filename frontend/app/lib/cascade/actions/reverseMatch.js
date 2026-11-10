@@ -15,14 +15,27 @@ export async function runReverseMatch(ctx) {
   const lost = ctx.case;
   const lostChip = lost.pet?.microchipId || null;
 
+  // Found pets of the species within a box about 25 miles across around the
+  // last-seen point (the scorer gates on 15 miles; this keeps the read off
+  // every found pet in the world). A microchip match is identity and is
+  // looked for everywhere.
+  const lat = Number(lost.lastSeenLatitude);
+  const lng = Number(lost.lastSeenLongitude);
+  const hasSpot = Number.isFinite(lat) && Number.isFinite(lng);
+  const latPad = 0.36;
+  const lngPad = 0.36 / Math.max(0.2, Math.cos((lat * Math.PI) / 180));
+  const nearby = hasSpot
+    ? {
+        petSpecies: lost.petSpecies,
+        lastSeenLatitude: { gte: lat - latPad, lte: lat + latPad },
+        lastSeenLongitude: { gte: lng - lngPad, lte: lng + lngPad },
+      }
+    : { petSpecies: lost.petSpecies };
   const candidates = await prisma.case.findMany({
     where: {
       reportType: 'FOUND',
       status: 'ACTIVE',
-      OR: [
-        { petSpecies: lost.petSpecies },
-        ...(lostChip ? [{ pet: { microchipId: lostChip } }] : []),
-      ],
+      OR: [nearby, ...(lostChip ? [{ pet: { microchipId: lostChip } }] : [])],
     },
     include: { pet: true },
     take: 300,
