@@ -236,11 +236,19 @@ export async function POST(request) {
     }
 
     // 5. Find potential matches - look for LOST pets that match this FOUND pet
+    // Only lost pets within reach of the spot: a box about 25 miles across
+    // around where the animal was found. The scorer gates on distance too;
+    // this keeps the query from scanning every lost pet in the world.
+    const matchRadiusMiles = 15;
+    const latPad = 0.36;
+    const lngPad = 0.36 / Math.max(0.2, Math.cos((Number(center[0]) * Math.PI) / 180));
     const lostPetCases = await prisma.case.findMany({
       where: {
         reportType: 'LOST',
         status: 'ACTIVE',
         petSpecies: petType.toUpperCase(),
+        lastSeenLatitude: { gte: Number(center[0]) - latPad, lte: Number(center[0]) + latPad },
+        lastSeenLongitude: { gte: Number(center[1]) - lngPad, lte: Number(center[1]) + lngPad },
       },
       include: {
         pet: true,
@@ -288,6 +296,7 @@ export async function POST(request) {
     const matches = findMatches(foundData, candidates, {
       minScore: 30,
       maxResults: 20,
+      maxDistanceMiles: matchRadiusMiles,
     });
 
     // Format matches for response - §4d no-PII shape (this payload can reach an
