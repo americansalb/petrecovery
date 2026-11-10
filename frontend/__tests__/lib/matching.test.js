@@ -183,3 +183,48 @@ describe('getMatchQuality - returns an OBJECT, not a string (CORR-4)', () => {
     expect(typeof getMatchQuality(85)).toBe('object');
   });
 });
+
+describe('distance is a gate, not only a score (founder, 2026-11-10)', () => {
+  // A brown dog found in Mexico City. Species, colour and timing alone used to
+  // add up past minScore, so lost dogs from other countries were shown as
+  // "possible matches" on the page after posting.
+  const found = { petSpecies: 'DOG', petColor: 'Brown', latitude: 19.43, longitude: -99.13, createdAt: '2026-11-09T12:00:00Z' };
+  const farLost = { petSpecies: 'DOG', petColor: 'Brown', lastSeenLatitude: -17.0, lastSeenLongitude: -68.1, lastSeenAt: '2026-11-07T12:00:00Z' };
+  const nearLost = { petSpecies: 'DOG', petColor: 'Brown', lastSeenLatitude: 19.47, lastSeenLongitude: -99.14, lastSeenAt: '2026-11-07T12:00:00Z' };
+
+  test('a same-colour dog lost two thousand miles away is not a match', () => {
+    const r = calculateMatchScore(found, farLost);
+    expect(r.eligible).toBe(false);
+    expect(r.band).toBe('suppress');
+    expect(r.details.reason).toBe('Too far apart');
+    expect(findMatches(found, [farLost], { minScore: 30 })).toHaveLength(0);
+  });
+
+  test('the same dog three miles away is', () => {
+    const r = calculateMatchScore(found, nearLost);
+    expect(r.eligible).toBe(true);
+    expect(r.details.scores.location).toBeGreaterThan(15);
+    expect(findMatches(found, [farLost, nearLost], { minScore: 30 })).toHaveLength(1);
+  });
+
+  test('a microchip match is never vetoed by distance', () => {
+    const r = calculateMatchScore(found, farLost, { matchSource: 'microchip' });
+    expect(r.band).toBe('actionable');
+    expect(r.pTrueMatch).toBe(1);
+  });
+
+  test('no location on either side is not "nearby"', () => {
+    const r = calculateMatchScore({ petSpecies: 'DOG', petColor: 'Brown' }, { petSpecies: 'DOG', petColor: 'Brown' });
+    expect(r.eligible).toBe(false);
+    expect(r.details.reason).toBe('No location to compare');
+  });
+
+  test('a different city with no coordinates is not a match either', () => {
+    const r = calculateMatchScore(
+      { petSpecies: 'DOG', petColor: 'Brown', city: 'Austin', state: 'TX' },
+      { petSpecies: 'DOG', petColor: 'Brown', city: 'La Paz', state: 'LP' }
+    );
+    expect(r.eligible).toBe(false);
+    expect(r.details.reason).toBe('Different place');
+  });
+});

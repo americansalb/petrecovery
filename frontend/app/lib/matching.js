@@ -278,6 +278,23 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
   const lostLat = pickCoord(lostCase.latitude, lostCase.lastSeenLatitude);
   const lostLon = pickCoord(lostCase.longitude, lostCase.lastSeenLongitude);
 
+  // Distance is a GATE, not only a score. Species, colour and timing alone
+  // add up past minScore, so a brown dog lost in Bolivia was shown as a
+  // "possible match" for a brown dog found in Mexico City (founder,
+  // 2026-11-10). An attribute match beyond maxDistanceMiles, or with no
+  // location on either side, is not a match. A microchip is identity and is
+  // never vetoed here.
+  const tooFar = (reason, distance) => ({
+    score: 0,
+    maxScore: 100,
+    percentage: 0,
+    pTrueMatch: 0,
+    matchSource,
+    band: 'suppress',
+    details: { ...details, distance, reason },
+    eligible: false,
+  });
+
   if (hasCoords(foundLat, foundLon) && hasCoords(lostLat, lostLon)) {
     const distance = calculateDistance(foundLat, foundLon, lostLat, lostLon);
     details.distance = Math.round(distance * 10) / 10;
@@ -286,6 +303,8 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
       // Score decreases with distance
       const proximity = 1 - (distance / maxDistanceMiles);
       scores.location = Math.round(proximity * 25);
+    } else if (matchSource !== 'microchip') {
+      return tooFar('Too far apart', details.distance);
     }
   } else if (foundPet.city && lostCase.city) {
     // Fallback: Same city/state check
@@ -298,7 +317,11 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
     } else if (sameState) {
       scores.location = 10;
       details.distance = 'Same state';
+    } else if (matchSource !== 'microchip') {
+      return tooFar('Different place', null);
     }
+  } else if (matchSource !== 'microchip') {
+    return tooFar('No location to compare', null);
   }
 
   // 3. Breed (20 points)
