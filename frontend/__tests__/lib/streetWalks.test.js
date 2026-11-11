@@ -208,3 +208,80 @@ describe('buildWalks on real streets (Rosedale, Austin)', () => {
     expect(JSON.stringify(walks).length).toBeLessThan(40000);
   });
 });
+
+describe('naming a place and a direction from the streets', () => {
+  const { placeFromStreets, waysFrom, nearestOnPath, bearingDegrees, compassWord } = require('@/app/lib/streetWalks');
+  const center = rosedale.center;
+  const all = buildWalks({ ways: rosedale.elements, center, radiusMeters: 400, contextMeters: 250 });
+  const board = all.filter((w) => !w.context);
+  const ramsey = all.find((w) => walkTitle(w) === 'Ramsey Ave from W 40th St to W 44th St');
+  const corner = { lat: ramsey.path[0][0], lng: ramsey.path[0][1] }; // W 40th St and Ramsey Ave
+
+  test('a compass bearing and its word', () => {
+    expect(Math.round(bearingDegrees({ lat: 30, lng: -97 }, { lat: 30.001, lng: -97 }))).toBe(0);
+    expect(Math.round(bearingDegrees({ lat: 30, lng: -97 }, { lat: 30, lng: -96.999 }))).toBe(90);
+    expect(Math.round(bearingDegrees({ lat: 30, lng: -97 }, { lat: 29.999, lng: -97 }))).toBe(180);
+    expect(compassWord(80)).toBe('EAST');
+    expect(compassWord(350)).toBe('NORTH');
+    expect(compassWord(225)).toBe('SOUTHWEST');
+  });
+
+  test('how far a point is from a line, and where along it', () => {
+    const line = [[30, -97], [30.002, -97]];
+    const hit = nearestOnPath({ lat: 30.001, lng: -96.9995 }, line);
+    expect(hit.meters).toBeGreaterThan(40);
+    expect(hit.meters).toBeLessThan(55);
+    expect(hit.t).toBeCloseTo(0.5, 1);
+    expect(nearestOnPath({ lat: 29.99, lng: -97 }, line).t).toBe(0);
+  });
+
+  test('the ring outside the board is kept for names, after the board\'s own streets, and never ranked into it', () => {
+    expect(board.length).toBeGreaterThan(10);
+    expect(all.length).toBeGreaterThan(board.length);
+    // Board first, then the ring.
+    expect(all.findIndex((w) => w.context)).toBe(board.length);
+    for (const w of all) {
+      const away = distanceMeters({ lat: w.centerLatitude, lng: w.centerLongitude }, center);
+      if (w.context) expect(away).toBeGreaterThan(400);
+      else expect(away).toBeLessThanOrEqual(400);
+      expect(away).toBeLessThanOrEqual(650);
+    }
+    // Without a ring, the answer is the board alone, as before.
+    expect(buildWalks({ ways: rosedale.elements, center, radiusMeters: 400 }).every((w) => !w.context)).toBe(true);
+  });
+
+  test('a corner is named by its two streets, a point along a street by the street', () => {
+    expect(placeFromStreets(all, corner)).toBe('Ramsey Ave and W 40th St');
+    // An eighth of the way up the street: past the corner, short of the next one.
+    const along = { lat: (ramsey.path[0][0] * 7 + ramsey.path[1][0]) / 8, lng: (ramsey.path[0][1] * 7 + ramsey.path[1][1]) / 8 };
+    expect(placeFromStreets(all, along)).toBe('Ramsey Ave');
+  });
+
+  test('a point no street passes has no name, and bad input is no name', () => {
+    expect(placeFromStreets(all, { lat: center.lat + 0.05, lng: center.lng })).toBeNull();
+    expect(placeFromStreets(all, null)).toBeNull();
+    expect(placeFromStreets([], corner)).toBeNull();
+    expect(placeFromStreets(all, { lat: NaN, lng: 0 })).toBeNull();
+  });
+
+  test('the ways out of a corner are the next cross streets, by name', () => {
+    // Ramsey Ave ends at W 40th St: three ways out, as someone standing there would say them.
+    const ways = waysFrom(all, corner);
+    expect(ways.map((w) => `${w.toward} along ${w.along}`).sort()).toEqual(['Rosedale Ave along W 40th St', 'Sinclair Ave along W 40th St', 'W 41st St along Ramsey Ave']);
+    const north = ways.find((w) => w.along === 'Ramsey Ave');
+    expect(north.compass).toBe('NORTHEAST');
+    expect(ways.find((w) => w.toward === 'Rosedale Ave').compass).toBe('SOUTHEAST');
+    expect(ways.find((w) => w.toward === 'Sinclair Ave').compass).toBe('NORTHWEST');
+    // Sorted round the compass, so a screen can lay them out in order.
+    expect(ways.map((w) => w.bearing)).toEqual([...ways.map((w) => w.bearing)].sort((a, b) => a - b));
+  });
+
+  test('with only the board\'s own streets, a corner at the edge has fewer ways: the ring is what names them', () => {
+    expect(waysFrom(board, corner).length).toBeLessThan(waysFrom(all, corner).length);
+  });
+
+  test('off every street there are no ways to offer', () => {
+    expect(waysFrom(all, { lat: center.lat + 0.05, lng: center.lng })).toEqual([]);
+    expect(waysFrom(all, null)).toEqual([]);
+  });
+});

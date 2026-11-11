@@ -65,9 +65,12 @@ export async function GET(request, { params }) {
       orderBy: { sightedAt: 'desc' }
     });
 
+    // The witness's hold on a sighting is theirs alone: not even its hash leaves with the row.
+    const rows = sightings.map(({ witnessKeyHash, ...sighting }) => sighting);
+
     return NextResponse.json({
-      sightings,
-      count: sightings.length
+      sightings: rows,
+      count: rows.length
     });
 
   } catch (error) {

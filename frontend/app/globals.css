@@ -1106,3 +1106,39 @@ img {
 .force-origin.is-me .force-origin-tag {
   background: #1d4ed8;
 }
+
+/* The search screen (Mission Control): one set of components, two
+   palettes. A phone in the field is dark, so the few lit things on the
+   map are the loudest; the desktop is light, a desk for planning. The
+   components read these variables and never a colour of their own, so
+   the two cannot drift apart (app/mission-control/components/kit.js). */
+.mc-dark {
+  --mc-ground: #0b1220;
+  --mc-surface: #0f172a;
+  --mc-raised: #1e293b;
+  --mc-ink: #f8fafc;
+  --mc-soft: #cbd5e1;
+  --mc-muted: #94a3b8;
+  --mc-line: rgba(148, 163, 184, 0.22);
+  --mc-line-strong: rgba(148, 163, 184, 0.5);
+  --mc-seen: #fb923c;
+  --mc-seen-bg: #3a2a1f;
+  --mc-home: #34d399;
+  --mc-check: #f8fafc;
+  --mc-check-ink: #0f172a;
+}
+.mc-light {
+  --mc-ground: #f1f5f9;
+  --mc-surface: #ffffff;
+  --mc-raised: #f1f5f9;
+  --mc-ink: #0f172a;
+  --mc-soft: #334155;
+  --mc-muted: #64748b;
+  --mc-line: #e2e8f0;
+  --mc-line-strong: #94a3b8;
+  --mc-seen: #c2410c;
+  --mc-seen-bg: #fff7ed;
+  --mc-home: #059669;
+  --mc-check: #0f172a;
+  --mc-check-ink: #ffffff;
+}

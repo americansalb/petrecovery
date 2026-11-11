@@ -1,5 +1,13 @@
 # Mission Control — 2026-07 redesign
 
+> **Superseded, 2026-11.** This describes the July 2026 screen. The screen was rebuilt again in November 2026 as
+> one step to a screen over a street board (`frontend/app/mission-control/SearchScreen.js`).
+> What it is now, the three device jobs (desk, phone browser, app) and the three
+> rules on what it may say are in `docs/APP_MAP.md` under `/mission-control`, and are
+> held by `frontend/__tests__/search-screen-rules.test.js`. Kept here as history: the
+> components this file names (`MissionShell`, `ActionDock`, the bottom sheet, the
+> regions) no longer exist.
+
 Ground-up rebuild of the `/mission-control` presentation layer. Same doctrine
 as before — **the map is the mission**, state not navigation, one mission /
 three instruments — executed so that a first-time helper knows what to do in

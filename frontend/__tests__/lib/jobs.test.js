@@ -85,6 +85,32 @@ describe('rankJobs', () => {
     expect(now[0].kind).toBe('block');
   });
 
+  test('where the board is streets, a job is one street, by name, with its own minutes', () => {
+    const st = (label, priority, minutes, over = {}) => block(label, priority, { id: `st-${priority}`, unit: 'street', minutes, ...over });
+    const streets = [st('Ramsey Ave from W 40th St to W 42nd St', 6, 10), st('Sinclair Ave from W 40th St to W 44th St', 9, 20)];
+    // An hour fits several squares, and still one street: one person holds one street at a time.
+    const jobs = rankJobs({ blocks: streets, way: 'foot', when: 'now60' });
+    expect(jobs[0]).toMatchObject({
+      kind: 'block',
+      unit: 'street',
+      id: 'st-9',
+      cellIds: ['st-9'],
+      title: 'Walk Sinclair Ave from W 40th St to W 44th St',
+      minutes: 20,
+    });
+    // By car the street keeps its capitals.
+    const car = rankJobs({ blocks: streets, way: 'car', when: 'now30' });
+    expect(car[0].title).toBe('Drive the edge of the area, then walk Sinclair Ave from W 40th St to W 44th St');
+    // Squares are still squares.
+    expect(rankJobs({ blocks: [block('C4', 9)], way: 'foot' })[0]).toMatchObject({ unit: 'block', minutes: 20 });
+    expect(rankJobs({ blocks: [block('C4', 9)], way: 'car' })[0].title).toBe('Drive the edge of the area, then walk c4');
+  });
+
+  test('the search party says streets are handed out', () => {
+    const jobs = rankJobs({ party: { id: 'post-1', goingCount: 4 }, way: 'foot', when: 'party' });
+    expect(jobs[0].why).toBe('4 going so far. Streets are handed out when it meets.');
+  });
+
   test('the nearer block wins a tie, and the job says how far', () => {
     const near = { lat: 30.26, lng: -97.75 };
     const far = block('H7', 8, { centerLatitude: 30.27, centerLongitude: -97.75 });

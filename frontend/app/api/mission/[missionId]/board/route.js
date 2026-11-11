@@ -25,7 +25,7 @@ import { missionWhere } from '@/app/lib/shareMetadata';
 import { isCaseOpen } from '@/app/lib/caseStatus';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { searcherFor } from '@/app/lib/searcher';
-import { ensureGrid, ensureStreets, readStreets, readCells, actOnBoard, BOARD_ACTIONS } from '@/app/lib/searchBoard';
+import { ensureGrid, ensureStreets, readStreets, readStreetsAround, readCells, actOnBoard, BOARD_ACTIONS } from '@/app/lib/searchBoard';
 import { WAIVER_CODE } from '@/app/lib/waiver';
 import { broadcast } from '@/app/lib/sse/missionStream';
 import { forcesOf } from '@/app/lib/forceFeed';
@@ -57,7 +57,7 @@ function countsOf(items) {
 }
 
 export async function GET(request, { params }) {
-  const limit = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_READ, 'board');
+  const limit = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'board');
   if (!limit.success) return rateLimitResponse(limit);
   const correlationId = crypto.randomUUID();
   try {
@@ -65,7 +65,7 @@ export async function GET(request, { params }) {
     if (!pet) return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     const open = isCaseOpen(pet.status);
     if (pet.reportType === 'FOUND' || pet.lastSeenLatitude == null || pet.lastSeenLongitude == null) {
-      return NextResponse.json({ caseId: pet.id, open, unit: 'none', streets: [], cells: [], counts: countsOf([]), streetsStatus: null, viewer: null });
+      return NextResponse.json({ caseId: pet.id, open, unit: 'none', streets: [], around: [], cells: [], counts: countsOf([]), streetsStatus: null, viewer: null });
     }
     const searcher = await searcherFor(request, pet.id);
     const who = { viewer: searcher?.id || null, withNames: Boolean(searcher?.seesNames) };
@@ -103,6 +103,8 @@ export async function GET(request, { params }) {
       open,
       unit,
       streets: streets || [],
+      // The named streets just past the board's edge: for naming a place or a direction, never for walking.
+      around: streets ? await readStreetsAround(pet.id) : [],
       cells,
       counts: countsOf(items),
       streetsStatus,

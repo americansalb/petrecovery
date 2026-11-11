@@ -14,9 +14,11 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { forcesOf } from '@/app/lib/forceFeed';
+import { FORCE_COMMAND_ROLES } from '@/app/lib/forceRoles';
+import { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER } from '@/app/lib/searcherHeaders';
 
-export const VOLUNTEER_ID_HEADER = 'x-volunteer-id';
-export const VOLUNTEER_KEY_HEADER = 'x-volunteer-key';
+export { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER };
+
 
 const firstWord = (s) => String(s || '').trim().split(/\s+/)[0] || '';
 
@@ -26,7 +28,10 @@ const firstWord = (s) => String(s || '').trim().split(/\s+/)[0] || '';
  * volunteer id. `waiver` is whether they may go out searching (signed, or
  * it is their own pet). `seesNames` is whether the board tells them who
  * holds each street: the owner and the forces looking for the pet do;
- * everyone else sees streets, not people.
+ * everyone else sees streets, not people. `leads` is narrower: the owner,
+ * or someone with a command role (founder, leader, coordinator) in a
+ * force looking for the pet. Joining a force is one tap, so membership
+ * alone never lets anyone speak to the helpers; leading one does.
  */
 export async function searcherFor(request, caseId) {
   const session = await getServerSession(authOptions).catch(() => null);
@@ -39,15 +44,16 @@ export async function searcherFor(request, caseId) {
     if (user) {
       const isOwner = Boolean(pet && pet.reporterId === userId);
       let inForce = false;
+      let commands = false;
       if (!isOwner) {
         const forceIds = await forcesOf(caseId).catch(() => []);
         if (forceIds.length) {
-          inForce = Boolean(
-            await prisma.rescueForceMember.findFirst({
-              where: { userId, isActive: true, rescueSquadId: { in: forceIds } },
-              select: { id: true },
-            })
-          );
+          const memberships = await prisma.rescueForceMember.findMany({
+            where: { userId, isActive: true, rescueSquadId: { in: forceIds } },
+            select: { role: true },
+          });
+          inForce = memberships.length > 0;
+          commands = memberships.some((m) => FORCE_COMMAND_ROLES.includes(m.role));
         }
       }
       return {
@@ -59,6 +65,7 @@ export async function searcherFor(request, caseId) {
         isOwner,
         waiver: Boolean(user.waiverAcceptedAt) || isOwner,
         seesNames: isOwner || inForce,
+        leads: isOwner || commands,
       };
     }
   }
@@ -79,6 +86,7 @@ export async function searcherFor(request, caseId) {
         isOwner: false,
         waiver: Boolean(volunteer.waiverAcceptedAt),
         seesNames: false,
+        leads: false,
       };
     }
   }

@@ -1,5 +1,13 @@
 # Mission Control UI Redesign
 
+> **Superseded, 2026-11.** This is the first design for Mission Control, an operations-center screen. The screen was rebuilt again in November 2026 as
+> one step to a screen over a street board (`frontend/app/mission-control/SearchScreen.js`).
+> What it is now, the three device jobs (desk, phone browser, app) and the three
+> rules on what it may say are in `docs/APP_MAP.md` under `/mission-control`, and are
+> held by `frontend/__tests__/search-screen-rules.test.js`. Kept here as history: the
+> components this file names (`MissionShell`, `ActionDock`, the bottom sheet, the
+> regions) no longer exist.
+
 ## Vision
 A search and rescue coordination interface that feels like a **real-time operations center**, not a static information page. The map IS the interface. Every element serves one purpose: **getting lost pets home faster**.
 

@@ -16,7 +16,7 @@ jest.mock('@/app/lib/prisma', () => ({
   default: {
     case: { findFirst: jest.fn(), findUnique: jest.fn() },
     user: { findUnique: jest.fn(), findMany: jest.fn() },
-    rescueForceMember: { findFirst: jest.fn() },
+    rescueForceMember: { findMany: jest.fn(async () => []) },
     caseAssignment: { findMany: jest.fn() },
     missionVolunteer: { findFirst: jest.fn() },
     caseSighting: { findMany: jest.fn() },
@@ -34,16 +34,16 @@ jest.mock('@/app/lib/rateLimit', () => ({
   __esModule: true,
   withRateLimitAsync: jest.fn(async () => ({ success: true })),
   rateLimitResponse: jest.fn(),
-  RateLimitPresets: { PUBLIC_READ: {}, PUBLIC_WRITE: {} },
+  RateLimitPresets: { PUBLIC_READ: {}, SEARCH_READ: {}, PUBLIC_WRITE: {} },
 }));
-jest.mock('@/app/lib/osmStreets', () => ({ __esModule: true, fetchNamedWays: jest.fn() }));
+jest.mock('@/app/lib/osmStreets', () => ({ __esModule: true, ...jest.requireActual('@/app/lib/osmStreets'), fetchNamedWays: jest.fn() }));
 
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { broadcast } from '@/app/lib/sse/missionStream';
 import { fetchNamedWays } from '@/app/lib/osmStreets';
 import { GET, PATCH } from '@/app/api/mission/[missionId]/board/route';
-import { ensureStreets } from '@/app/lib/searchBoard';
+import { ensureStreets, openBlocks } from '@/app/lib/searchBoard';
 import { WAIVER_CODE } from '@/app/lib/waiver';
 
 const rosedale = require('../fixtures/rosedale-streets.json');
@@ -80,6 +80,7 @@ const req = (method = 'GET', { body, headers } = {}) =>
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 const ctx = { params: { missionId: CASE } };
+const RING = [{ name: 'Rosedale Ave', fromName: 'W 38th St', toName: 'W 39th St', path: '[[30.3088,-97.7449],[30.3079,-97.7452]]' }];
 const VOLUNTEER = { 'x-volunteer-id': 'vol-1', 'x-volunteer-key': 'dev_abc' };
 
 beforeEach(() => {
@@ -91,10 +92,16 @@ beforeEach(() => {
   prisma.searchGrid.update.mockResolvedValue(GRID);
   prisma.searchGrid.updateMany.mockResolvedValue({ count: 1 });
   prisma.searchStreet.updateMany.mockResolvedValue({ count: 0 });
-  prisma.searchStreet.findMany.mockResolvedValue([street({ id: 'st-1', status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedByName: 'Dana', claimedAt: new Date() }), street({ id: 'st-2', name: 'Ramsey Ave' })]);
+  // The board's own streets and the ring outside it are two reads of one table.
+  prisma.searchStreet.findMany.mockImplementation(async ({ where } = {}) =>
+    where?.context === true
+      ? RING
+      : [street({ id: 'st-1', status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedByName: 'Dana', claimedAt: new Date() }), street({ id: 'st-2', name: 'Ramsey Ave' })]
+  );
   prisma.gridCell.updateMany.mockResolvedValue({ count: 0 });
   prisma.gridCell.findMany.mockResolvedValue([]);
   prisma.caseAssignment.findMany.mockResolvedValue([]);
+  prisma.rescueForceMember.findMany.mockResolvedValue([]);
   prisma.caseSighting.findMany.mockResolvedValue([]);
   prisma.missionVolunteer.findFirst.mockResolvedValue(null);
 });
@@ -137,7 +144,7 @@ describe('GET: streets for anyone, people for the few', () => {
     getServerSession.mockResolvedValue({ user: { id: 'u-kim' } });
     prisma.user.findUnique.mockResolvedValue({ firstName: 'Kim', waiverAcceptedAt: new Date() });
     prisma.caseAssignment.findMany.mockResolvedValue([{ rescueSquadId: 'force-1' }]);
-    prisma.rescueForceMember.findFirst.mockResolvedValue({ id: 'm-1' });
+    prisma.rescueForceMember.findMany.mockResolvedValue([{ role: 'MEMBER' }]);
     const data = await (await GET(req(), ctx)).json();
     expect(data.viewer.seesNames).toBe(true);
     expect(data.streets[0].claimedByName).toBe('Dana');
@@ -150,6 +157,16 @@ describe('GET: streets for anyone, people for the few', () => {
     expect(data.viewer).toMatchObject({ kind: 'volunteer', firstName: 'Dana', seesNames: false, holding: 'st-1' });
     expect(data.streets[0].mine).toBe(true);
     expect(data.streets[0]).not.toHaveProperty('claimedByName');
+  });
+
+  test('the streets just past the edge come along for naming places: lines and names, nothing to take', async () => {
+    const data = await (await GET(req(), ctx)).json();
+    expect(data.around).toEqual([{ name: 'Rosedale Ave', fromName: 'W 38th St', toName: 'W 39th St', path: [[30.3088, -97.7449], [30.3079, -97.7452]] }]);
+    // They are not on the board and not in its count.
+    expect(data.streets.map((s) => s.name)).not.toContain('Rosedale Ave');
+    expect(data.counts.total).toBe(2);
+    const reads = prisma.searchStreet.findMany.mock.calls.map((c) => c[0].where);
+    expect(reads).toEqual(expect.arrayContaining([expect.objectContaining({ caseId: CASE, context: false }), { caseId: CASE, context: true }]));
   });
 
   test('before the streets have come, the board is the squares', async () => {
@@ -260,12 +277,34 @@ describe('PATCH: taking a street', () => {
     expect(await res.json()).toMatchObject({ code: 'NOT_CLAIMED' });
   });
 
+  test('a helper without an account marks a square searched: credited by the board\'s key, since an account id cannot name them', async () => {
+    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date() });
+    const cell = { id: 'c-1', gridId: 'grid-1', row: 0, col: 2, status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedAt: new Date(), searchedAt: null, searchCount: 0 };
+    prisma.gridCell.findFirst.mockResolvedValueOnce(cell).mockResolvedValueOnce({ ...cell, status: 'SEARCHED', claimedById: null, claimedAt: null, searchedAt: new Date(), searchCount: 1 });
+    prisma.gridCell.updateMany.mockResolvedValue({ count: 1 });
+    const res = await PATCH(req('PATCH', { headers: VOLUNTEER, body: { unit: 'block', id: 'c-1', action: 'searched' } }), ctx);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ success: true, unit: 'block', item: { id: 'c-1', label: 'C1', title: 'Block C1', status: 'SEARCHED', searchCount: 1 } });
+    const marked = prisma.gridCell.updateMany.mock.calls.find(([arg]) => arg.data.status === 'SEARCHED')[0];
+    expect(marked.where).toMatchObject({ id: 'c-1', gridId: 'grid-1', claimedById: 'v:vol-1', status: 'IN_PROGRESS' });
+    expect(marked.data).toMatchObject({ searchedById: null, searchedByKey: 'v:vol-1', searchCount: { increment: 1 } });
+  });
+
   test('a street from another search is not found', async () => {
     getServerSession.mockResolvedValue({ user: { id: 'u-mike' } });
     prisma.user.findUnique.mockResolvedValue({ firstName: 'Mike', waiverAcceptedAt: new Date() });
     prisma.searchStreet.findFirst.mockResolvedValue(null);
     const res = await PATCH(req('PATCH', { body: claim }), ctx);
     expect(res.status).toBe(404);
+  });
+
+  test('a street of the ring outside the board cannot be taken', async () => {
+    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date() });
+    prisma.searchStreet.findFirst.mockResolvedValue(null);
+    const res = await PATCH(req('PATCH', { headers: VOLUNTEER, body: { unit: 'street', id: 'st-ring', action: 'claim' } }), ctx);
+    expect(res.status).toBe(404);
+    expect(prisma.searchStreet.findFirst).toHaveBeenCalledWith({ where: { id: 'st-ring', caseId: CASE, context: false } });
+    expect(prisma.searchStreet.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'IN_PROGRESS' }) }));
   });
 
   test('a body with no action is a 400', async () => {
@@ -288,6 +327,28 @@ describe('ensureStreets: fetched once, by one request', () => {
     expect(rows.every((r) => r.caseId === CASE && typeof r.path === 'string')).toBe(true);
     expect(rows.map((r) => `${r.name} from ${r.fromName} to ${r.toName}`)).toContain('Sinclair Ave from W 40th St to W 44th St');
     expect(prisma.searchGrid.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ streetsStatus: 'READY' }) }));
+  });
+
+  test('the ring just outside the board is stored for naming, marked so it is never handed out or counted', async () => {
+    prisma.searchGrid.findUnique.mockResolvedValue(fresh);
+    fetchNamedWays.mockResolvedValue(rosedale.elements);
+    await ensureStreets(CASE);
+    const rows = prisma.searchStreet.createMany.mock.calls[0][0].data;
+    const ring = rows.filter((r) => r.context);
+    const board = rows.filter((r) => !r.context);
+    expect(ring.length).toBeGreaterThan(5);
+    expect(board.length).toBeGreaterThan(15);
+    expect(rows.every((r) => typeof r.context === 'boolean')).toBe(true);
+    // The board's streets come first, and the ring is farther out than any of them needs to be.
+    expect(rows.findIndex((r) => r.context)).toBe(board.length);
+  });
+
+  test('a board with too few streets of its own stays on squares, however many lie outside it', async () => {
+    // Twenty metres of board: every named street is in the ring.
+    prisma.searchGrid.findUnique.mockResolvedValue({ ...fresh, radiusMiles: 20 / 1609.344 });
+    fetchNamedWays.mockResolvedValue(rosedale.elements);
+    expect(await ensureStreets(CASE)).toBe('NONE');
+    expect(prisma.searchStreet.createMany).not.toHaveBeenCalled();
   });
 
   test('a second request arriving meanwhile does not fetch', async () => {
@@ -334,5 +395,38 @@ describe('ensureStreets: fetched once, by one request', () => {
     prisma.case.findUnique.mockResolvedValue({ id: CASE, lastSeenLatitude: null, lastSeenLongitude: null });
     prisma.searchGrid.findUnique.mockResolvedValue(null);
     expect(await ensureStreets(CASE)).toBeNull();
+  });
+});
+
+describe('openBlocks: what the job picker hands out is what the map shows', () => {
+  test('streets where the board has them: the name, the minutes, most urgent first, and never the ring', async () => {
+    prisma.searchStreet.findMany.mockResolvedValue([street({ id: 'st-9', priority: 9, meters: 552 }), street({ id: 'st-3', name: 'Ramsey Ave', toName: 'W 42nd St', priority: 6, meters: 240, status: 'NEEDS_REVISIT' })]);
+    const open = await openBlocks(CASE);
+    expect(open).toEqual([
+      { id: 'st-9', unit: 'street', label: 'Sinclair Ave from W 40th St to W 44th St', status: 'UNSEARCHED', priority: 9, centerLatitude: 30.3125, centerLongitude: -97.7405, minutes: 20 },
+      { id: 'st-3', unit: 'street', label: 'Ramsey Ave from W 40th St to W 42nd St', status: 'NEEDS_REVISIT', priority: 6, centerLatitude: 30.3125, centerLongitude: -97.7405, minutes: 10 },
+    ]);
+    expect(prisma.searchStreet.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { caseId: CASE, context: false, status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } }, take: 12 })
+    );
+    expect(prisma.gridCell.findMany).not.toHaveBeenCalled();
+  });
+
+  test('squares where the streets did not come, without asking the map again inside the wait', async () => {
+    prisma.searchGrid.findUnique.mockResolvedValue({ ...GRID, streetsStatus: 'FAILED' });
+    prisma.gridCell.findMany.mockResolvedValue([{ id: 'c-1', row: 0, col: 2, status: 'UNSEARCHED', priority: 9, centerLatitude: 30.3, centerLongitude: -97.7 }]);
+    const open = await openBlocks(CASE);
+    expect(open).toEqual([{ id: 'c-1', row: 0, col: 2, status: 'UNSEARCHED', priority: 9, centerLatitude: 30.3, centerLongitude: -97.7, unit: 'block', label: 'C1' }]);
+    expect(fetchNamedWays).not.toHaveBeenCalled();
+  });
+
+  test('a search whose streets were never asked for asks now, and hands out squares meanwhile', async () => {
+    prisma.searchGrid.findUnique.mockResolvedValue({ ...GRID, streetsStatus: null, streetsAt: null });
+    prisma.gridCell.findMany.mockResolvedValue([{ id: 'c-1', row: 0, col: 2, status: 'UNSEARCHED', priority: 9, centerLatitude: 30.3, centerLongitude: -97.7 }]);
+    fetchNamedWays.mockResolvedValue(rosedale.elements);
+    const open = await openBlocks(CASE);
+    expect(open[0].unit).toBe('block');
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(fetchNamedWays).toHaveBeenCalledTimes(1);
   });
 });

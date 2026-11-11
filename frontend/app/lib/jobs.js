@@ -55,7 +55,9 @@ function walkText(meters) {
 /**
  * Rank what could be done into jobs for this person. Pure.
  *
- * `blocks`: open blocks (label, priority, centerLatitude, centerLongitude).
+ * `blocks`: what is open on the board (label, priority, centerLatitude,
+ * centerLongitude, and `unit: 'street'` with its own `minutes` where the
+ * board is streets).
  * `needs`: open needs as listNeeds gives them (kind, title, taken, peopleNeeded, mine, lat, lng).
  * `party`: the next search party or null. `near`: {lat, lng} of the person, if given.
  */
@@ -70,7 +72,7 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
       id: party.id,
       title: `Join the search party for ${petName}`,
       minutes: WHENS.party.minutes,
-      why: `${party.goingCount} going so far. Blocks are handed out when it meets.`,
+      why: `${party.goingCount} going so far. Streets are handed out when it meets.`,
       score: 1000,
     });
   }
@@ -95,9 +97,13 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
     });
   }
 
-  // Blocks of the board, for feet and cars. The priority already says "near a sighting".
+  // The board, for feet and cars: a street where the board has streets,
+  // otherwise squares. The priority already says "near a sighting". A
+  // street is one walk and one person holds one at a time, so a job is
+  // one street; squares are smaller and several fit an hour.
   if (way === 'foot' || way === 'car') {
-    const count = way === 'car' ? 1 : blocksThatFit(when);
+    const streets = blocks.some((b) => b.unit === 'street');
+    const count = way === 'car' || streets ? 1 : blocksThatFit(when);
     const sorted = blocks
       .map((b) => ({ ...b, away: metersAway(near, { lat: b.centerLatitude, lng: b.centerLongitude }) }))
       .sort((a, b) => (b.priority || 0) - (a.priority || 0) || (a.away ?? 1e9) - (b.away ?? 1e9));
@@ -110,9 +116,11 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
         kind: 'block',
         id: picked[0].id,
         cellIds: picked.map((b) => b.id),
+        unit: streets ? 'street' : 'block',
         labels,
-        title: way === 'car' ? `Drive the edge of the area, then ${title.toLowerCase()}` : title,
-        minutes: picked.length * MINUTES_PER_BLOCK,
+        // A street's name keeps its capitals; a square's letter name reads the same either way.
+        title: way === 'car' ? `Drive the edge of the area, then ${streets ? `walk ${labels[0]}` : title.toLowerCase()}` : title,
+        minutes: picked.reduce((sum, b) => sum + (b.minutes || MINUTES_PER_BLOCK), 0),
         why: [
           hot ? 'Next to where the trail is warmest.' : 'Nobody has walked it.',
           picked[0].status === 'NEEDS_REVISIT' ? 'Walked once in poor light; worth another look.' : null,

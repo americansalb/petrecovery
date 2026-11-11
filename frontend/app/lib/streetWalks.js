@@ -252,14 +252,23 @@ function walksAlong(chain, name, { coord, namesAt }) {
     });
 }
 
+/** How many streets just outside the board are kept, for naming places and directions near its edge. */
+export const MAX_CONTEXT_WALKS = 160;
+
 /**
  * The walks for a search. `ways` are Overpass elements of type "way" with
  * `nodes`, `geometry` and `tags` (name, highway); every named way is read
  * for cross streets, and only walkable ones become walks. Returns up to
  * `maxWalks`, most urgent first: { name, fromName, toName, path, meters,
- * minutes, centerLatitude, centerLongitude, priority }.
+ * minutes, centerLatitude, centerLongitude, priority, context }.
+ *
+ * `contextMeters` keeps the streets in a ring that far outside the board
+ * as well, marked `context: true` and listed after the board's own. They
+ * are never handed out or counted. A pet is often seen just past the
+ * edge, and they are what lets a sighting there be called "W 40th St and
+ * Ramsey Ave" and its direction "toward Rosedale Ave".
  */
-export function buildWalks({ ways = [], center, radiusMeters, sightings = [], now = Date.now(), maxWalks = MAX_WALKS }) {
+export function buildWalks({ ways = [], center, radiusMeters, contextMeters = 0, sightings = [], now = Date.now(), maxWalks = MAX_WALKS }) {
   const named = ways
     .filter((w) => w && w.tags?.name && w.tags?.highway && Array.isArray(w.nodes) && Array.isArray(w.geometry) && w.nodes.length > 1)
     .sort((a, b) => (a.id > b.id ? 1 : a.id < b.id ? -1 : 0));
@@ -276,8 +285,9 @@ export function buildWalks({ ways = [], center, radiusMeters, sightings = [], no
     for (const chain of chainsOf(own, index.coord)) {
       for (const walk of walksAlong(chain, name, index)) {
         const mid = midpoint(walk.points);
-        if (distanceMeters(mid, center) > radiusMeters) continue;
-        found.push({ ...walk, mid });
+        const away = distanceMeters(mid, center);
+        if (away > radiusMeters + contextMeters) continue;
+        found.push({ ...walk, mid, context: away > radiusMeters });
       }
     }
   }
@@ -304,6 +314,7 @@ export function buildWalks({ ways = [], center, radiusMeters, sightings = [], no
       centerLatitude: Number(walk.mid.lat.toFixed(6)),
       centerLongitude: Number(walk.mid.lng.toFixed(6)),
       away: distanceMeters(walk.mid, center),
+      context: Boolean(walk.context),
       priority: cellPriority({
         center: walk.mid,
         lastSeen: center,
@@ -314,6 +325,158 @@ export function buildWalks({ ways = [], center, radiusMeters, sightings = [], no
       }),
     };
   });
-  out.sort((a, b) => b.priority - a.priority || a.away - b.away || (a.name < b.name ? -1 : 1));
-  return out.slice(0, maxWalks).map(({ away, ...walk }) => walk);
+  const urgentFirst = (a, b) => b.priority - a.priority || a.away - b.away || (a.name < b.name ? -1 : 1);
+  const board = out.filter((w) => !w.context).sort(urgentFirst).slice(0, maxWalks);
+  const ring = out.filter((w) => w.context).sort((a, b) => a.away - b.away || (a.name < b.name ? -1 : 1)).slice(0, MAX_CONTEXT_WALKS);
+  return [...board, ...ring].map(({ away, ...walk }) => walk);
+}
+
+// ---------------------------------------------------------------------------
+// Places and directions, read off the board's streets
+// ---------------------------------------------------------------------------
+
+/** How near a street has to be for a point to be "on" it. */
+const ON_STREET_METERS = 45;
+
+const COMPASS_WORDS = ['NORTH', 'NORTHEAST', 'EAST', 'SOUTHEAST', 'SOUTH', 'SOUTHWEST', 'WEST', 'NORTHWEST'];
+
+/** Compass bearing in degrees from one point to another, 0 = north, clockwise. */
+export function bearingDegrees(from, to) {
+  const north = to.lat - from.lat;
+  const east = (to.lng - from.lng) * Math.cos((((from.lat + to.lat) / 2) * Math.PI) / 180);
+  return (Math.atan2(east, north) * 180) / Math.PI + (Math.atan2(east, north) < 0 ? 360 : 0);
+}
+
+/** The compass word for a bearing: 80 degrees is EAST. */
+export function compassWord(degrees) {
+  return COMPASS_WORDS[Math.round((((degrees % 360) + 360) % 360) / 45) % 8];
+}
+
+/**
+ * Where a point falls on a line: how far off it is, and where along
+ * (the segment and the fraction of it). `path` is [[lat, lng], ...].
+ */
+export function nearestOnPath(point, path = []) {
+  let best = { meters: Infinity, index: 0, t: 0, lat: null, lng: null };
+  const scale = Math.cos((point.lat * Math.PI) / 180);
+  for (let i = 1; i < path.length; i += 1) {
+    const ax = path[i - 1][1] * scale;
+    const ay = path[i - 1][0];
+    const bx = path[i][1] * scale;
+    const by = path[i][0];
+    const px = point.lng * scale;
+    const py = point.lat;
+    const length2 = (bx - ax) ** 2 + (by - ay) ** 2;
+    const t = length2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / length2));
+    const lat = ay + (by - ay) * t;
+    const lng = (ax + (bx - ax) * t) / scale;
+    const meters = distanceMeters(point, { lat, lng });
+    if (meters < best.meters) best = { meters, index: i - 1, t, lat, lng };
+  }
+  return best;
+}
+
+/**
+ * What to call a point, from the streets of the board: "W 40th St and
+ * Ramsey Ave" at a corner, "Ramsey Ave" along a street, or null when no
+ * street of the board passes it. `streets` are board streets (name, path).
+ */
+export function placeFromStreets(streets = [], point, { reach = ON_STREET_METERS } = {}) {
+  if (!point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return null;
+  const near = new Map();
+  for (const street of streets) {
+    if (!street?.name || !Array.isArray(street.path) || street.path.length < 2) continue;
+    const { meters } = nearestOnPath(point, street.path);
+    if (meters <= reach && (!near.has(street.name) || meters < near.get(street.name))) near.set(street.name, meters);
+  }
+  const names = [...near.entries()].sort((a, b) => a[1] - b[1]).map(([name]) => name);
+  if (!names.length) return null;
+  return names.length > 1 ? `${names[0]} and ${names[1]}` : names[0];
+}
+
+/** Meters from the start of a line to a place on it (a segment index and the fraction along it). */
+function metersAlong(path, index, t) {
+  let run = 0;
+  for (let i = 1; i <= index; i += 1) run += distanceMeters({ lat: path[i - 1][0], lng: path[i - 1][1] }, { lat: path[i][0], lng: path[i][1] });
+  const a = { lat: path[index][0], lng: path[index][1] };
+  const b = { lat: path[index + 1][0], lng: path[index + 1][1] };
+  return run + distanceMeters(a, b) * t;
+}
+
+/** Points along a line about every `step` meters, ends included. */
+function sample(path, step = 20) {
+  const out = [];
+  for (let i = 1; i < path.length; i += 1) {
+    const a = { lat: path[i - 1][0], lng: path[i - 1][1] };
+    const b = { lat: path[i][0], lng: path[i][1] };
+    const pieces = Math.max(1, Math.ceil(distanceMeters(a, b) / step));
+    for (let k = i === 1 ? 0 : 1; k <= pieces; k += 1) {
+      out.push({ lat: a.lat + ((b.lat - a.lat) * k) / pieces, lng: a.lng + ((b.lng - a.lng) * k) / pieces });
+    }
+  }
+  return out;
+}
+
+/** Where the other streets of the board cross this one: [{ name, along }], `along` in meters from its start. */
+function crossingsOn(street, streets) {
+  const found = [];
+  for (const other of streets) {
+    if (!other?.name || other.name === street.name || !Array.isArray(other.path) || other.path.length < 2) continue;
+    let best = null;
+    for (const point of sample(other.path)) {
+      const at = nearestOnPath(point, street.path);
+      if (at.meters <= 15 && (!best || at.meters < best.meters)) best = at;
+    }
+    if (best) found.push({ name: other.name, along: metersAlong(street.path, best.index, best.t) });
+  }
+  return found;
+}
+
+/**
+ * The ways a pet could have gone from a point, as a passer-by can say
+ * them: toward the next cross street, by name. One entry for each
+ * direction along each street that passes the point: { toward, along,
+ * bearing, compass }. `toward` is the next street that way ("Rosedale
+ * Ave"), or null where the street just ends.
+ */
+export function waysFrom(streets = [], point, { reach = ON_STREET_METERS } = {}) {
+  if (!point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return [];
+  const usable = streets.filter((s) => s?.name && Array.isArray(s.path) && s.path.length > 1);
+  const out = [];
+  for (const street of usable) {
+    const path = street.path;
+    const at = nearestOnPath(point, path);
+    if (at.meters > reach) continue;
+    const here = { lat: at.lat, lng: at.lng };
+    const mine = metersAlong(path, at.index, at.t);
+    const crossings = crossingsOn(street, usable);
+    const ends = [
+      { forward: true, endName: street.toName || null, vertex: at.index + 1, end: path[path.length - 1] },
+      { forward: false, endName: street.fromName || null, vertex: at.index, end: path[0] },
+    ];
+    for (const way of ends) {
+      const far = { lat: way.end[0], lng: way.end[1] };
+      // An end right where the person stands is not a way to go.
+      if (distanceMeters(here, far) < reach) continue;
+      // The first other street that way, past the corner the person is on.
+      const ahead = crossings
+        .map((c) => ({ name: c.name, gap: way.forward ? c.along - mine : mine - c.along }))
+        .filter((c) => c.gap > reach)
+        .sort((a, b) => a.gap - b.gap)[0];
+      let next = { lat: path[way.vertex][0], lng: path[way.vertex][1] };
+      if (distanceMeters(here, next) < 5) next = far;
+      const bearing = bearingDegrees(here, next);
+      out.push({ toward: ahead?.name || way.endName, along: street.name, bearing: Math.round(bearing), compass: compassWord(bearing) });
+    }
+  }
+  // Two walks of one street meeting at a corner give the same way twice.
+  const seen = new Set();
+  return out
+    .filter((way) => {
+      const key = `${way.along}|${way.compass}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.bearing - b.bearing);
 }

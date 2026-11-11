@@ -68,6 +68,21 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     expect(isImmersiveRoute('/mission-control/anything')).toBe(true);
   });
 
+  test('the search screen ships a visible way back out, which is what buys the takeover', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const root = path.resolve(__dirname, '..');
+    const bar = fs.readFileSync(path.join(root, 'app/mission-control/components/TopBar.js'), 'utf8');
+    const screen = fs.readFileSync(path.join(root, 'app/mission-control/SearchScreen.js'), 'utf8');
+    // The arrow at the top left of every map screen goes to the pet's page.
+    expect(bar).toMatch(/href=\{backHref\}/);
+    expect(bar).toMatch(/aria-label=\{`Back to \$\{name\}'s page`\}/);
+    expect(screen).toMatch(/backHref=\{petHref\}/);
+    // The screens with no map (a sighting being sent) carry their own arrow back.
+    expect(screen).toMatch(/aria-label="Back"/);
+    expect(screen).toMatch(/aria-label="Back to the map"/);
+  });
+
   test('the Rasuwa letter tool is an immersive takeover (crisis page, non-pet audience)', () => {
     expect(isImmersiveRoute('/rasuwa')).toBe(true);
     // the footer's ReunitePets link is its way back out
