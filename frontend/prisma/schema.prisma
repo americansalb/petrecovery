@@ -3377,6 +3377,8 @@ model SearchGrid {
   // tried again after a while.
   streetsStatus String?
   streetsAt     DateTime?
+  // Why the last fetch failed, as each map server answered it. Cleared by a fetch that works.
+  streetsNote   String?
 
   // Cells
   cells GridCell[]

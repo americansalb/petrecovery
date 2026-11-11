@@ -157,9 +157,11 @@ describe('GET: streets for anyone, people for the few', () => {
     prisma.gridCell.findMany.mockResolvedValue([
       { id: 'c-1', row: 0, col: 2, centerLatitude: 30.3, centerLongitude: -97.7, northLat: 30.31, southLat: 30.29, eastLng: -97.69, westLng: -97.71, status: 'UNSEARCHED', priority: 9, claimedById: null, claimedAt: null, searchedAt: null, searchCount: 0 },
     ]);
+    prisma.searchGrid.findUnique.mockResolvedValue({ ...GRID, streetsStatus: 'FAILED', streetsNote: 'overpass-api.de: HTTP 429' });
     const data = await (await GET(req(), ctx)).json();
     expect(data.unit).toBe('block');
     expect(data.streetsStatus).toBe('FAILED');
+    expect(data.streetsNote).toBe('overpass-api.de: HTTP 429');
     expect(data.cells[0]).toMatchObject({ label: 'C1', title: 'Block C1', mine: false });
     expect(data.cells[0]).not.toHaveProperty('claimedById');
     expect(fetchNamedWays).not.toHaveBeenCalled(); // asked again only after a while
@@ -298,9 +300,13 @@ describe('ensureStreets: fetched once, by one request', () => {
 
   test('a map server that does not answer leaves the squares in place, and is asked again later', async () => {
     prisma.searchGrid.findUnique.mockResolvedValue(fresh);
-    fetchNamedWays.mockRejectedValue(new Error('no answer'));
+    fetchNamedWays.mockRejectedValue(Object.assign(new Error('Street data is not available right now'), { note: 'overpass-api.de: HTTP 429; overpass.kumi.systems: no answer in 12s' }));
     expect(await ensureStreets(CASE)).toBe('FAILED');
     expect(prisma.searchStreet.createMany).not.toHaveBeenCalled();
+    // What each server did is kept, so the failure can be read from outside the host.
+    expect(prisma.searchGrid.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ streetsStatus: 'FAILED', streetsNote: 'overpass-api.de: HTTP 429; overpass.kumi.systems: no answer in 12s' }) })
+    );
 
     // Within the wait, nothing is asked.
     jest.clearAllMocks();
@@ -309,11 +315,12 @@ describe('ensureStreets: fetched once, by one request', () => {
     expect(await ensureStreets(CASE)).toBe('FAILED');
     expect(prisma.searchGrid.updateMany).not.toHaveBeenCalled();
 
-    // After it, the job is offered again.
-    prisma.searchGrid.findUnique.mockResolvedValue({ ...fresh, streetsStatus: 'FAILED', streetsAt: new Date(Date.now() - 16 * 60 * 1000) });
+    // After it, the job is offered again, and a fetch that works clears the note.
+    prisma.searchGrid.findUnique.mockResolvedValue({ ...fresh, streetsStatus: 'FAILED', streetsAt: new Date(Date.now() - 4 * 60 * 1000) });
     prisma.searchGrid.updateMany.mockResolvedValue({ count: 1 });
     fetchNamedWays.mockResolvedValue(rosedale.elements);
     expect(await ensureStreets(CASE)).toBe('READY');
+    expect(prisma.searchGrid.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ streetsStatus: 'READY', streetsNote: null }) }));
   });
 
   test('a place with no named streets stays on squares for good', async () => {
