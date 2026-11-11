@@ -91,6 +91,13 @@ export async function GET(request, { params }) {
     }
     const items = streets || cells;
     const holding = items.find((i) => i.mine) || null;
+    // Why the streets are not here yet, when a fetch failed: which map
+    // server said what. Nothing private, and without it a failure on the
+    // live host cannot be told from the outside.
+    const streetsNote =
+      streetsStatus === 'FAILED'
+        ? (await prisma.searchGrid.findUnique({ where: { caseId: pet.id }, select: { streetsNote: true } }))?.streetsNote || null
+        : null;
     return NextResponse.json({
       caseId: pet.id,
       open,
@@ -99,6 +106,7 @@ export async function GET(request, { params }) {
       cells,
       counts: countsOf(items),
       streetsStatus,
+      streetsNote,
       viewer: searcher
         ? { kind: searcher.kind, firstName: searcher.firstName, isOwner: searcher.isOwner, waiver: searcher.waiver, seesNames: searcher.seesNames, holding: holding?.id || null }
         : null,

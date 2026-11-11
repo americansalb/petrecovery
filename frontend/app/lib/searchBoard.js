@@ -144,8 +144,8 @@ export async function openBlocks(caseId, { take = 12 } = {}) {
 
 /** Fewer named streets than this is not a board; the squares serve better. */
 const MIN_STREETS = 3;
-/** After the map server fails to answer, how long before asking again. */
-const STREETS_RETRY_MS = 15 * 60 * 1000;
+/** After no map server answers, how long before asking again. Short: a search is short too. */
+const STREETS_RETRY_MS = 3 * 60 * 1000;
 /** A fetch that never reported back (the process died) is taken over after this. */
 const STREETS_PENDING_MS = 90 * 1000;
 
@@ -162,9 +162,9 @@ const GRID_FOR_STREETS = {
 /**
  * The case's streets, fetched from the map once and kept. Resolves to
  * the board's street state: 'READY', 'NONE' (no named streets here),
- * 'PENDING' (another request is fetching them), 'FAILED' (the map server
- * did not answer; asked again after a while), or null when the case has
- * no last-seen point. Exactly one caller does the fetch: taking the job
+ * 'PENDING' (another request is fetching them), 'FAILED' (no map server
+ * answered; asked again in a few minutes, and SearchGrid.streetsNote says
+ * what each server did), or null when the case has no last-seen point. Exactly one caller does the fetch: taking the job
  * is a conditional write, like a claim.
  */
 export async function ensureStreets(caseId, { correlationId = null, fetchWays = fetchNamedWays, now = Date.now() } = {}) {
@@ -236,9 +236,9 @@ export async function ensureStreets(caseId, { correlationId = null, fetchWays = 
       count = walks.length;
     }
   } catch (error) {
-    failure = error?.message || String(error);
+    failure = String(error?.note || error?.message || error).slice(0, 300);
   }
-  await prisma.searchGrid.update({ where: { id: grid.id }, data: { streetsStatus: status, streetsAt: new Date() } });
+  await prisma.searchGrid.update({ where: { id: grid.id }, data: { streetsStatus: status, streetsAt: new Date(), streetsNote: status === 'FAILED' ? failure : null } });
   await logEvent({
     event_type: status === 'FAILED' ? 'streets.fetch_failed' : 'streets.created',
     correlation_id: correlationId,
