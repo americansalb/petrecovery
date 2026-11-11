@@ -34,6 +34,8 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { distanceMeters } from '@/app/lib/searchGrid';
+// The site's own address, built in: a link or a QR code made here never carries the host's name (app/lib/config.js).
+import { getBaseUrl } from '@/app/lib/config';
 import { orientWalk, walkTitle } from '@/app/lib/streetWalks';
 import useSearch from './hooks/useSearch';
 import TopBar from './components/TopBar';
@@ -203,7 +205,7 @@ function Screen({ mission }) {
   useEffect(() => {
     if (!desk || !picture || isOwner) return undefined;
     let cancelled = false;
-    const url = `${window.location.origin}/join/${encodeURIComponent(picture.caseNumber)}`;
+    const url = `${getBaseUrl()}/join/${encodeURIComponent(picture.caseNumber)}`;
     import('qrcode')
       .then((QR) => QR.toDataURL(url, { margin: 1, width: 240 }))
       .then((data) => !cancelled && setQr(data))
@@ -384,7 +386,7 @@ function Screen({ mission }) {
 
   function share() {
     if (!picture) return;
-    const url = `${window.location.origin}/join/${encodeURIComponent(picture.caseNumber)}`;
+    const url = `${getBaseUrl()}/join/${encodeURIComponent(picture.caseNumber)}`;
     const place = picture.lastSeen?.place ? ` near ${picture.lastSeen.place}` : '';
     const payload = { title: `Help find ${name}`, text: `${name} is lost${place}. This page shows where to look and how to send a sighting.`, url };
     if (navigator.share) {

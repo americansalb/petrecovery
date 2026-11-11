@@ -280,6 +280,14 @@ describe('the screen keeps the house rules', () => {
     expect(offenders).toEqual([]);
   });
 
+  test('the share link and the code to scan carry the site\'s built-in address, never the address in the browser\'s bar', () => {
+    // CLAUDE.md: the site's address is built in. Someone who opened the search on the host's own name must not pass that name on.
+    const offenders = folderFiles.filter((file) => /window\.location\.(origin|host|hostname|href)|location\.origin/.test(code(read(file))));
+    expect(offenders).toEqual([]);
+    expect(shell).toMatch(/import \{ getBaseUrl \} from '@\/app\/lib\/config';/);
+    expect(code(shell).match(/`\$\{getBaseUrl\(\)\}\/join\/\$\{encodeURIComponent\(picture\.caseNumber\)\}`/g)).toHaveLength(2);
+  });
+
   test('one yellow button to a step', () => {
     // <Primary> is the one yellow button. A step may branch between two, and never shows two at once.
     for (const [name, source] of [['Helper', helper], ['Owner', owner], ['Witness', witness]]) {
