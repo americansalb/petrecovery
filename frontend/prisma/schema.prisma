@@ -3370,6 +3370,14 @@ model SearchGrid {
   cellsSearched  Int       @default(0)
   lastActivityAt DateTime?
 
+  // The streets of this board (SearchStreet, app/lib/searchBoard.js).
+  // null: never fetched. PENDING: one request is fetching them now.
+  // READY: the board is streets. NONE: the map has no named streets here,
+  // so the board stays on squares. FAILED: the map server did not answer;
+  // tried again after a while.
+  streetsStatus String?
+  streetsAt     DateTime?
+
   // Cells
   cells GridCell[]
 
@@ -3415,6 +3423,47 @@ model GridCell {
   @@unique([gridId, row, col])
   @@index([gridId])
   @@index([status])
+  @@index([claimedById])
+}
+
+// One walk on the search board: a named street between two cross streets,
+// "Sinclair Ave from W 44th St to W 45th St" (app/lib/streetWalks.js).
+// People walk streets, not squares; the squares above stay as the board
+// for a place where the map has no named streets.
+model SearchStreet {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  caseId String
+
+  // The walk
+  name            String
+  fromName        String?
+  toName          String?
+  path            String // JSON: [[lat, lng], ...]
+  meters          Int
+  centerLatitude  Float
+  centerLongitude Float
+  priority        Int     @default(5) // 1-10, higher = more important
+
+  status String @default("UNSEARCHED") // UNSEARCHED, IN_PROGRESS, SEARCHED, NEEDS_REVISIT
+
+  // Claim. A User id, or "v:" and a MissionVolunteer id for someone who
+  // joined from the share link without an account. The first name is kept
+  // beside it so the board never has to look two tables up to say who.
+  claimedById   String?
+  claimedByName String?
+  claimedAt     DateTime?
+
+  // Search history
+  searchedById   String?
+  searchedByName String?
+  searchedAt     DateTime?
+  searchCount    Int       @default(0)
+
+  @@index([caseId])
+  @@index([caseId, status])
   @@index([claimedById])
 }
 
