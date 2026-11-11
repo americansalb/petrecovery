@@ -6,6 +6,7 @@ import { sendEmail, sendVerificationEmail, renderBrandedEmail, escapeHtml } from
 import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
 import { sendSms } from '@/app/lib/sms';
 import { seedActivation, enqueueCascade } from '@/app/lib/cascade/runCascade';
+import { ensureStreets } from '@/app/lib/searchBoard';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { logEvent } from '@/lib/logging';
@@ -864,6 +865,13 @@ export async function POST(request) {
     // Alert rows and rescue-force CaseAssignment rows exist. The reporter's
     // response is never blocked - the cascade runs on the next tick.
     enqueueCascade(report.id, { correlationId });
+
+    // The streets of the search board, fetched now so the first helper to
+    // open the map is handed a street instead of a wait
+    // (app/lib/searchBoard.js). Never blocks or fails the report.
+    if (report.reportType !== 'FOUND') {
+      ensureStreets(report.id, { correlationId }).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

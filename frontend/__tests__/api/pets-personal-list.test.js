@@ -9,6 +9,8 @@
  * has to come BACK to the adopter's personal list.
  */
 
+// The street fetch a lost report starts (app/lib/searchBoard.js) reaches for a map server; not in a test.
+jest.mock('@/app/lib/searchBoard', () => ({ __esModule: true, ensureStreets: jest.fn(async () => null) }));
 jest.mock('next-auth', () => ({ getServerSession: jest.fn() }));
 jest.mock('@/app/lib/auth', () => ({ authOptions: {} }));
 jest.mock('@/lib/logging', () => ({ logEvent: jest.fn().mockResolvedValue(undefined) }));

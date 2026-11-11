@@ -40,6 +40,8 @@ jest.mock('@/app/lib/email', () => ({
   escapeHtml: (v) => String(v ?? ''),
 }));
 jest.mock('@/app/lib/sms', () => ({ __esModule: true, sendSms: jest.fn().mockResolvedValue({ ok: true }) }));
+// The street fetch a lost report starts (app/lib/searchBoard.js) reaches for a map server; not in a test.
+jest.mock('@/app/lib/searchBoard', () => ({ __esModule: true, ensureStreets: jest.fn(async () => null) }));
 jest.mock('@/app/lib/cascade/runCascade', () => ({
   __esModule: true,
   seedActivation: jest.fn().mockResolvedValue({ status: 'PENDING' }),
