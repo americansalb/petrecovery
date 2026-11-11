@@ -17,7 +17,7 @@
 import prisma from '@/app/lib/prisma';
 import { generateGrid, cellLabel, CLAIM_TTL_MS } from '@/app/lib/searchGrid';
 import { buildWalks, walkTitle, walkMinutes } from '@/app/lib/streetWalks';
-import { fetchNamedWays } from '@/app/lib/osmStreets';
+import { fetchNamedWays, STREET_FETCH_MARGIN_METERS } from '@/app/lib/osmStreets';
 import { logEvent } from '@/lib/logging';
 
 const CASE_FOR_GRID = {
@@ -114,12 +114,37 @@ export async function sweepStaleClaims(gridId, now = Date.now()) {
 }
 
 /**
- * Blocks nobody is walking, most urgent first: unsearched and worth
- * another look, by the board's priority. Each carries its letter name.
+ * What nobody is walking, most urgent first: unsearched and worth another
+ * look, by the board's priority. Streets where the board has them, each
+ * with its name ("Sinclair Ave from W 40th St to W 44th St") and
+ * `unit: 'street'`; otherwise the squares, each with its letter name and
+ * `unit: 'block'`. The job picker hands these out, so a job on the pet's
+ * page is the same street the search map shows.
  */
 export async function openBlocks(caseId, { take = 12 } = {}) {
   const grid = await ensureGrid(caseId);
   if (!grid) return [];
+  const board = await prisma.searchGrid.findUnique({ where: { id: grid.id }, select: { streetsStatus: true } });
+  if (board?.streetsStatus === 'READY') {
+    await sweepStaleStreetClaims(caseId);
+    const streets = await prisma.searchStreet.findMany({
+      where: { caseId, context: false, status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } },
+      orderBy: [{ priority: 'desc' }, { name: 'asc' }, { id: 'asc' }],
+      take,
+    });
+    return streets.map((s) => ({
+      id: s.id,
+      unit: 'street',
+      label: walkTitle(s),
+      status: s.status,
+      priority: s.priority,
+      centerLatitude: s.centerLatitude,
+      centerLongitude: s.centerLongitude,
+      minutes: walkMinutes(s.meters),
+    }));
+  }
+  // Not fetched yet: start, and hand out squares meanwhile.
+  if (!board?.streetsStatus) ensureStreets(caseId).catch(() => {});
   await sweepStaleClaims(grid.id);
   const cells = await prisma.gridCell.findMany({
     where: { gridId: grid.id, status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } },
@@ -135,7 +160,7 @@ export async function openBlocks(caseId, { take = 12 } = {}) {
       centerLongitude: true,
     },
   });
-  return cells.map((c) => ({ ...c, label: cellLabel(c.row, c.col) }));
+  return cells.map((c) => ({ ...c, unit: 'block', label: cellLabel(c.row, c.col) }));
 }
 
 // ---------------------------------------------------------------------------
@@ -209,12 +234,14 @@ export async function ensureStreets(caseId, { correlationId = null, fetchWays = 
       ways,
       center,
       radiusMeters,
+      // The ring the fetch already reaches past the board, kept for naming places near the edge.
+      contextMeters: STREET_FETCH_MARGIN_METERS,
       sightings: sightings
         .filter((s) => s.latitude != null && s.longitude != null)
         .map((s) => ({ lat: s.latitude, lng: s.longitude, at: s.sightedAt || s.createdAt })),
       now,
     });
-    if (walks.length < MIN_STREETS) {
+    if (walks.filter((w) => !w.context).length < MIN_STREETS) {
       status = 'NONE';
     } else {
       // A retry after a half-written attempt starts clean.
@@ -230,10 +257,11 @@ export async function ensureStreets(caseId, { correlationId = null, fetchWays = 
           centerLatitude: w.centerLatitude,
           centerLongitude: w.centerLongitude,
           priority: w.priority,
+          context: Boolean(w.context),
         })),
       });
       status = 'READY';
-      count = walks.length;
+      count = walks.filter((w) => !w.context).length;
     }
   } catch (error) {
     failure = String(error?.note || error?.message || error).slice(0, 300);
@@ -258,7 +286,7 @@ export async function ensureStreets(caseId, { correlationId = null, fetchWays = 
  * never searched: giving up a second pass does not erase the first.
  */
 export async function sweepStaleStreetClaims(caseId, now = Date.now()) {
-  const stale = { caseId, status: 'IN_PROGRESS', claimedAt: { lt: new Date(now - CLAIM_TTL_MS) } };
+  const stale = { caseId, context: false, status: 'IN_PROGRESS', claimedAt: { lt: new Date(now - CLAIM_TTL_MS) } };
   const free = { claimedById: null, claimedByName: null, claimedAt: null };
   await prisma.searchStreet.updateMany({ where: { ...stale, searchCount: 0 }, data: { ...free, status: 'UNSEARCHED' } });
   await prisma.searchStreet.updateMany({ where: { ...stale, searchCount: { gt: 0 } }, data: { ...free, status: 'SEARCHED' } });
@@ -307,11 +335,32 @@ export async function readStreets(caseId, { viewer = null, withNames = false } =
   if (grid?.streetsStatus !== 'READY') return null;
   await sweepStaleStreetClaims(caseId);
   const rows = await prisma.searchStreet.findMany({
-    where: { caseId },
+    where: { caseId, context: false },
     orderBy: [{ priority: 'desc' }, { name: 'asc' }, { id: 'asc' }],
   });
   if (!rows.length) return null;
   return rows.map((row) => streetForBoard(row, { viewer, withNames }));
+}
+
+/**
+ * The streets in the ring just outside the board: names and lines only,
+ * for calling a place by its corner and a direction by its street. They
+ * carry no state, because nobody is ever sent to walk them.
+ */
+export async function readStreetsAround(caseId) {
+  const rows = await prisma.searchStreet.findMany({
+    where: { caseId, context: true },
+    select: { name: true, fromName: true, toName: true, path: true },
+  });
+  return rows.map((row) => {
+    let path = [];
+    try {
+      path = JSON.parse(row.path);
+    } catch {
+      path = [];
+    }
+    return { name: row.name, fromName: row.fromName, toName: row.toName, path };
+  });
 }
 
 /**
@@ -371,7 +420,8 @@ export async function actOnBoard({ caseId, unit, id, action, searcher, now = Dat
   const grid = await prisma.searchGrid.findUnique({ where: { caseId }, select: { id: true } });
   if (!grid) return { error: 'NOT_FOUND', title: null };
   const model = streets ? prisma.searchStreet : prisma.gridCell;
-  const scope = streets ? { caseId } : { gridId: grid.id };
+  // A street of the ring outside the board is not a street of the board: it cannot be taken.
+  const scope = streets ? { caseId, context: false } : { gridId: grid.id };
   const before = await model.findFirst({ where: { id, ...scope } });
   if (!before) return { error: 'NOT_FOUND', title: null };
   const title = streets ? walkTitle(before) : `Block ${cellLabel(before.row, before.col)}`;
@@ -409,7 +459,8 @@ export async function actOnBoard({ caseId, unit, id, action, searcher, now = Dat
         status: 'SEARCHED',
         searchedAt: new Date(now),
         searchCount: { increment: 1 },
-        ...(streets ? { searchedById: me, searchedByName: searcher.firstName } : { searchedById: searcher.userId }),
+        // A square's searchedById points at an account, so a helper without one is kept in searchedByKey.
+        ...(streets ? { searchedById: me, searchedByName: searcher.firstName } : { searchedById: searcher.userId, searchedByKey: me }),
       },
     });
     if (marked.count === 0) return { error: 'NOT_CLAIMED', title };

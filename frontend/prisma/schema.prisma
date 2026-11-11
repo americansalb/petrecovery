@@ -913,6 +913,32 @@ model CaseSighting {
   verifiedBy String?
   verifiedAt DateTime?
 
+  // Which way the pet went, as the witness said it (app/lib/witness.js):
+  // a compass word or STAYING, and the street it went toward when they
+  // tapped one ("Rosedale Ave").
+  direction  String?
+  towardName String?
+
+  // The witness's own hold on this sighting. The key is known only to the
+  // device that sent it, so someone with no account can say what happened
+  // next: WATCHING, LOST_SIGHT, LEFT, NOT_THE_PET, WITH_WITNESS.
+  witnessKey     String?
+  witnessState   String?
+  witnessStateAt DateTime?
+
+  // The owner's answer, which the witness's screen shows back to them.
+  ownerSeenAt     DateTime?
+  ownerGoingAt    DateTime?
+  ownerEtaMinutes Int?
+
+  // The owner asked the helpers to stay back while they go to the pet.
+  // Their choice, never the product's: off unless they turn it on. When
+  // someone running the search for the owner sent the ask, it goes out
+  // under that person's first name (holdAskedByName), not the owner's.
+  holdAskedAt     DateTime?
+  holdEndedAt     DateTime?
+  holdAskedByName String?
+
   createdAt DateTime @default(now())
 
   @@index([missionId])
@@ -3418,6 +3444,10 @@ model GridCell {
   searchedAt   DateTime?
   searchCount  Int       @default(0)
   notes        String?
+  // Who searched it, as the board knows people (app/lib/searcher.js): an
+  // account's id, or "v:<volunteer id>" for a helper with no account, who
+  // cannot be named by searchedById because that points at an account.
+  searchedByKey String?
 
   // Sessions
   sessions SearchSession[]
@@ -3448,6 +3478,10 @@ model SearchStreet {
   centerLatitude  Float
   centerLongitude Float
   priority        Int     @default(5) // 1-10, higher = more important
+
+  // A street just outside the board, kept only so a sighting past the edge
+  // can be named and given a direction. Never handed out, never counted.
+  context Boolean @default(false)
 
   status String @default("UNSEARCHED") // UNSEARCHED, IN_PROGRESS, SEARCHED, NEEDS_REVISIT
 

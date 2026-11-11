@@ -10,8 +10,10 @@
  * The route: POST /api/public/missions/[caseNumber]/sighting.
  */
 
+import crypto from 'crypto';
 import prisma from '@/app/lib/prisma';
 import { missionWhere } from '@/app/lib/shareMetadata';
+import { placeFromStreets } from '@/app/lib/streetWalks';
 import { placeName } from '@/app/lib/needOptions';
 import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
@@ -23,6 +25,16 @@ import { getEmailBaseUrl } from '@/app/lib/config';
 export const SURE = { SURE: 5, LIKELY: 3, UNSURE: 1 };
 
 const DIRECTIONS = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'NORTHEAST', 'NORTHWEST', 'SOUTHEAST', 'SOUTHWEST'];
+/** The pet did not go anywhere: it is staying where it was seen. */
+const STAYING = 'STAYING';
+/**
+ * What the witness is doing about it, which they can change afterwards
+ * from the same phone: still watching the pet, lost sight of it, had to
+ * leave, it turned out not to be the pet, or the pet is with them.
+ */
+export const WITNESS_STATES = ['WATCHING', 'LOST_SIGHT', 'LEFT', 'NOT_THE_PET', 'WITH_WITNESS'];
+/** A sighting can be filed for earlier, up to a week back. */
+const MAX_MINUTES_AGO = 7 * 24 * 60;
 const NAME_MAX = 60;
 const NOTE_MAX = 600;
 
@@ -41,18 +53,43 @@ export function checkWitnessSighting(body = {}) {
   const sure = String(body.sure || 'LIKELY').toUpperCase();
   if (!(sure in SURE)) return { error: 'Say how sure you are.' };
   const direction = body.direction ? String(body.direction).toUpperCase() : null;
-  if (direction && !DIRECTIONS.includes(direction)) return { error: 'Which way did the pet go? Pick a direction.' };
+  if (direction && direction !== STAYING && !DIRECTIONS.includes(direction)) return { error: 'Which way did the pet go? Pick a direction.' };
+  const state = body.state ? String(body.state).toUpperCase() : null;
+  if (state && state !== 'WATCHING' && state !== 'WITH_WITNESS') return { error: 'Say whether you can see the pet now.' };
+  const minutesAgo = Math.max(0, Math.min(MAX_MINUTES_AGO, Math.round(Number(body.minutesAgo) || 0)));
   return {
     value: {
       lat,
       lng,
       sure,
       direction,
+      toward: clean(body.toward, 80),
+      state,
+      minutesAgo,
       name: clean(body.name, NAME_MAX),
       note: clean(body.note, NOTE_MAX),
       address: clean(body.address, 200),
     },
   };
+}
+
+/** "Going toward Rosedale Ave." / "Heading north." / "Staying there." / '' */
+export function headingWords({ direction = null, toward = '' } = {}) {
+  if (direction === STAYING) return 'Staying there.';
+  if (toward) return `Going toward ${toward}.`;
+  if (direction) return `Heading ${direction.toLowerCase()}.`;
+  return '';
+}
+
+/** The corner or street a point is on, from the streets of the pet's board; '' when none passes it. */
+async function placeOnBoard(caseId, point) {
+  try {
+    const rows = await prisma.searchStreet.findMany({ where: { caseId }, select: { name: true, path: true } });
+    const streets = rows.map((r) => ({ name: r.name, path: JSON.parse(r.path) }));
+    return placeFromStreets(streets, point) || '';
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -77,24 +114,35 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   if (pet.status === 'REUNITED' || pet.status === 'CLOSED_OTHER') return { error: 'CLOSED' };
 
   const name = pet.petName || 'The pet';
-  const place = placeName(value.address) || null;
+  // One tap sends a position and no address: the board's streets name it.
+  const address = value.address || (await placeOnBoard(pet.id, { lat: value.lat, lng: value.lng }));
+  const place = placeName(address) || address || null;
   const who = value.name || null;
-  const heading = value.direction ? `Heading ${value.direction.toLowerCase()}.` : '';
-  const description = [value.note, heading].filter(Boolean).join(' ') || `Seen by ${who || 'someone with the link'}.`;
+  const heading = headingWords(value);
+  const withThem = value.state === 'WITH_WITNESS';
+  const description =
+    [withThem ? `${who || 'The person who reported this'} has ${name} with them.` : '', value.note, heading].filter(Boolean).join(' ') ||
+    `Seen by ${who || 'someone with the link'}.`;
+  const key = crypto.randomBytes(18).toString('hex');
 
   const sighting = await prisma.caseSighting.create({
     data: {
       missionId: pet.id,
       reportedById: userId,
       reporterName: who,
-      sightedAt: now,
+      sightedAt: new Date(now.getTime() - (value.minutesAgo || 0) * 60000),
       latitude: value.lat,
       longitude: value.lng,
-      address: value.address || 'Marked on the map',
+      address: address || 'Marked on the map',
       description,
       certaintyLevel: SURE[value.sure],
       photoUrls: '[]',
       isVerified: false,
+      direction: value.direction || null,
+      towardName: value.toward || null,
+      witnessKey: key,
+      witnessState: value.state || null,
+      witnessStateAt: value.state ? now : null,
     },
   });
 
@@ -105,7 +153,13 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   const told = { owner: false, bell: 0, pushed: 0 };
   const url = `/cases/${encodeURIComponent(pet.caseNumber)}`;
   const near = place ? `Near ${place}.` : 'Marked on the map.';
-  const sureWords = value.sure === 'SURE' ? `${who || 'Someone'} is sure it was ${name}.` : value.sure === 'UNSURE' ? `${who || 'Someone'} is not sure it was ${name}.` : `${who || 'Someone'} thinks it was ${name}.`;
+  const sureWords = withThem
+    ? `${who || 'Someone'} has ${name} with them.`
+    : value.sure === 'SURE'
+      ? `${who || 'Someone'} is sure it was ${name}.`
+      : value.sure === 'UNSURE'
+        ? `${who || 'Someone'} is not sure it was ${name}.`
+        : `${who || 'Someone'} thinks it was ${name}.`;
 
   // The forces looking for the pet: the Discussion post (signed-in witness
   // only; a post has an author) and the wake-up for everyone else.
@@ -163,11 +217,78 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
     const { broadcast } = await import('@/app/lib/sse/missionStream');
     broadcast(pet.id, {
       type: 'SIGHTING_REPORTED',
-      sighting: { id: sighting.id, latitude: sighting.latitude, longitude: sighting.longitude, address: sighting.address, description: sighting.description, sightedAt: sighting.sightedAt, reportedByName: who },
+      sighting: { id: sighting.id, latitude: sighting.latitude, longitude: sighting.longitude, address: sighting.address, description: sighting.description, sightedAt: sighting.sightedAt, reportedByName: who, direction: sighting.direction, towardName: sighting.towardName },
     });
   } catch (error) {
     console.warn('[witness] broadcast failed:', error?.message);
   }
 
-  return { sighting: { id: sighting.id, sightedAt: sighting.sightedAt }, place, told, caseNumber: pet.caseNumber, ownerName: pet.reporter?.firstName || null };
+  return { sighting: { id: sighting.id, sightedAt: sighting.sightedAt }, key, place, told, caseNumber: pet.caseNumber, ownerName: pet.reporter?.firstName || null };
+}
+
+/**
+ * Checks what a witness sends to change their own sighting afterwards:
+ * which way the pet went, or what they are doing now. Returns { error }
+ * in words, or { value }.
+ */
+export function checkWitnessUpdate(body = {}) {
+  const id = clean(body.id, 40);
+  const key = clean(body.key, 80);
+  if (!id || !key) return { error: 'That sighting cannot be changed from this phone.' };
+  const out = { id, key };
+  if (body.direction !== undefined || body.toward !== undefined) {
+    const direction = body.direction ? String(body.direction).toUpperCase() : null;
+    if (direction && direction !== STAYING && !DIRECTIONS.includes(direction)) return { error: 'Which way did the pet go? Pick a direction.' };
+    out.direction = direction;
+    out.toward = clean(body.toward, 80);
+  }
+  if (body.state !== undefined) {
+    const state = String(body.state || '').toUpperCase();
+    if (!WITNESS_STATES.includes(state)) return { error: 'Say what happened.' };
+    out.state = state;
+  }
+  if (out.direction === undefined && out.state === undefined) return { error: 'Nothing to change.' };
+  return { value: out };
+}
+
+/**
+ * The witness changes their own sighting: the way the pet went, or that
+ * they lost sight of it, had to go, or it was not the pet. Only the phone
+ * that sent the sighting holds its key. Returns { error: 'NOT_FOUND' } or
+ * { sighting }. Everyone with the board open hears it.
+ */
+export async function updateWitnessSighting(caseParam, value, { now = new Date() } = {}) {
+  const pet = await prisma.case.findFirst({ where: missionWhere(caseParam), select: { id: true, petName: true } });
+  if (!pet) return { error: 'NOT_FOUND' };
+  const sighting = await prisma.caseSighting.findFirst({
+    where: { id: value.id, missionId: pet.id, witnessKey: value.key },
+    select: { id: true, description: true, direction: true, towardName: true, reporterName: true },
+  });
+  if (!sighting) return { error: 'NOT_FOUND' };
+  const data = {};
+  if (value.direction !== undefined) {
+    data.direction = value.direction;
+    data.towardName = value.toward || null;
+    // The sentence about the way it went is the last one of the description; replace it.
+    const before = headingWords({ direction: sighting.direction, toward: sighting.towardName });
+    const base = before && sighting.description.endsWith(before) ? sighting.description.slice(0, -before.length).trim() : sighting.description;
+    const after = headingWords({ direction: value.direction, toward: value.toward });
+    data.description = [/^Seen by /.test(base) && after ? '' : base, after].filter(Boolean).join(' ') || base;
+  }
+  if (value.state !== undefined) {
+    data.witnessState = value.state;
+    data.witnessStateAt = now;
+  }
+  const updated = await prisma.caseSighting.update({
+    where: { id: sighting.id },
+    data,
+    select: { id: true, direction: true, towardName: true, witnessState: true, witnessStateAt: true, description: true, sightedAt: true },
+  });
+  try {
+    const { broadcast } = await import('@/app/lib/sse/missionStream');
+    broadcast(pet.id, { type: 'SIGHTING_UPDATED', sighting: { id: updated.id, direction: updated.direction, towardName: updated.towardName, witnessState: updated.witnessState } });
+  } catch (error) {
+    console.warn('[witness] broadcast failed:', error?.message);
+  }
+  return { sighting: updated };
 }

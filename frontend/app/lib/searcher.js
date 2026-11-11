@@ -14,9 +14,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { forcesOf } from '@/app/lib/forceFeed';
+import { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER } from '@/app/lib/searcherHeaders';
 
-export const VOLUNTEER_ID_HEADER = 'x-volunteer-id';
-export const VOLUNTEER_KEY_HEADER = 'x-volunteer-key';
+export { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER };
+
 
 const firstWord = (s) => String(s || '').trim().split(/\s+/)[0] || '';
 

@@ -57,9 +57,10 @@ const PRIMARY_LINK =
   'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-flash-400 px-6 py-3 text-base font-semibold text-midnight-900 shadow-sm transition hover:bg-flash-500';
 const ICON_BUTTON =
   'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-midnight-100 text-midnight-700 transition hover:bg-midnight-200';
-// "Search on the map": the way into Mission Control, first for anyone
-// signed in (the force's members, the owner). a.bg-midnight-900 gets its
-// shading from app/globals.css.
+// "Search on the map": the way into Mission Control, the pet's search
+// screen. It opens for anyone, signed in or not: a visitor can join with a
+// first name and be handed a street. a.bg-midnight-900 gets its shading
+// from app/globals.css.
 const DARK_LINK =
   'inline-flex items-center justify-center gap-2 rounded-xl bg-midnight-900 px-4 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-midnight-800';
 
@@ -320,7 +321,8 @@ export default function CasePageClient() {
   // Mission Control, the search map. "Search on the map" is the way in; by
   // case number, so its way back out lands on this page's own address.
   const missionHref = `/mission-control?mission=${encodeURIComponent(caseRef)}`;
-  const reportSightingHref = signedIn ? `${missionHref}&action=sighting` : `/join/${encodeURIComponent(c.id)}?action=sighting`;
+  // The search screen takes a sighting from anyone, with or without an account.
+  const reportSightingHref = `${missionHref}&action=sighting`;
   const directionsHref = hasCoords ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null;
   const sheltersHref = !pinOnly
     ? `/shelters?near=${encodeURIComponent(place)}`
@@ -426,12 +428,10 @@ export default function CasePageClient() {
   } else if (status.key === 'lost') {
     actions = (
       <div className="space-y-3">
-        {signedIn && (
-          <Link href={missionHref} className={`${DARK_LINK} w-full`}>
-            <MapIcon className="h-4 w-4" aria-hidden="true" />
-            Search on the map
-          </Link>
-        )}
+        <Link href={missionHref} className={`${DARK_LINK} w-full`}>
+          <MapIcon className="h-4 w-4" aria-hidden="true" />
+          Search on the map
+        </Link>
         <Button size="lg" fullWidth leftIcon={Eye} onClick={() => setSheet('sighting')}>
           I&apos;ve seen {name}
         </Button>
@@ -741,7 +741,6 @@ export default function CasePageClient() {
         phone={phone}
         contactName={contactName}
         reportHref={reportSightingHref}
-        signedIn={signedIn}
       />
       {sheet === 'home' && (
         <MarkReunitedModal mission={c} onClose={closeSheet} onConfirm={confirmHome} isSaving={savingHome} error={homeError} />

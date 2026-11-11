@@ -46,6 +46,41 @@ export async function quickJoin(missionId, options = {}) {
     return { success: false, error: 'This search is not currently active' };
   }
 
+  // The same phone joining again (the page was closed, or the name was
+  // changed) is the same helper, not a second one: the row is unique on
+  // (missionId, odId), and a second create used to fail the join.
+  const already = deviceId
+    ? await prisma.missionVolunteer.findUnique({ where: { missionId_odId: { missionId, odId: deviceId } } })
+    : null;
+  if (already) {
+    const again = await prisma.missionVolunteer.update({
+      where: { id: already.id },
+      data: {
+        displayName: name || already.displayName,
+        status: VOLUNTEER_STATUS.ACTIVE,
+        userId: options.userId || already.userId,
+        isAnonymous: !(options.userId || already.userId),
+        waiverAcceptedAt: already.waiverAcceptedAt || new Date(),
+        waiverVersionAccepted: waiverVersion || already.waiverVersionAccepted,
+        ...(location ? { currentLocation: JSON.stringify(location), lastLocationUpdate: new Date() } : {}),
+      },
+    });
+    return {
+      success: true,
+      volunteerId: again.id,
+      sessionToken: generateSessionToken(again.id),
+      assignment: null,
+      rejoined: true,
+      pet: {
+        name: mission.case.petName,
+        species: mission.case.petSpecies,
+        photoUrl: mission.case.petPhotoUrl,
+        color: mission.case.petColor,
+        description: mission.case.petDescription,
+      },
+    };
+  }
+
   // Create anonymous volunteer record
   const volunteer = await prisma.missionVolunteer.create({
     data: {

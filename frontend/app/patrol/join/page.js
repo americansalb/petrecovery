@@ -18,6 +18,7 @@ import {
   MapPin, Bell, ShieldCheck, Loader2, Check, ChevronLeft, Navigation,
 } from 'lucide-react';
 import { captchaHeaders } from '@/app/lib/captchaClient';
+import { SAFETY_RULES, SAFETY_AGREEMENT } from '@/app/lib/safetyRules';
 
 const STEPS = [
   { id: 'zone', label: 'Your zone' },
@@ -528,11 +529,9 @@ export default function JoinPatrol() {
               <div className="bg-flash-50 border border-flash-200 rounded-xl p-4 mb-4">
                 <p className="font-semibold text-midnight-900 mb-2">Safety rules</p>
                 <ul className="text-sm text-midnight-700 space-y-1.5 list-disc pl-5">
-                  <li>Do not approach animals that may attack humans or harbor disease.</li>
-                  <li>Contact animal control or owners when appropriate. Never take direct action with aggressive animals.</li>
-                  <li>Never enter private property without permission.</li>
-                  <li>Report sightings only. You are not expected to capture or chase animals.</li>
-                  <li>Your safety comes first. If you feel unsafe, do not engage.</li>
+                  {SAFETY_RULES.map((rule) => (
+                    <li key={rule}>{rule}</li>
+                  ))}
                 </ul>
               </div>
 
@@ -563,7 +562,7 @@ export default function JoinPatrol() {
                   className="mt-0.5 w-4 h-4 accent-flash-400"
                 />
                 <span className="text-sm text-midnight-700">
-                  I have read the safety rules and the waiver, and I agree to both.
+                  {SAFETY_AGREEMENT}
                 </span>
               </label>
 

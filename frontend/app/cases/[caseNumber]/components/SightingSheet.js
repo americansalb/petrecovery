@@ -1,17 +1,17 @@
 'use client';
 
 /**
- * "I've seen this pet": call the owner when the pet is in sight, or file
- * the sighting. Signed-in helpers file it on the Mission Control map; a
- * stranger holding a shared link joins the search first (no account),
- * which is the flow that takes their location and a note.
+ * "I've seen this pet": call the owner when the pet is in sight, or send
+ * the sighting. The search screen takes it from anyone, with no account:
+ * one tap sends where they are, and a sighting from earlier is typed in
+ * by street (app/mission-control, steps/Witness.js).
  */
 
 import Link from 'next/link';
 import { Phone, MapPin, ChevronRight } from 'lucide-react';
 import { Modal } from '@/components/ui';
 
-export default function SightingSheet({ open, onClose, name, phone, contactName, reportHref, signedIn }) {
+export default function SightingSheet({ open, onClose, name, phone, contactName, reportHref }) {
   return (
     <Modal open={open} onClose={onClose} title={`You've seen ${name}?`} subtitle="Thank you. Here is how to let the owner know.">
       <div className="space-y-2">
@@ -43,9 +43,7 @@ export default function SightingSheet({ open, onClose, name, phone, contactName,
           <span className="min-w-0 flex-1">
             <span className="block font-semibold text-midnight-900">Report the sighting</span>
             <span className="block text-sm text-midnight-600">
-              {signedIn
-                ? 'Mark where you saw them on the map and add what you saw.'
-                : 'Join the search, no account needed, then send your location and a note.'}
+              {`One tap sends where you are, if you see ${name} now. No account needed.`}
             </span>
           </span>
           <ChevronRight size={18} className="shrink-0 text-midnight-400" aria-hidden="true" />

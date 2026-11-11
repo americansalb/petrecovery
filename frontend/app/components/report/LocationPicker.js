@@ -12,6 +12,10 @@
  * change (search pick, geolocate, pin drag, map tap) calls onChange with a
  * complete value object. With storageKey set, the last confirmed location is
  * restored on mount and kept in sync (legacy `reportLocation` shape).
+ *
+ * `canLocate={false}` takes "Use my location" away, for a screen that
+ * must not ask where the device is (the search screen on a desktop,
+ * whose position is a guess from the network).
  */
 
 import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
@@ -120,6 +124,7 @@ export default function LocationPicker({
   storageKey,
   onLocated, // (spot) after "Use my location" lands: the screen can move on by itself
   controlRef, // a ref the parent fills to call locate() from its own button
+  canLocate = true, // false: never offer or ask for the device's position
 }) {
   const mapHex = variant === 'found' ? '#10b981' : '#ef4444';
   const [query, setQuery] = useState('');
@@ -423,10 +428,12 @@ export default function LocationPicker({
 
       {noResults && !isSearching && query.trim().length >= 2 && (
         <p className="shrink-0 -mt-1 text-sm text-midnight-600">
-          No matches for that search. Try a cross-street or a nearby landmark,
+          No matches for that search. Try a cross-street or a nearby landmark
           {value
-            ? ' or tap the map to move the pin yourself.'
-            : ' or use your location and drag the pin to the spot.'}
+            ? ', or tap the map to move the pin yourself.'
+            : canLocate
+              ? ', or use your location and drag the pin to the spot.'
+              : '.'}
         </p>
       )}
 
@@ -440,16 +447,20 @@ export default function LocationPicker({
                 <MapPin size={26} className="text-midnight-400" />
               </span>
               <p className="font-bold text-midnight-900">Type the street above</p>
-              <p className="text-sm text-midnight-500 mt-1 mb-4">or</p>
-              <button
-                type="button"
-                onClick={useMyLocation}
-                disabled={isLocating}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-midnight-900 text-white font-semibold shadow-lg hover:bg-midnight-800 transition-colors disabled:opacity-60"
-              >
-                {isLocating ? <Loader2 size={17} className="animate-spin" /> : <Navigation size={17} />}
-                {isLocating ? 'Finding you…' : 'Use my location'}
-              </button>
+              {canLocate && (
+                <>
+                  <p className="text-sm text-midnight-500 mt-1 mb-4">or</p>
+                  <button
+                    type="button"
+                    onClick={useMyLocation}
+                    disabled={isLocating}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-midnight-900 text-white font-semibold shadow-lg hover:bg-midnight-800 transition-colors disabled:opacity-60"
+                  >
+                    {isLocating ? <Loader2 size={17} className="animate-spin" /> : <Navigation size={17} />}
+                    {isLocating ? 'Finding you…' : 'Use my location'}
+                  </button>
+                </>
+              )}
               {savedOffer && (
                 <button
                   type="button"
@@ -470,15 +481,17 @@ export default function LocationPicker({
             <div className="absolute top-3 left-3 z-[500] px-3 py-1.5 rounded-full bg-midnight-900/85 text-white text-xs font-medium backdrop-blur pointer-events-none">
               Not the exact spot? Drag the pin.
             </div>
-            <button
-              type="button"
-              onClick={useMyLocation}
-              disabled={isLocating}
-              aria-label="Use my location"
-              className="absolute bottom-3 right-3 z-[500] w-11 h-11 rounded-full bg-white shadow-card-hover flex items-center justify-center text-midnight-600 hover:text-midnight-900 transition-colors disabled:opacity-60"
-            >
-              {isLocating ? <Loader2 size={18} className="animate-spin" /> : <Navigation size={18} />}
-            </button>
+            {canLocate && (
+              <button
+                type="button"
+                onClick={useMyLocation}
+                disabled={isLocating}
+                aria-label="Use my location"
+                className="absolute bottom-3 right-3 z-[500] w-11 h-11 rounded-full bg-white shadow-card-hover flex items-center justify-center text-midnight-600 hover:text-midnight-900 transition-colors disabled:opacity-60"
+              >
+                {isLocating ? <Loader2 size={18} className="animate-spin" /> : <Navigation size={18} />}
+              </button>
+            )}
           </>
         )}
       </div>
