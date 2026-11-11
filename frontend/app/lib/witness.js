@@ -18,8 +18,9 @@ import { placeName } from '@/app/lib/needOptions';
 import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
-import { sendEmail } from '@/app/lib/email';
+import { sendEmail, escapeHtml } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
+import { briefFor } from '@/app/lib/brief';
 
 /** How sure the witness is, as the 1 to 5 certainty the sighting stores. */
 export const SURE = { SURE: 5, LIKELY: 3, UNSURE: 1 };
@@ -39,6 +40,27 @@ const NAME_MAX = 60;
 const NOTE_MAX = 600;
 
 const clean = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+
+/** A sighting sent this soon after the pet was seen is announced as "just seen". */
+const LIVE_MINUTES = 10;
+
+/**
+ * What is kept of a witness's key. Several older routes return whole
+ * sighting rows to anyone, so the key itself is never stored: with only
+ * its hash, whoever reads the row still cannot change the sighting.
+ */
+export function hashWitnessKey(key) {
+  return crypto.createHash('sha256').update(String(key)).digest('hex');
+}
+
+/** "30 minutes ago", "about an hour ago", "3 hours ago", "yesterday", "2 days ago". */
+export function agoPhrase(minutes) {
+  if (minutes < 60) return `${minutes} minutes ago`;
+  if (minutes < 90) return 'about an hour ago';
+  if (minutes < 24 * 60) return `${Math.round(minutes / 60)} hours ago`;
+  if (minutes < 48 * 60) return 'yesterday';
+  return `${Math.round(minutes / (24 * 60))} days ago`;
+}
 
 /**
  * Checks the body of a witness sighting. Returns { error } in words the
@@ -81,15 +103,37 @@ export function headingWords({ direction = null, toward = '' } = {}) {
   return '';
 }
 
-/** The corner or street a point is on, from the streets of the pet's board; '' when none passes it. */
-async function placeOnBoard(caseId, point) {
+/**
+ * The streets of the pet's board, read once for a sighting: their lines,
+ * to name the corner a point is on, and every street name on them, to
+ * check a street the witness says the pet went toward.
+ */
+async function boardStreets(caseId) {
+  const streets = [];
+  const names = new Set();
   try {
-    const rows = await prisma.searchStreet.findMany({ where: { caseId }, select: { name: true, path: true } });
-    const streets = rows.map((r) => ({ name: r.name, path: JSON.parse(r.path) }));
-    return placeFromStreets(streets, point) || '';
+    const rows = await prisma.searchStreet.findMany({ where: { caseId }, select: { name: true, fromName: true, toName: true, path: true } });
+    for (const row of rows) {
+      for (const name of [row.name, row.fromName, row.toName]) if (name) names.add(String(name).toLowerCase());
+      try {
+        streets.push({ name: row.name, path: JSON.parse(row.path) });
+      } catch {
+        /* a line that does not parse names no place */
+      }
+    }
   } catch {
-    return '';
+    /* no board: nothing is named from it */
   }
+  return { streets, names };
+}
+
+/**
+ * The street a pet went toward is shown to everyone holding the link, so
+ * it has to be one of the board's own street names. Anything else that
+ * arrives in that field is dropped, and the compass word stands alone.
+ */
+function knownStreet(board, toward) {
+  return toward && board.names.has(String(toward).toLowerCase()) ? toward : '';
 }
 
 /**
@@ -114,12 +158,17 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   if (pet.status === 'REUNITED' || pet.status === 'CLOSED_OTHER') return { error: 'CLOSED' };
 
   const name = pet.petName || 'The pet';
+  const board = await boardStreets(pet.id);
   // One tap sends a position and no address: the board's streets name it.
-  const address = value.address || (await placeOnBoard(pet.id, { lat: value.lat, lng: value.lng }));
+  const address = value.address || placeFromStreets(board.streets, { lat: value.lat, lng: value.lng }) || '';
   const place = placeName(address) || address || null;
   const who = value.name || null;
-  const heading = headingWords(value);
+  const toward = knownStreet(board, value.toward);
+  const heading = headingWords({ direction: value.direction, toward });
   const withThem = value.state === 'WITH_WITNESS';
+  // A sighting can be sent for earlier. Only one sent as it happens is "just seen".
+  const minutes = value.minutesAgo || 0;
+  const live = minutes < LIVE_MINUTES;
   const description =
     [withThem ? `${who || 'The person who reported this'} has ${name} with them.` : '', value.note, heading].filter(Boolean).join(' ') ||
     `Seen by ${who || 'someone with the link'}.`;
@@ -139,8 +188,8 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
       photoUrls: '[]',
       isVerified: false,
       direction: value.direction || null,
-      towardName: value.toward || null,
-      witnessKey: key,
+      towardName: toward || null,
+      witnessKeyHash: hashWitnessKey(key),
       witnessState: value.state || null,
       witnessStateAt: value.state ? now : null,
     },
@@ -151,8 +200,13 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   }
 
   const told = { owner: false, bell: 0, pushed: 0 };
-  const url = `/cases/${encodeURIComponent(pet.caseNumber)}`;
+  // The search screen: where the sighting is on the map, and where the owner says "I am going".
+  const url = `/mission-control?mission=${encodeURIComponent(pet.caseNumber)}`;
   const near = place ? `Near ${place}.` : 'Marked on the map.';
+  const title = withThem ? `Someone has ${name} with them` : live ? `${name} was just seen` : `${name} was seen ${agoPhrase(minutes)}`;
+  // What to do on seeing the pet is the searcher's brief's own first sentence, and only while the sighting is live.
+  const never = briefFor({ way: 'foot', pet })[3] || '';
+  const onSeeing = live && !withThem ? never.slice(0, never.indexOf('.') + 1) : '';
   const sureWords = withThem
     ? `${who || 'Someone'} has ${name} with them.`
     : value.sure === 'SURE'
@@ -174,8 +228,8 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
         forceIds,
         exceptUserId: userId,
         kind: WAKE_KINDS.SIGHTING,
-        title: `${name} was just seen`,
-        body: [near, heading, sureWords, "Don't chase. Say where it goes."].filter(Boolean).join(' '),
+        title,
+        body: [near, heading, sureWords, onSeeing].filter(Boolean).join(' '),
         url,
         data: { caseId: pet.id, sightingId: sighting.id },
         now,
@@ -190,7 +244,6 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   // The owner: the bell, a push, an email. Never the witness's own report.
   if (pet.reporter && pet.reporter.id !== userId) {
     told.owner = true;
-    const title = `${name} was just seen`;
     const body = [near, heading, sureWords].filter(Boolean).join(' ');
     try {
       await prisma.notification.create({
@@ -204,10 +257,11 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
     }
     if (pet.reporter.email) {
       const link = `${getEmailBaseUrl()}${url}`;
+      // Every word that came from the witness or the report is escaped: the place and the note are typed by strangers.
       sendEmail({
         to: pet.reporter.email,
-        subject: `${name} was just seen${place ? ` near ${place}` : ''}`,
-        html: `<p>Hi ${pet.reporter.firstName || 'there'},</p><p>${body}</p>${value.note ? `<p>"${value.note}"</p>` : ''}<p><a href="${link}">Open ${name}'s page</a> to see where, and tell everyone helping what to do.</p>`,
+        subject: `${title}${place ? ` near ${place}` : ''}`,
+        html: `<p>Hi ${escapeHtml(pet.reporter.firstName || 'there')},</p><p>${escapeHtml(body)}</p>${value.note ? `<p>"${escapeHtml(value.note)}"</p>` : ''}<p><a href="${link}">Open ${escapeHtml(name)}'s search</a> to see where on the map.</p>`,
       }).catch((e) => console.error('[witness] owner email failed:', e?.message));
     }
   }
@@ -215,9 +269,10 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   // Everyone with the board open, live.
   try {
     const { broadcast } = await import('@/app/lib/sse/missionStream');
+    // The place and the time, as the picture gives them to anyone. Never who sent it, what they wrote, or their key.
     broadcast(pet.id, {
       type: 'SIGHTING_REPORTED',
-      sighting: { id: sighting.id, latitude: sighting.latitude, longitude: sighting.longitude, address: sighting.address, description: sighting.description, sightedAt: sighting.sightedAt, reportedByName: who, direction: sighting.direction, towardName: sighting.towardName },
+      sighting: { id: sighting.id, latitude: sighting.latitude, longitude: sighting.longitude, place, sightedAt: sighting.sightedAt, direction: sighting.direction, towardName: sighting.towardName, witnessState: sighting.witnessState },
     });
   } catch (error) {
     console.warn('[witness] broadcast failed:', error?.message);
@@ -261,19 +316,23 @@ export async function updateWitnessSighting(caseParam, value, { now = new Date()
   const pet = await prisma.case.findFirst({ where: missionWhere(caseParam), select: { id: true, petName: true } });
   if (!pet) return { error: 'NOT_FOUND' };
   const sighting = await prisma.caseSighting.findFirst({
-    where: { id: value.id, missionId: pet.id, witnessKey: value.key },
+    where: { id: value.id, missionId: pet.id, witnessKeyHash: hashWitnessKey(value.key) },
     select: { id: true, description: true, direction: true, towardName: true, reporterName: true },
   });
   if (!sighting) return { error: 'NOT_FOUND' };
   const data = {};
   if (value.direction !== undefined) {
+    const toward = value.toward ? knownStreet(await boardStreets(pet.id), value.toward) : '';
     data.direction = value.direction;
-    data.towardName = value.toward || null;
+    data.towardName = toward || null;
     // The sentence about the way it went is the last one of the description; replace it.
     const before = headingWords({ direction: sighting.direction, toward: sighting.towardName });
     const base = before && sighting.description.endsWith(before) ? sighting.description.slice(0, -before.length).trim() : sighting.description;
-    const after = headingWords({ direction: value.direction, toward: value.toward });
-    data.description = [/^Seen by /.test(base) && after ? '' : base, after].filter(Boolean).join(' ') || base;
+    const after = headingWords({ direction: value.direction, toward });
+    // "Seen by someone with the link." stands in when the witness wrote nothing; the way the pet went replaces it.
+    // Only that exact sentence: a note that happens to begin "Seen by the creek" is the witness's own and stays.
+    const standIn = `Seen by ${sighting.reporterName || 'someone with the link'}.`;
+    data.description = [base === standIn && after ? '' : base, after].filter(Boolean).join(' ') || standIn;
   }
   if (value.state !== undefined) {
     data.witnessState = value.state;

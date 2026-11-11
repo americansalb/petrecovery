@@ -21,6 +21,7 @@ import { finderGuide } from '@/app/lib/caseDetails';
 import { zoneFor } from '@/app/lib/caseZone';
 import { placeName } from '@/app/lib/needOptions';
 import { normalizePhotoUrl } from '@/app/lib/utils';
+import { forcesOf } from '@/app/lib/forceFeed';
 
 /** A sighting this fresh re-anchors the search: every screen leads with it. */
 export const HOT_SIGHTING_MS = 60 * 60 * 1000;
@@ -97,7 +98,6 @@ function sightingOut(s, { withNames }) {
     ownerSeenAt: s.ownerSeenAt,
     ownerGoingAt: s.ownerGoingAt,
     etaMinutes: s.ownerEtaMinutes,
-    hold: Boolean(s.holdAskedAt && !s.holdEndedAt),
     ...(withNames ? { by: named, note: s.description } : {}),
   };
 }
@@ -142,16 +142,23 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
   const open = isCaseOpen(pet.status);
   const sightings = (pet.sightings || []).map((s) => sightingOut(s, { withNames }));
 
-  // The owner's ask: only on the newest sighting, only while it is fresh,
-  // and never on one the witness has taken back.
-  const newest = sightings.find((s) => s.state !== 'NOT_THE_PET') || null;
-  const fresh = newest && now - new Date(newest.at).getTime() <= HOT_SIGHTING_MS;
+  // The ask to stay back. It stands from when a person sends it until
+  // they end it, the sighting it was sent on is an hour old or was taken
+  // back by its witness, or the search closes. A newer sighting does not
+  // end it: anyone can send a sighting, and only the person who asked
+  // can call the ask off. It goes out under the name of whoever sent it:
+  // the owner, or the person leading the search for them.
   const ownerFirst = String(pet.ownerName || '').trim().split(/\s+/)[0] || null;
-  // It goes out under the name of whoever sent it: the owner, or the person running the search for them.
-  const askedBy = newest ? (pet.sightings || []).find((s) => s.id === newest.id)?.holdAskedByName || null : null;
-  const ask = open && fresh && newest.hold ? { sightingId: newest.id, from: askedBy || ownerFirst, text: holdAskText(name) } : null;
+  const held = open
+    ? (pet.sightings || []).find(
+        (s) => s.witnessState !== 'NOT_THE_PET' && s.holdAskedAt && !s.holdEndedAt && now - new Date(s.sightedAt).getTime() <= HOT_SIGHTING_MS
+      ) || null
+    : null;
+  const ask = held ? { sightingId: held.id, from: held.holdAskedByName || ownerFirst, text: holdAskText(name) } : null;
 
   const looking = pet.reportType === 'FOUND' ? new Set() : await peopleLooking(pet.id, now);
+  // Whether a Rescue Force is looking for the pet: its members see what the owner sees, and the join screen says so.
+  const forces = await forcesOf(pet.id).catch(() => []);
 
   const phone = casePhone({ contact: { phone: pet.ownerPhone } }) ? String(pet.ownerPhone).trim() : null;
   const guide = finderGuide(pet.details, { name: pet.petName || 'this pet', species: pet.petSpecies });
@@ -215,10 +222,11 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
     sightings,
     ask,
     looking: { helpers: [...looking].filter((id) => id !== pet.reporterId).length },
+    forces: forces.length,
     neighbors,
     searched,
     viewer: searcher
-      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
+      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
       : null,
   };
 }

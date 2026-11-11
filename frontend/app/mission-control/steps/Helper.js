@@ -94,8 +94,10 @@ export function Main({ picture, name, owner, unit, items, counts, offer, done, i
 }
 
 /** Joining: a first name, the safety tick, and who sees what. */
-export function Join({ picture, name, owner, viewer, unit, search, onJoined, onBack }) {
+export function Join({ picture, name, owner, viewer, unit, instrument, search, onJoined, onBack }) {
   const signedIn = Boolean(viewer?.signedIn);
+  // The app records a walk for someone signed in. A browser records nothing, and neither does the app for a guest.
+  const records = instrument === 'field' && signedIn;
   const [first, setFirst] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [reading, setReading] = useState(false);
@@ -142,7 +144,8 @@ export function Join({ picture, name, owner, viewer, unit, search, onJoined, onB
         {signedIn ? '' : ' It needs your first name.'}
       </Lead>
       <p className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3 text-[15px] font-semibold leading-[22px] text-[var(--mc-ink)]">
-        {ownerName} sees your first name and the {thing} you walk. Nobody sees where you are.
+        {picture.forces > 0 ? `${ownerName} and the Rescue Force looking for ${name} see` : `${ownerName} sees`} your first name and the {thing} you walk.{' '}
+        {records ? 'The app records your path while you walk it.' : 'Nobody sees where you are.'}
       </p>
       {!signedIn && (
         <>
@@ -195,7 +198,9 @@ export function Join({ picture, name, owner, viewer, unit, search, onJoined, onB
       <Primary onClick={submit} busy={busy} className="mt-3">
         Show me a {thing} to walk
       </Primary>
-      <Note className="mt-2 text-center">Your phone will ask where you are, to pick a {thing} near you. Where you are stays on this phone.</Note>
+      <Note className="mt-2 text-center">
+        Your phone will ask where you are, to pick a {thing} near you{records ? ' and to record your walk.' : '. Where you are stays on this phone.'}
+      </Note>
     </>
   );
 }

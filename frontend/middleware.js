@@ -84,7 +84,10 @@ const RATE_LIMIT_CONFIG = {
   '/api/public/homepage': { windowMs: 60000, maxRequests: 60 },
   '/api/public/missions': { windowMs: 60000, maxRequests: 60 },
   '/api/missions': { windowMs: 60000, maxRequests: 120 },
-  '/api/mission': { windowMs: 60000, maxRequests: 120 },
+  // The search screen polls the picture and the board for everyone in a
+  // search party, who are often behind one address. Each route keeps its
+  // own tighter limit (app/lib/rateLimit.js, SEARCH_READ).
+  '/api/mission': { windowMs: 60000, maxRequests: 300 },
   // Default for other API routes
   default: { windowMs: 60000, maxRequests: 60 },
 };

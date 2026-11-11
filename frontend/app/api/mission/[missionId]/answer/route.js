@@ -9,12 +9,21 @@
  *   hold     the owner asks the helpers to stay back while they go
  *   release  the owner ends that ask
  *
- * Holding people back is the owner's choice and nobody else's (founder
- * rule, 2026-11-11): the product never asks a helper to stop on its own.
- * So `hold` exists only here, is off until the owner turns it on, and
- * goes out in the owner's name. The forces looking for the pet may answer
- * for the owner, since a lead often runs the search; an ask a lead sends
- * goes out under the lead's own first name.
+ * Holding people back is the owner's or the lead's choice and nobody
+ * else's (founder rule, 2026-11-11): the product never asks a helper to
+ * stop on its own. So `hold` exists only here, is off until a person
+ * turns it on, and goes out in that person's name: the owner's, or the
+ * first name of someone with a command role in a force looking for the
+ * pet. Joining a force takes one tap, so being a member is not enough.
+ *
+ * `seen` and `going` are the owner's alone. The witness's screen reads
+ * them as "Avery has seen your report" and "Avery is coming", and nobody
+ * else can make it say that.
+ *
+ * The ask stands until whoever may send it ends it, its sighting is an
+ * hour old or was taken back, or the search closes (app/lib/searchPicture.js).
+ * A newer sighting does not end it, so `release` ends every ask that is
+ * still standing for the pet, not only the one on the sighting named.
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
@@ -40,26 +49,55 @@ export async function POST(request, { params }) {
     const pet = await prisma.case.findFirst({ where: missionWhere(params.missionId), select: { id: true } });
     if (!pet) return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     const searcher = await searcherFor(request, pet.id);
-    if (!searcher || !(searcher.isOwner || searcher.seesNames)) {
-      return NextResponse.json({ error: 'Only the owner and the people running the search can answer a sighting.' }, { status: 403 });
+    const ownersAnswer = action === 'seen' || action === 'going';
+    if (!searcher || !(ownersAnswer ? searcher.isOwner : searcher.leads)) {
+      return NextResponse.json(
+        { error: ownersAnswer ? 'Only the owner can answer a sighting.' : 'Only the owner and the people leading the search can ask the helpers to stay back.' },
+        { status: 403 }
+      );
     }
-    const sighting = await prisma.caseSighting.findFirst({ where: { id: String(sightingId), missionId: pet.id }, select: { id: true, ownerSeenAt: true } });
+    const sighting = await prisma.caseSighting.findFirst({
+      where: { id: String(sightingId), missionId: pet.id },
+      select: { id: true, ownerSeenAt: true, holdAskedAt: true, holdEndedAt: true, holdAskedByName: true },
+    });
     if (!sighting) return NextResponse.json({ error: 'That sighting is not on this search.' }, { status: 404 });
+    // An ask standing on this sighting, and whether it is the owner's own (the owner's carries no other name).
+    const standing = Boolean(sighting.holdAskedAt && !sighting.holdEndedAt);
+    const ownersAsk = standing && !sighting.holdAskedByName;
+    if (action === 'release' && ownersAsk && !searcher.isOwner) {
+      return NextResponse.json({ error: 'The owner sent that ask. Only the owner can end it.' }, { status: 403 });
+    }
 
     const now = new Date();
     const data = {};
-    if (!sighting.ownerSeenAt) data.ownerSeenAt = now;
+    // Opening it is the owner's to record. A lead sending an ask has not seen it for the owner.
+    if (searcher.isOwner && !sighting.ownerSeenAt) data.ownerSeenAt = now;
     if (action === 'going') {
       const eta = Math.round(Number(body.etaMinutes));
       data.ownerGoingAt = now;
       data.ownerEtaMinutes = Number.isFinite(eta) && eta >= 1 && eta <= 180 ? eta : null;
     } else if (action === 'hold') {
-      data.holdAskedAt = now;
-      data.holdEndedAt = null;
-      // In the name of whoever sent it: null for the owner, whose name the search already carries.
-      data.holdAskedByName = searcher.isOwner ? null : searcher.firstName || null;
+      // An ask that already stands here keeps the name it went out under.
+      if (!standing) {
+        data.holdAskedAt = now;
+        data.holdEndedAt = null;
+        // In the name of whoever sent it: null for the owner, whose name the search already carries.
+        data.holdAskedByName = searcher.isOwner ? null : searcher.firstName || null;
+      }
     } else if (action === 'release') {
-      data.holdEndedAt = now;
+      if (standing) data.holdEndedAt = now;
+      // Every other ask still standing for this pet ends with it. The owner ends them all;
+      // someone leading the search ends the ones leads sent, and never the owner's own.
+      await prisma.caseSighting.updateMany({
+        where: {
+          missionId: pet.id,
+          holdAskedAt: { not: null },
+          holdEndedAt: null,
+          NOT: { id: sighting.id },
+          ...(searcher.isOwner ? {} : { holdAskedByName: { not: null } }),
+        },
+        data: { holdEndedAt: now },
+      });
     }
     const updated = Object.keys(data).length
       ? await prisma.caseSighting.update({

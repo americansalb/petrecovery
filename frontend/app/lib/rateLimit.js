@@ -126,6 +126,13 @@ export const RateLimitPresets = {
 
   // Standard API (authenticated)
   API: { windowMs: 60 * 1000, maxRequests: 100, blockDurationMs: 60 * 1000 },
+
+  // The search screen's two polled reads (the picture and the board). A
+  // whole search party is often behind one address (one phone carrier, or
+  // the owner's wifi), and each phone asks about eight times a minute
+  // while a sighting is fresh: the cap has to clear the party, not one
+  // person, and a block has to lift before the sighting goes cold.
+  SEARCH_READ: { windowMs: 60 * 1000, maxRequests: 180, blockDurationMs: 30 * 1000 },
 };
 
 /**

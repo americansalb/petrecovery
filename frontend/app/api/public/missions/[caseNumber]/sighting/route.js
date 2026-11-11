@@ -64,7 +64,10 @@ export async function POST(request, { params }) {
 }
 
 export async function PATCH(request, { params }) {
-  const rl = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'witness:sighting:update');
+  // A change needs the sighting's own key, which only the phone that sent it holds, so this is not the open
+  // door a new sighting is. The limit only has to stop guessing, and must not lock out a second witness on
+  // the same network who is tapping "I lost sight".
+  const rl = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_READ, 'witness:sighting:update');
   if (!rl.success) return rateLimitResponse(rl);
   let body;
   try {

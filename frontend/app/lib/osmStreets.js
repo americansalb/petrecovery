@@ -89,7 +89,12 @@ async function askOverpass(endpoint, query, options) {
   // Overpass answers 200 with a remark, and few or no elements, when the
   // query ran out of time or memory. That is a failure, not an empty town.
   if (data.remark) throw new Error(String(data.remark).replace(/^runtime error:\s*/i, ''));
-  return data.elements.filter((e) => e && e.type === 'way');
+  const ways = data.elements.filter((e) => e && e.type === 'way');
+  // An empty answer from one mirror is not proof of an empty town: a
+  // mirror that is behind, or holds one region, answers the same way. The
+  // board takes "no streets" as final, so it is left to the map call.
+  if (!ways.length) throw new Error('no streets in the answer');
+  return ways;
 }
 
 /** The first promise to resolve wins; rejects with every error, in order, only when all have failed. */
@@ -171,7 +176,8 @@ async function askMap(endpoint, box, options) {
 
 /**
  * The ways for a board centred on (lat, lng). Resolves to an array, empty
- * where the map has no named streets, and rejects when no server answered.
+ * only where OpenStreetMap's own map call says the box has no named
+ * streets, and rejects when no server gave an answer that can be trusted.
  * The rejection's `note` lists what each server did, shortest form:
  * "overpass-api.de: HTTP 429; maps.mail.ru: no answer in 6s; api.openstreetmap.org: HTTP 509".
  */

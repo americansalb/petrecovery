@@ -5,8 +5,9 @@
  * was lost, the owner's number, the sightings and what became of each,
  * how many people are out (app/lib/searchPicture.js). Open to anyone
  * holding the pet's link, with what the pet's public page already shows
- * and never a helper's name, number or position. Rate limited like the
- * other public reads. [missionId] is the case id or the case number.
+ * and never a helper's name, number or position. Rate limited with room
+ * for a search party behind one address (RateLimitPresets.SEARCH_READ).
+ * [missionId] is the case id or the case number.
  */
 import { NextResponse } from 'next/server';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
@@ -18,7 +19,7 @@ import { searchPicture } from '@/app/lib/searchPicture';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request, { params }) {
-  const limit = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_READ, 'picture');
+  const limit = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'picture');
   if (!limit.success) return rateLimitResponse(limit);
   try {
     const found = await prisma.case.findFirst({ where: missionWhere(params.missionId), select: { id: true } });

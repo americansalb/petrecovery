@@ -15,7 +15,8 @@ jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
   default: {
     case: { findFirst: jest.fn() },
-    caseSighting: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    caseSighting: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn(async () => ({ count: 0 })) },
+    caseAssignment: { findMany: jest.fn(async () => []) },
     searchStreet: { findMany: jest.fn(async () => []) },
     searchGrid: { findUnique: jest.fn(async () => null) },
     alert: { count: jest.fn(async () => 0) },
@@ -28,7 +29,7 @@ jest.mock('@/app/lib/rateLimit', () => ({
   __esModule: true,
   withRateLimitAsync: jest.fn(async () => ({ success: true })),
   rateLimitResponse: jest.fn(() => new Response(JSON.stringify({ error: 'Too many requests' }), { status: 429 })),
-  RateLimitPresets: { PUBLIC_READ: {}, API: {} },
+  RateLimitPresets: { PUBLIC_READ: {}, SEARCH_READ: {}, API: {} },
 }));
 
 import prisma from '@/app/lib/prisma';
@@ -90,9 +91,12 @@ const pet = (over = {}) => ({
   ...over,
 });
 
-const OWNER = { id: 'user-avery', kind: 'user', userId: 'user-avery', volunteerId: null, firstName: 'Avery', isOwner: true, waiver: true, seesNames: true };
-const LEAD = { id: 'user-sarah', kind: 'user', userId: 'user-sarah', volunteerId: null, firstName: 'Sarah', isOwner: false, waiver: true, seesNames: true };
-const HELPER = { id: 'v:vol-1', kind: 'volunteer', userId: null, volunteerId: 'vol-1', firstName: 'Jo', isOwner: false, waiver: true, seesNames: false };
+const OWNER = { id: 'user-avery', kind: 'user', userId: 'user-avery', volunteerId: null, firstName: 'Avery', isOwner: true, waiver: true, seesNames: true, leads: true };
+// Someone with a command role in a force looking for the pet.
+const LEAD = { id: 'user-sarah', kind: 'user', userId: 'user-sarah', volunteerId: null, firstName: 'Sarah', isOwner: false, waiver: true, seesNames: true, leads: true };
+// Someone who joined that force, which takes one tap.
+const MEMBER = { id: 'user-mike', kind: 'user', userId: 'user-mike', volunteerId: null, firstName: 'Mike', isOwner: false, waiver: true, seesNames: true, leads: false };
+const HELPER = { id: 'v:vol-1', kind: 'volunteer', userId: null, volunteerId: 'vol-1', firstName: 'Jo', isOwner: false, waiver: true, seesNames: false, leads: false };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -100,6 +104,8 @@ beforeEach(() => {
   prisma.searchStreet.findMany.mockResolvedValue([]);
   prisma.searchGrid.findUnique.mockResolvedValue(null);
   prisma.alert.count.mockResolvedValue(0);
+  prisma.caseAssignment.findMany.mockResolvedValue([]);
+  prisma.caseSighting.updateMany.mockResolvedValue({ count: 0 });
   searcherFor.mockResolvedValue(null);
   withRateLimitAsync.mockResolvedValue({ success: true });
 });
@@ -123,7 +129,8 @@ describe('searchPicture: what anyone with the link sees', () => {
     // The street, never the house number.
     expect(out.lastSeen.place).toBe('Sinclair Ave');
     expect(JSON.stringify(out)).not.toContain('4407');
-    expect(out.sightings[0]).toMatchObject({ id: 'sight-1', place: 'Ramsey Ave and W 40th St', direction: 'SOUTHEAST', toward: 'Rosedale Ave', state: 'WATCHING', hold: false });
+    expect(out.sightings[0]).toMatchObject({ id: 'sight-1', place: 'Ramsey Ave and W 40th St', direction: 'SOUTHEAST', toward: 'Rosedale Ave', state: 'WATCHING' });
+    expect(out.forces).toBe(0);
   });
 
   test('it never carries who reported a sighting, or what they wrote, to someone only looking', async () => {
@@ -136,7 +143,9 @@ describe('searchPicture: what anyone with the link sees', () => {
     // Nor to a helper who joined from the link.
     const helper = await searchPicture('case-max', { searcher: HELPER, now: NOW });
     expect(JSON.stringify(helper)).not.toContain('Dana');
-    expect(helper.viewer).toEqual({ kind: 'volunteer', firstName: 'Jo', isOwner: false, seesNames: false, waiver: true, signedIn: false });
+    expect(helper.viewer).toEqual({ kind: 'volunteer', firstName: 'Jo', isOwner: false, seesNames: false, leads: false, waiver: true, signedIn: false });
+    // Nor the witness's hold on it, in any form.
+    expect(text).not.toMatch(/witnessKey/);
     expect(helper.neighbors).toBeNull();
   });
 
@@ -182,7 +191,25 @@ describe('searchPicture: the ask to stay back is the owner\'s, and only while it
     prisma.case.findFirst.mockResolvedValue(held());
     const out = await searchPicture('case-max', { searcher: HELPER, now: NOW });
     expect(out.ask).toEqual({ sightingId: 'sight-1', from: 'Avery', text: 'Please stay back while I go to Max.' });
-    expect(out.sightings[0].hold).toBe(true);
+  });
+
+  test('a newer sighting does not end it: anyone can send a sighting, and only the person who asked can call the ask off', async () => {
+    prisma.case.findFirst.mockResolvedValue(
+      pet({
+        sightings: [
+          // Sent by a stranger a minute ago. Nobody asked anything on it.
+          sighting({ id: 'sight-2', sightedAt: ago(1) }),
+          sighting({ id: 'sight-1', sightedAt: ago(20), holdAskedAt: ago(15) }),
+        ],
+      })
+    );
+    const out = await searchPicture('case-max', { searcher: HELPER, now: NOW });
+    expect(out.ask).toEqual({ sightingId: 'sight-1', from: 'Avery', text: 'Please stay back while I go to Max.' });
+  });
+
+  test('a force looking for the pet is counted, so the join screen can say who sees a helper\'s name', async () => {
+    prisma.caseAssignment.findMany.mockResolvedValue([{ rescueSquadId: 'force-1' }, { rescueSquadId: 'force-1' }, { rescueSquadId: 'force-2' }]);
+    expect((await searchPicture('case-max', { now: NOW })).forces).toBe(2);
   });
 
   test('an ask sent by someone running the search goes out under their own name, not the owner\'s', async () => {
@@ -311,20 +338,40 @@ describe('POST /api/mission/[missionId]/answer', () => {
     searcherFor.mockResolvedValue(OWNER);
   });
 
-  test('only the owner and the people running the search can answer', async () => {
+  test('asking the helpers to stay back: the owner, or someone leading a force that is looking, and nobody else', async () => {
     searcherFor.mockResolvedValue(null);
     const stranger = await call({ sightingId: 'sight-1', action: 'hold' });
     expect(stranger.status).toBe(403);
-    expect((await stranger.json()).error).toMatch(/Only the owner and the people running the search/);
+    expect((await stranger.json()).error).toMatch(/Only the owner and the people leading the search/);
 
     searcherFor.mockResolvedValue(HELPER);
     expect((await call({ sightingId: 'sight-1', action: 'hold' })).status).toBe(403);
+
+    // Joining a force takes one tap. Being a member is not leading it.
+    searcherFor.mockResolvedValue(MEMBER);
+    expect((await call({ sightingId: 'sight-1', action: 'hold' })).status).toBe(403);
+    expect((await call({ sightingId: 'sight-1', action: 'release' })).status).toBe(403);
     expect(prisma.caseSighting.update).not.toHaveBeenCalled();
+    expect(prisma.caseSighting.updateMany).not.toHaveBeenCalled();
 
     searcherFor.mockResolvedValue(LEAD);
     expect((await call({ sightingId: 'sight-1', action: 'hold' })).status).toBe(200);
-    // Sent in the lead's own name.
-    expect(prisma.caseSighting.update.mock.calls[0][0].data.holdAskedByName).toBe('Sarah');
+    // Sent in the lead's own name, and it does not say the owner has seen the sighting.
+    const data = prisma.caseSighting.update.mock.calls[0][0].data;
+    expect(data.holdAskedByName).toBe('Sarah');
+    expect(data).not.toHaveProperty('ownerSeenAt');
+  });
+
+  test('"seen" and "going" are the owner\'s alone: nobody else can make a witness\'s screen say the owner is coming', async () => {
+    for (const who of [null, HELPER, MEMBER, LEAD]) {
+      searcherFor.mockResolvedValue(who);
+      for (const action of ['seen', 'going']) {
+        const res = await call({ sightingId: 'sight-1', action, etaMinutes: 3 });
+        expect(res.status).toBe(403);
+        expect((await res.json()).error).toBe('Only the owner can answer a sighting.');
+      }
+    }
+    expect(prisma.caseSighting.update).not.toHaveBeenCalled();
   });
 
   test('400 for anything else asked of it, 404 for no pet or a sighting from another search', async () => {
@@ -373,10 +420,39 @@ describe('POST /api/mission/[missionId]/answer', () => {
     expect(broadcast).toHaveBeenCalledWith('case-max', { type: 'SIGHTING_UPDATED', sighting: { id: 'sight-1', ownerGoing: false, hold: true } });
     expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: 'sighting.owner_hold', actor_user_id: 'user-avery' }));
 
+    prisma.caseSighting.findFirst.mockResolvedValue({ id: 'sight-1', ownerSeenAt: ago(3), holdAskedAt: ago(2), holdEndedAt: null, holdAskedByName: null });
     prisma.caseSighting.update.mockImplementation(async ({ data }) => ({ ...ROW, holdAskedAt: ago(2), ...data }));
     const freed = await call({ sightingId: 'sight-1', action: 'release' });
     expect(prisma.caseSighting.update.mock.calls[1][0].data.holdEndedAt).toBeInstanceOf(Date);
     expect((await freed.json()).sighting.hold).toBe(false);
+    // An ask sent on an earlier sighting ends with it: turning it off turns it off.
+    expect(prisma.caseSighting.updateMany).toHaveBeenCalledWith({
+      where: { missionId: 'case-max', holdAskedAt: { not: null }, holdEndedAt: null, NOT: { id: 'sight-1' } },
+      data: { holdEndedAt: expect.any(Date) },
+    });
+  });
+
+  test('an ask keeps the name it went out under, and a lead cannot end the owner\'s own', async () => {
+    // The owner's ask stands on this sighting.
+    prisma.caseSighting.findFirst.mockResolvedValue({ id: 'sight-1', ownerSeenAt: ago(3), holdAskedAt: ago(2), holdEndedAt: null, holdAskedByName: null });
+    searcherFor.mockResolvedValue(LEAD);
+    // A lead tapping "hold" changes nothing: it is still the owner's ask, under the owner's name.
+    expect((await call({ sightingId: 'sight-1', action: 'hold' })).status).toBe(200);
+    expect(prisma.caseSighting.update).not.toHaveBeenCalled();
+    // And a lead cannot call it off.
+    const res = await call({ sightingId: 'sight-1', action: 'release' });
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe('The owner sent that ask. Only the owner can end it.');
+    expect(prisma.caseSighting.updateMany).not.toHaveBeenCalled();
+
+    // A lead ending their own ask ends the asks leads sent, and leaves the owner's on other sightings standing.
+    prisma.caseSighting.findFirst.mockResolvedValue({ id: 'sight-2', ownerSeenAt: null, holdAskedAt: ago(2), holdEndedAt: null, holdAskedByName: 'Sarah' });
+    prisma.caseSighting.update.mockImplementation(async ({ data }) => ({ ...ROW, id: 'sight-2', holdAskedAt: ago(2), ...data }));
+    expect((await call({ sightingId: 'sight-2', action: 'release' })).status).toBe(200);
+    expect(prisma.caseSighting.updateMany).toHaveBeenCalledWith({
+      where: { missionId: 'case-max', holdAskedAt: { not: null }, holdEndedAt: null, NOT: { id: 'sight-2' }, holdAskedByName: { not: null } },
+      data: { holdEndedAt: expect.any(Date) },
+    });
   });
 
   test('429 when hammered', async () => {

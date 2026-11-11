@@ -47,7 +47,7 @@ function Approach({ picture, owner, name, className = '' }) {
 }
 
 /** Is it the pet, and is it now. The first tap sends the place. */
-export function Seen({ picture, name, owner, onNow, onWithMe, onEarlier, onBack, busy, problem }) {
+export function Seen({ picture, name, owner, signedIn = false, onNow, onWithMe, onEarlier, onBack, busy, problem }) {
   const pet = picture.pet || {};
   return (
     <div className="flex min-h-full flex-col">
@@ -67,7 +67,10 @@ export function Seen({ picture, name, owner, onNow, onWithMe, onEarlier, onBack,
         <Primary onClick={onNow} busy={busy === 'now'} disabled={Boolean(busy)} className="mt-4">
           Yes, I see {name} now
         </Primary>
-        <Note className="mt-2 text-center">It sends {owner?.firstName || 'the owner'} where you are now. Not your name or number.</Note>
+        {/* Someone signed in is recorded as themselves, as on the pet's page. The screen says so. */}
+        <Note className="mt-2 text-center">
+          It sends {owner?.firstName || 'the owner'} where you are now{signedIn ? ', in your name. Not your number.' : '. Not your name or number.'}
+        </Note>
         <Second onClick={onWithMe} busy={busy === 'with'} disabled={Boolean(busy)} className="mt-2.5">
           {name} is right here with me
         </Second>
@@ -153,7 +156,7 @@ export function SeenWay({ picture, name, owner, mine, streets, map, onPick, onSt
 }
 
 /** What was sent, what the owner answered, and a button for every ending. */
-export function SeenSent({ picture, name, owner, mine, onState, onAgain, onChangeWay, onDone, busy, problem }) {
+export function SeenSent({ picture, name, owner, mine, signedIn = false, onState, onAgain, onChangeWay, onDone, busy, problem }) {
   const report = picture.sightings.find((s) => s.id === mine.id) || null;
   const zone = picture.timeZone;
   const ownerName = owner?.firstName || 'The owner';
@@ -250,7 +253,7 @@ export function SeenSent({ picture, name, owner, mine, onState, onAgain, onChang
           <QuietLink onClick={onDone}>{live ? 'Close' : 'Back to the map'}</QuietLink>
         </BottomRow>
         <p className="text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">
-          {ownerName} got the place and the time, not your name or number.
+          {ownerName} got the place and the time{signedIn ? ', in your name. Not your number.' : ', not your name or number.'}
         </p>
       </div>
     </div>

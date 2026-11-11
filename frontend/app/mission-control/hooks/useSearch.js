@@ -6,9 +6,12 @@
  * Two reads, both open to anyone holding the pet's link: the picture
  * (the pet, where it was lost, the sightings, how many people are out)
  * and the board (the streets and whether each is free, being walked or
- * searched). They are asked again every twenty seconds, and sooner while
- * a sighting is fresh, so nobody watches a stale map. No account is
- * needed to read either.
+ * searched). The picture is asked again every thirty seconds, and every
+ * ten while a sighting is fresh; the board every thirty, and at once
+ * after this person's own tap. Both reads are limited per network
+ * address, and a whole search party can sit behind one address, so the
+ * polls are kept few and stop for half a minute when the server says to
+ * slow down. No account is needed to read either.
  *
  * Who this person is comes from the session, or from the volunteer this
  * browser joined as (lib/identity.js). The position is one reading of
@@ -22,8 +25,11 @@ import { useSession } from 'next-auth/react';
 import { deviceKey, readVolunteer, saveVolunteer, volunteerHeaders, readMySightings, saveMySighting } from '../lib/identity';
 import { hotSighting } from '../lib/words';
 
-const POLL_MS = 20000;
-const POLL_HOT_MS = 8000;
+const POLL_MS = 30000;
+const POLL_HOT_MS = 10000;
+const BOARD_POLL_MS = 30000;
+/** After a "too many requests" answer, nothing is asked for this long. */
+const SLOW_DOWN_MS = 30000;
 
 async function readJson(res) {
   return res.json().catch(() => ({}));
@@ -42,6 +48,8 @@ export default function useSearch(missionParam) {
   const volunteerRef = useRef(null);
   volunteerRef.current = volunteer;
   const caseIdRef = useRef(null);
+  const boardAt = useRef(0);
+  const pausedUntil = useRef(0);
 
   const headers = useCallback((extra = {}) => ({ ...volunteerHeaders(volunteerRef.current), ...extra }), []);
 
@@ -52,6 +60,7 @@ export default function useSearch(missionParam) {
       setFailure('gone');
       return null;
     }
+    if (res.status === 429) pausedUntil.current = Date.now() + SLOW_DOWN_MS;
     if (!res.ok) throw new Error('picture');
     const data = await res.json();
     setPicture(data);
@@ -62,8 +71,10 @@ export default function useSearch(missionParam) {
   const loadBoard = useCallback(async () => {
     if (!missionParam) return null;
     const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/board`, { headers: headers(), cache: 'no-store' });
+    if (res.status === 429) pausedUntil.current = Date.now() + SLOW_DOWN_MS;
     if (!res.ok) return null;
     const data = await res.json();
+    boardAt.current = Date.now();
     setBoard(data);
     return data;
   }, [missionParam, headers]);
@@ -114,7 +125,11 @@ export default function useSearch(missionParam) {
     if (!picture?.id) return undefined;
     const tick = setInterval(() => {
       setNow(Date.now());
-      if (document.visibilityState === 'visible') reload();
+      if (document.visibilityState !== 'visible' || Date.now() < pausedUntil.current) return;
+      // The sightings are what changes fast. The streets change slowly, and this person's own tap reloads them at once.
+      loadPicture().catch(() => null);
+      // A little slack, so a tick that lands a moment short of the half minute still reads the board.
+      if (Date.now() - boardAt.current >= BOARD_POLL_MS - 2000) loadBoard().catch(() => null);
     }, interval);
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -127,7 +142,7 @@ export default function useSearch(missionParam) {
       clearInterval(tick);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [picture?.id, interval, reload]);
+  }, [picture?.id, interval, reload, loadPicture, loadBoard]);
 
   /**
    * One reading of where the phone is. Resolves to the position, or null

@@ -921,8 +921,10 @@ model CaseSighting {
 
   // The witness's own hold on this sighting. The key is known only to the
   // device that sent it, so someone with no account can say what happened
-  // next: WATCHING, LOST_SIGHT, LEFT, NOT_THE_PET, WITH_WITNESS.
-  witnessKey     String?
+  // next: WATCHING, LOST_SIGHT, LEFT, NOT_THE_PET, WITH_WITNESS. Only a
+  // SHA-256 of the key is kept here: older routes return whole sighting
+  // rows, and whoever reads the hash still cannot change the sighting.
+  witnessKeyHash String?
   witnessState   String?
   witnessStateAt DateTime?
 

@@ -15,7 +15,8 @@
  * Asking the helpers to stay back is the owner's choice and nobody
  * else's (founder rule, 2026-11-11). The switch starts off. It shows the
  * owner the exact words that go out in their name, and says the helpers
- * can decline.
+ * can decline. Once on, it stays on through newer sightings until the
+ * owner turns it off (app/lib/searchPicture.js says when it ends).
  */
 import { useMemo } from 'react';
 import { ChevronRight, Eye, FileText, Megaphone, MessageSquare, Navigation, Printer, Share2, X } from 'lucide-react';
@@ -104,7 +105,7 @@ export function OwnerNow({ picture, name, now, step, onStep, onShare, onHome, on
 }
 
 /** The pet was seen: where, what the witness is doing, the engine's lines, and the owner's own ask. */
-export function OwnerSighting({ picture, name, hot, awayMeters, helpers, onHold, onGoing, onHome, onMore, busy, problem }) {
+export function OwnerSighting({ picture, name, hot, held, awayMeters, helpers, onHold, onGoing, onHome, onMore, busy, problem }) {
   const zone = picture.timeZone;
   const advice = adviceFor({ petSpecies: picture.pet?.species, escapeScenario: picture.pet?.howOut, petDescription: picture.pet?.description, lastSeenAt: picture.lastSeen?.at });
   const where = placeWords(hot.place);
@@ -138,14 +139,14 @@ export function OwnerSighting({ picture, name, hot, awayMeters, helpers, onHold,
               Ask the {helpers === 1 ? 'helper' : `${helpers} helpers`} to stay back
             </span>
             <span className="block text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">
-              {hot.hold ? `They got: "${holdAskTextFor(name)}" They can decline.` : 'Off. Nobody is asked to stop.'}
+              {held ? `They got: "${holdAskTextFor(name)}" They can decline.` : 'Off. Nobody is asked to stop.'}
             </span>
           </span>
           <span className="flex shrink-0 items-center gap-2">
-            <span className="text-[13px] font-bold text-[var(--mc-ink)]">{hot.hold ? 'On' : 'Off'}</span>
-            <span className={`relative h-7 w-12 rounded-full transition ${hot.hold ? 'bg-[var(--mc-ink)]' : 'bg-[var(--mc-line-strong)]'}`}>
-              <input type="checkbox" role="switch" checked={hot.hold} disabled={busy === 'hold'} onChange={(e) => onHold(e.target.checked)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label={`Ask the helpers to stay back while you go to ${name}`} />
-              <span className={`absolute top-1 h-5 w-5 rounded-full bg-[var(--mc-surface)] transition-all ${hot.hold ? 'left-6' : 'left-1'}`} />
+            <span className="text-[13px] font-bold text-[var(--mc-ink)]">{held ? 'On' : 'Off'}</span>
+            <span className={`relative h-7 w-12 rounded-full transition ${held ? 'bg-[var(--mc-ink)]' : 'bg-[var(--mc-line-strong)]'}`}>
+              <input type="checkbox" role="switch" checked={held} disabled={busy === 'hold'} onChange={(e) => onHold(e.target.checked)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label={`Ask the helpers to stay back while you go to ${name}`} />
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-[var(--mc-surface)] transition-all ${held ? 'left-6' : 'left-1'}`} />
             </span>
           </span>
         </label>

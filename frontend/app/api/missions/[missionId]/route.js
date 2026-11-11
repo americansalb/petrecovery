@@ -198,6 +198,11 @@ export async function GET(request, { params }) {
       }
     }
 
+    // The witness's hold on a sighting is theirs alone: not even its hash leaves with the row.
+    if (Array.isArray(normalizedCase.sightings)) {
+      normalizedCase.sightings = normalizedCase.sightings.map(({ witnessKeyHash, ...sighting }) => sighting);
+    }
+
     // Return case data directly (without wrapping in { case: ... })
     return NextResponse.json(normalizedCase);
 

@@ -93,8 +93,24 @@ describe('Overpass: every server at once, the first good answer wins', () => {
     expect(fetchImpl.mock.calls.some(([url]) => hostOf(url) === MAP_HOST)).toBe(false);
   });
 
-  test('a place with no named streets is an empty answer, not a failure', async () => {
-    expect(await fetchNamedWays({ ...at, fetchImpl: byHost(allOverpass(ok([]))) })).toEqual([]);
+  test('an empty answer from a mirror is not the last word: the board takes "no streets" as final, so the map call decides', async () => {
+    // One mirror is behind and says "nothing here". Another has the streets.
+    const some = byHost({ ...allOverpass(ok([])), 'overpass.kumi.systems': ok([way]) });
+    expect(await fetchNamedWays({ ...at, fetchImpl: some })).toEqual([way]);
+
+    // Every mirror says "nothing here": the map call is asked, and it has streets.
+    const mapHas = byHost({ ...allOverpass(ok([])), [MAP_HOST]: ok(MAP_ELEMENTS) });
+    expect((await fetchNamedWays({ ...at, fetchImpl: mapHas })).map((w) => w.tags.name)).toEqual(['Main Street', 'Creek Path']);
+
+    // The map call agrees there is nothing: that is a place with no named streets.
+    const none = byHost({ ...allOverpass(ok([])), [MAP_HOST]: ok([]) });
+    expect(await fetchNamedWays({ ...at, fetchImpl: none })).toEqual([]);
+
+    // The map call cannot be asked: nobody has said the place is empty, so it is a failure to try again, not "no streets".
+    const unknown = byHost({ ...allOverpass(ok([])), [MAP_HOST]: bad(509) });
+    await expect(fetchNamedWays({ ...at, fetchImpl: unknown })).rejects.toMatchObject({
+      note: 'overpass-api.de: no streets in the answer; overpass.private.coffee: no streets in the answer; overpass.kumi.systems: no streets in the answer; maps.mail.ru: no streets in the answer; api.openstreetmap.org: HTTP 509',
+    });
   });
 
   test('a query that ran out of time on the server is a failure, not an empty town', async () => {

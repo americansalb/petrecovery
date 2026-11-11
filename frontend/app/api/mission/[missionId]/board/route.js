@@ -57,7 +57,7 @@ function countsOf(items) {
 }
 
 export async function GET(request, { params }) {
-  const limit = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_READ, 'board');
+  const limit = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'board');
   if (!limit.success) return rateLimitResponse(limit);
   const correlationId = crypto.randomUUID();
   try {

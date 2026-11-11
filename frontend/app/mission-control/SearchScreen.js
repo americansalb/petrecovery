@@ -170,9 +170,11 @@ function Screen({ mission }) {
     setOwnerStep(Number(readNote(caseId, 'owner_step')) || 0);
     setWalkFrom(readNote(caseId, 'walk_from'));
   }, [caseId]);
+  // What this helper answered to the ask that stands now. One ask, one answer: a newer sighting does not ask again.
+  const askId = picture?.ask?.sightingId || null;
   useEffect(() => {
-    if (caseId && hot) setAskAnswer(readNote(caseId, `ask_${hot.id}`));
-  }, [caseId, hot]);
+    setAskAnswer(caseId && askId ? readNote(caseId, `ask_${askId}`) : null);
+  }, [caseId, askId]);
 
   // A witness coming back to the page finds what they sent, not the start.
   const resumed = useRef(false);
@@ -344,7 +346,8 @@ function Screen({ mission }) {
   async function hold(on) {
     if (!hot) return;
     setBusy('hold');
-    const result = await search.answer(hot.id, on ? 'hold' : 'release');
+    // Turning it off ends the ask wherever it was sent from; the server ends every one still standing.
+    const result = on ? await search.answer(hot.id, 'hold') : await search.answer(askId || hot.id, 'release');
     setBusy(null);
     if (result.error) setProblem(result.error);
   }
@@ -531,7 +534,7 @@ function Screen({ mission }) {
   let full = false; // a step that takes the whole phone screen, with no map behind it
   if (view === 'seen') {
     full = true;
-    step = <Seen picture={picture} name={name} owner={owner} onNow={() => seeNow('now')} onWithMe={() => seeNow('with')} onEarlier={() => { setEarlierFrom(30); go('seenEarlier'); }} onBack={() => go('main')} busy={busy} problem={problem} />;
+    step = <Seen picture={picture} name={name} owner={owner} signedIn={Boolean(viewer?.signedIn)} onNow={() => seeNow('now')} onWithMe={() => seeNow('with')} onEarlier={() => { setEarlierFrom(30); go('seenEarlier'); }} onBack={() => go('main')} busy={busy} problem={problem} />;
   } else if (view === 'seenWay' && mySeen) {
     full = true;
     const report = picture.sightings.find((s) => s.id === mySeen.id);
@@ -560,6 +563,7 @@ function Screen({ mission }) {
         name={name}
         owner={owner}
         mine={mySeen}
+        signedIn={Boolean(viewer?.signedIn)}
         onState={witnessState}
         onAgain={openSeen}
         onChangeWay={() => go('seenWay')}
@@ -576,7 +580,7 @@ function Screen({ mission }) {
   } else if (isOwner && view === 'sightings') {
     step = <SightingList picture={picture} name={name} now={now} onClose={() => go('more')} />;
   } else if (ownerSighting) {
-    step = <OwnerSighting picture={picture} name={name} hot={hot} awayMeters={me ? distanceMeters(me, hot) : NaN} helpers={picture.looking?.helpers || 0} onHold={hold} onGoing={going} onHome={() => setModal('home')} onMore={() => go('more')} busy={busy} problem={problem} />;
+    step = <OwnerSighting picture={picture} name={name} hot={hot} held={Boolean(picture.ask)} awayMeters={me ? distanceMeters(me, hot) : NaN} helpers={picture.looking?.helpers || 0} onHold={hold} onGoing={going} onHome={() => setModal('home')} onMore={() => go('more')} busy={busy} problem={problem} />;
   } else if (isOwner) {
     step = <OwnerNow picture={picture} name={name} now={now} step={ownerStep} onStep={nextOwnerStep} onShare={share} onHome={() => setModal('home')} onMore={() => go('more')} />;
   } else if (sightingIn) {
@@ -586,13 +590,13 @@ function Screen({ mission }) {
         name={name}
         owner={owner}
         hot={hot}
-        ask={picture.ask && picture.ask.sightingId === hot.id ? picture.ask : null}
+        ask={picture.ask}
         mine={mine}
         awayMeters={awayMeters}
         answered={askAnswer}
         onAnswer={(value) => {
           setAskAnswer(value);
-          saveNote(caseId, `ask_${hot.id}`, value);
+          if (askId) saveNote(caseId, `ask_${askId}`, value);
         }}
         onSeen={openSeen}
         onBack={() => {
@@ -605,7 +609,7 @@ function Screen({ mission }) {
   } else if (mine) {
     step = <Walking picture={picture} name={name} owner={owner} unit={unit} mine={mine} instrument={instrument} gps={gps} onReached={reached} onStop={stopWalking} onSeen={openSeen} busy={busy === 'reached'} problem={problem} />;
   } else if (view === 'join') {
-    step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} search={search} onJoined={afterJoin} onBack={() => go('main')} />;
+    step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={afterJoin} onBack={() => go('main')} />;
   } else if (view === 'street') {
     step = <Street name={name} owner={owner} unit={unit} offer={offer} counts={counts} onGo={claim} onOther={() => { setProblem(''); setSkip((s) => s + 1); }} onSeen={openSeen} busy={busy === 'go'} problem={problem} canOther={candidates.length > 1} />;
   } else {

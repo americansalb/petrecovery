@@ -209,7 +209,8 @@ describe('rule 1: the product never tells a helper to stop or not to search', ()
 
 describe('rule 2: holding people back is a person\'s ask, in their name, and can be declined', () => {
   test('the ask on a helper\'s screen is the one the picture carries, shown under a name', () => {
-    expect(shell).toMatch(/ask=\{picture\.ask && picture\.ask\.sightingId === hot\.id \? picture\.ask : null\}/);
+    // Whatever sighting leads the screen, the ask shown is the one the picture carries: a newer sighting does not drop it.
+    expect(shell).toMatch(/<SightingIn[\s\S]*?ask=\{picture\.ask\}/);
     expect(helper).toMatch(/\{ask && <AskCard from=\{ask\.from \|\| owner\?\.firstName\} text=\{ask\.text\}/);
     expect(read('app/mission-control/components/kit.js')).toMatch(/\{from \|\| 'The owner'\} \{who\}/);
   });
@@ -223,7 +224,9 @@ describe('rule 2: holding people back is a person\'s ask, in their name, and can
   });
 
   test('the owner\'s switch is off until the owner turns it on, shows the words that go out, and says helpers can decline', () => {
-    expect(owner).toMatch(/checked=\{hot\.hold\}/);
+    // The switch shows what the helpers are seeing: on exactly while an ask stands.
+    expect(shell).toMatch(/<OwnerSighting\b.*held=\{Boolean\(picture\.ask\)\}/);
+    expect(owner).toMatch(/checked=\{held\}/);
     expect(owner).toMatch(/'Off\. Nobody is asked to stop\.'/);
     expect(owner).toMatch(/They got: "\$\{holdAskTextFor\(name\)\}" They can decline\./);
     // Only the owner's step can send it.
@@ -231,9 +234,13 @@ describe('rule 2: holding people back is a person\'s ask, in their name, and can
     expect(senders.sort()).toEqual(['app/mission-control/SearchScreen.js', 'app/mission-control/steps/Owner.js']);
   });
 
-  test('on the server, a hold is on only when someone asked and has not ended it', () => {
+  test('on the server, an ask stands only when a person sent it and has not ended it, and only they or a lead can send it', () => {
     const picture = read('app/lib/searchPicture.js');
-    expect(picture).toMatch(/hold: Boolean\(s\.holdAskedAt && !s\.holdEndedAt\)/);
+    expect(picture).toMatch(/s\.witnessState !== 'NOT_THE_PET' && s\.holdAskedAt && !s\.holdEndedAt && now - new Date\(s\.sightedAt\)\.getTime\(\) <= HOT_SIGHTING_MS/);
+    expect(picture).toMatch(/const held = open\s*\?/);
+    const answer = read('app/api/mission/[missionId]/answer/route.js');
+    expect(answer).toMatch(/const ownersAnswer = action === 'seen' \|\| action === 'going';/);
+    expect(answer).toMatch(/if \(!searcher \|\| !\(ownersAnswer \? searcher\.isOwner : searcher\.leads\)\) \{/);
     const schema = read('prisma/schema.prisma');
     expect(schema).toMatch(/\n\s+holdAskedAt\s+DateTime\?\n/);
     expect(schema).toMatch(/\n\s+holdEndedAt\s+DateTime\?\n/);
@@ -286,6 +293,26 @@ describe('the screen keeps the house rules', () => {
     expect(offenders).toEqual([]);
     expect(shell).toMatch(/import \{ getBaseUrl \} from '@\/app\/lib\/config';/);
     expect(code(shell).match(/`\$\{getBaseUrl\(\)\}\/join\/\$\{encodeURIComponent\(picture\.caseNumber\)\}`/g)).toHaveLength(2);
+  });
+
+  test('the witness\'s key is never stored or sent on: only its hash is kept', () => {
+    const lib = read('app/lib/witness.js');
+    expect(lib).toMatch(/witnessKeyHash: hashWitnessKey\(key\)/);
+    expect(lib).toMatch(/witnessKeyHash: hashWitnessKey\(value\.key\)/);
+    expect(read('prisma/schema.prisma')).not.toMatch(/\bwitnessKey\s+String/);
+    // No source file reads or writes a plain key column.
+    const appFiles = walk(path.join(FRONTEND, 'app')).map(rel);
+    expect(appFiles.filter((file) => /\bwitnessKey\b(?!Hash)/.test(read(file)))).toEqual([]);
+  });
+
+  test('what the screen promises about names is true for the person reading it', () => {
+    // Someone signed in is recorded as themselves, so they are not told "not your name".
+    expect(witness).toMatch(/\{signedIn \? ', in your name\. Not your number\.' : '\. Not your name or number\.'\}/);
+    expect(witness).toMatch(/\{signedIn \? ', in your name\. Not your number\.' : ', not your name or number\.'\}/);
+    // The join screen names everyone who sees a helper's first name, and only says nobody sees where they are when nothing records it.
+    expect(helper).toMatch(/picture\.forces > 0 \? `\$\{ownerName\} and the Rescue Force looking for \$\{name\} see` : `\$\{ownerName\} sees`/);
+    expect(helper).toMatch(/const records = instrument === 'field' && signedIn;/);
+    expect(helper).toMatch(/\{records \? 'The app records your path while you walk it\.' : 'Nobody sees where you are\.'\}/);
   });
 
   test('one yellow button to a step', () => {
