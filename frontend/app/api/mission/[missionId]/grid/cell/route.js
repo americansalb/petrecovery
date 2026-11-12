@@ -25,10 +25,13 @@ import { forcesOf } from '@/app/lib/forceFeed';
 import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
+import { withRateLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
 
 const ACTIONS = ['claim', 'release', 'searched'];
+/** Giving a block back wakes the forces looking, so taking and giving back cannot be done without end. */
+const CELL_LIMIT = { windowMs: 60 * 1000, maxRequests: 20, blockDurationMs: 60 * 1000 };
 
-async function broadcastCellChange(caseId, type, cell, actor) {
+async function broadcastCellChange(caseId, type, cell) {
   // The stream route registers connections under the raw [missionId]
   // param - the caseId - so broadcasts key the same way. (First version
   // keyed by the MissionControl id: same map, different key, and every
@@ -42,8 +45,9 @@ async function broadcastCellChange(caseId, type, cell, actor) {
         col: cell.col,
         label: cellLabel(cell.row, cell.col),
         status: cell.status,
-        claimedById: cell.claimedById,
-        claimedByName: actor?.firstName || null,
+        // Whether it is held, and since when. Never by whom: anyone signed in can listen, and who holds a
+        // block is for the owner and the forces looking (app/lib/searcher.js, `seesNames`), who ask the board.
+        claimed: Boolean(cell.claimedById),
         claimedAt: cell.claimedAt,
         searchedAt: cell.searchedAt,
         searchCount: cell.searchCount,
@@ -63,11 +67,14 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const { missionId } = params;
-    const body = await request.json().catch(() => ({}));
-    const { cellId, action } = body;
+    const limit = await withRateLimitAsync(request, CELL_LIMIT, 'grid:cell');
+    if (!limit.success) return rateLimitResponse(limit);
 
-    if (!cellId || !ACTIONS.includes(action)) {
+    const { missionId } = await params;
+    const sent = await request.json().catch(() => null);
+    const { cellId, action } = sent && typeof sent === 'object' && !Array.isArray(sent) ? sent : {};
+
+    if (typeof cellId !== 'string' || !cellId || !ACTIONS.includes(action)) {
       return NextResponse.json(
         { error: `Send a cellId and one of: ${ACTIONS.join(', ')}.` },
         { status: 400 }
@@ -128,13 +135,11 @@ export async function PATCH(request, { params }) {
           where: { id: cellId },
           select: { claimedById: true, status: true },
         });
-        const holder = current?.claimedById
-          ? await prisma.user.findUnique({ where: { id: current.claimedById }, select: { firstName: true } })
-          : null;
+        // That someone has it, and not who: any account can ask, and names are for the owner and the forces looking.
         return NextResponse.json(
           {
-            error: holder?.firstName
-              ? `${holder.firstName} just claimed ${label}. Pick a block nearby.`
+            error: current?.claimedById
+              ? `Someone just claimed ${label}. Pick a block nearby.`
               : `${label} is not claimable right now.`,
             code: 'CELL_TAKEN',
           },
@@ -210,7 +215,7 @@ export async function PATCH(request, { params }) {
 
     const eventType =
       action === 'claim' ? 'CELL_CLAIMED' : action === 'release' ? 'CELL_RELEASED' : 'CELL_SEARCHED';
-    await broadcastCellChange(missionId, eventType, updated, updated.claimedById ? actor : null);
+    await broadcastCellChange(missionId, eventType, updated);
 
     await logEvent({
       event_type: `grid.cell_${action}`,

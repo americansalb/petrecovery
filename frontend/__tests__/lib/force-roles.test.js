@@ -8,6 +8,10 @@
  * "notify my force" for every leader who was not a platform admin or the
  * pet's owner), and no one could post an announcement. A mocked Prisma
  * doesn't validate enums, so the first test reads the schema itself.
+ *
+ * A command role is authority inside the force (its announcements, a
+ * notice to its own members). It is not authority over a pet the force is
+ * assigned to: that is the owner's and staff's.
  */
 
 import fs from 'fs';
@@ -62,12 +66,25 @@ describe('authz leader checks', () => {
     expect(where).toMatchObject({ userId: 'user-1', rescueSquadId: 'force-1', isActive: true, role: { in: FORCE_COMMAND_ROLES } });
   });
 
-  test('userHasCaseAuthority: a leader of the assigned force has it', async () => {
+  test('userHasCaseAuthority: a leader of the assigned force does not have it, and the force is not asked', async () => {
     prisma.case.findUnique.mockResolvedValue({ reporterId: 'someone-else' });
     prisma.caseAssignment.findMany.mockResolvedValue([{ rescueSquadId: 'force-1' }]);
     prisma.rescueForceMember.findFirst.mockResolvedValue({ id: 'm-1' });
+    await expect(userHasCaseAuthority('user-1', 'case-1')).resolves.toBe(false);
+    expect(prisma.caseAssignment.findMany).not.toHaveBeenCalled();
+    expect(prisma.rescueForceMember.findFirst).not.toHaveBeenCalled();
+  });
+
+  test('userHasCaseAuthority: the owner has it, staff have it, and nobody else', async () => {
+    prisma.case.findUnique.mockResolvedValue({ reporterId: 'user-1' });
     await expect(userHasCaseAuthority('user-1', 'case-1')).resolves.toBe(true);
-    expect(prisma.rescueForceMember.findFirst.mock.calls[0][0].where.role).toEqual({ in: FORCE_COMMAND_ROLES });
+    await expect(userHasCaseAuthority('user-2', 'case-1')).resolves.toBe(false);
+    prisma.user.findUnique.mockResolvedValue({ role: 'ADMIN' });
+    await expect(userHasCaseAuthority('user-2', 'case-1')).resolves.toBe(true);
+    prisma.user.findUnique.mockResolvedValue({ role: 'USER' });
+    prisma.case.findUnique.mockResolvedValue(null);
+    await expect(userHasCaseAuthority('user-1', 'no-such-case')).resolves.toBe(false);
+    await expect(userHasCaseAuthority(null, 'case-1')).resolves.toBe(false);
   });
 });
 

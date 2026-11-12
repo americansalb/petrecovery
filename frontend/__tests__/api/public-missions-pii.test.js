@@ -244,3 +244,55 @@ describe('GET /api/database - bulk contract', () => {
     );
   });
 });
+
+describe('GET /api/public/missions/[caseNumber] - the owner\'s id, and whose words an update is', () => {
+  const read = async () => (await getPublicCase(publicCaseRequest(), { params: { caseNumber: 'AUS-2026-0001' } })).json();
+  const UPDATES = [
+    { id: 'up-3', content: 'Max was found, stop looking.', createdAt: new Date('2026-08-03T00:00:00Z'), isPinned: false, authorId: 'u-stranger' },
+    { id: 'up-2', content: 'He comes to a squeaky ball.', createdAt: new Date('2026-08-02T00:00:00Z'), isPinned: false, authorId: 'u1' },
+    { id: 'up-1', content: 'Dana started searching', createdAt: new Date('2026-08-01T12:00:00Z'), isPinned: false, authorId: 'u-dana' },
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    getServerSession.mockResolvedValue(null);
+    prisma.case.findUnique.mockResolvedValue({ ...LOST_CASE, updates: UPDATES });
+  });
+
+  it('does not send the owner\'s account id: it says only whether the person asking is the owner', async () => {
+    const guest = await read();
+    expect(guest.reporterId).toBeUndefined();
+    expect(JSON.stringify(guest)).not.toMatch(/"u1"/);
+    expect(guest.viewerIsOwner).toBe(false);
+
+    getServerSession.mockResolvedValue({ user: { id: 'u-someone-else' } });
+    expect((await read()).viewerIsOwner).toBe(false);
+
+    getServerSession.mockResolvedValue({ user: { id: 'u1' } });
+    const owner = await read();
+    expect(owner.viewerIsOwner).toBe(true);
+    expect(owner.reporterId).toBeUndefined();
+  });
+
+  it('a session that cannot be read is nobody signed in, and the page still loads', async () => {
+    getServerSession.mockRejectedValue(new Error('bad cookie'));
+    const body = await read();
+    expect(body.viewerIsOwner).toBe(false);
+    expect(body.petName).toBe('Max');
+  });
+
+  it('shows as an update only what the owner\'s own account wrote', async () => {
+    // The page prints each update with no name, as an update on the pet. A stranger's line would read as the owner's.
+    const body = await read();
+    expect(body.updates.map((u) => u.id)).toEqual(['up-2']);
+    expect(JSON.stringify(body.updates)).not.toMatch(/found, stop looking|Dana|authorId|u-stranger/);
+  });
+
+  it('at most ten, the newest first', async () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({ id: `o-${i}`, content: `Update ${i}`, createdAt: new Date(Date.UTC(2026, 7, 30 - i)), isPinned: false, authorId: 'u1' }));
+    prisma.case.findUnique.mockResolvedValue({ ...LOST_CASE, updates: many });
+    const body = await read();
+    expect(body.updates).toHaveLength(10);
+    expect(body.updates[0].id).toBe('o-0');
+  });
+});

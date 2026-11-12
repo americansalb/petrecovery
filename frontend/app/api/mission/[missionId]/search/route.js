@@ -317,14 +317,14 @@ export async function POST(request, { params }) {
         return handleStart(user.id, missionId, body);
       }
       case 'ping':
-        return handlePing(body);
+        return handlePing(user.id, missionId, body);
       // The live client (useSearchSession) sends 'mark' with a { point } object,
       // not 'ping' with flat coords - without this adapter every breadcrumb fell
       // through to 400, so sessions recorded 0 pings → 0 distance → 0 points →
       // empty coverage map. Adapt the client's payload to handlePing.
       case 'mark': {
         const p = body.point || {};
-        return handlePing({
+        return handlePing(user.id, missionId, {
           sessionId: body.sessionId,
           latitude: p.lat,
           longitude: p.lng,
@@ -420,15 +420,17 @@ async function handleStart(userId, missionId, body) {
   });
 }
 
-async function handlePing(body) {
+async function handlePing(userId, missionId, body) {
   const { sessionId, latitude, longitude, accuracy, heading, speed, isValid } = body;
 
-  if (!sessionId) {
+  if (!sessionId || typeof sessionId !== 'string') {
     return NextResponse.json({ error: 'No session ID' }, { status: 400 });
   }
 
-  const session = await prisma.searchSession.findUnique({
-    where: { id: sessionId },
+  // The walk is this person's own, for this pet. A walk found by its id alone could be anyone's: points could
+  // be put into someone else's path.
+  const session = await prisma.searchSession.findFirst({
+    where: { id: sessionId, userId, missionId },
     include: {
       locationPings: {
         orderBy: { createdAt: 'desc' },
@@ -521,8 +523,10 @@ async function handleEnd(userId, missionId, body) {
     return NextResponse.json({ success: true, endedCount: ended });
   }
 
-  const session = await prisma.searchSession.findUnique({
-    where: { id: sessionId },
+  // This person's own walk, for this pet. Found by its id alone, someone else's walk could be ended from
+  // here, and what it had earned would have gone to whoever ended it.
+  const session = typeof sessionId !== 'string' ? null : await prisma.searchSession.findFirst({
+    where: { id: sessionId, userId, missionId },
     select: {
       id: true,
       status: true,
@@ -536,16 +540,16 @@ async function handleEnd(userId, missionId, body) {
         select: { latitude: true, longitude: true, isValid: true, createdAt: true },
         orderBy: { createdAt: 'asc' }, // Order by time to calculate distance correctly
       },
-      mission: {
-        select: {
-          createdAt: true,
-          petSpecies: true,
-          petSize: true,
-          lastSeenAt: true,
-        },
-      },
     },
   });
+  // The pet's own facts, read on their own. A walk has no link to its pet in the schema, only the pet's id, and
+  // asking for one through the walk made every "end" with a walk's id fail: no walk was ever finished this way.
+  if (session) {
+    session.mission = await prisma.case.findUnique({
+      where: { id: missionId },
+      select: { createdAt: true, petSpecies: true, petSize: true, lastSeenAt: true },
+    });
+  }
 
   if (!session) {
     // Session not found - force end all as fallback (handles orphaned sessions)

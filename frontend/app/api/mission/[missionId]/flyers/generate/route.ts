@@ -11,6 +11,7 @@ import { getServerSession } from 'next-auth';
 import QRCode from 'qrcode';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { isStaff } from '@/app/lib/missionControl/guard';
 import { getBaseUrl } from '@/app/lib/config';
 
 // =============================================================================
@@ -110,6 +111,14 @@ export async function POST(
 
     if (!missionRecord) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
+    }
+
+    // The flyer this makes carries the owner's phone and email address and the address the pet was lost at.
+    // It answered any account, for any pet. It is the owner's to make, and staff's (2026-11-12). The flyer on
+    // the pet's own page is made another way and is not this.
+    const userId = (session.user as any).id as string | undefined;
+    if (!userId || ((missionRecord as any).reporterId !== userId && !(await isStaff(userId)))) {
+      return NextResponse.json({ error: 'Only the owner can make this flyer.', code: 'NOT_ALLOWED' }, { status: 403 });
     }
 
     // Build case URL from the public case number (the real, shareable route

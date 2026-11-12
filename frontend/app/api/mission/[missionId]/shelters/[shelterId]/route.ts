@@ -138,6 +138,16 @@ export async function GET(
  * - Sends email via Resend
  * - Tracks opens/clicks via webhooks
  */
+/**
+ * Emailing a shelter from the site is switched off (2026-11-12). Nothing on
+ * the site offers it. The address it wrote to was whatever a request had
+ * stored for the "shelter" (any account can add one, with any address), and
+ * the letter was built from the request's own words, picture and link. It
+ * comes back when the letter is built here from the pet's own report and
+ * goes only to a shelter in the site's own directory.
+ */
+const EMAIL_FROM_SITE: boolean = false;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ missionId: string; shelterId: string }> }
@@ -183,6 +193,9 @@ export async function POST(
     if (body.action === 'call') {
       return handleCallLog(user.id, missionId, shelter, body, missionRecord.createdAt);
     } else if (body.action === 'email') {
+      if (!EMAIL_FROM_SITE) {
+        return NextResponse.json({ error: 'Emailing a shelter from the site is not available.', code: 'NOT_AVAILABLE' }, { status: 410 });
+      }
       return handleEmailSend(user.id, missionId, shelter, body, missionRecord.createdAt);
     } else {
       return NextResponse.json(

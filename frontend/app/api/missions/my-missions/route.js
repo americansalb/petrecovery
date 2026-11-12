@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { firstWord } from '@/app/lib/searchText';
 
 /**
  * GET /api/missions/my-missions
@@ -9,6 +10,11 @@ import prisma from '@/app/lib/prisma';
  * Returns all missions (cases) that the user is involved with:
  * - Cases they own
  * - Cases they're helping with (through squad assignments)
+ *
+ * An owner's contact details go to the owner. For a pet someone is helping with, this used to send the
+ * owner's account email, account phone and full name. Starting a walk makes anyone a helper, so that was any
+ * account reading any owner's sign-in address. A helper gets the owner's first name: the number to call is the
+ * one the owner put on the pet's own page.
  */
 export async function GET(request) {
   try {
@@ -99,12 +105,10 @@ export async function GET(request) {
           },
           take: 1,
         },
+        // A first name, and nothing else about the owner's account.
         reporter: {
           select: {
             firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
           },
         },
       },
@@ -114,8 +118,11 @@ export async function GET(request) {
     // Merge and deduplicate
     const allCasesMap = new Map();
 
+    const owned = new Set(ownedCases.map((caseItem) => caseItem.id));
+
     [...ownedCases, ...participantCases].forEach(caseItem => {
       if (!allCasesMap.has(caseItem.id)) {
+        const mine = owned.has(caseItem.id);
         // Calculate time missing
         const hoursMissing = caseItem.lastSeenAt
           ? Math.floor((Date.now() - new Date(caseItem.lastSeenAt).getTime()) / 3600000)
@@ -148,12 +155,14 @@ export async function GET(request) {
             : `${Math.floor(hoursMissing / 24)}d ${hoursMissing % 24}h`,
           helperCount: 0, // TODO: Calculate actual helper count
           rescueSquadId: squadId,
-          // Owner contact info (for email forms)
+          // The owner's own contact details, for their own pets. For anyone else's, a first name.
           ownerName: caseItem.reporter
-            ? `${caseItem.reporter.firstName || ''} ${caseItem.reporter.lastName || ''}`.trim()
+            ? mine
+              ? `${caseItem.reporter.firstName || ''} ${caseItem.reporter.lastName || ''}`.trim()
+              : firstWord(caseItem.reporter.firstName) || null
             : null,
-          ownerPhone: caseItem.reporter?.phone || null,
-          ownerEmail: caseItem.reporter?.email || null,
+          ownerPhone: mine ? caseItem.reporter?.phone || null : null,
+          ownerEmail: mine ? caseItem.reporter?.email || null : null,
         });
       }
     });
@@ -164,8 +173,9 @@ export async function GET(request) {
   } catch (error) {
     console.error('Error fetching my missions:', error);
     console.error('Error stack:', error.stack);
+    // What went wrong is in the log above, and is not sent to whoever asked.
     return NextResponse.json(
-      { error: 'Failed to fetch missions', message: error.message },
+      { error: 'Failed to fetch missions' },
       { status: 500 }
     );
   }

@@ -1,19 +1,33 @@
 /**
- * Case Search Areas API
+ * Case Search Areas API (the older one)
  *
- * POST /api/missions/[id]/search-areas - Record a GPS-tracked search area
- * GET /api/missions/[id]/search-areas - Get all search areas for a case
+ * GET /api/missions/[missionId]/search-areas - The areas people marked as searched for one pet
+ * POST - switched off (see below)
+ *
+ * Nothing on the site calls either. The areas a force marks on its own map go through
+ * /api/assignments/[id]/search-areas.
  */
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
+import { missionWhere } from '@/app/lib/shareMetadata';
 
 export const dynamic = 'force-dynamic';
 
+// Saving an area this way is switched off. It read a name its own address does not have, so whatever pet the
+// request named, the area (with a note and an address of any length, from any account) was saved onto the
+// first search in the table, and the request then failed. Nothing on the site sends one. The code below
+// stays for whoever brings it back: it needs the right pet, a check on who is asking, and limits.
+const OLD_AREA_OPEN = false;
+
 // POST - Record a new GPS-tracked search area
 export async function POST(request, { params }) {
+  if (!OLD_AREA_OPEN) {
+    return NextResponse.json({ error: 'Saving a search area this way is not available.', code: 'NOT_AVAILABLE' }, { status: 410 });
+  }
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -136,13 +150,14 @@ export async function POST(request, { params }) {
 // GET - Retrieve all search areas for a case
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    // The address's own name. It read `id`, which this address does not have, so it matched no pet in
+    // particular and answered with the first one in the table.
+    const { missionId: id } = await params;
+    if (!id) return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
 
-    // Support both UUID and case number
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-
+    // The pet by its id or its number, the way every other route reads it (an id here is not a UUID).
     const missionData = await prisma.case.findFirst({
-      where: isUuid ? { id } : { caseNumber: id },
+      where: missionWhere(id),
       include: {
         assignments: {
           include: {
@@ -150,9 +165,7 @@ export async function GET(request, { params }) {
               include: {
                 markedBy: {
                   select: {
-                    id: true,
                     firstName: true,
-                    lastName: true,
                   }
                 }
               },
@@ -169,19 +182,35 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
+    // Who walked where, with their notes and where they set off from. It took no sign-in at all.
+    // For the owner, the forces looking for the pet, and staff (2026-11-12).
+    const who = await mayKnowThePeople(request, missionData.id);
+    if (!who.allowed) {
+      return NextResponse.json({ error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' }, { status: who.status });
+    }
+
+    // One area whose shape cannot be read does not take the whole list down with it.
+    const shape = (text) => {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    };
+
     // Flatten search areas from all assignments
     const searchAreas = missionData.assignments.flatMap(a =>
       a.searchAreas.map(sa => ({
         id: sa.id,
-        geometry: JSON.parse(sa.geometry),
+        geometry: shape(sa.geometry),
         acreage: sa.acreage,
         notes: sa.notes,
         startAddress: sa.startAddress,
         potentialSpotting: sa.potentialSpotting,
         markedAt: sa.markedAt,
+        // A first name. Never an account's id or a last name.
         markedBy: {
-          id: sa.markedBy.id,
-          name: `${sa.markedBy.firstName} ${sa.markedBy.lastName || ''}`.trim()
+          name: sa.markedBy?.firstName || 'A helper'
         }
       }))
     );

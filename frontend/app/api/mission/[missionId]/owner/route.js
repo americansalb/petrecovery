@@ -117,7 +117,7 @@ export async function POST(request, { params }) {
         break;
 
       case 'STOP_CALL_MODE':
-        result = await stopCallMode(mission.id);
+        result = await stopCallMode(mission.id, session.user.id);
         break;
 
       case 'SEND_THANK_YOU':

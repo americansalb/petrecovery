@@ -2,14 +2,31 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { missionWhere } from '@/app/lib/shareMetadata';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
+import { withRateLimitAsync, rateLimitResponse, RateLimitPresets } from '@/app/lib/rateLimit';
 
-// GET /api/missions/[id]/assignments - Get all squad assignments for a case
+// GET /api/missions/[missionId]/assignments - The forces assigned to one pet, and who in them is on it.
+//
+// For the owner, the forces looking for the pet, and staff: who is on a search is theirs to know
+// (app/lib/searcher.js, `seesNames`). People are first names, never account ids or last names.
+//
+// Until 2026-11-12 this took no sign-in and read the wrong name for its own address, so it filtered by
+// nothing: it answered with every assignment on the site, each with its people's ids and names.
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    const limit = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'case:assignments');
+    if (!limit.success) return rateLimitResponse(limit);
+    const { missionId } = await params;
+    const pet = await prisma.case.findFirst({ where: missionWhere(missionId), select: { id: true } });
+    if (!pet) return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
+    const who = await mayKnowThePeople(request, pet.id);
+    if (!who.allowed) {
+      return NextResponse.json({ error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' }, { status: who.status });
+    }
 
     const assignments = await prisma.caseAssignment.findMany({
-      where: { missionId: id },
+      where: { missionId: pet.id },
       include: {
         rescueSquad: {
           select: {
@@ -21,12 +38,11 @@ export async function GET(request, { params }) {
         },
         participants: {
           where: { isActive: true },
-          include: {
+          select: {
+            optedInAt: true,
             user: {
               select: {
-                id: true,
                 firstName: true,
-                lastName: true,
                 rescueLevel: true,
               },
             },

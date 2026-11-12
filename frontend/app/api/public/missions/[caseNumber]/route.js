@@ -15,6 +15,8 @@ import { publicDetails, finderGuide } from '@/app/lib/caseDetails';
 import { casePhone } from '@/app/lib/caseLabels';
 import { zoneFor } from '@/app/lib/caseZone';
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { normalizePhotoUrl } from '@/app/lib/utils';
@@ -113,16 +115,19 @@ export async function GET(request, { params }) {
             }
           }
         },
-        // Updates for timeline
+        // Updates for timeline. The page shows each as an update on the pet, with no name: so only what the
+        // owner's own account wrote is sent (filtered below; `authorId` does not leave). Anyone who had started
+        // a walk for the pet could post one, and it appeared here as if it were the owner's word.
         updates: {
           where: { isUpdate: true },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 40,
           select: {
             id: true,
             content: true,
             createdAt: true,
-            isPinned: true
+            isPinned: true,
+            authorId: true
           }
         }
       }
@@ -155,6 +160,16 @@ export async function GET(request, { params }) {
     const parsedPlace = parsePlace(missionData.lastSeenAddress);
     const city = parsedPlace?.city || 'Unknown';
     const state = parsedPlace?.state || 'XX';
+
+    // Who is asking, only to say whether this is their own pet. Nobody signed in is nobody's owner.
+    let viewerId = null;
+    try {
+      viewerId = (await getServerSession(authOptions))?.user?.id || null;
+    } catch {
+      // A page anyone may read: a session that cannot be read is nobody signed in.
+      viewerId = null;
+    }
+    const viewerIsOwner = Boolean(viewerId && viewerId === missionData.reporterId);
 
     // Build response
     const response = {
@@ -194,8 +209,9 @@ export async function GET(request, { params }) {
       resolution: missionData.resolution,
       resolvedAt: missionData.resolvedAt,
       isUrgent: missionData.priority === 'URGENT',
-      // Reporter ID (for checking ownership)
-      reporterId: missionData.reporterId,
+      // Whether the person asking is the owner, so the page can show the owner's own panel. The owner's account
+      // id itself is not sent: it went to anyone who opened the page.
+      viewerIsOwner,
       // Engagement metrics
       viewCount: missionData.viewCount || 0,
       shareCount: missionData.shareCount || 0,
@@ -221,8 +237,11 @@ export async function GET(request, { params }) {
             : s.reportedBy.firstName)
       })),
       sightingsCount: missionData.sightings?.length || 0,
-      // Updates for timeline
-      updates: missionData.updates || []
+      // Updates for timeline: the owner's own, newest ten
+      updates: (missionData.updates || [])
+        .filter((u) => u.authorId && u.authorId === missionData.reporterId)
+        .slice(0, 10)
+        .map(({ authorId, ...update }) => update)
     };
 
     // Contact block: the case page turns this into a "call the owner" tel: link,

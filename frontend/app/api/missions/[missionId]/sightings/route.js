@@ -1,8 +1,20 @@
 /**
- * Mission Sightings API
+ * Mission Sightings API (the older one)
  *
  * GET /api/missions/[id]/sightings - Get all sightings for a case
- * POST /api/missions/[id]/sightings - Report a new sighting
+ * POST /api/missions/[id]/sightings - Report a new sighting (switched off)
+ *
+ * A sighting is sent through /api/public/missions/[id]/sighting
+ * (app/lib/witness.js) and read through /api/mission/[id]/picture, which
+ * gives each person what is theirs. Nothing on the site calls this route.
+ *
+ * - GET returned every sighting whole, to anyone, with no sign-in: where,
+ *   what the witness wrote, the name they gave, and the account that sent
+ *   it with its last name. It is for the owner, the forces looking for the
+ *   pet and staff, and names an account by first name only.
+ * - POST is switched off (2026-11-12). It wrote whatever it was sent, at any
+ *   length, into a letter to the owner without making it safe to print,
+ *   and into a notice to the forces. The route above is the one way in.
  */
 
 import { NextResponse } from 'next/server';
@@ -16,6 +28,11 @@ import { getEmailBaseUrl } from '@/app/lib/config';
 import { placeName } from '@/app/lib/needOptions';
 import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
+import { withRateLimitAsync, rateLimitResponse, RateLimitPresets } from '@/app/lib/rateLimit';
+
+/** Reporting through this older route. See the note at the top before turning it back on. */
+const OLD_REPORT_OPEN = false;
 
 export const dynamic = 'force-dynamic';
 
@@ -31,10 +48,8 @@ function isIdFormat(str) {
  */
 export async function GET(request, { params }) {
   try {
-    const session = await getServerSession(authOptions);
-
-    // Allow public access to sightings (for case detail page)
-    // But limit information for non-authenticated users
+    const limit = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'case:sightings');
+    if (!limit.success) return rateLimitResponse(limit);
 
     // Support both ID (UUID/CUID) and case number
     const isId = isIdFormat(params.missionId);
@@ -50,23 +65,29 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
+    // Who reported a sighting and what they wrote: for the owner, the forces looking, and staff.
+    const who = await mayKnowThePeople(request, missionData.id);
+    if (!who.allowed) {
+      return NextResponse.json({ error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' }, { status: who.status });
+    }
+
     // Use CaseSighting model (not Sighting)
     const sightings = await prisma.caseSighting.findMany({
       where: { missionId: missionData.id },
       include: {
         reportedBy: {
           select: {
-            id: true,
-            firstName: true,
-            lastName: true
+            firstName: true
           }
         }
       },
-      orderBy: { sightedAt: 'desc' }
+      orderBy: { sightedAt: 'desc' },
+      take: 200
     });
 
     // The witness's hold on a sighting is theirs alone: not even its hash leaves with the row.
-    const rows = sightings.map(({ witnessKeyHash, ...sighting }) => sighting);
+    // And no account's id: a person is named, never handed out by their id.
+    const rows = sightings.map(({ witnessKeyHash, reportedById, ...sighting }) => sighting);
 
     return NextResponse.json({
       sightings: rows,
@@ -76,8 +97,7 @@ export async function GET(request, { params }) {
   } catch (error) {
     console.error('Error fetching sightings:', error);
     return NextResponse.json({
-      error: 'Failed to fetch sightings',
-      message: error.message
+      error: 'Failed to fetch sightings'
     }, { status: 500 });
   }
 }
@@ -87,6 +107,10 @@ export async function GET(request, { params }) {
  */
 export async function POST(request, { params }) {
   const startTime = Date.now();
+
+  if (!OLD_REPORT_OPEN) {
+    return NextResponse.json({ error: 'Send a sighting from the pet\'s own page.', code: 'NOT_AVAILABLE' }, { status: 410 });
+  }
 
   try {
     const session = await getServerSession(authOptions);
