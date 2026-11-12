@@ -297,7 +297,7 @@ export const authOptions = {
     /**
      * JWT callback - add custom claims to token
      */
-    async jwt({ token, user, account, trigger, session }) {
+    async jwt({ token, user, account, trigger }) {
       // Initial sign-in
       if (user) {
         token.id = user.id;
@@ -320,11 +320,29 @@ export const authOptions = {
         }
       }
 
-      // Update session
-      if (trigger === 'update' && session) {
-        if (session.firstName) token.firstName = session.firstName;
-        if (session.lastName) token.lastName = session.lastName;
-        if (session.role) token.role = session.role;
+      // A session update is a request to read the account again, and nothing more. What the browser sends with
+      // it (`session`) is not believed. The role used to be copied from that request, so any signed-in account
+      // could make itself an admin with one call (found 2026-11-12); the name was copied the same way.
+      //
+      // The role a token carries is the account's own, read from the database: when an update is asked for,
+      // and whenever the token claims more than an ordinary account. So a token forged before this was fixed
+      // is put right the next time it is used, and an admin whose role is taken away stops being one. If the
+      // database cannot be read, the token is left as it was: a moment's outage must not sign the admins out.
+      if (token.id && (trigger === 'update' || (token.role && token.role !== 'USER'))) {
+        const account = await prisma.user
+          .findUnique({ where: { id: token.id }, select: { role: true, firstName: true, lastName: true, emailVerified: true } })
+          .catch(() => undefined);
+        if (account === null) {
+          // The account is gone: whatever the token says, it is nobody's.
+          token.role = 'USER';
+        } else if (account) {
+          token.role = account.role;
+          if (trigger === 'update') {
+            token.firstName = account.firstName;
+            token.lastName = account.lastName;
+            token.emailVerified = account.emailVerified;
+          }
+        }
       }
 
       // Founder admins are always ADMIN. Persist it to the database once per
