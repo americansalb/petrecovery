@@ -1,8 +1,9 @@
 /**
  * The picture of one pet's search: what the search screen (Mission
  * Control) shows above and around the map. The pet, where and when it was
- * lost, how to reach the owner, each sighting and what has happened to it
- * since, how many people are out, and who is looking at it.
+ * lost, how to reach the owner, each sighting and whether the owner has
+ * seen it or is on the way, how many people are out, and who is looking
+ * at it.
  *
  * It is open to anyone holding the pet's link and carries nothing the
  * pet's public page does not: the owner's first name and number, the
@@ -19,12 +20,10 @@ import { isCaseOpen } from '@/app/lib/caseStatus';
 import { casePhone } from '@/app/lib/caseLabels';
 import { finderGuide } from '@/app/lib/caseDetails';
 import { zoneFor } from '@/app/lib/caseZone';
-import { placeName } from '@/app/lib/needOptions';
+import { placeOnly } from '@/app/lib/needOptions';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import { forcesOf } from '@/app/lib/forceFeed';
 
-/** A sighting this fresh re-anchors the search: every screen leads with it. */
-export const HOT_SIGHTING_MS = 60 * 60 * 1000;
 /** Someone who finished a street this recently still counts as out looking. */
 const LOOKING_WINDOW_MS = 2 * 60 * 60 * 1000;
 
@@ -50,11 +49,15 @@ const PICTURE_SELECT = {
   ownerName: true,
   ownerPhone: true,
   sightings: {
+    // A sighting its witness took back, while the screen still let them, stays off every screen.
+    // Said as "no state, or a different one": a plain NOT drops every row whose state is empty, which is all the others.
+    where: { OR: [{ witnessState: null }, { witnessState: { not: 'NOT_THE_PET' } }] },
     orderBy: { sightedAt: 'desc' },
     take: 20,
     select: {
       id: true,
       sightedAt: true,
+      createdAt: true,
       latitude: true,
       longitude: true,
       address: true,
@@ -62,27 +65,16 @@ const PICTURE_SELECT = {
       certaintyLevel: true,
       reporterName: true,
       reportedBy: { select: { firstName: true } },
-      direction: true,
-      towardName: true,
-      witnessState: true,
-      witnessStateAt: true,
       ownerSeenAt: true,
       ownerGoingAt: true,
       ownerEtaMinutes: true,
-      holdAskedAt: true,
-      holdEndedAt: true,
-      holdAskedByName: true,
     },
   },
 };
 
-/** The words the owner's ask puts in front of the helpers. One place, so the owner is shown exactly what goes out in their name. */
-export function holdAskText(petName) {
-  return `Please stay back while I go to ${petName || 'the pet'}.`;
-}
-
-function sightingOut(s, { withNames }) {
-  const place = s.address && s.address !== 'Marked on the map' ? placeName(s.address) || s.address : null;
+function sightingOut(s, { withNames, isOwner }) {
+  // The street or the landmark. An address that will not give up its house number is left off.
+  const place = s.address && s.address !== 'Marked on the map' ? placeOnly(s.address) || null : null;
   const named = s.reporterName || (s.reportedBy?.firstName && s.reportedBy.firstName !== 'Deleted' ? s.reportedBy.firstName : null);
   return {
     id: s.id,
@@ -90,15 +82,13 @@ function sightingOut(s, { withNames }) {
     lat: s.latitude,
     lng: s.longitude,
     place,
-    direction: s.direction,
-    toward: s.towardName,
     sure: s.certaintyLevel,
-    state: s.witnessState,
-    stateAt: s.witnessStateAt,
     ownerSeenAt: s.ownerSeenAt,
     ownerGoingAt: s.ownerGoingAt,
     etaMinutes: s.ownerEtaMinutes,
     ...(withNames ? { by: named, note: s.description } : {}),
+    // When it reached the owner, which can be long after the pet was seen: the owner's screen leads with news that is new to them.
+    ...(isOwner ? { sentAt: s.createdAt } : {}),
   };
 }
 
@@ -138,23 +128,10 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
   if (!pet) return null;
   const isOwner = Boolean(searcher?.isOwner);
   const withNames = Boolean(searcher?.seesNames);
-  const name = pet.petName || 'the pet';
   const open = isCaseOpen(pet.status);
-  const sightings = (pet.sightings || []).map((s) => sightingOut(s, { withNames }));
+  const sightings = (pet.sightings || []).map((s) => sightingOut(s, { withNames, isOwner }));
 
-  // The ask to stay back. It stands from when a person sends it until
-  // they end it, the sighting it was sent on is an hour old or was taken
-  // back by its witness, or the search closes. A newer sighting does not
-  // end it: anyone can send a sighting, and only the person who asked
-  // can call the ask off. It goes out under the name of whoever sent it:
-  // the owner, or the person leading the search for them.
   const ownerFirst = String(pet.ownerName || '').trim().split(/\s+/)[0] || null;
-  const held = open
-    ? (pet.sightings || []).find(
-        (s) => s.witnessState !== 'NOT_THE_PET' && s.holdAskedAt && !s.holdEndedAt && now - new Date(s.sightedAt).getTime() <= HOT_SIGHTING_MS
-      ) || null
-    : null;
-  const ask = held ? { sightingId: held.id, from: held.holdAskedByName || ownerFirst, text: holdAskText(name) } : null;
 
   const looking = pet.reportType === 'FOUND' ? new Set() : await peopleLooking(pet.id, now);
   // Whether a Rescue Force is looking for the pet: its members see what the owner sees, and the join screen says so.
@@ -216,17 +193,16 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
       lng: pet.lastSeenLongitude,
       at: pet.lastSeenAt,
       // The street, never the house number.
-      place: placeName(pet.lastSeenAddress) || null,
+      place: placeOnly(pet.lastSeenAddress) || null,
     },
     owner: { firstName: ownerFirst, phone },
     sightings,
-    ask,
     looking: { helpers: [...looking].filter((id) => id !== pet.reporterId).length },
     forces: forces.length,
     neighbors,
     searched,
     viewer: searcher
-      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
+      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
       : null,
   };
 }

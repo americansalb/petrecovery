@@ -3,6 +3,10 @@
  * they set off, species-aware, by the way they are helping (on foot, by
  * car, from home, with gear). Pure, so the pet's share link can show it
  * to a witness in the browser as well as the job API on the server.
+ *
+ * The button it names is the one the site has: "I've seen Max", on the
+ * pet's page, the search screen and a force's post. (It said "I saw Max"
+ * until 2026-11-12, a button that was nowhere.)
  */
 
 import { speciesLabel } from '@/app/lib/species';
@@ -20,14 +24,14 @@ export function briefFor({ way, pet }) {
       ? `Say ${name}'s name softly now and then, and shake a treat bag. Listen more than you call.`
       : `Say ${name}'s name now and then, then listen.`;
   const never = dog
-    ? `If you see ${name}, don't chase or call out. Sit down, look away, tap "I saw ${name}". The owner's voice is what ${name} comes to.`
-    : `If you see ${name}, don't chase. Note where and which way, tap "I saw ${name}", and keep your distance.`;
+    ? `If you see ${name}, don't chase or call out. Sit down, look away, tap "I've seen ${name}". The owner's voice is what ${name} comes to.`
+    : `If you see ${name}, don't chase. Note where and which way, tap "I've seen ${name}", and keep your distance.`;
   if (way === 'home') {
     return [
       `Say you are calling about a lost ${speciesLabel(pet?.petSpecies).toLowerCase()} named ${name}${pet?.petColor ? `, ${String(pet.petColor).toLowerCase()}` : ''}${pet?.petBreed ? `, ${pet.petBreed}` : ''}.`,
       'Ask whether any animal matching came in since the date lost, and whether they can note the case number.',
       'Write down who you spoke to and when. Tap Done and it goes on the record for everyone.',
-      'If they have a match, tap "I saw" and the owner is told at once.',
+      `If they have a match, tap "I've seen ${name}" and the owner is told at once.`,
     ];
   }
   if (way === 'car') {
@@ -47,4 +51,19 @@ export function briefFor({ way, pet }) {
     ];
   }
   return ['Walk every street in the block. Your path records as you go.', look, call, never];
+}
+
+/**
+ * The brief as a page outside the search screen may say it, so that every
+ * line is true there. Two cuts, and no word added:
+ *
+ *  - Nothing says a path or a drive "records as you go". That happens only
+ *    in the app, and the search screen says it there, while it records.
+ *  - A job that is one street is not told to "walk every street in the
+ *    block": its own title names the street.
+ */
+export function briefOnPage(brief = [], job = null) {
+  return (brief || [])
+    .map((line) => String(line || '').replace(/\s*[^.]*\brecords as you go\b[^.]*\./, '').trim())
+    .filter((line) => line && !(job?.unit === 'street' && /^Walk every street in the block\.?$/.test(line)));
 }

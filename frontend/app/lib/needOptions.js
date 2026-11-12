@@ -39,6 +39,38 @@ export function placeName(address) {
   return parsePlace(address)?.label || '';
 }
 
+/** A numbered street ("5th St", "42nd St and Broadway") is a street, not a house. */
+const ORDINAL = /^\d+(st|nd|rd|th)\b/i;
+/** Roads and landmarks whose own name ends in a number: "Highway 290", "County Road 12", "Pier 39", "Calle 26". */
+const NUMBERED = /\b(highway|hwy|route|rte|road|rd|ruta|carretera|autopista|interstate|i|us|sr|cr|fm|rm|sh|loop|pier|muelle|exit|salida|gate|puerta|km|terminal|dock|lot|zone|zona|sector|trail|line|calle|carrera|cra|avenida)\s+\d+[a-z]?$/i;
+
+/**
+ * A place as it may be shown to people who are not the owner: the street
+ * or the landmark, and never a house number, wherever in the address the
+ * number is written.
+ *
+ *   "4001 Ramsey Ave, Austin"        Ramsey Ave
+ *   "4001 1/2 Ramsey Ave"            Ramsey Ave
+ *   "Hauptstrasse 12, Berlin"        Hauptstrasse
+ *   "Av. Insurgentes Sur 1234"       Av. Insurgentes Sur
+ *   "5th St and Main St"             5th St and Main St   (a numbered street is a street)
+ *   "Highway 290", "Pier 39"         as written           (the number is the name)
+ *
+ * Where no street can be told apart from a number, the town if the
+ * address names one, and otherwise nothing: never the address as typed.
+ */
+export function placeOnly(address) {
+  const raw = String(address || '').trim();
+  if (!raw || looksLikeCoordinates(raw)) return '';
+  let first = raw.split(',')[0].trim().replace(/^near\s+/i, '');
+  // A number in front, as North America writes it.
+  if (!ORDINAL.test(first)) first = first.replace(/^\d+[a-z]?(\s+\d+\/\d+)?\s+/i, '');
+  // A number behind, as most of the world writes it.
+  if (!NUMBERED.test(first)) first = first.replace(/\s+\d+[a-z]?$/i, '');
+  if (first && (ORDINAL.test(first) || !/^\d/.test(first))) return first;
+  return parsePlace(raw)?.label || '';
+}
+
 /** The title a need of this kind gets for a place or a shelter. */
 export function needTitle(kind, { place, shelter } = {}) {
   if (kind === 'shelter') return shelter ? `Check ${shelter.name}` : '';

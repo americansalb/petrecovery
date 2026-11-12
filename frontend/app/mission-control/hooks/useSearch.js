@@ -35,6 +35,22 @@ async function readJson(res) {
   return res.json().catch(() => ({}));
 }
 
+/**
+ * A request that answers null instead of throwing. People use this
+ * outdoors, where a dropped signal is ordinary: every call below turns
+ * that into words on the card, and nothing is left spinning.
+ */
+function send(url, init) {
+  // A request that stalls on a weak signal never fails by itself: it is given up on, so the card can say so.
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), SEND_TIMEOUT_MS);
+  return fetch(url, { ...init, signal: stop.signal })
+    .catch(() => null)
+    .finally(() => clearTimeout(timer));
+}
+const SEND_TIMEOUT_MS = 20000;
+const NO_SIGNAL = 'No connection just now. Check your signal and try again.';
+
 export default function useSearch(missionParam) {
   const { status: authStatus } = useSession();
   const [picture, setPicture] = useState(null);
@@ -148,12 +164,25 @@ export default function useSearch(missionParam) {
    * One reading of where the phone is. Resolves to the position, or null
    * when it is refused or unavailable. `fresh` refuses an answer the phone
    * had saved and waits a little for a new one: a saved answer can be a
-   * rough one from before its GPS woke up.
+   * rough one from before its GPS woke up. `ifAllowed` reads only where
+   * the phone has already said this page may: it is for a reading that
+   * rides along with something else the person pressed, and it never
+   * puts the phone's own question on the screen.
    */
   const locate = useCallback(
-    ({ fresh = false } = {}) =>
-      new Promise((resolve) => {
-        if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+    async ({ fresh = false, ifAllowed = false } = {}) => {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) return null;
+      if (ifAllowed) {
+        let allowed = false;
+        try {
+          const status = await navigator.permissions?.query({ name: 'geolocation' });
+          allowed = status?.state === 'granted';
+        } catch {
+          // A browser that cannot say is treated as one that has not said yes.
+        }
+        if (!allowed) return null;
+      }
+      return new Promise((resolve) => {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             const here = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, at: Date.now() };
@@ -163,19 +192,20 @@ export default function useSearch(missionParam) {
           () => resolve(null),
           { enableHighAccuracy: true, timeout: fresh ? 5000 : 10000, maximumAge: fresh ? 0 : 30000 }
         );
-        return undefined;
-      }),
+      });
+    },
     []
   );
 
   /** Join this pet's search without an account: a first name and the safety tick. */
   const join = useCallback(
     async ({ name, waiverVersion = null }) => {
-      const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/volunteer`, {
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/volunteer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'JOIN', deviceId: deviceKey(), name: String(name || '').trim() || undefined, waiverAccepted: true, waiverVersion }),
       });
+      if (!res) return { error: NO_SIGNAL };
       const data = await readJson(res);
       if (!res.ok || !data.success) return { error: data.error || 'That did not go through. Try again in a moment.' };
       const joined = { id: data.volunteerId, name: String(name || '').trim() };
@@ -190,7 +220,8 @@ export default function useSearch(missionParam) {
 
   /** Someone signed in accepts the safety rules and the waiver. */
   const acceptWaiver = useCallback(async () => {
-    const res = await fetch('/api/legal/accept-waiver', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const res = await send('/api/legal/accept-waiver', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    if (!res) return { error: NO_SIGNAL };
     if (!res.ok) return { error: 'That did not go through. Try again in a moment.' };
     await reload();
     return { ok: true };
@@ -199,11 +230,12 @@ export default function useSearch(missionParam) {
   /** Take a street, give it back, or mark it searched. */
   const act = useCallback(
     async (unit, id, action) => {
-      const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/board`, {
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/board`, {
         method: 'PATCH',
         headers: headers({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ unit, id, action }),
       });
+      if (!res) return { error: NO_SIGNAL, code: 'NO_SIGNAL' };
       const data = await readJson(res);
       await loadBoard().catch(() => null);
       if (!res.ok) return { error: data.error || 'That did not go through. Try again in a moment.', code: data.code || null };
@@ -213,51 +245,39 @@ export default function useSearch(missionParam) {
     [missionParam, headers, loadBoard, loadPicture]
   );
 
-  /** Send a sighting. The key that comes back stays on this phone, so it can say what happened next. */
+  /** Send a sighting: a place and a time. This phone remembers which one it sent, so coming back shows what the owner did about it. */
   const sendSighting = useCallback(
-    async (body, kind = 'now') => {
-      const res = await fetch(`/api/public/missions/${encodeURIComponent(missionParam)}/sighting`, {
+    async (body) => {
+      const res = await send(`/api/public/missions/${encodeURIComponent(missionParam)}/sighting`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      if (!res) return { error: NO_SIGNAL };
       const data = await readJson(res);
       if (!res.ok) return { error: data.error || 'That did not send. Check your connection and try again.' };
-      const mine = { id: data.sighting.id, key: data.key, kind, at: data.sighting.sightedAt, place: data.place || null };
+      // `at` is when the pet was seen, which can be yesterday. `sentAt` is now, and is what "Sent at" on the next card means.
+      const mine = { id: data.sighting.id, at: data.sighting.sightedAt, sentAt: new Date().toISOString(), place: data.place || null };
       if (caseIdRef.current) {
         saveMySighting(caseIdRef.current, mine);
         setMySightings(readMySightings(caseIdRef.current));
       }
-      loadPicture().catch(() => null);
+      await loadPicture().catch(() => null);
       return { ok: true, sighting: mine, told: data.told, ownerName: data.ownerName };
     },
     [missionParam, loadPicture]
   );
 
-  /** Change a sighting this phone sent: which way the pet went, or what the witness is doing now. */
-  const updateSighting = useCallback(
-    async (mine, patch) => {
-      const res = await fetch(`/api/public/missions/${encodeURIComponent(missionParam)}/sighting`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: mine.id, key: mine.key, ...patch }),
-      });
-      const data = await readJson(res);
-      if (!res.ok) return { error: data.error || 'That did not send. Check your connection and try again.' };
-      loadPicture().catch(() => null);
-      return { ok: true };
-    },
-    [missionParam, loadPicture]
-  );
-
-  /** The owner's answer to a sighting: seen, going, hold, release. */
+  /** The owner's answer to a sighting: seen, or going. Sent so that it still lands if the tap also opens the maps app. */
   const answer = useCallback(
     async (sightingId, action, extra = {}) => {
-      const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/answer`, {
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sightingId, action, ...extra }),
+        keepalive: true,
       });
+      if (!res) return { error: NO_SIGNAL };
       const data = await readJson(res);
       if (!res.ok) return { error: data.error || 'That did not go through. Try again in a moment.' };
       await loadPicture().catch(() => null);
@@ -291,7 +311,6 @@ export default function useSearch(missionParam) {
     acceptWaiver,
     act,
     sendSighting,
-    updateSighting,
     answer,
   };
 }

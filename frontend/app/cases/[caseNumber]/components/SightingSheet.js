@@ -3,8 +3,13 @@
 /**
  * "I've seen this pet": call the owner when the pet is in sight, or send
  * the sighting. The search screen takes it from anyone, with no account:
- * one tap sends where they are, and a sighting from earlier is typed in
- * by street (app/mission-control, steps/Witness.js).
+ * one form, where and when (app/mission-control, steps/Witness.js).
+ *
+ * No advice is written here. How to behave near this pet is the owner's
+ * own answer, which the pet's page shows above ("If you see Max") and the
+ * search screen shows once the sighting is sent. A list here once told
+ * people not to call out to a pet whose owner had just said "say the
+ * name", and to note things the form has no place for.
  */
 
 import Link from 'next/link';
@@ -43,20 +48,11 @@ export default function SightingSheet({ open, onClose, name, phone, contactName,
           <span className="min-w-0 flex-1">
             <span className="block font-semibold text-midnight-900">Report the sighting</span>
             <span className="block text-sm text-midnight-600">
-              {`One tap sends where you are, if you see ${name} now. No account needed.`}
+              Mark where and when. No account needed.
             </span>
           </span>
           <ChevronRight size={18} className="shrink-0 text-midnight-400" aria-hidden="true" />
         </Link>
-      </div>
-
-      <div className="mt-5 rounded-xl bg-midnight-50 p-4">
-        <p className="text-sm font-semibold text-midnight-900">If you see {name} again</p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-midnight-600">
-          <li>Don&apos;t chase or call out. A scared pet may run.</li>
-          <li>Note the time, the place and which way they went.</li>
-          <li>Take a photo if you can, even from far away.</li>
-        </ul>
       </div>
     </Modal>
   );

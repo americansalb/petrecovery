@@ -913,17 +913,17 @@ model CaseSighting {
   verifiedBy String?
   verifiedAt DateTime?
 
-  // Which way the pet went, as the witness said it (app/lib/witness.js):
-  // a compass word or STAYING, and the street it went toward when they
-  // tapped one ("Rosedale Ave").
+  // Which way the pet went, when whoever reported it gave a compass word.
   direction  String?
-  towardName String?
 
-  // The witness's own hold on this sighting. The key is known only to the
-  // device that sent it, so someone with no account can say what happened
-  // next: WATCHING, LOST_SIGHT, LEFT, NOT_THE_PET, WITH_WITNESS. Only a
-  // SHA-256 of the key is kept here: older routes return whole sighting
-  // rows, and whoever reads the hash still cannot change the sighting.
+  // Written for one day, 2026-11-11, by a search screen that asked a
+  // witness which street the pet took and what happened next. The founder
+  // called that screen a maze and the questions were cut: a witness now
+  // sends a place and a time, and sends again if the pet moves. Nothing
+  // writes these any more. They stay because columns are never dropped
+  // (scripts/db-sync.js), and a sighting marked NOT_THE_PET then is still
+  // kept off the screens (app/lib/searchPicture.js).
+  towardName     String?
   witnessKeyHash String?
   witnessState   String?
   witnessStateAt DateTime?
@@ -933,10 +933,10 @@ model CaseSighting {
   ownerGoingAt    DateTime?
   ownerEtaMinutes Int?
 
-  // The owner asked the helpers to stay back while they go to the pet.
-  // Their choice, never the product's: off unless they turn it on. When
-  // someone running the search for the owner sent the ask, it goes out
-  // under that person's first name (holdAskedByName), not the owner's.
+  // Written for the same one day, by a switch that let the owner ask the
+  // helpers to stay back. Cut with the rest: an owner who wants to say
+  // something to everyone writes it from the pet's page in their own
+  // words. Nothing reads or writes these now.
   holdAskedAt     DateTime?
   holdEndedAt     DateTime?
   holdAskedByName String?

@@ -16,7 +16,7 @@ jest.mock('@/app/lib/prisma', () => ({
   default: {
     case: { findFirst: jest.fn(), findUnique: jest.fn() },
     user: { findUnique: jest.fn(), findMany: jest.fn() },
-    rescueForceMember: { findMany: jest.fn(async () => []) },
+    rescueForceMember: { findFirst: jest.fn(async () => null) },
     caseAssignment: { findMany: jest.fn() },
     missionVolunteer: { findFirst: jest.fn() },
     caseSighting: { findMany: jest.fn() },
@@ -101,7 +101,7 @@ beforeEach(() => {
   prisma.gridCell.updateMany.mockResolvedValue({ count: 0 });
   prisma.gridCell.findMany.mockResolvedValue([]);
   prisma.caseAssignment.findMany.mockResolvedValue([]);
-  prisma.rescueForceMember.findMany.mockResolvedValue([]);
+  prisma.rescueForceMember.findFirst.mockResolvedValue(null);
   prisma.caseSighting.findMany.mockResolvedValue([]);
   prisma.missionVolunteer.findFirst.mockResolvedValue(null);
 });
@@ -144,7 +144,7 @@ describe('GET: streets for anyone, people for the few', () => {
     getServerSession.mockResolvedValue({ user: { id: 'u-kim' } });
     prisma.user.findUnique.mockResolvedValue({ firstName: 'Kim', waiverAcceptedAt: new Date() });
     prisma.caseAssignment.findMany.mockResolvedValue([{ rescueSquadId: 'force-1' }]);
-    prisma.rescueForceMember.findMany.mockResolvedValue([{ role: 'MEMBER' }]);
+    prisma.rescueForceMember.findFirst.mockResolvedValue({ id: 'member-1' });
     const data = await (await GET(req(), ctx)).json();
     expect(data.viewer.seesNames).toBe(true);
     expect(data.streets[0].claimedByName).toBe('Dana');

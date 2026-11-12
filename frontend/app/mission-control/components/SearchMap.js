@@ -5,7 +5,7 @@
  *
  *   red      where the pet was lost
  *   orange   where it has been seen, the newest loudest
- *   yellow   the street this person is offered or is walking
+ *   yellow   the street this person is walking
  *   grey     streets already searched
  *   dotted   streets someone is on now
  *   white    this person's own path, where the app is recording one
@@ -75,19 +75,12 @@ function disc(color, size, { ring = '#ffffff', pulse = false } = {}) {
   return wrap;
 }
 
-/** A point `meters` away from (lat, lng) on a compass bearing. */
-function offset(lat, lng, bearing, meters) {
-  const rad = (bearing * Math.PI) / 180;
-  return [lat + (Math.cos(rad) * meters) / 111320, lng + (Math.sin(rad) * meters) / (111320 * Math.cos((lat * Math.PI) / 180))];
-}
-
 export default function SearchMap({
   theme = 'dark',
   lastSeen = null, // { lat, lng, label }
-  sightings = [], // [{ id, lat, lng, label, hot, bearing }]
+  sightings = [], // [{ id, lat, lng, label, hot }]
   streets = [], // [{ id, path, status, mine, who }]
   cells = [], // [{ id, northLat, southLat, eastLng, westLng, status, mine }]
-  offered = null, // id of the street or square this person is being offered
   me = null, // { lat, lng }
   track = [], // [{ lat, lng }, ...] this person's own recorded path (the app only)
   tags = [], // extra word tags: [{ lat, lng, text, tone, side }]
@@ -95,13 +88,10 @@ export default function SearchMap({
   fitKey = '',
   padding = { top: 16, right: 16, bottom: 16, left: 16 },
   zoomControl = false,
-  onPick = null, // (id) => void: a free street or square was tapped
   label = 'Map of the search',
 }) {
   const holder = useRef(null);
   const state = useRef({ map: null, L: null, layers: null });
-  const pickRef = useRef(onPick);
-  pickRef.current = onPick;
 
   // The map itself, once.
   useEffect(() => {
@@ -143,7 +133,7 @@ export default function SearchMap({
 
       for (const cell of cells) {
         const bounds = [[cell.southLat, cell.westLng], [cell.northLat, cell.eastLng]];
-        const lit = cell.mine || cell.id === offered;
+        const lit = Boolean(cell.mine);
         const style = lit
           ? { color: FLASH, weight: 3, fillColor: FLASH, fillOpacity: 0.22 }
           : cell.status === 'SEARCHED'
@@ -151,15 +141,15 @@ export default function SearchMap({
             : cell.status === 'IN_PROGRESS'
               ? { color: TEAL, weight: 2, dashArray: '2 8', fillColor: TEAL, fillOpacity: 0.08 }
               : { color: dark ? 'rgba(148,163,184,0.25)' : 'rgba(51,65,85,0.2)', weight: 1, fillOpacity: 0 };
-        const rect = L.rectangle(bounds, style).addTo(layers);
-        if (!lit && cell.status !== 'IN_PROGRESS') rect.on('click', () => pickRef.current?.(cell.id));
+        // The map is looked at, not tapped: a street or a square is given by the card's one button.
+        L.rectangle(bounds, { ...style, interactive: false }).addTo(layers);
       }
 
       // Searched and in-progress streets first, the lit one on top.
-      const ordered = [...streets].sort((a, b) => Number(a.mine || a.id === offered) - Number(b.mine || b.id === offered));
+      const ordered = [...streets].sort((a, b) => Number(Boolean(a.mine)) - Number(Boolean(b.mine)));
       for (const street of ordered) {
         if (!Array.isArray(street.path) || street.path.length < 2) continue;
-        const lit = street.mine || street.id === offered;
+        const lit = Boolean(street.mine);
         if (lit) {
           L.polyline(street.path, { color: casing, weight: 13, opacity: 0.9, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
           L.polyline(street.path, { color: FLASH, weight: 8, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
@@ -167,14 +157,17 @@ export default function SearchMap({
           L.polyline(street.path, { color: TEAL, weight: 5, opacity: 0.95, dashArray: '1 10', lineCap: 'round', interactive: false }).addTo(layers);
         } else if (street.status === 'SEARCHED') {
           L.polyline(street.path, { color: dark ? '#cbd5e1' : '#1e293b', weight: 6, opacity: dark ? 0.42 : 0.34, lineCap: 'round', interactive: false }).addTo(layers);
-        } else {
-          // A free street is the map's own street. A wide invisible line makes it easy to tap.
-          const hit = L.polyline(street.path, { color: '#000000', weight: 22, opacity: 0, lineCap: 'round' }).addTo(layers);
-          hit.on('click', () => pickRef.current?.(street.id));
         }
+        // A free street is the map's own street: nothing is drawn over it.
         if (street.who && street.status === 'IN_PROGRESS' && !lit) {
-          const mid = street.path[Math.floor(street.path.length / 2)];
-          L.marker(mid, { icon: tagged(L, { text: street.who, theme, side: 'right' }), interactive: false, keyboard: false }).addTo(layers);
+          // The name sits toward the end of the street that is farther from where the pet was lost, so it
+          // stays clear of that mark's own words: streets near the middle of a search all pass close to it.
+          const path = street.path;
+          const from = lastSeen && Number.isFinite(lastSeen.lat) ? lastSeen : null;
+          const away = (p) => (from ? (p[0] - from.lat) ** 2 + ((p[1] - from.lng) * Math.cos((from.lat * Math.PI) / 180)) ** 2 : 0);
+          const share = from ? (away(path[0]) > away(path[path.length - 1]) ? 0.2 : 0.8) : 0.5;
+          const at = path[Math.round((path.length - 1) * share)];
+          L.marker(at, { icon: tagged(L, { text: street.who, theme, side: 'right' }), interactive: false, keyboard: false }).addTo(layers);
         }
       }
 
@@ -182,16 +175,6 @@ export default function SearchMap({
         if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng)) continue;
         const dot = disc(PET_COLOR.seen, s.hot ? 22 : 14, { pulse: Boolean(s.hot), ring: dark ? '#0f172a' : '#ffffff' });
         L.marker([s.lat, s.lng], { icon: tagged(L, { dot, text: s.label, tone: 'seen', theme, side: s.side || 'right' }), interactive: false, keyboard: false, zIndexOffset: s.hot ? 900 : 300 }).addTo(layers);
-        if (s.hot && Number.isFinite(s.bearing)) {
-          const from = offset(s.lat, s.lng, s.bearing, 22);
-          const to = offset(s.lat, s.lng, s.bearing, 78);
-          const left = offset(to[0], to[1], s.bearing + 150, 20);
-          const right = offset(to[0], to[1], s.bearing - 150, 20);
-          for (const [color, weight] of [[casing, 9], [dark ? '#f8fafc' : '#0f172a', 4]]) {
-            L.polyline([from, to], { color, weight, lineCap: 'round', interactive: false }).addTo(layers);
-            L.polyline([left, to, right], { color, weight, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
-          }
-        }
       }
 
       if (lastSeen && Number.isFinite(lastSeen.lat) && Number.isFinite(lastSeen.lng)) {
@@ -218,7 +201,7 @@ export default function SearchMap({
     draw();
     el?.addEventListener('searchmap:ready', draw);
     return () => el?.removeEventListener('searchmap:ready', draw);
-  }, [theme, lastSeen, sightings, streets, cells, offered, me, tags, track]);
+  }, [theme, lastSeen, sightings, streets, cells, me, tags, track]);
 
   // What is in view: refit when the thing to look at changes, not on every poll.
   //
