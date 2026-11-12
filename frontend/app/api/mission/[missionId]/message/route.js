@@ -8,14 +8,14 @@
  *   helper. It shows on the helper's card on their phone.
  *   Without `to`: a helper's word back to the people running the search.
  *   It takes someone who is on the search: a helper who joined, someone
- *   who has held or walked a street, someone the desk has written to, or
+ *   who has searched an area or is on one, someone the desk has written to, or
  *   a member of a force looking for the pet. Someone only looking at the
  *   page calls the owner instead.
  *
  * PATCH /api/mission/[missionId]/message
  *   { words?: [id, ...], ask?: true }
- *   This person's screen has shown these words, or the street they were
- *   asked to walk. It is what the desk reads as "seen", so it is said by
+ *   This person's screen has shown these words, or the area they were
+ *   asked to search. It is what the desk reads as "seen", so it is said by
  *   the screen that showed it and not inferred from a read. A person can
  *   mark only what was written to them or asked of them.
  *
@@ -35,7 +35,7 @@ import { withRateLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
 import { searcherFor } from '@/app/lib/searcher';
 import { personByHandle, teamOf } from '@/app/lib/searchTeam';
 import { sendWord, markWordsSeen, WordError } from '@/app/lib/searchTalk';
-import { markAskSeen } from '@/app/lib/searchAsk';
+import { markZoneAskSeen } from '@/app/lib/searchZones';
 import { logEvent } from '@/lib/logging';
 
 export const dynamic = 'force-dynamic';
@@ -76,7 +76,7 @@ export async function POST(request, { params }) {
       // A word to the desk comes from someone on the search, not from someone only looking at the page.
       const team = await teamOf(pet.id, { ownerId: pet.reporterId });
       if (!team.some((p) => p.id === searcher.id)) {
-        return NextResponse.json({ error: 'Take a street first, or call the owner.', code: 'NOT_ON_SEARCH' }, { status: 403 });
+        return NextResponse.json({ error: 'Take an area first, or call the owner.', code: 'NOT_ON_SEARCH' }, { status: 403 });
       }
     }
 
@@ -111,9 +111,9 @@ export async function PATCH(request, { params }) {
     if (!pet || pet.reportType === 'FOUND') return NextResponse.json({ error: 'This link does not match a search.' }, { status: 404 });
     const searcher = await searcherFor(request, pet.id);
     if (!searcher) return NextResponse.json({ error: 'Join the search first.', code: 'NOT_JOINED' }, { status: 401 });
-    // Only what is this person's own: a word written to them, the street asked of them. Nothing in the request names anyone else.
+    // Only what is this person's own: a word written to them, the area asked of them. Nothing in the request names anyone else.
     const words = await markWordsSeen(pet.id, searcher.id, body.words);
-    const ask = body.ask === true ? await markAskSeen(pet.id, searcher.id) : 0;
+    const ask = body.ask === true ? await markZoneAskSeen(pet.id, searcher.id) : 0;
     return NextResponse.json({ seen: { words, ask } });
   } catch (error) {
     console.error('Search seen failed:', error);

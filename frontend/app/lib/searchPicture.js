@@ -13,12 +13,13 @@
  *
  * What was said through the search screen (app/lib/searchTalk.js) goes
  * only to the people it is for: `words` is what was written to this
- * person and what they wrote back, and `asked` the street they were asked
- * to walk (the board has the street itself); `talk` is every message, for
+ * person and what they wrote back, and `asked` the area they were asked
+ * to search (the board has the area itself); `talk` is every message, for
  * whoever runs the search. Reading the picture marks nothing as seen.
  *
- * The streets and who is on them are the board's (app/lib/searchBoard.js,
- * GET /api/mission/[id]/board); this is everything else.
+ * The areas of ground and who is on them are the board's
+ * (app/lib/searchZones.js, GET /api/mission/[id]/board); this is
+ * everything else.
  */
 import prisma from '@/app/lib/prisma';
 import { missionWhere } from '@/app/lib/shareMetadata';
@@ -30,12 +31,13 @@ import { placeOnly } from '@/app/lib/needOptions';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import { forcesOf } from '@/app/lib/forceFeed';
 import { isMark } from '@/app/lib/searchBoard';
+import { CLAIM_TTL_MS } from '@/app/lib/searchGrid';
 import { wordsForDesk, wordsForPerson } from '@/app/lib/searchTalk';
-import { askWaitingFor } from '@/app/lib/searchAsk';
+import { zoneAskWaitingFor, zoneSearchersSince, zoneGroundCovered } from '@/app/lib/searchZones';
 
 /**
- * Someone who finished a street this recently still counts as out looking:
- * they are most likely between streets. Half an hour, not longer, so the
+ * Someone who finished an area this recently still counts as out looking:
+ * they are most likely between areas. Half an hour, not longer, so the
  * screen does not go on saying people are out after they have gone home.
  */
 const LOOKING_WINDOW_MS = 30 * 60 * 1000;
@@ -142,25 +144,33 @@ function ownerUpdates(rows = [], ownerId = null, take = 10) {
     .map((u) => ({ id: u.id, at: u.createdAt, text: u.content.trim().slice(0, 400) }));
 }
 
-/** How many people are out, from the board: holding a street now, or finished one in the last half hour. */
+/**
+ * How many people are out, from the board: on an area of ground now, or
+ * finished one in the last half hour. A search that was on streets or
+ * squares before it was on areas still counts whoever took one of those
+ * lately; nothing sweeps those any more, so one held longer than a claim
+ * lasts is not someone out looking.
+ */
 async function peopleLooking(caseId, now) {
   const since = new Date(now - LOOKING_WINDOW_MS);
-  const [streets, grid] = await Promise.all([
+  const held = { status: 'IN_PROGRESS', claimedAt: { gte: new Date(now - CLAIM_TTL_MS) } };
+  const [streets, grid, onAreas] = await Promise.all([
     prisma.searchStreet.findMany({
-      where: { caseId, OR: [{ status: 'IN_PROGRESS' }, { searchedAt: { gte: since } }] },
+      where: { caseId, OR: [held, { searchedAt: { gte: since } }] },
       select: { status: true, claimedById: true, searchedById: true },
     }),
     prisma.searchGrid.findUnique({
       where: { caseId },
       select: {
         cells: {
-          where: { OR: [{ status: 'IN_PROGRESS' }, { searchedAt: { gte: since } }] },
+          where: { OR: [held, { searchedAt: { gte: since } }] },
           select: { status: true, claimedById: true, searchedById: true, searchedByKey: true },
         },
       },
     }),
+    zoneSearchersSince(caseId, since),
   ]);
-  const people = new Set();
+  const people = new Set(onAreas);
   for (const row of [...streets, ...(grid?.cells || [])]) {
     if (row.status === 'IN_PROGRESS' && row.claimedById) people.add(row.claimedById);
     else if (row.searchedByKey || row.searchedById) people.add(row.searchedByKey || row.searchedById);
@@ -202,17 +212,19 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
   }
   if (!open) {
     // The thank-you screen: how much ground was covered, and whether some of it was this person's.
-    // Streets where the board had them, squares where it did not, and both where the streets came late.
-    const [streets, grid] = await Promise.all([
+    // Areas of ground, and the streets and squares of a search that began before it was on areas.
+    const [streets, grid, ground] = await Promise.all([
       prisma.searchStreet.findMany({ where: { caseId: pet.id, searchCount: { gt: 0 } }, select: { searchedById: true } }),
       prisma.searchGrid.findUnique({
         where: { caseId: pet.id },
         select: { cells: { where: { searchCount: { gt: 0 } }, select: { searchedById: true, searchedByKey: true } } },
       }),
+      zoneGroundCovered(pet.id),
     ]);
     const blocks = grid?.cells || [];
-    const who = [...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter((id) => id && !isMark(id));
+    const who = [...ground.people, ...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter((id) => id && !isMark(id));
     searched = {
+      areas: ground.areas,
       streets: streets.length,
       blocks: blocks.length,
       people: new Set(who).size,
@@ -226,7 +238,7 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
   if (searcher && open && !isOwner && pet.reportType !== 'FOUND') {
     const [words, asked] = await Promise.all([
       wordsForPerson(pet.id, searcher.id, { ownerId: pet.reporterId, ownerName: ownerFirst }),
-      askWaitingFor(pet.id, searcher.id),
+      zoneAskWaitingFor(pet.id, searcher.id),
     ]);
     mineToRead = { words, asked };
   }

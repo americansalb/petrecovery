@@ -2,29 +2,34 @@
 
 /**
  * Mission Control on a desk: the whole search on one screen, and the
- * controls to steer it. A desk sees and plans; nobody walks from one, so
- * it is never asked where it is and is never handed a street
+ * controls to steer it. A desk sees and plans; nobody searches from one,
+ * so it is never asked where it is and is never handed ground
  * (SearchScreen.js). A phone is the opposite: one card, one button.
  *
  *   left    for the person running the search, what needs them now, each
  *           with one thing to do about it (Needs.js); then the numbers,
  *           this person's own card, what the search shows, and the site's
  *           advice for this pet at this stage
- *   middle  the map: every street by its state. A street still to walk is
- *           dark, the ones given out next are the thickest, a walked one
- *           is green. Pointing names a street, clicking picks it.
- *   right   the people on the search and what each is doing, the streets
- *           in the order they are handed out, the sightings, and
- *           everything said and done in one stream
+ *   middle  the map: the circle of the search, area by area. Ground nobody
+ *           has searched is an outline, heaviest where it is given out
+ *           next; searched ground is green, deeper for a second search;
+ *           ground someone is on has a dashed teal edge. Pointing names an
+ *           area, clicking picks it.
+ *   right   the people on the search and what each is doing, the ground
+ *           area by area (Ground.js), the sightings, and everything said
+ *           and done in one stream
  *
  * The owner runs the search from here (`viewer.leads`: app/lib/searcher.js
- * says why it is the owner alone). They give a named person a street and
- * see it asked, seen and walked (app/lib/searchAsk.js); they write to one
- * person or to everyone (app/lib/searchTalk.js); and they steer: send the
- * next helpers to a street first, put a street down as walked for someone
- * who walked it without the site, or ask for another look
- * (app/lib/searchBoard.js, STEER_ACTIONS). Everyone else sees the same
- * search and can add a sighting.
+ * says why it is the owner alone). They ask a named person to search an
+ * area and see it asked, seen and started; they write to one person or to
+ * everyone (app/lib/searchTalk.js); and they steer: send the next helpers
+ * to an area first, put one down as searched for someone who searched it
+ * without the site, ask for another look, or widen the circle
+ * (app/lib/searchZones.js, ZONE_STEER_ACTIONS). Everyone else sees the
+ * same search and can add a sighting.
+ *
+ * (A search from before it was on areas is drawn as it was: its streets
+ * or squares, with the street's own card.)
  *
  * It is light by day, like an ordinary map, and dark at night by its own
  * switch. Every colour comes from the screen's two palettes
@@ -33,7 +38,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Check, ExternalLink, Flag, Maximize2, Moon, RotateCcw, Sun, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, ExternalLink, Flag, Maximize, Maximize2, Moon, RotateCcw, Sun, X, Loader2 } from 'lucide-react';
 import TopBar from '../components/TopBar';
 import usePutAway from '../hooks/usePutAway';
 import { DESK_MAP } from '../components/SearchMap';
@@ -41,9 +46,11 @@ import { clockTime, dayAndTime, HOT_SIGHTING_MS } from '../lib/words';
 import { givenNext, researchFor, stateWords, streetFacts } from '../lib/insight';
 import { needsYou, quietLine } from '../lib/needs';
 import { unanswered } from '../lib/team';
+import { areaState, givenNextAreas, mapLabel, needsForGround, quietGround } from '../lib/ground';
 import { Advice, Know, Numbers } from './Know';
 import Board from './Board';
 import Needs from './Needs';
+import { AreaCard } from './Ground';
 
 const SearchMap = dynamic(() => import('../components/SearchMap'), {
   ssr: false,
@@ -103,7 +110,7 @@ function useRoomy() {
   return roomy;
 }
 
-const shapeOf = (item) => (item?.path?.length ? item.path : item ? [[item.northLat, item.westLng], [item.southLat, item.eastLng]] : []);
+const shapeOf = (item) => (item?.outline?.length ? item.outline : item?.path?.length ? item.path : item ? [[item.northLat, item.westLng], [item.southLat, item.eastLng]] : []);
 
 /** The street that is picked: what is known about it, the way there, and what the person running the search can do about it. */
 function StreetCard({ street, picture, unit, now, leads, busy, problem, free = [], onSteer, onGive, onUnask, onClose }) {
@@ -188,9 +195,11 @@ function StreetCard({ street, picture, unit, now, leads, busy, problem, free = [
   );
 }
 
-export default function Command({ picture, items, unit, now, line, petHref, onPhoto, step, full, onBack, onSeen, onShare, search, mapLabel, overlays }) {
+export default function Command({ picture, items, unit, circle = null, now, line, petHref, onPhoto, step, full, onBack, onSeen, onShare, search, mapLabel: mapWords, overlays }) {
   const viewer = picture.viewer;
   const leads = Boolean(viewer?.leads);
+  // The search is areas of ground. (Streets or squares, for a search from before it was.)
+  const ground = unit === 'area';
   const people = search.people;
   const name = picture.pet?.name || 'the pet';
   const zone = picture.timeZone;
@@ -218,8 +227,8 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   const [needProblem, setNeedProblem] = useState('');
 
   const street = useMemo(() => items.find((i) => i.id === selected) || null, [items, selected]);
-  // The streets a helper who asks now is given one of (lib/insight.js, givenNext): the map and the list both mark them.
-  const next = useMemo(() => new Set(givenNext(items).map((i) => i.id)), [items]);
+  // What a helper who asks now is given one of (lib/ground.js, givenNextAreas): the map and the list both mark it.
+  const next = useMemo(() => new Set((ground ? givenNextAreas(items) : givenNext(items)).map((i) => i.id)), [items, ground]);
   const free = useMemo(() => people.filter((p) => p.state === 'free'), [people]);
   // A street that is no longer on the board lets go of itself.
   useEffect(() => {
@@ -232,6 +241,12 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
     setProblem('');
     setSelected(id);
     if (id) setFocused(null);
+  };
+  // An area's card is in the list beside the map, where it covers none of the ground. Picking one on the map
+  // opens it there, unless this person is in the middle of choosing an area for someone.
+  const pickOnMap = (id) => {
+    pick(id);
+    if (id && ground && !(tab === 'people' && person)) setTab('streets');
   };
   // Open a person with a street already chosen for them.
   const give = (handle, streetId = null) => {
@@ -259,29 +274,52 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   // ----- What needs the person running the search -----
   const talk = search.talk;
   const cards = useMemo(
-    () => needsYou({ picture, items, people, words: talk, leads, put, unit, now }),
+    () => (ground ? needsForGround({ picture, areas: items, circle, people, words: talk, leads, put, now }) : needsYou({ picture, items, people, words: talk, leads, put, unit, now })),
     // The cards change with the search, and with the clock twice a minute (how long someone has been free).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [picture, items, people, talk, leads, put, unit, Math.floor(now / 30000)]
+    [picture, items, circle, people, talk, leads, put, unit, Math.floor(now / 30000)]
   );
+  const [widening, setWidening] = useState(false);
+  async function widen() {
+    if (widening) return undefined;
+    setWidening(true);
+    setProblem('');
+    try {
+      const result = await search.widen();
+      if (result.error) setProblem(result.error);
+      else {
+        // The whole of the wider search comes into view.
+        setSelected(null);
+        setFocused(null);
+        setRefit((n) => n + 1);
+      }
+      return result;
+    } finally {
+      setWidening(false);
+    }
+  }
   async function doNeed(card, what) {
     setNeedProblem('');
     if (what.type === 'done') return putAway(what.key);
     if (what.type === 'show') return focus(what.sightingId);
-    if (what.type === 'give') return give(what.handle, what.streetId);
+    const target = what.areaId || what.streetId || null;
+    if (what.type === 'give') return give(what.handle, target);
     if (what.type === 'write') {
       setTab('messages');
       return setTo(what.handle);
     }
-    if (!['ask', 'first'].includes(what.type) || needBusy || busy) return undefined;
+    if (!['ask', 'first', 'widen', 'againAll'].includes(what.type) || needBusy || busy) return undefined;
     setNeedBusy(card.id);
     try {
-      // Nobody is free: the next person who asks for a street is sent to this one first.
-      const result = what.type === 'first' ? await search.act('street', what.streetId, 'first') : await search.ask(what.handle, what.streetId, '');
-      if (result.error) setNeedProblem(result.error);
-      // Asked: the person's panel shows it asked, then seen, then walking. Sent to first: the street's own card says so.
+      // Nobody is free: the next person who asks is sent to this one first.
+      const result =
+        what.type === 'widen' ? await widen() : what.type === 'againAll' ? await search.againAll() : what.type === 'first' ? await search.act(unit, target, 'first') : await search.ask(what.handle, target, '');
+      if (result?.error) setNeedProblem(result.error);
+      // Asked: the person's panel shows it asked, then seen, then started. Sent to first: its own card says so.
       else if (what.type === 'ask') give(what.handle);
-      else pick(what.streetId);
+      else if (what.type === 'first') pickOnMap(target);
+      // Widened, or put up for another look: the Ground list shows it.
+      else setTab('streets');
     } finally {
       setNeedBusy(null);
     }
@@ -290,12 +328,28 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   // Words from helpers still to answer, less the ones this person has put away: the count on the Messages tab.
   const waiting = useMemo(() => unanswered(talk).filter((w) => !put.has(`word-${w.id}`)).length, [talk, put]);
 
+  // "Ask Jo" on an area's card: asked at once, and then Jo is opened, where the ask reads asked, seen, started.
+  async function askFromCard(handle, areaId) {
+    if (busy) return;
+    setBusy(`ask:${handle}`);
+    setProblem('');
+    try {
+      const result = await search.ask(handle, areaId, '');
+      if (result.error) setProblem(result.error);
+      else give(handle);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function takeBack(target) {
-    if (busy || !target.askedOfHandle) return;
+    // A street carries who it is kept for; an area's card passes the handle of the person asked.
+    const handle = typeof target === 'string' ? target : target?.askedOfHandle;
+    if (busy || !handle) return;
     setBusy('unask');
     setProblem('');
     try {
-      const result = await search.unask(target.askedOfHandle);
+      const result = await search.unask(handle);
       if (result.error) setProblem(result.error);
     } finally {
       setBusy(null);
@@ -326,35 +380,73 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
     [unit, items, next]
   );
   const mapCells = useMemo(() => (unit === 'block' ? items.map((i) => ({ ...i, mine: false, next: next.has(i.id), words: `${stateWords(i)} · about ${i.minutes} min` })) : []), [unit, items, next]);
+  // The ground, area by area: each with its name on it and, for the people who may know, who is on it.
+  const mapAreas = useMemo(
+    () =>
+      ground
+        ? items.map((i) => ({
+            id: i.id,
+            outline: i.outline,
+            ring: i.ring,
+            status: i.status,
+            searchCount: i.searchCount,
+            on: i.on,
+            mine: false,
+            // Heavy on the map where a few areas are next. With many as urgent as each other (a ring just added),
+            // every outline heavy would say nothing: the list still marks each.
+            next: next.has(i.id) && next.size <= 4,
+            center: i.center,
+            label: mapLabel(i),
+            who: (i.who || []).map((w) => w.name).join(', ') || null,
+            title: i.name,
+            words: `${areaState(i)} · about ${i.minutes} min`,
+          }))
+        : [],
+    [ground, items, next]
+  );
   const lastSeenTag = useMemo(() => {
     const at = picture.lastSeen;
     if (!at || !Number.isFinite(at.lat) || !Number.isFinite(at.lng)) return null;
-    return { lat: at.lat, lng: at.lng, label: `Lost here ${dayAndTime(at.at, zone, now)}` };
+    // Over ground its words sit above the mark, clear of the names of the areas on either side of it.
+    return { lat: at.lat, lng: at.lng, label: `Lost here ${dayAndTime(at.at, zone, now)}`, ...(ground ? { side: 'above' } : {}) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picture.lastSeen?.lat, picture.lastSeen?.lng, picture.lastSeen?.at, zone, Math.floor(now / 60000)]);
+  }, [picture.lastSeen?.lat, picture.lastSeen?.lng, picture.lastSeen?.at, zone, ground, Math.floor(now / 60000)]);
 
   const fit = useMemo(() => {
     const spot = focused ? numbered.find((s) => s.id === focused) : null;
     if (spot) return [[spot.lat, spot.lng], ...around(spot.lat, spot.lng, 260)];
-    if (street) return [...shapeOf(street), ...(street.center ? around(street.center.lat, street.center.lng, 160) : [])];
+    // A street is small, so picking one brings it close. An area is a fifth of the search: the whole circle stays in view.
+    if (street && !ground) return [...shapeOf(street), ...(street.center ? around(street.center.lat, street.center.lng, 160) : [])];
     // The whole search: every street, where the pet was lost, and where it was seen.
     const all = items.flatMap((i) => shapeOf(i));
     const seen = numbered.map((s) => [s.lat, s.lng]);
-    const lost = lastSeenTag ? around(lastSeenTag.lat, lastSeenTag.lng, 200) : [];
+    // Round a street board, a neighbourhood's worth of room for where the pet was lost. Ground is its own frame: its edge.
+    const lost = lastSeenTag && !ground ? around(lastSeenTag.lat, lastSeenTag.lng, 200) : [];
     return [...all, ...seen, ...lost];
-  }, [focused, street, items, numbered, lastSeenTag]);
-  const fitKey = `${focused ? `seen:${focused}` : street ? `street:${street.id}` : `all:${items.length}:${numbered.length}`}|${refit}`;
+  }, [focused, street, ground, items, numbered, lastSeenTag]);
+  const fitKey = `${focused ? `seen:${focused}` : street && !ground ? `street:${street.id}` : `all:${items.length}:${numbered.length}`}|${refit}`;
 
   // The map's key: what a line's weight and colour mean, in the map's own values. It sits above the strip the
   // map's credit has along the bottom, and stops short of the zoom buttons in the corner, wrapping to a second line.
   const anyKept = mapStreets.some((s) => s.keptFor);
-  const key = [
-    ['thick', look.ink, 'Given out next'],
-    ['thin', look.later, 'Still to walk'],
-    ...(anyKept ? [['kept', look.ink, 'Kept for someone asked']] : []),
-    ['dots', look.walking, 'Being walked'],
-    ['line', look.walked, 'Walked'],
-  ];
+  const key = ground
+    ? [
+        ['edge', look.ink, 'Given out next'],
+        ['open', look.later, 'Not searched'],
+        ['dash', look.walking, 'Being searched'],
+        ['once', look.walked, 'Searched once'],
+        ['twice', look.walked, 'Twice or more'],
+        ...(items.some((i) => i.status === 'NEEDS_REVISIT') ? [['again', look.walked, 'Another look']] : []),
+        ...(items.some((i) => i.ring === 3) ? [['seen', 'var(--mc-seen)', 'Round a sighting']] : []),
+      ]
+    : [
+        ['thick', look.ink, 'Given out next'],
+        ['thin', look.later, 'Still to walk'],
+        ...(anyKept ? [['kept', look.ink, 'Kept for someone asked']] : []),
+        ['dots', look.walking, 'Being walked'],
+        ['line', look.walked, 'Walked'],
+      ];
+  const canWiden = ground && leads && circle && !circle.widened && circle.wide > circle.edge;
   // The distances a study found, drawn round where the pet was lost. One list while nothing changes, so the map is not redrawn.
   const ringList = useMemo(() => (rings && study ? study.rings.map((r) => ({ meters: r.meters, label: r.label })) : NO_RINGS), [rings, study]);
 
@@ -362,7 +454,7 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   const overview = (
     <div className={`flex flex-col gap-3 overflow-y-auto ${roomy ? 'p-4' : 'min-h-0 flex-1 p-3'}`}>
       {leads && !full && (
-        <Needs cards={cards} quiet={quietLine({ unit, items, people })} busy={needBusy} problem={needProblem} onDo={doNeed} all={allNeeds} onAll={() => setAllNeeds((v) => !v)} />
+        <Needs cards={cards} quiet={ground ? quietGround({ areas: items, people }) : quietLine({ unit, items, people })} busy={needBusy} problem={needProblem} onDo={doNeed} all={allNeeds} onAll={() => setAllNeeds((v) => !v)} />
       )}
       <Numbers picture={picture} items={items} unit={unit} now={now} />
       <section aria-label="Your step" className={`rounded-2xl border border-[var(--mc-line)] ${roomy ? 'bg-[var(--mc-surface)]' : 'bg-[var(--mc-ground)]'} ${full ? 'overflow-hidden pb-2' : 'p-4'}`}>
@@ -373,7 +465,7 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
         )}
         {step}
       </section>
-      {!full && <Know picture={picture} items={items} unit={unit} now={now} rings={rings} onRings={() => setRings((v) => !v)} />}
+      {!full && <Know picture={picture} items={items} unit={unit} circle={circle} now={now} rings={rings} onRings={() => setRings((v) => !v)} />}
       {!full && <Advice picture={picture} now={now} />}
     </div>
   );
@@ -407,20 +499,22 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
               layer={layer}
               lastSeen={lastSeenTag}
               sightings={mapSightings}
+              areas={mapAreas}
               streets={mapStreets}
               cells={mapCells}
               selected={selected}
               hovered={hovered}
-              onSelect={pick}
+              onSelect={pickOnMap}
               onHover={setHovered}
               rings={ringList}
               trail
               fit={fit}
               fitKey={fitKey}
-              padding={{ top: 70, right: 60, bottom: street ? 260 : 70, left: 60 }}
-              maxFitZoom={16.25}
+              padding={{ top: 70, right: 60, bottom: street && !ground ? 260 : 70, left: 60 }}
+              // A dog's circle fills the map near this zoom. A cat's is a third the size, so ground may be shown closer.
+              maxFitZoom={ground ? 18 : 16.25}
               zoomControl
-              label={mapLabel}
+              label={mapWords}
             />
           </div>
           <div className="absolute left-3 top-3 z-[400] flex flex-wrap items-center gap-2">
@@ -452,11 +546,28 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
             >
               <Maximize2 size={15} aria-hidden="true" /> The whole search
             </button>
+            {canWiden && (
+              <button type="button" onClick={widen} disabled={widening} className={`${CONTROL} disabled:opacity-60`}>
+                {widening ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Maximize size={15} aria-hidden="true" />} Widen to {circle.wide} m
+              </button>
+            )}
           </div>
-          <div className={`pointer-events-none absolute bottom-7 left-3 z-[400] max-w-[calc(100%-76px)] flex-wrap items-center gap-x-3.5 gap-y-1 rounded-lg border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3 py-1.5 text-[13px] font-semibold text-[var(--mc-soft)] shadow-sm ${street ? 'hidden' : 'flex'}`}>
+          <div className={`pointer-events-none absolute bottom-7 left-3 z-[400] max-w-[calc(100%-76px)] flex-wrap items-center gap-x-3.5 gap-y-1 rounded-lg border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3 py-1.5 text-[13px] font-semibold text-[var(--mc-soft)] shadow-sm ${street && !ground ? 'hidden' : 'flex'}`}>
             {key.map(([kind, color, words]) => (
               <span key={words} className="flex items-center gap-1.5">
-                {kind === 'dots' ? (
+                {kind === 'edge' || kind === 'open' ? (
+                  <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `${kind === 'edge' ? 3 : 1.5}px solid ${color}` }} aria-hidden="true" />
+                ) : kind === 'dash' ? (
+                  <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `2.5px dashed ${color}` }} aria-hidden="true" />
+                ) : kind === 'again' ? (
+                  <span className="relative h-3.5 w-5 overflow-hidden rounded-[3px]" style={{ border: `2px solid ${look.ink}` }} aria-hidden="true">
+                    <span className="absolute inset-0" style={{ background: color, opacity: 0.45 }} />
+                  </span>
+                ) : kind === 'once' || kind === 'twice' ? (
+                  <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `1.5px solid ${color}`, background: color, opacity: kind === 'twice' ? 0.85 : 0.45 }} aria-hidden="true" />
+                ) : kind === 'seen' ? (
+                  <span className="h-3.5 w-3.5 rounded-full" style={{ border: `2px dashed ${color}` }} aria-hidden="true" />
+                ) : kind === 'dots' ? (
                   <span className="w-5 border-t-[5px] border-dotted" style={{ borderColor: color }} aria-hidden="true" />
                 ) : kind === 'kept' ? (
                   <span className="flex h-[6px] w-5 items-center rounded-full" style={{ background: color }} aria-hidden="true">
@@ -469,7 +580,7 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
               </span>
             ))}
           </div>
-          {street && (
+          {street && !ground && (
             // Bottom left, clear of the zoom buttons and the map's credit in the other corner.
             <div className="absolute bottom-7 left-3 z-[450] w-[min(460px,calc(100%-96px))]">
               <StreetCard street={street} picture={picture} unit={unit} now={now} leads={leads} busy={busy} problem={problem} free={free} onSteer={steer} onGive={(handle) => give(handle, street.id)} onUnask={takeBack} onClose={() => pick(null)} />
@@ -484,6 +595,14 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
             picture={picture}
             items={items}
             unit={unit}
+            circle={circle}
+            onWiden={widen}
+            widening={widening}
+            areaCard={
+              ground && street ? (
+                <AreaCard area={street} picture={picture} circle={circle} now={now} leads={leads} busy={busy} problem={problem} free={free} next={next.has(street.id)} onSteer={steer} onAsk={(handle) => askFromCard(handle, street.id)} onUnask={takeBack} onClose={() => pick(null)} />
+              ) : null
+            }
             now={now}
             tab={tab}
             onTab={setTab}

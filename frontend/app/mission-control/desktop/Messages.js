@@ -4,7 +4,7 @@
  * The desk's Messages: everything said and everything that happened on
  * the search, in one stream, oldest at the top and the newest by the box
  * you write in. A search run from a group chat loses its sightings among
- * the talk; here a sighting, a street walked and a helper's word each
+ * the talk; here a sighting, an area searched and a helper's word each
  * keep their own line and their own colour, and each can be clicked to
  * see it on the map.
  *
@@ -22,11 +22,12 @@ import { ChevronDown, Eye, Loader2, Send } from 'lucide-react';
 import { clockTime, dayAndTime } from '../lib/words';
 import { activity } from '../lib/insight';
 import { stream } from '../lib/team';
+import { groundActivity } from '../lib/ground';
 
 const FIELD =
   'w-full resize-none rounded-xl border border-[var(--mc-line-strong)] !bg-[var(--mc-surface)] px-3 py-2 text-[15px] font-medium leading-[22px] !text-[var(--mc-ink)] placeholder:text-[var(--mc-muted)] focus:border-[var(--mc-ink)] focus:outline-none focus:ring-2 focus:ring-flash-400';
 
-export default function Messages({ picture, items, now, people = [], words = [], to, onTo, onSelect, onFocus, onTell, onWord, onAdd }) {
+export default function Messages({ picture, items, unit = 'street', now, people = [], words = [], to, onTo, onSelect, onFocus, onTell, onWord, onAdd }) {
   const viewer = picture.viewer;
   const leads = Boolean(viewer?.leads);
   const isOwner = Boolean(viewer?.isOwner);
@@ -36,9 +37,9 @@ export default function Messages({ picture, items, now, people = [], words = [],
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const lines = useMemo(
-    () => stream({ events: activity({ items, picture, now }), words }),
+    () => stream({ events: unit === 'area' ? groundActivity({ areas: items, picture, now }) : activity({ items, picture, now }), words }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [items, picture, words, Math.floor(now / 60000)]
+    [items, unit, picture, words, Math.floor(now / 60000)]
   );
   // The owner can write to everyone; anyone else who runs a search writes to one person, the first on the list
   // until they pick. A person who was picked and is no longer on the list is NOT quietly swapped for "everyone":

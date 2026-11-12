@@ -72,11 +72,12 @@ export function briefFor({ way, pet }) {
  *
  *  - Nothing says a path or a drive "records as you go". That happens only
  *    in the app, and the search screen says it there, while it records.
- *  - A job that is one street is not told to "walk every street in the
- *    block": its own title names the street.
+ *  - A job that is one street, or one area of ground, is not told to
+ *    "walk every street in the block": its own title names what it is,
+ *    and ground is searched, not walked street by street.
  */
 export function briefOnPage(brief = [], job = null) {
   return (brief || [])
     .map((line) => String(line || '').replace(/\s*[^.]*\brecords as you go\b[^.]*\./, '').trim())
-    .filter((line) => line && !(job?.unit === 'street' && /^Walk every street in the block\.?$/.test(line)));
+    .filter((line) => line && !((job?.unit === 'street' || job?.unit === 'area') && /^Walk every street in the block\.?$/.test(line)));
 }

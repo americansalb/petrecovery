@@ -5,22 +5,27 @@
  *
  *   red      where the pet was lost
  *   orange   where it has been seen, the newest loudest
- *   yellow   the street this person is walking
- *   grey     streets already searched
- *   dotted   streets someone is on now
+ *   yellow   the area of ground this person is searching
+ *   green    ground already searched, deeper where it was searched twice
+ *   dashed   ground someone is on now
  *   white    this person's own path, where the app is recording one
  *
+ * The search is a circle of ground cut into areas (`areas`:
+ * app/lib/searchCircle.js). Streets are the map's own and nothing is
+ * drawn along them: a pet does not keep to streets. (`streets` and
+ * `cells` draw a search from before it was on areas.)
+ *
  * Every mark has words beside it, so nobody decodes a colour. It draws
- * streets, not people: no dot of any helper is ever on it. The only
+ * ground, not people: no dot of any helper is ever on it. The only
  * person shown is the one holding the phone, to themselves.
  *
  * On a phone the map is looked at, not tapped: the card's one button does
- * the choosing. On a desk (`desk`) it is the instrument: every street of
- * the search is drawn, thickest where the search goes next, and answers
- * to the pointer. Pointing at one names it, clicking picks it, and the list
- * beside the map and the map point at the same street. The desk can also
- * draw how far lost pets were found in published studies (`rings`), join
- * the sightings in the order they happened (`trail`), and show the
+ * the choosing. On a desk (`desk`) it is the instrument: every area of
+ * the search is drawn, outlined heaviest where the search goes next, and
+ * answers to the pointer. Pointing at one names it, clicking picks it, and
+ * the list beside the map and the map point at the same area. The desk can
+ * also draw how far lost pets were found in published studies (`rings`),
+ * join the sightings in the order they happened (`trail`), and show the
  * ground from above (`layer`).
  *
  * Labels are built from DOM nodes with textContent: street names come
@@ -66,6 +71,13 @@ function node(tag, css, text) {
 
 const TAG_TONES = {
   plain: { dark: 'background:#0f172a;color:#f8fafc;border:1px solid rgba(148,163,184,0.45)', light: 'background:#ffffff;color:#0f172a;border:1px solid #cbd5e1' },
+  // Someone is on this ground: the teal of the line round it.
+  on: { dark: 'background:#0f172a;color:#5eead4;border:1px solid rgba(45,212,191,0.7)', light: 'background:#ffffff;color:#115e59;border:1px solid rgba(13,148,136,0.7)' },
+  // An area's own name, written on the ground with no box: ink with a halo of the map's casing.
+  bare: {
+    dark: 'background:transparent;color:#f8fafc;border:0;box-shadow:none;padding:0 2px;text-shadow:0 0 3px #020617,0 0 3px #020617,0 0 6px #020617,0 0 6px #020617',
+    light: 'background:transparent;color:#0f172a;border:0;box-shadow:none;padding:0 2px;text-shadow:0 0 3px #ffffff,0 0 3px #ffffff,0 0 6px #ffffff,0 0 6px #ffffff',
+  },
   seen: { dark: 'background:#0f172a;color:#fdba74;border:1px solid rgba(234,88,12,0.7)', light: 'background:#ffffff;color:#c2410c;border:1px solid rgba(234,88,12,0.6)' },
   flash: { dark: `background:${FLASH};color:#0f172a;border:1px solid ${FLASH}`, light: `background:${FLASH};color:#0f172a;border:1px solid #0f172a` },
 };
@@ -79,6 +91,10 @@ function tagged(L, { dot = null, text, tone = 'plain', theme = 'dark', side = 'r
     const place =
       side === 'left'
         ? 'top:-13px;right:16px;'
+        : side === 'center'
+          ? 'top:-13px;left:0;transform:translateX(-50%);'
+          : side === 'under'
+            ? 'top:10px;left:0;transform:translateX(-50%);'
         : side === 'above'
           ? 'bottom:14px;left:0;transform:translateX(-50%);'
           : side === 'below'
@@ -121,6 +137,9 @@ export default function SearchMap({
   theme = 'dark',
   lastSeen = null, // { lat, lng, label }
   sightings = NONE, // [{ id, lat, lng, label, hot, n }]: `n` numbers them in the order they happened
+  // The search's ground: [{ id, outline, ring, status, searchCount, on, mine, next, label, center, who, title, words }].
+  // `outline` is a closed [[lat, lng], ...], `label` the short name written on it, `who` the first names of the people on it.
+  areas = NONE,
   streets = NONE, // [{ id, path, status, mine, who, keptFor, title, words, next }]: `next` is given out next, `keptFor` names who it is kept for
   cells = NONE, // [{ id, northLat, southLat, eastLng, westLng, status, mine, title, words }]
   me = null, // { lat, lng }
@@ -240,6 +259,45 @@ export default function SearchMap({
       };
 
       const look = DESK_MAP[dark ? 'dark' : 'light'];
+
+      // The ground of the search, area by area. What has been searched is filled green, deeper for a second
+      // search; what someone is on now has a dashed teal edge; what nobody has searched is left as the map, inside
+      // an outline. The circle round a sighting is the orange of the sighting.
+      const seenLine = dark ? '#fb923c' : '#c2410c';
+      // The circle round a sighting lies inside the circle's own areas, so it is drawn after them: on a desk
+      // the shape on top is the one the pointer finds, and drawn first it could never be pointed at or picked.
+      const drawn = [...areas].sort((a, b) => Number(a.ring === 3) - Number(b.ring === 3));
+      for (const area of drawn) {
+        if (!Array.isArray(area.outline) || area.outline.length < 4) continue;
+        const lit = Boolean(area.mine);
+        const sightingCircle = area.ring === 3;
+        const searched = Number(area.searchCount) > 0;
+        const busy = area.status === 'IN_PROGRESS';
+        // Searched, and put up for another look: it keeps its green and gets an ink edge, since it is open again.
+        const again = area.status === 'NEEDS_REVISIT';
+        const fill = searched ? { fillColor: look.walked, fillOpacity: area.searchCount > 1 ? 0.5 : 0.26 } : sightingCircle ? { fillColor: seenLine, fillOpacity: 0.1 } : { fillOpacity: 0 };
+        const edge = lit
+          ? { color: FLASH, weight: 4, fillColor: FLASH, fillOpacity: searched ? 0.3 : 0.2 }
+          : busy
+            ? { color: look.walking, weight: desk ? 3.5 : 3, dashArray: '2 9', lineCap: 'round' }
+            : sightingCircle
+              ? { color: seenLine, weight: 2.5, dashArray: '6 6' }
+              : desk
+                ? { color: area.next || again ? look.ink : look.later, weight: area.next ? 3.5 : again ? 2.5 : 1.5 }
+                : { color: dark ? 'rgba(203,213,225,0.55)' : 'rgba(51,65,85,0.5)', weight: 1.5 };
+        if (lit) L.polygon(area.outline, { color: casing, weight: 8, opacity: 0.9, fill: false, lineJoin: 'round', interactive: false }).addTo(layers);
+        const shape = L.polygon(area.outline, { lineJoin: 'round', ...fill, ...edge, interactive: desk }).addTo(layers);
+        if (desk) answer(shape, area);
+        if (area.center && Number.isFinite(area.center.lat)) {
+          const at = [area.center.lat, area.center.lng];
+          // Its name on the ground. A sighting's circle is named by the sighting's own mark.
+          // The middle's name sits under the mark of where the pet was lost, which is at its centre.
+          if (area.label && !sightingCircle) L.marker(at, { icon: tagged(L, { text: area.label, tone: lit ? 'flash' : 'bare', theme, side: area.ring === 0 ? 'below' : 'center' }), interactive: false, keyboard: false, zIndexOffset: 100 }).addTo(layers);
+          // Who is on it, for the people who may know: first names, under the area's own.
+          if (area.who && !lit) L.marker(at, { icon: tagged(L, { text: area.who, tone: 'on', theme, side: sightingCircle ? 'below' : 'under' }), interactive: false, keyboard: false, zIndexOffset: 150 }).addTo(layers);
+        }
+      }
+
       for (const cell of cells) {
         const bounds = [[cell.southLat, cell.westLng], [cell.northLat, cell.eastLng]];
         const lit = Boolean(cell.mine);
@@ -361,7 +419,7 @@ export default function SearchMap({
     draw();
     el?.addEventListener('searchmap:ready', draw);
     return () => el?.removeEventListener('searchmap:ready', draw);
-  }, [theme, lastSeen, sightings, streets, cells, me, tags, track, desk, rings, trail]);
+  }, [theme, lastSeen, sightings, areas, streets, cells, me, tags, track, desk, rings, trail]);
 
   // The street that is picked, and the one pointed at from the list: drawn over everything else, and redrawn
   // alone, so pointing at a row does not repaint the whole search.
@@ -373,14 +431,19 @@ export default function SearchMap({
       focus.clearLayers();
       const dark = theme === 'dark';
       const casing = dark ? '#020617' : '#ffffff';
-      const shape = (id) => streets.find((x) => x.id === id) || cells.find((x) => x.id === id) || null;
+      const shape = (id) => areas.find((x) => x.id === id) || streets.find((x) => x.id === id) || cells.find((x) => x.id === id) || null;
       const pointed = hovered && hovered !== selected ? shape(hovered) : null;
       // The street pointed at is ringed in the map's ink: white at night, dark by day.
       const ring = dark ? '#ffffff' : '#0f172a';
-      if (pointed?.path) L.polyline(pointed.path, { color: ring, weight: 13, opacity: dark ? 0.55 : 0.28, lineCap: 'round', interactive: false }).addTo(focus);
+      if (pointed?.outline) L.polygon(pointed.outline, { color: ring, weight: 4, opacity: dark ? 0.9 : 0.75, fillColor: ring, fillOpacity: 0.07, lineJoin: 'round', interactive: false }).addTo(focus);
+      else if (pointed?.path) L.polyline(pointed.path, { color: ring, weight: 13, opacity: dark ? 0.55 : 0.28, lineCap: 'round', interactive: false }).addTo(focus);
       else if (pointed) L.rectangle([[pointed.southLat, pointed.westLng], [pointed.northLat, pointed.eastLng]], { color: ring, weight: 3, fillOpacity: 0.12, interactive: false }).addTo(focus);
       const picked = selected ? shape(selected) : null;
-      if (picked?.path) {
+      if (picked?.outline) {
+        // Yellow inside a ring of ink: the one yellow edge on the map is the area that is picked.
+        L.polygon(picked.outline, { color: ring, weight: 8, opacity: 1, fill: false, lineJoin: 'round', interactive: false }).addTo(focus);
+        L.polygon(picked.outline, { color: FLASH, weight: 4.5, opacity: 1, fillColor: FLASH, fillOpacity: 0.2, lineJoin: 'round', interactive: false }).addTo(focus);
+      } else if (picked?.path) {
         // Yellow inside a ring of ink: the one yellow line on the map is the street that is picked.
         L.polyline(picked.path, { color: casing, weight: 18, opacity: 0.9, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(focus);
         L.polyline(picked.path, { color: ring, weight: 13, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(focus);
@@ -392,7 +455,7 @@ export default function SearchMap({
     draw();
     el?.addEventListener('searchmap:ready', draw);
     return () => el?.removeEventListener('searchmap:ready', draw);
-  }, [theme, streets, cells, selected, hovered]);
+  }, [theme, areas, streets, cells, selected, hovered]);
 
   // What is in view: refit when the thing to look at changes, not on every poll.
   //

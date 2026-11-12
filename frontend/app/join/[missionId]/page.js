@@ -3,9 +3,9 @@
  * pastes into a text or a group chat to bring people to a search.
  *
  * People are sent straight on to the search screen
- * (/mission-control?mission=...), which opens with no account: the streets
- * around where the pet was lost, one street to walk for anyone who joins
- * with a first name, and "I've seen" for a witness. Link preview bots
+ * (/mission-control?mission=...), which opens with no account: the ground
+ * around where the pet was lost, one area of it to search for anyone who
+ * joins with a first name, and "I've seen" for a witness. Link preview bots
  * never run that redirect. They read the tags served here, so a texted
  * link unfurls as the ask, "Join the search for Max", with the pet's own
  * photo (docs/LINK_PREVIEWS.md, "Legacy redirect routes still need cards").

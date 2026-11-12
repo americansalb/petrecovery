@@ -7,6 +7,7 @@
  * times from the search itself. A message is always shown as someone's
  * own words, with whose they are; the screen adds none.
  */
+import { inWords, outLongAfter } from '@/app/lib/searchCircle';
 import { clockTime, dayAndTime } from './words';
 
 const MINUTE = 60 * 1000;
@@ -18,6 +19,17 @@ export const WORD_FRESH_MS = 12 * HOUR;
 /** What one person is doing, in a line: for the People list on the desk. `unit` is what the search hands out. */
 export function personLine(person, { timeZone, now = Date.now(), unit = 'street' } = {}) {
   if (!person) return '';
+  if (unit === 'area') {
+    // Ground is searched, not walked, and an area's name goes into the sentence as "the west side".
+    if (person.state === 'walking' && person.on) return `Searching ${inWords(person.on.title)} since ${clockTime(person.since, timeZone)}`;
+    if (person.state === 'asked' && person.asked) {
+      const what = `Asked to search ${inWords(person.asked.title)} at ${clockTime(person.asked.at, timeZone)}`;
+      return person.asked.seenAt ? `${what}. Seen ${clockTime(person.asked.seenAt, timeZone)}.` : `${what}. Not seen yet.`;
+    }
+    if (person.walked > 0 && person.lastWalkedAt) return `Free since ${dayAndTime(person.lastWalkedAt, timeZone, now)}. Searched ${person.walked === 1 ? '1 area' : `${person.walked} areas`}.`;
+    if (person.joinedAt) return `Joined ${dayAndTime(person.joinedAt, timeZone, now)}. No area yet.`;
+    return 'No area yet.';
+  }
   const thing = unit === 'block' ? 'block' : 'street';
   if (person.state === 'walking' && person.on) return `Walking ${shortTitle(person.on.title)} since ${clockTime(person.since, timeZone)}`;
   if (person.state === 'asked' && person.asked) {
@@ -35,15 +47,16 @@ export function shortTitle(title) {
 }
 
 /**
- * Someone out much longer than their street takes: how many minutes, or
- * null. Twice the street's time and a quarter of an hour, so a careful
- * walk is never flagged. `minutes` is how long the street takes.
+ * Someone out much longer than their area takes: how many minutes, or
+ * null. Twice the area's time and a quarter of an hour, so a careful
+ * search is never flagged (app/lib/searchCircle.js, outLongAfter: the site
+ * goes on counting them as there for half an hour after that, so this is
+ * always said first). `minutes` is how long the area takes.
  */
 export function outLong(person, minutes, now = Date.now()) {
   if (!person || person.state !== 'walking' || !person.since) return null;
   const out = Math.round((now - new Date(person.since).getTime()) / MINUTE);
-  const allowed = 2 * (Number(minutes) || 20) + 15;
-  return out > allowed ? out : null;
+  return out > outLongAfter(minutes) ? out : null;
 }
 
 /** People in the order the desk lists them, in three groups. */

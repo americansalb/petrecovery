@@ -18,6 +18,7 @@
 import { useMemo, useState } from 'react';
 import { adviceFor } from '@/app/lib/adviceFor';
 import { coverage, groundLines, missingFor, researchFor, sightingLines } from '../lib/insight';
+import { groundCoverage, groundLines as areaLines } from '../lib/ground';
 import { searcherBrief } from '../lib/briefLines';
 
 export function Card({ title, right = null, children, className = '' }) {
@@ -45,9 +46,29 @@ function Stat({ value, label, tone = 'plain' }) {
 
 /** Four numbers, and the ground as a bar. */
 export function Numbers({ picture, items, unit, now }) {
+  const seen = picture.sightings.length;
+  if (unit === 'area') {
+    // Ground: how many of the circle's areas have been searched at least once, and how many people are on any now.
+    const g = groundCoverage(items);
+    return (
+      <div>
+        <div className="flex flex-wrap gap-2">
+          <Stat value={missingFor(picture.lastSeen?.at, now) || '-'} label="missing" />
+          <Stat value={g.total ? `${g.searched}/${g.total}` : '-'} label="areas searched" />
+          <Stat value={g.people} label="searching now" />
+          <Stat value={seen} label={seen === 1 ? 'sighting' : 'sightings'} tone={seen ? 'seen' : 'plain'} />
+        </div>
+        {g.total > 0 && (
+          <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-[var(--mc-line)]" role="img" aria-label={`${g.searched} of ${g.total} areas searched, ${g.searching} being searched now`}>
+            <span className="h-full bg-[var(--mc-done)]" style={{ width: `${(g.done / g.total) * 100}%` }} />
+            <span className="h-full bg-[var(--mc-teal)]" style={{ width: `${(g.searching / g.total) * 100}%` }} />
+          </div>
+        )}
+      </div>
+    );
+  }
   const c = coverage(items);
   const thing = unit === 'block' ? 'blocks' : 'streets';
-  const seen = picture.sightings.length;
   return (
     <div>
       {/* Two rows of two. Flex, not grid: globals.css gives every .grid a 1rem gap. */}
@@ -69,7 +90,7 @@ export function Numbers({ picture, items, unit, now }) {
 }
 
 /** What the sightings have in common, the ground that is left, and what studies found. */
-export function Know({ picture, items, unit, now, rings, onRings }) {
+export function Know({ picture, items, unit, circle = null, now, rings, onRings }) {
   const name = picture.pet?.name || 'the pet';
   const seen = useMemo(
     () => sightingLines({ sightings: picture.sightings, lastSeen: picture.lastSeen, timeZone: picture.timeZone, now, name }),
@@ -77,7 +98,7 @@ export function Know({ picture, items, unit, now, rings, onRings }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [picture.sightings, picture.lastSeen, picture.timeZone, name, Math.floor(now / 600000)]
   );
-  const ground = groundLines({ items, unit, name });
+  const ground = unit === 'area' ? areaLines({ areas: items, circle, name }) : groundLines({ items, unit, name });
   const study = researchFor(picture.pet?.species);
   return (
     <Card title="What the search shows">

@@ -59,7 +59,7 @@ const ICON_BUTTON =
   'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-midnight-100 text-midnight-700 transition hover:bg-midnight-200';
 // "Search on the map": the way into Mission Control, the pet's search
 // screen. It opens for anyone, signed in or not: a visitor can join with a
-// first name and be handed a street. a.bg-midnight-900 gets its shading
+// first name and be handed an area to search. a.bg-midnight-900 gets its shading
 // from app/globals.css.
 const DARK_LINK =
   'inline-flex items-center justify-center gap-2 rounded-xl bg-midnight-900 px-4 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-midnight-800';

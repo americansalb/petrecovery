@@ -19,6 +19,7 @@ jest.mock('@/app/lib/prisma', () => ({
     squadPost: { findFirst: jest.fn() },
     searchSession: { findMany: jest.fn() },
     gridCell: { findMany: jest.fn() },
+    searchZoneVisit: { findMany: jest.fn(async () => []) },
   },
 }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
@@ -224,6 +225,7 @@ test('a pet back home: the force and its other pets, but nothing left to do', as
 test('searching now: each person once, across walks and claimed blocks, lately only', async () => {
   prisma.searchSession.findMany.mockResolvedValue([{ userId: 'u-sarah' }, { userId: 'u-mike' }, { userId: null }]);
   prisma.gridCell.findMany.mockResolvedValue([{ claimedById: 'u-mike' }, { claimedById: 'u-david' }]);
+  prisma.searchZoneVisit.findMany.mockResolvedValue([]);
   expect(await searchingNow('case-max', NOW)).toBe(4);
 
   expect(prisma.searchSession.findMany.mock.calls[0][0].where).toEqual({
@@ -260,4 +262,14 @@ describe('GET /api/public/missions/[caseNumber]/help', () => {
     prisma.case.findUnique.mockResolvedValue(null);
     expect((await get('AUS-2026-9999')).status).toBe(404);
   });
+});
+
+test('searching now counts everyone on an area of the search\'s ground: a helper with no account too, and nobody twice', async () => {
+  // Sarah is recording a walk in the app and is on the west side: one person. Dana joined from the link with no account.
+  prisma.searchSession.findMany.mockResolvedValue([{ userId: 'u-sarah' }]);
+  prisma.gridCell.findMany.mockResolvedValue([]);
+  prisma.searchZoneVisit.findMany.mockResolvedValue([{ searcherId: 'u-sarah' }, { searcherId: 'v:vol-1' }, { searcherId: 'u-mike' }]);
+  expect(await searchingNow('case-max', NOW)).toBe(3);
+  // On it now: started in the last two hours, and not ended. An ask nobody started is not someone out searching.
+  expect(prisma.searchZoneVisit.findMany.mock.calls[0][0]).toEqual({ where: { caseId: 'case-max', endedAt: null, startedAt: { gte: new Date(NOW.getTime() - 2 * HOUR) } }, select: { searcherId: true } });
 });

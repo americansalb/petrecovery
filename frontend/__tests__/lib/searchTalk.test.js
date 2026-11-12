@@ -12,6 +12,7 @@ jest.mock('@/app/lib/prisma', () => ({
   default: {
     searchMessage: { count: jest.fn(async () => 0), create: jest.fn(async ({ data }) => ({ id: 'msg-1', createdAt: new Date('2026-11-12T22:00:00Z'), seenAt: null, ...data })), findMany: jest.fn(async () => []), updateMany: jest.fn(async () => ({ count: 0 })) },
     searchStreet: { count: jest.fn(async () => 0) },
+    searchZoneVisit: { count: jest.fn(async () => 0) },
     notification: { create: jest.fn(async () => ({})), count: jest.fn(async () => 0) },
   },
 }));
@@ -37,6 +38,7 @@ beforeEach(() => {
   prisma.searchMessage.count.mockReset();
   prisma.searchMessage.count.mockResolvedValue(0);
   prisma.searchStreet.count.mockResolvedValue(0);
+  prisma.searchZoneVisit.count.mockResolvedValue(0);
   prisma.notification.count.mockResolvedValue(0);
 });
 
@@ -161,11 +163,19 @@ describe('sendWord: who may write to whom', () => {
     prisma.searchStreet.count.mockResolvedValue(1);
     await expect(sendWord({ caseId: CASE, pet: PET, searcher: HELPER, text: 'On my way.', now: NOW })).resolves.toMatchObject({ text: 'On my way.' });
     expect(prisma.searchStreet.count).toHaveBeenCalledWith({ where: { caseId: CASE, askedOfId: 'v:vol-1' } });
+    // And asked to search an area of ground, which is how the owner asks now.
+    jest.clearAllMocks();
+    prisma.searchMessage.count.mockImplementation(async ({ where }) => (where.fromId ? 2 : where.toId ? 0 : where.fromDesk === false ? DESK_WORDS_PER_HOUR * 3 : 0));
+    prisma.searchStreet.count.mockResolvedValue(0);
+    prisma.searchZoneVisit.count.mockResolvedValue(1);
+    await expect(sendWord({ caseId: CASE, pet: PET, searcher: HELPER, text: 'On my way.', now: NOW })).resolves.toMatchObject({ text: 'On my way.' });
+    expect(prisma.searchZoneVisit.count).toHaveBeenCalledWith({ where: { caseId: CASE, searcherId: 'v:vol-1', askedAt: { not: null } } });
     // Someone new, under the limits, rings too, and is marked as new.
     jest.clearAllMocks();
     prisma.searchMessage.count.mockReset();
     prisma.searchMessage.count.mockResolvedValue(0);
     prisma.searchStreet.count.mockResolvedValue(0);
+    prisma.searchZoneVisit.count.mockResolvedValue(0);
     prisma.notification.count.mockResolvedValue(0);
     await sendWord({ caseId: CASE, pet: PET, searcher: HELPER, text: 'Hello.', now: NOW });
     expect(JSON.parse(prisma.notification.create.mock.calls[0][0].data.data)).toMatchObject({ from: 'new' });

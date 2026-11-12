@@ -441,7 +441,7 @@ const STEPS = [
   },
   {
     title: 'Members search from Mission Control',
-    body: 'Each helper is given one street to walk. A sighting reaches you with the place and the time.',
+    body: 'Each helper is given one area of ground to search. A sighting reaches you with the place and the time.',
   },
 ];
 
@@ -488,7 +488,7 @@ function HowItWorks() {
           <div className="rounded-2xl md:rounded-[20px] overflow-hidden bg-midnight-900 shadow-[0_40px_80px_-40px_rgba(15,23,42,0.5)] ring-1 ring-midnight-900/10">
             <img
               src="/landing/mission-control.jpg"
-              alt="Mission Control on a desktop: a street map of a search for a lost dog. The streets given out next are drawn thickest, a street being walked carries its helper's first name, a street kept for a helper who was asked to walk it carries theirs, and an orange mark shows where the dog was just seen. On the left is what needs the owner: the sighting, and a helper's message to answer. On the right are the three people helping and what each is doing."
+              alt="Mission Control on a desktop: a map of a search for a lost dog, drawn as a circle of ground round where the dog was lost, in five areas of ground. The two areas that have been searched are green, the area being searched has a dashed edge and its helper's first name, the area given out next has the heaviest outline, and an orange circle shows where the dog was just seen, with the name of the helper who went there. On the left is what needs the owner: the sighting, and a helper who has no area yet. On the right are the four people helping and what each is doing."
               className="w-full h-auto"
               loading="lazy"
             />

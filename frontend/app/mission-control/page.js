@@ -3,8 +3,9 @@
  * (/mission-control?mission=<case number>).
  *
  * One mission, three instruments: a desk sees and plans, a phone browser
- * joins, takes a street and reports a sighting, and the app does all of
- * that and walks with GPS. SearchScreen picks the layout and the step.
+ * joins, takes an area of ground to search and reports a sighting, and
+ * the app does all of that and records the walk with GPS. SearchScreen
+ * picks the layout and the step.
  *
  * The screen is open to anyone holding the link, so the address gets
  * pasted into chats: this server page gives it the pet's own link preview

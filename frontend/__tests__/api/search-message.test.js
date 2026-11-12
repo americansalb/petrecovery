@@ -21,7 +21,7 @@ jest.mock('@/app/lib/searchTalk', () => {
   }
   return { __esModule: true, WordError, sendWord: jest.fn(async ({ text }) => ({ id: 'msg-1', createdAt: new Date('2026-11-12T22:00:00Z'), text: String(text).trim() })), markWordsSeen: jest.fn(async () => 1) };
 });
-jest.mock('@/app/lib/searchAsk', () => ({ __esModule: true, markAskSeen: jest.fn(async () => 1) }));
+jest.mock('@/app/lib/searchZones', () => ({ __esModule: true, markZoneAskSeen: jest.fn(async () => 1) }));
 jest.mock('@/lib/logging', () => ({ __esModule: true, logEvent: jest.fn(async () => {}) }));
 jest.mock('@/app/lib/rateLimit', () => ({
   __esModule: true,
@@ -34,7 +34,7 @@ import prisma from '@/app/lib/prisma';
 import { searcherFor } from '@/app/lib/searcher';
 import { personByHandle, teamOf } from '@/app/lib/searchTeam';
 import { sendWord, markWordsSeen, WordError } from '@/app/lib/searchTalk';
-import { markAskSeen } from '@/app/lib/searchAsk';
+import { markZoneAskSeen as markAskSeen } from '@/app/lib/searchZones';
 import { withRateLimitAsync } from '@/app/lib/rateLimit';
 import { POST, PATCH } from '@/app/api/mission/[missionId]/message/route';
 
@@ -112,7 +112,7 @@ describe('from a helper, to the people running the search', () => {
     teamOf.mockResolvedValue([{ id: 'v:vol-1', name: 'Dana' }]);
     const res = await post({ text: 'hello' });
     expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ error: 'Take a street first, or call the owner.', code: 'NOT_ON_SEARCH' });
+    expect(await res.json()).toEqual({ error: 'Take an area first, or call the owner.', code: 'NOT_ON_SEARCH' });
     expect(sendWord).not.toHaveBeenCalled();
   });
 

@@ -1,12 +1,16 @@
 /**
- * The search board's route (app/api/mission/[missionId]/board).
+ * The streets and squares the search board kept before it was areas of
+ * ground (app/lib/searchBoard.js), and the part of its route that still
+ * answers them (app/api/mission/[missionId]/board, PATCH with `unit:
+ * "street"` or `"block"`).
  *
- * Anyone holding a pet's link may read the board: streets and whether
- * each is free, being walked or searched. Streets, not people: who holds
- * a street goes only to the owner and the forces looking for the pet.
- * Taking a street needs a person (signed in, or joined from the share
- * link without an account) and the safety waiver. The streets are fetched
- * from the map once per search, by exactly one request.
+ * The board is areas now: __tests__/api/board-areas.test.js and
+ * __tests__/lib/searchZones.test.js are its tests. What is held here is
+ * what remains of the streets. They are still fetched from the map once
+ * per search, by exactly one request, because the areas are named by the
+ * streets that run through them and a sighting is called by its corner.
+ * And a screen left open from before the change can still send a street
+ * it holds: taking one needs a person and the safety waiver, as it did.
  */
 
 import { NextRequest } from 'next/server';
@@ -107,67 +111,7 @@ beforeEach(() => {
   prisma.missionVolunteer.findFirst.mockResolvedValue(null);
 });
 
-describe('GET: streets for anyone, people for the few', () => {
-  test('someone with only the link sees every street and nobody on it', async () => {
-    const res = await GET(req(), ctx);
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data.unit).toBe('street');
-    expect(data.viewer).toBeNull();
-    expect(data.streets).toHaveLength(2);
-    expect(data.streets[0]).toMatchObject({ title: 'Sinclair Ave from W 40th St to W 44th St', status: 'IN_PROGRESS', mine: false, minutes: 20 });
-    expect(data.counts).toEqual({ total: 2, searched: 0, inProgress: 1 });
-    // Not a name, not an id of whoever holds it.
-    expect(JSON.stringify(data)).not.toContain('Dana');
-    expect(JSON.stringify(data)).not.toContain('vol-1');
-    expect(data.streets[0]).not.toHaveProperty('claimedByName');
-    expect(data.streets[0]).not.toHaveProperty('claimedById');
-  });
-
-  test('the owner is told who is on each street', async () => {
-    getServerSession.mockResolvedValue({ user: { id: 'u-avery' } });
-    prisma.user.findUnique.mockResolvedValue({ firstName: 'Avery', waiverAcceptedAt: null });
-    const data = await (await GET(req(), ctx)).json();
-    expect(data.viewer).toMatchObject({ kind: 'user', isOwner: true, seesNames: true, waiver: true });
-    expect(data.streets[0].claimedByName).toBe('Dana');
-    expect(data.streets[1].claimedByName).toBeNull();
-  });
-
-  test('a signed-in stranger is not', async () => {
-    getServerSession.mockResolvedValue({ user: { id: 'u-mike' } });
-    prisma.user.findUnique.mockResolvedValue({ firstName: 'Mike', waiverAcceptedAt: new Date() });
-    const data = await (await GET(req(), ctx)).json();
-    expect(data.viewer).toMatchObject({ kind: 'user', isOwner: false, seesNames: false });
-    expect(JSON.stringify(data.streets)).not.toContain('Dana');
-  });
-
-  test('a member of a force looking for the pet is', async () => {
-    getServerSession.mockResolvedValue({ user: { id: 'u-kim' } });
-    prisma.user.findUnique.mockResolvedValue({ firstName: 'Kim', waiverAcceptedAt: new Date() });
-    prisma.caseAssignment.findMany.mockResolvedValue([{ rescueSquadId: 'force-1' }]);
-    prisma.rescueForceMember.findMany.mockResolvedValue([{ role: 'MEMBER' }]);
-    const data = await (await GET(req(), ctx)).json();
-    expect(data.viewer.seesNames).toBe(true);
-    expect(data.streets[0].claimedByName).toBe('Dana');
-  });
-
-  test('the order follows the sightings: a street next to a fresh one moves up, with nothing rewritten', async () => {
-    // Seen ten minutes ago, right on Ramsey Ave (st-2), which the board stored at 8.
-    prisma.caseSighting.findMany.mockResolvedValue([{ latitude: 30.3125, longitude: -97.7405, sightedAt: new Date(Date.now() - 10 * 60000) }]);
-    prisma.searchStreet.findMany.mockImplementation(async ({ where } = {}) =>
-      where?.context === true ? RING : [street({ id: 'st-1', priority: 9, path: '[[30.32,-97.75],[30.321,-97.75]]', centerLatitude: 30.3205, centerLongitude: -97.75 }), street({ id: 'st-2', name: 'Ramsey Ave', priority: 5 })]
-    );
-    const data = await (await GET(req(), ctx)).json();
-    expect(data.streets.map((x) => [x.id, x.priority])).toEqual([['st-2', 10], ['st-1', 9]]);
-    // Only sightings of the last three days are read, and one a witness took back is not.
-    const asked = prisma.caseSighting.findMany.mock.calls[0][0].where;
-    expect(asked.missionId).toBe(CASE);
-    expect(Date.now() - asked.sightedAt.gte.getTime()).toBeLessThan(72 * 3600 * 1000 + 5000);
-    expect(asked.OR).toEqual([{ witnessState: null }, { witnessState: { not: 'NOT_THE_PET' } }]);
-    expect(prisma.searchStreet.update).not.toHaveBeenCalled();
-    expect(prisma.searchStreet.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ priority: expect.anything() }) }));
-  });
-
+describe('the order streets were given out in, and a pet with no search', () => {
   test('an old sighting, or one far off, moves nothing', () => {
     const row = street({ priority: 5 });
     const here = { lat: row.centerLatitude, lng: row.centerLongitude };
@@ -194,78 +138,6 @@ describe('GET: streets for anyone, people for the few', () => {
     // A row with no line of its own (a square) is measured from its middle, as before.
     expect(livePriority({ priority: 3, centerLatitude: 30.3105, centerLongitude: -97.74 }, seen)).toBe(10);
     expect(livePriority({ priority: 3, path: 'not json', centerLatitude: 30.315, centerLongitude: -97.74 }, seen)).toBe(3);
-  });
-
-  test('a helper without an account sees which street is theirs, by the pair of keys only', async () => {
-    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana Smith', waiverAcceptedAt: new Date() });
-    const data = await (await GET(req('GET', { headers: VOLUNTEER }), ctx)).json();
-    expect(prisma.missionVolunteer.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'vol-1', odId: 'dev_abc', mission: { caseId: CASE } } }));
-    expect(data.viewer).toMatchObject({ kind: 'volunteer', firstName: 'Dana', seesNames: false, holding: 'st-1' });
-    expect(data.streets[0].mine).toBe(true);
-    expect(data.streets[0]).not.toHaveProperty('claimedByName');
-  });
-
-  test('the streets just past the edge come along for naming places: lines and names, nothing to take', async () => {
-    const data = await (await GET(req(), ctx)).json();
-    expect(data.around).toEqual([{ name: 'Rosedale Ave', fromName: 'W 38th St', toName: 'W 39th St', path: [[30.3088, -97.7449], [30.3079, -97.7452]] }]);
-    // They are not on the board and not in its count.
-    expect(data.streets.map((s) => s.name)).not.toContain('Rosedale Ave');
-    expect(data.counts.total).toBe(2);
-    const reads = prisma.searchStreet.findMany.mock.calls.map((c) => c[0].where);
-    expect(reads).toEqual(expect.arrayContaining([expect.objectContaining({ caseId: CASE, context: false }), { caseId: CASE, context: true }]));
-  });
-
-  test('before the streets have come, the board is the squares', async () => {
-    prisma.searchGrid.findUnique.mockResolvedValue({ ...GRID, streetsStatus: 'FAILED' });
-    prisma.gridCell.findMany.mockResolvedValue([
-      { id: 'c-1', row: 0, col: 2, centerLatitude: 30.3, centerLongitude: -97.7, northLat: 30.31, southLat: 30.29, eastLng: -97.69, westLng: -97.71, status: 'UNSEARCHED', priority: 9, claimedById: null, claimedAt: null, searchedAt: null, searchCount: 0 },
-    ]);
-    prisma.searchGrid.findUnique.mockResolvedValue({ ...GRID, streetsStatus: 'FAILED', streetsNote: 'overpass-api.de: HTTP 429' });
-    const data = await (await GET(req(), ctx)).json();
-    expect(data.unit).toBe('block');
-    expect(data.streetsStatus).toBe('FAILED');
-    expect(data.streetsNote).toBe('overpass-api.de: HTTP 429');
-    expect(data.cells[0]).toMatchObject({ label: 'C1', title: 'Block C1', mine: false });
-    expect(data.cells[0]).not.toHaveProperty('claimedById');
-    expect(fetchNamedWays).not.toHaveBeenCalled(); // asked again only after a while
-  });
-
-  test('on the squares, who holds one and who walked it or put it down is named for the owner, and for nobody else', async () => {
-    const cell = (over) => ({ id: 'c-1', row: 0, col: 2, centerLatitude: 30.3, centerLongitude: -97.7, northLat: 30.31, southLat: 30.29, eastLng: -97.69, westLng: -97.71, status: 'UNSEARCHED', priority: 6, claimedById: null, claimedAt: null, searchedAt: null, searchCount: 0, searchedByKey: null, ...over });
-    prisma.searchGrid.findUnique.mockResolvedValue({ ...GRID, streetsStatus: 'FAILED' });
-    prisma.gridCell.findMany.mockResolvedValue([
-      cell({ id: 'c-held', status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedAt: new Date() }),
-      cell({ id: 'c-walked', col: 3, status: 'SEARCHED', searchedByKey: 'u-sam', searchedAt: new Date(), searchCount: 1 }),
-      cell({ id: 'c-marked', col: 4, status: 'SEARCHED', searchedByKey: 'm:u-avery', searchedAt: new Date(), searchCount: 1 }),
-      cell({ id: 'c-gone', col: 5, status: 'SEARCHED', searchedByKey: 'u-deleted', searchedAt: new Date(), searchCount: 1 }),
-    ]);
-    prisma.user.findMany.mockResolvedValue([{ id: 'u-sam', firstName: 'Sam' }, { id: 'u-avery', firstName: 'Avery Lindqvist' }]);
-    prisma.missionVolunteer.findMany.mockResolvedValue([{ id: 'vol-1', displayName: 'Dana W' }]);
-    // The owner.
-    getServerSession.mockResolvedValue({ user: { id: 'u-avery' } });
-    prisma.user.findUnique.mockResolvedValue({ firstName: 'Avery', waiverAcceptedAt: null });
-    const own = await (await GET(req(), ctx)).json();
-    const by = Object.fromEntries(own.cells.map((c) => [c.id, c]));
-    // First names only, whatever was typed at the join.
-    expect(by['c-held']).toMatchObject({ claimedByName: 'Dana', searchedByName: null, marked: false });
-    expect(by['c-walked']).toMatchObject({ claimedByName: null, searchedByName: 'Sam', marked: false });
-    // Put down from the desk: named as the person who put it down, and flagged as that.
-    expect(by['c-marked']).toMatchObject({ searchedByName: 'Avery', marked: true });
-    expect(by['c-gone']).toMatchObject({ searchedByName: 'A helper' });
-    expect(prisma.user.findMany).toHaveBeenCalledWith({ where: { id: { in: expect.arrayContaining(['u-sam', 'u-avery', 'u-deleted']) } }, select: { id: true, firstName: true } });
-    expect(prisma.missionVolunteer.findMany).toHaveBeenCalledWith({ where: { id: { in: ['vol-1'] } }, select: { id: true, displayName: true } });
-    // Nobody's key or id leaves with it.
-    expect(JSON.stringify(own.cells)).not.toMatch(/vol-1|u-sam|u-avery|searchedByKey|claimedById/);
-
-    // Anyone else: squares, not people, and no name is even looked up.
-    prisma.user.findMany.mockClear();
-    prisma.missionVolunteer.findMany.mockClear();
-    getServerSession.mockResolvedValue(null);
-    const open = await (await GET(req(), ctx)).json();
-    expect(JSON.stringify(open.cells)).not.toMatch(/Dana|Sam|Avery|ByName/);
-    expect(open.cells.find((c) => c.id === 'c-marked')).toMatchObject({ marked: true, status: 'SEARCHED' });
-    expect(prisma.user.findMany).not.toHaveBeenCalled();
-    expect(prisma.missionVolunteer.findMany).not.toHaveBeenCalled();
   });
 
   test('a found pet has no search to map', async () => {

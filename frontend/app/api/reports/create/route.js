@@ -866,9 +866,10 @@ export async function POST(request) {
     // response is never blocked - the cascade runs on the next tick.
     enqueueCascade(report.id, { correlationId });
 
-    // The streets of the search board, fetched now so the first helper to
-    // open the map is handed a street instead of a wait
-    // (app/lib/searchBoard.js). Never blocks or fails the report.
+    // The streets round the search, fetched now so the areas of its ground are
+    // already named by them when the first helper opens the map
+    // (app/lib/searchBoard.js, app/lib/searchZones.js). The areas themselves
+    // need no map server. Never blocks or fails the report.
     if (report.reportType !== 'FOUND') {
       ensureStreets(report.id, { correlationId }).catch(() => {});
     }
