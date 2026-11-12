@@ -1,180 +1,120 @@
-import { NextResponse } from 'next/server';
-
 /**
- * GET /api/missions/[missionId]/chat
- * Returns chat messages for the mission
+ * The older case chat.
  *
- * POST /api/missions/[missionId]/chat
- * Sends a new chat message (any authenticated user can participate)
+ * GET  /api/missions/[missionId]/chat  the messages on one pet's search
+ * POST /api/missions/[missionId]/chat  write one
+ *
+ * Nothing on the site calls it: talk on a search goes through
+ * /api/mission/[missionId]/message (app/lib/searchTalk.js). It stays for
+ * the people a search's own lists are for (app/lib/missionControl/guard.js,
+ * `mayKnowThePeople`): the owner, an active member of a force looking for
+ * the pet, and staff.
+ *
+ * It used to answer any account, for any pet: read every message with its
+ * writer's account id, and write text of any length into the feed of the
+ * force assigned to the pet. People are first names here, a message is
+ * text held to a length, and writing is counted per connection.
  */
+
+import { NextResponse } from 'next/server';
+import prisma from '@/app/lib/prisma';
+import { missionWhere } from '@/app/lib/shareMetadata';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
+import { onlyText, hasText, cut, firstWord } from '@/app/lib/searchText';
+import { withRateLimitAsync, rateLimitResponse, RateLimitPresets } from '@/app/lib/rateLimit';
+
+export const dynamic = 'force-dynamic';
+
+const CHAT_MAX = 500;
+const WRITE_LIMIT = { windowMs: 60 * 1000, maxRequests: 12, blockDurationMs: 60 * 1000 };
+const REFUSAL = { error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' };
+
+/** The pet the address names and whether this request may read its chat: { pet, who } or { refusal }. */
+async function door(request, params) {
+  const { missionId } = await params;
+  const pet = await prisma.case.findFirst({ where: missionWhere(String(missionId || '')), select: { id: true } });
+  if (!pet) return { refusal: NextResponse.json({ error: 'Mission not found', messages: [] }, { status: 404 }) };
+  const who = await mayKnowThePeople(request, pet.id);
+  if (!who.allowed) return { refusal: NextResponse.json({ ...REFUSAL, messages: [] }, { status: who.status }) };
+  return { pet, who };
+}
+
+const shown = (activity, viewerId) => ({
+  id: activity.id,
+  // A first name, and whether the message is the reader's own. Never an account id.
+  userName: firstWord(activity.actor?.firstName) || 'A helper',
+  mine: Boolean(viewerId && activity.actorId === viewerId),
+  text: activity.message,
+  timestamp: activity.createdAt.toISOString(),
+});
 
 export async function GET(request, { params }) {
   try {
-    let prisma, getServerSession, authOptions;
-    try {
-      prisma = (await import('@/app/lib/prisma')).default;
-      const nextAuth = await import('next-auth');
-      getServerSession = nextAuth.getServerSession;
-      const authModule = await import('@/app/lib/auth');
-      authOptions = authModule.authOptions;
-    } catch (importError) {
-      return NextResponse.json(
-        { error: 'Database not available', messages: [] },
-        { status: 503 }
-      );
-    }
+    const limited = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'case:chat-read');
+    if (!limited.success) return rateLimitResponse(limited);
+    const { pet, who, refusal } = await door(request, params);
+    if (refusal) return refusal;
 
-    // Reading the chat takes an account, the same as writing in it. It used
-    // to answer anyone with the case id, signed in or not.
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Please sign in to view chat', messages: [] }, { status: 401 });
-    }
-
-    const missionId = params.missionId;
     const { searchParams } = new URL(request.url);
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit'), 10) || 100, 1), 200);
 
-    // Get chat messages for this mission
     const activities = await prisma.squadActivity.findMany({
-      where: {
-        caseId: missionId,
-        type: 'CHAT_MESSAGE',
-      },
-      include: {
-        actor: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-      },
+      where: { caseId: pet.id, type: 'CHAT_MESSAGE' },
+      include: { actor: { select: { firstName: true } } },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
 
-    // Transform to chat message format
-    const messages = activities
-      .map(a => {
-        return {
-          id: a.id,
-          userId: a.actorId,
-          userName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown',
-          text: a.message,
-          timestamp: a.createdAt.toISOString(),
-        };
-      })
-      .reverse(); // Oldest first for display
-
-    return NextResponse.json({ messages });
+    // Oldest first for display
+    const viewerId = who.searcher?.userId || null;
+    return NextResponse.json({ messages: activities.map((a) => shown(a, viewerId)).reverse() });
   } catch (error) {
     console.error('Error fetching mission chat:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch messages', messages: [] },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch messages', messages: [] }, { status: 500 });
   }
 }
 
 export async function POST(request, { params }) {
   try {
-    let prisma, getServerSession, authOptions;
-    try {
-      prisma = (await import('@/app/lib/prisma')).default;
-      const nextAuth = await import('next-auth');
-      getServerSession = nextAuth.getServerSession;
-      const authModule = await import('@/app/lib/auth');
-      authOptions = authModule.authOptions;
-    } catch (importError) {
-      return NextResponse.json(
-        { error: 'Database not available' },
-        { status: 503 }
-      );
-    }
+    const limited = await withRateLimitAsync(request, WRITE_LIMIT, 'case:chat-write');
+    if (!limited.success) return rateLimitResponse(limited);
+    const { pet, who, refusal } = await door(request, params);
+    if (refusal) return refusal;
+    // Writing takes an account: the message is kept under its writer.
+    const userId = who.searcher?.userId || null;
+    if (!userId) return NextResponse.json({ error: 'Please sign in to chat' }, { status: 401 });
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Please sign in to chat' }, { status: 401 });
-    }
+    const sent = await request.json().catch(() => null);
+    const content = sent && typeof sent === 'object' && !Array.isArray(sent) ? sent.content : null;
+    const text = typeof content === 'string' ? cut(onlyText(content).replace(/\n{3,}/g, '\n\n').trim(), CHAT_MAX) : '';
+    if (!hasText(text)) return NextResponse.json({ error: 'Message content required' }, { status: 400 });
 
-    const missionId = params.missionId;
-    const { content } = await request.json();
-
-    if (!content || !content.trim()) {
-      return NextResponse.json({ error: 'Message content required' }, { status: 400 });
-    }
-
-    // Verify mission exists (Case has no direct squad field - the case↔force
-    // link is the CaseAssignment join table, so we only check existence here)
-    const mission = await prisma.case.findUnique({
-      where: { id: missionId },
-      select: { id: true },
-    });
-
-    if (!mission) {
-      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
-    }
-
-    // Get user info
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { firstName: true, lastName: true },
-    });
-
-    // Chat is stored as SquadActivity, which requires a RescueForce. If a
-    // force is already assigned to this case, use it; otherwise attach the
-    // messages to a hidden per-mission workspace force. The workspace is
-    // keyed on a unique, mission-specific name via upsert so two near-
-    // simultaneous first messages can't collide on the unique-name
-    // constraint. (The old code selected a nonexistent Case.rescueSquadId
-    // field and created a force with an invalid `caseId` + constant name,
-    // so chat 500'd on every case - most visibly freshly reported ones.)
-    // NB: CaseAssignment's field is `missionId` (mapped to the legacy
-    // `caseId` column) - the Case→Mission rename renamed the field here even
-    // though SquadActivity kept `caseId`. Using the wrong one is a validation
-    // error, so this must stay `missionId`.
+    // A message is kept as a force's activity, so it needs a force: the one assigned to the pet. A pet with
+    // none has no chat here (this used to make a hidden force for it, from any account's request).
     const assignment = await prisma.caseAssignment.findFirst({
-      where: { missionId: missionId },
+      where: { missionId: pet.id, rescueSquadId: { not: null } },
       select: { rescueSquadId: true },
       orderBy: { id: 'asc' },
     });
-    let rescueSquadId = assignment?.rescueSquadId;
-    if (!rescueSquadId) {
-      const workspace = await prisma.rescueForce.upsert({
-        where: { name: `Mission Workspace ${missionId}` },
-        update: {},
-        create: {
-          name: `Mission Workspace ${missionId}`,
-          isActive: false,
-          isAcceptingCases: false,
-        },
-      });
-      rescueSquadId = workspace.id;
+    if (!assignment?.rescueSquadId) {
+      return NextResponse.json({ error: 'No force is looking for this pet yet, so there is no chat to write in.', code: 'NO_FORCE' }, { status: 409 });
     }
 
-    // Create chat message as SquadActivity
     const message = await prisma.squadActivity.create({
       data: {
-        rescueSquadId: rescueSquadId,
+        rescueSquadId: assignment.rescueSquadId,
         type: 'CHAT_MESSAGE',
-        message: content.trim(),
-        actorId: session.user.id,
-        caseId: missionId,
+        message: text,
+        actorId: userId,
+        caseId: pet.id,
         details: JSON.stringify({}),
       },
+      include: { actor: { select: { firstName: true } } },
     });
 
-    return NextResponse.json({
-      message: {
-        id: message.id,
-        userId: session.user.id,
-        userName: user ? `${user.firstName} ${user.lastName?.[0] || ''}.` : 'You',
-        text: message.message,
-        timestamp: message.createdAt.toISOString(),
-      },
-    });
+    return NextResponse.json({ message: shown(message, userId) });
   } catch (error) {
     console.error('Error sending mission chat:', error);
-    return NextResponse.json(
-      { error: 'Failed to send message' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
   }
 }

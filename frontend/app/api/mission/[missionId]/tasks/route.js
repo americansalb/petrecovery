@@ -2,12 +2,21 @@
  * Tasks List API
  *
  * GET /api/mission/[missionId]/tasks - List all tasks with status and progress
+ *
+ * Who is on each task of one pet's search: for the owner, an active member
+ * of a force looking for the pet, and staff (`mayKnowThePeople`,
+ * app/lib/missionControl/guard.js). It answered any account with each
+ * person's account id. A person is a first name here, and `mine` marks the
+ * reader's own.
  */
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
+import { firstWord } from '@/app/lib/searchText';
+import { withRateLimitAsync, rateLimitResponse, RateLimitPresets } from '@/app/lib/rateLimit';
 
 // =============================================================================
 // ROUTE HANDLERS
@@ -19,6 +28,9 @@ export async function GET(request, { params }) {
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const limited = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'case:tasks-read');
+    if (!limited.success) return rateLimitResponse(limited);
 
     const { missionId } = await params;
     const { searchParams } = new URL(request.url);
@@ -50,6 +62,11 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
+    const who = await mayKnowThePeople(request, missionRecord.id);
+    if (!who.allowed) {
+      return NextResponse.json({ error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' }, { status: who.status });
+    }
+
     const isOwner = missionRecord.reporterId === user.id;
     const petType = missionRecord.pet?.species || 'DOG';
 
@@ -66,7 +83,7 @@ export async function GET(request, { params }) {
           },
         },
         completedBy: {
-          select: { id: true, firstName: true },
+          select: { firstName: true },
         },
       },
     });
@@ -93,13 +110,14 @@ export async function GET(request, { params }) {
       ownerRequestedHelp: squadTask.ownerRequestedHelp || false,
       ownerRequestedAt: squadTask.ownerRequestedAt,
       ownerRequestedMessage: squadTask.ownerRequestedMessage,
+      // A first name, and whether it is the reader. The account id is read to say that and is not sent.
       participants: squadTask.participants.map((p) => ({
-        userId: p.user.id,
-        name: p.user.firstName,
+        name: firstWord(p.user?.firstName) || 'A helper',
+        mine: p.user?.id === user.id,
         joinedAt: p.joinedAt,
       })),
       completedAt: squadTask.completedAt,
-      completedBy: squadTask.completedBy,
+      completedBy: squadTask.completedBy ? { firstName: firstWord(squadTask.completedBy.firstName) || 'A helper' } : null,
     }));
 
     return NextResponse.json({

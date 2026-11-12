@@ -21,14 +21,23 @@ jest.mock('@/app/lib/prisma', () => ({
     user: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn() },
     caseAssignment: { findMany: jest.fn(), findFirst: jest.fn() },
     squadTask: { findMany: jest.fn() },
-    case: { findMany: jest.fn(), findUnique: jest.fn() },
+    case: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
   },
 }));
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
+// Who a request is on a pet's search (app/lib/searcher.js), for the mission chat.
+jest.mock('@/app/lib/searcher', () => ({ __esModule: true, searcherFor: jest.fn(async () => null) }));
+jest.mock('@/app/lib/rateLimit', () => ({
+  __esModule: true,
+  withRateLimitAsync: jest.fn(async () => ({ success: true })),
+  rateLimitResponse: () => new Response('{}', { status: 429 }),
+  RateLimitPresets: { SEARCH_READ: {} },
+}));
 
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { searcherFor } from '@/app/lib/searcher';
 import { GET as chatGET, POST as chatPOST } from '@/app/api/rescue-forces/[id]/chat/route';
 import { GET as announcementsGET } from '@/app/api/rescue-forces/[id]/announcements/route';
 import { GET as hubGET } from '@/app/api/rescue-forces/[id]/hub/route';
@@ -204,6 +213,11 @@ describe('mission chat', () => {
   const get = (query = '') =>
     missionChatGET(new Request(`http://localhost/api/missions/case-9/chat${query}`), { params: { missionId: 'case-9' } });
 
+  beforeEach(() => {
+    prisma.case.findFirst.mockResolvedValue({ id: 'case-9' });
+    searcherFor.mockResolvedValue(null);
+  });
+
   test('signed out: 401 and nothing read', async () => {
     signedOut();
     const res = await get();
@@ -211,8 +225,19 @@ describe('mission chat', () => {
     expect(prisma.squadActivity.findMany).not.toHaveBeenCalled();
   });
 
-  test('signed in: reads it, page size capped', async () => {
+  // It used to be enough to be signed in. It is for the owner, the forces looking for the pet and staff
+  // (__tests__/api/case-chat-gated.test.js has the rest).
+  test('signed in, and nothing to do with the pet: 403 and nothing read', async () => {
     signedIn({ member: false });
+    searcherFor.mockResolvedValue({ userId: 'user-1', seesNames: false });
+    const res = await get('?limit=5000');
+    expect(res.status).toBe(403);
+    expect(prisma.squadActivity.findMany).not.toHaveBeenCalled();
+  });
+
+  test('the owner reads it, page size capped', async () => {
+    signedIn({ member: false });
+    searcherFor.mockResolvedValue({ userId: 'user-1', seesNames: true, isOwner: true });
     const res = await get('?limit=5000');
     expect(res.status).toBe(200);
     expect((await res.json()).messages).toHaveLength(1);

@@ -42,6 +42,11 @@ export async function POST(request, { params }) {
     const out = await recordWitnessSighting(params.caseNumber, checked.value, { userId });
     if (out.error === 'NOT_FOUND') return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     if (out.error === 'CLOSED') return NextResponse.json({ error: 'This search has ended. Thank you for looking.' }, { status: 409 });
+    if (out.error === 'TOO_MANY') {
+      // The pet's own number for the hour (app/lib/witness.js). Kept on record: it is either a busy search or someone flooding one.
+      logEvent({ event_type: 'case.sighting_refused', resource_type: 'mission', resource_id: out.caseNumber, action: 'create', result: 'failure', error_code: 'TOO_MANY', actor_user_id: userId, metadata: { witness: !userId } }).catch(() => {});
+      return NextResponse.json({ error: 'Too many sightings came in this hour to take another. Try again in a few minutes.', code: 'TOO_MANY' }, { status: 429, headers: { 'Retry-After': '600' } });
+    }
 
     // Both are kept on record: a new sighting, and the same one sent again.
     logEvent({

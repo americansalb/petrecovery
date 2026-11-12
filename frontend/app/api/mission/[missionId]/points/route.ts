@@ -11,6 +11,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getPointsService } from '@/lib/actions';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
+import { firstWord } from '@/app/lib/searchText';
+import { withRateLimitAsync, rateLimitResponse, RateLimitPresets } from '@/app/lib/rateLimit';
 
 // =============================================================================
 // ROUTE HANDLERS
@@ -33,9 +36,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const limited = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'case:points');
+    if (!limited.success) return rateLimitResponse(limited) as NextResponse;
+
     const { missionId } = await params;
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '10', 10) || 10, 1), 50);
 
     // Verify case exists
     const missionRecord = await prisma.case.findUnique({
@@ -45,6 +51,13 @@ export async function GET(
 
     if (!missionRecord) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
+    }
+
+    // Who did the most on one pet's search: for the owner, the forces looking for the pet and staff. It
+    // answered any account with each person's account id and full name.
+    const who = await mayKnowThePeople(request, missionRecord.id);
+    if (!who.allowed) {
+      return NextResponse.json({ error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' }, { status: who.status });
     }
 
     // Get current user for highlighting
@@ -101,16 +114,17 @@ export async function GET(
     }
 
     return NextResponse.json({
-      leaderboard: leaderboard.entries.map((entry) => ({
+      // A first name, and whether the row is the reader's own. Never an account id or a last name.
+      leaderboard: leaderboard.entries.map(({ userId, userName, ...entry }) => ({
         ...entry,
-        isCurrentUser: currentUser?.id === entry.userId,
+        userName: firstWord(userName) || 'A helper',
+        isCurrentUser: currentUser?.id === userId,
       })),
       summary: {
         totalPoints: totalPoints._sum.totalPoints || 0,
         totalContributors: contributors.length,
       },
       currentUser: currentUser ? {
-        id: currentUser.id,
         rank: currentUserRank,
         points: currentUserPoints,
       } : null,

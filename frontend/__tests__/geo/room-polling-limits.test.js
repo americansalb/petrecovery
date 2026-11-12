@@ -74,6 +74,18 @@ describe('a full room fits inside its own rate limit', () => {
     expect(allowed).toBeGreaterThan(fullRoom * 2);
   });
 
+  test('the player header splits buckets on the game\'s routes and nowhere else', () => {
+    // Only the game sends the header. Read on every /api route, a made-up
+    // value bought sixteen times the allowance on sign-in, reports and
+    // sightings, which have no rooms to make room for.
+    const line = /const actor = (.*);/.exec(middleware)?.[1] || '';
+    expect(line).toContain("pathname.startsWith('/api/geo/')");
+    expect(line).toContain("!pathname.startsWith('/api/geo/auth/')");
+    expect(line).toMatch(/\? playerKey\(request\) : ''$/);
+    // The one place the header is read into a key.
+    expect(middleware.match(/playerKey\(request\)/g)).toHaveLength(2); // its definition and this use
+  });
+
   test('a request with no player identity keeps the old behaviour exactly', () => {
     // playerKey returns '' there, and the ceiling check is skipped, so
     // nothing outside the game changes.

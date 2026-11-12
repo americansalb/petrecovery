@@ -35,6 +35,16 @@ const DIRECTIONS = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'NORTHEAST', 'NORTHWEST', 
 const MAX_MINUTES_AGO = 7 * 24 * 60;
 const NAME_MAX = 60;
 const NOTE_MAX = 600;
+/**
+ * How many sightings one pet takes in an hour, from everyone together. The route counts each connection
+ * (ten a minute), which still let one sender put six hundred on a pet's map in an hour, each one an email
+ * and a push to the owner; and a sender can come from many connections. A real search does not come near
+ * this number: the same place a few minutes later is the same sighting and is not counted again.
+ */
+export const SIGHTINGS_PER_HOUR = 40;
+/** How many of those are also emailed to the owner. Every one still rings the bell and is pushed. */
+export const OWNER_EMAILS_PER_HOUR = 8;
+const HOUR_MS = 60 * 60 * 1000;
 
 const clean = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
@@ -102,7 +112,7 @@ async function boardStreets(caseId) {
 
 /**
  * Records the sighting and tells everyone. `caseParam` is the case id or
- * number from the link. Returns { error: 'NOT_FOUND' | 'CLOSED' } or
+ * number from the link. Returns { error: 'NOT_FOUND' | 'CLOSED' | 'TOO_MANY' } or
  * { sighting, place, told }. `again: true` marks a sighting that was
  * already on the map and had its time moved up.
  */
@@ -159,6 +169,10 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
       return { sighting: kept, place, told: { owner: false, bell: 0, pushed: 0 }, again: true, caseNumber: pet.caseNumber, ownerName };
     }
   }
+
+  // Counted for the pet, whoever sent them. Past the hour's number, nothing is kept and nobody is told.
+  const thisHour = await prisma.caseSighting.count({ where: { missionId: pet.id, createdAt: { gte: new Date(now.getTime() - HOUR_MS) } } });
+  if (thisHour >= SIGHTINGS_PER_HOUR) return { error: 'TOO_MANY', caseNumber: pet.caseNumber };
 
   const description = [value.note, heading].filter(Boolean).join(' ') || `Seen by ${who || 'someone with the link'}.`;
   const sighting = await prisma.caseSighting.create({
@@ -236,7 +250,7 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
     if (isPushConfigured()) {
       sendPushToUser(prisma, pet.reporter.id, { title, body, url }).catch((e) => console.error('[witness] owner push failed:', e?.message));
     }
-    if (pet.reporter.email) {
+    if (pet.reporter.email && thisHour < OWNER_EMAILS_PER_HOUR) {
       const link = `${getEmailBaseUrl()}${url}`;
       // Every word that came from the witness or the report is escaped: the place and the note are typed by strangers.
       sendEmail({

@@ -22,6 +22,8 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { cellLabel } from '@/app/lib/searchGrid';
 import { ensureGrid, sweepStaleClaims } from '@/app/lib/searchBoard';
+import { searcherFor } from '@/app/lib/searcher';
+import { firstWord } from '@/app/lib/searchText';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
 
@@ -33,11 +35,15 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const { missionId } = params;
-    const exists = await prisma.case.findUnique({ where: { id: missionId }, select: { id: true } });
+    const { missionId } = await params;
+    const exists = typeof missionId === 'string' && missionId ? await prisma.case.findUnique({ where: { id: missionId }, select: { id: true } }) : null;
     if (!exists) {
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     }
+    // Who holds each block is for the owner and the forces looking (app/lib/searcher.js, `seesNames`), like
+    // the board the search screen reads. Anyone else signed in sees which blocks are held, not by whom.
+    const searcher = await searcherFor(request, missionId);
+    const withNames = Boolean(searcher?.seesNames);
 
     // The grid, created on first use (app/lib/searchBoard.js, shared with
     // the job picker so a pet's page can offer a block before the map opens).
@@ -84,15 +90,15 @@ export async function GET(request, { params }) {
       },
     });
 
-    // First names for claim holders, so the board can say who has what.
-    const holderIds = [...new Set(full.cells.map((c) => c.claimedById).filter(Boolean))];
+    // First names for claim holders, so the board can say who has what (to those it tells).
+    const holderIds = withNames ? [...new Set(full.cells.map((c) => c.claimedById).filter(Boolean))] : [];
     const holders = holderIds.length
       ? await prisma.user.findMany({
           where: { id: { in: holderIds } },
           select: { id: true, firstName: true },
         })
       : [];
-    const nameById = Object.fromEntries(holders.map((u) => [u.id, u.firstName || 'Helper']));
+    const nameById = Object.fromEntries(holders.map((u) => [u.id, firstWord(u.firstName) || 'Helper']));
 
     const searched = full.cells.filter((c) => c.status === 'SEARCHED' || c.status === 'PET_FOUND').length;
     const inProgress = full.cells.filter((c) => c.status === 'IN_PROGRESS').length;
@@ -107,11 +113,14 @@ export async function GET(request, { params }) {
         searchedCells: searched,
         inProgressCells: inProgress,
       },
-      cells: full.cells.map((c) => ({
+      // An account id never leaves: a block says whether it is held, whose it is by first name where names
+      // are told, and whether it is the reader's own.
+      cells: full.cells.map(({ claimedById, ...c }) => ({
         ...c,
         label: cellLabel(c.row, c.col),
-        claimedByName: c.claimedById ? nameById[c.claimedById] || 'Helper' : null,
-        mine: c.claimedById === session.user.id,
+        claimed: Boolean(claimedById),
+        claimedByName: claimedById && withNames ? nameById[claimedById] || 'Helper' : null,
+        mine: claimedById === session.user.id,
       })),
     });
   } catch (error) {

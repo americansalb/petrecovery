@@ -154,7 +154,8 @@ export async function GET(request, { params }) {
         email: report.ownerEmail || report.reporter.email,
         phone: report.ownerPhone || report.reporter.phone,
       } : {
-        firstName: report.ownerName || report.reporter.firstName,
+        // A first name, like the pet's own page. `ownerName` is the full name typed on the report.
+        firstName: String(report.ownerName || report.reporter.firstName || '').trim().split(/\s+/)[0] || 'The owner',
         // Don't expose full contact info to non-owners
       },
       sightings: report.sightings.map(s => ({
