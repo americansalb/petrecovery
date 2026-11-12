@@ -35,6 +35,16 @@ async function readJson(res) {
   return res.json().catch(() => ({}));
 }
 
+/**
+ * A request that answers null instead of throwing. People use this
+ * outdoors, where a dropped signal is ordinary: every call below turns
+ * that into words on the card, and nothing is left spinning.
+ */
+function send(url, init) {
+  return fetch(url, init).catch(() => null);
+}
+const NO_SIGNAL = 'No connection just now. Check your signal and try again.';
+
 export default function useSearch(missionParam) {
   const { status: authStatus } = useSession();
   const [picture, setPicture] = useState(null);
@@ -184,11 +194,12 @@ export default function useSearch(missionParam) {
   /** Join this pet's search without an account: a first name and the safety tick. */
   const join = useCallback(
     async ({ name, waiverVersion = null }) => {
-      const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/volunteer`, {
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/volunteer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'JOIN', deviceId: deviceKey(), name: String(name || '').trim() || undefined, waiverAccepted: true, waiverVersion }),
       });
+      if (!res) return { error: NO_SIGNAL };
       const data = await readJson(res);
       if (!res.ok || !data.success) return { error: data.error || 'That did not go through. Try again in a moment.' };
       const joined = { id: data.volunteerId, name: String(name || '').trim() };
@@ -203,7 +214,8 @@ export default function useSearch(missionParam) {
 
   /** Someone signed in accepts the safety rules and the waiver. */
   const acceptWaiver = useCallback(async () => {
-    const res = await fetch('/api/legal/accept-waiver', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const res = await send('/api/legal/accept-waiver', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    if (!res) return { error: NO_SIGNAL };
     if (!res.ok) return { error: 'That did not go through. Try again in a moment.' };
     await reload();
     return { ok: true };
@@ -212,11 +224,12 @@ export default function useSearch(missionParam) {
   /** Take a street, give it back, or mark it searched. */
   const act = useCallback(
     async (unit, id, action) => {
-      const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/board`, {
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/board`, {
         method: 'PATCH',
         headers: headers({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ unit, id, action }),
       });
+      if (!res) return { error: NO_SIGNAL, code: 'NO_SIGNAL' };
       const data = await readJson(res);
       await loadBoard().catch(() => null);
       if (!res.ok) return { error: data.error || 'That did not go through. Try again in a moment.', code: data.code || null };
@@ -229,11 +242,12 @@ export default function useSearch(missionParam) {
   /** Send a sighting: a place and a time. This phone remembers which one it sent, so coming back shows what the owner did about it. */
   const sendSighting = useCallback(
     async (body) => {
-      const res = await fetch(`/api/public/missions/${encodeURIComponent(missionParam)}/sighting`, {
+      const res = await send(`/api/public/missions/${encodeURIComponent(missionParam)}/sighting`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      if (!res) return { error: NO_SIGNAL };
       const data = await readJson(res);
       if (!res.ok) return { error: data.error || 'That did not send. Check your connection and try again.' };
       // `at` is when the pet was seen, which can be yesterday. `sentAt` is now, and is what "Sent at" on the next card means.
@@ -251,13 +265,13 @@ export default function useSearch(missionParam) {
   /** The owner's answer to a sighting: seen, or going. Sent so that it still lands if the tap also opens the maps app. */
   const answer = useCallback(
     async (sightingId, action, extra = {}) => {
-      const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/answer`, {
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sightingId, action, ...extra }),
         keepalive: true,
-      }).catch(() => null);
-      if (!res) return { error: 'That did not go through. Try again in a moment.' };
+      });
+      if (!res) return { error: NO_SIGNAL };
       const data = await readJson(res);
       if (!res.ok) return { error: data.error || 'That did not go through. Try again in a moment.' };
       await loadPicture().catch(() => null);

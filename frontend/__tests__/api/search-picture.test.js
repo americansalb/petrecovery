@@ -183,6 +183,18 @@ describe('searchPicture: what anyone with the link sees', () => {
     expect(prisma.alert.count).not.toHaveBeenCalled();
   });
 
+  test('a sighting whose address will not give up its house number is shown without a place', async () => {
+    prisma.case.findFirst.mockResolvedValue(pet({ sightings: [sighting({ address: '4001 1/2 Ramsey Ave, Austin, TX' })] }));
+    const out = await searchPicture('case-max', { now: NOW });
+    // The town, where the address names one, and never the number.
+    expect(out.sightings[0].place).toBe('Austin, TX');
+    expect(JSON.stringify(out.sightings)).not.toMatch(/4001|1\/2/);
+    prisma.case.findFirst.mockResolvedValue(pet({ sightings: [sighting({ address: '4001 1/2 Ramsey Ave' })] }));
+    expect((await searchPicture('case-max', { now: NOW })).sightings[0].place).toBeNull();
+    prisma.case.findFirst.mockResolvedValue(pet({ sightings: [sighting({ address: '4001 Ramsey Ave, Austin, TX' })] }));
+    expect((await searchPicture('case-max', { now: NOW })).sightings[0].place).toBe('Ramsey Ave');
+  });
+
   test('a sighting marked on the map with no street has no place, and a deleted account is not named', async () => {
     prisma.case.findFirst.mockResolvedValue(pet({ sightings: [sighting({ address: 'Marked on the map', reporterName: null, reportedBy: { firstName: 'Deleted' } })] }));
     const out = await searchPicture('case-max', { searcher: OWNER, now: NOW });

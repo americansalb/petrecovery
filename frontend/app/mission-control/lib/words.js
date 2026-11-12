@@ -94,19 +94,25 @@ export function hotSighting(sightings = [], now = Date.now()) {
   return now - new Date(newest.at).getTime() <= HOT_SIGHTING_MS ? newest : null;
 }
 
+/** Past this, a sighting the owner never opened is history, not news: the map still shows it. */
+const UNOPENED_NEWS_MS = 48 * 60 * 60 * 1000;
+
 /**
  * The sighting that leads the owner's screen: the newest place the pet
- * was seen, while that news is under an hour old. News is new when the
- * pet was seen within the hour, or when the sighting only reached the
- * owner within the hour, whenever it was seen ("seen yesterday", sent
- * now): the owner was just told about it and opens the screen to see it.
+ * was seen, while that is news to the owner. It is news when the pet was
+ * seen within the hour, when it only reached the owner within the hour
+ * ("seen yesterday", sent now), and for as long as the owner has not
+ * opened it, then an hour more: someone who wakes at seven to a sighting
+ * from two in the night still gets the card and its directions.
  */
 export function ownerSighting(sightings = [], now = Date.now()) {
   const newest = sightings[0];
   if (!newest) return null;
-  const seen = now - new Date(newest.at).getTime();
-  const sent = newest.sentAt ? now - new Date(newest.sentAt).getTime() : Infinity;
-  return Math.min(seen, sent) <= HOT_SIGHTING_MS ? newest : null;
+  const since = (date) => (date ? now - new Date(date).getTime() : Infinity);
+  if (Math.min(since(newest.at), since(newest.sentAt), since(newest.ownerSeenAt)) <= HOT_SIGHTING_MS) return newest;
+  // Not opened yet, and not yet history.
+  if (!newest.ownerSeenAt && Math.min(since(newest.at), since(newest.sentAt)) <= UNOPENED_NEWS_MS) return newest;
+  return null;
 }
 
 /**

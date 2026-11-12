@@ -441,7 +441,7 @@ const STEPS = [
   },
   {
     title: 'Members search from Mission Control',
-    body: 'The search map, sightings, flyers and shelter calls, until the pet is home.',
+    body: 'Each helper is given one street to walk. A sighting reaches you with the place and the time.',
   },
 ];
 
@@ -488,7 +488,7 @@ function HowItWorks() {
           <div className="rounded-2xl md:rounded-[20px] overflow-hidden bg-midnight-900 shadow-[0_40px_80px_-40px_rgba(15,23,42,0.5)] ring-1 ring-midnight-900/10">
             <img
               src="/landing/mission-control.jpg"
-              alt="Mission Control: a live satellite map with the search zone, sighting reports, one-tap flyers, and the team's mission log"
+              alt="Mission Control on a desktop: a street map of a search for a lost dog, with a street already walked, two streets being walked now, where the dog was just seen, and the owner's Directions button"
               className="w-full h-auto"
               loading="lazy"
             />

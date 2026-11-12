@@ -119,6 +119,7 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
       setBusy(false);
       return setProblem(result.error);
     }
+    // Joined. If no street could be given, the first card says why and has the button to try again.
     await onJoined();
     setBusy(false);
     return undefined;

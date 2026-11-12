@@ -8,9 +8,10 @@
  * limited like every public write. 201 with { sighting, place, told,
  * caseNumber }, 400 in words, 404, or 409 when the search has ended.
  *
- * The same place sent again within a few minutes is the same sighting:
- * its time is moved up, nobody is alerted twice, and the answer carries
- * `again: true`. That is how a witness says "still here".
+ * The same place sent again within ten minutes of the first send is the
+ * same sighting: its time is moved up, nobody is alerted twice, and the
+ * answer carries `again: true`. That is how a witness says "still here".
+ * After the ten minutes it is a new sighting and everyone hears it.
  */
 
 import { NextResponse } from 'next/server';
@@ -42,17 +43,16 @@ export async function POST(request, { params }) {
     if (out.error === 'NOT_FOUND') return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     if (out.error === 'CLOSED') return NextResponse.json({ error: 'This search has ended. Thank you for looking.' }, { status: 409 });
 
-    if (!out.again) {
-      logEvent({
-        event_type: 'case.sighting_reported',
-        resource_type: 'mission',
-        resource_id: out.caseNumber,
-        action: 'create',
-        result: 'success',
-        actor_user_id: userId,
-        metadata: { sightingId: out.sighting.id, witness: !userId, sure: checked.value.sure, told: out.told },
-      }).catch(() => {});
-    }
+    // Both are kept on record: a new sighting, and the same one sent again.
+    logEvent({
+      event_type: out.again ? 'case.sighting_resent' : 'case.sighting_reported',
+      resource_type: 'mission',
+      resource_id: out.caseNumber,
+      action: out.again ? 'update' : 'create',
+      result: 'success',
+      actor_user_id: userId,
+      metadata: { sightingId: out.sighting.id, witness: !userId, sure: checked.value.sure, told: out.told },
+    }).catch(() => {});
 
     return NextResponse.json(
       { sighting: out.sighting, place: out.place, told: out.told, again: Boolean(out.again), caseNumber: out.caseNumber, ownerName: out.ownerName },

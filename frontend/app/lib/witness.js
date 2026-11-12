@@ -9,8 +9,8 @@
  *
  * There is one thing a witness does: send a place and a time. If the pet
  * moves they send again from where it is now. The same place sent again
- * a few minutes later is the same sighting, still true, so its time is
- * moved up and nobody is alerted twice.
+ * within ten minutes of the first send is the same sighting, still true,
+ * so its time is moved up and nobody is alerted twice.
  *
  * The route: POST /api/public/missions/[caseNumber]/sighting.
  */
@@ -19,7 +19,7 @@ import prisma from '@/app/lib/prisma';
 import { missionWhere } from '@/app/lib/shareMetadata';
 import { placeFromStreets } from '@/app/lib/streetWalks';
 import { distanceMeters } from '@/app/lib/searchGrid';
-import { placeName } from '@/app/lib/needOptions';
+import { placeOnly } from '@/app/lib/needOptions';
 import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
@@ -128,7 +128,8 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   // point is on it. Off the board, the place is whatever the witness typed or the map lookup gave.
   const corner = placeFromStreets(await boardStreets(pet.id), point) || '';
   const address = corner || value.address || '';
-  const place = placeName(address) || address || null;
+  // What people are told is the street or the landmark. An address that will not give up its number is not passed on.
+  const place = placeOnly(address) || null;
   const who = value.name || null;
   const heading = value.direction ? `Heading ${value.direction.toLowerCase()}.` : '';
   // A sighting can be sent for earlier. Only one sent as it happens is "just seen".
@@ -137,15 +138,24 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   const ownerName = pet.reporter?.firstName || null;
 
   // The same place a few minutes later is the same sighting, still true: its time moves up, and
-  // the people who were told about it are not told again.
+  // the people who were told about it are not told again. The few minutes are counted from when it
+  // was first sent, never from its moved-up time, so the quiet cannot be kept going: ten minutes
+  // after the alert, the next send from that spot is a new sighting and everyone hears it. And it
+  // has to be the newest one, seen as it happened: a report for earlier is never turned into "now".
   if (live) {
-    const recent = await prisma.caseSighting.findFirst({
-      where: { missionId: pet.id, sightedAt: { gte: new Date(now.getTime() - SAME_SIGHTING_MS) } },
+    const newest = await prisma.caseSighting.findFirst({
+      where: { missionId: pet.id },
       orderBy: { sightedAt: 'desc' },
-      select: { id: true, latitude: true, longitude: true },
+      select: { id: true, latitude: true, longitude: true, sightedAt: true, createdAt: true },
     });
-    if (recent && distanceMeters({ lat: recent.latitude, lng: recent.longitude }, point) <= SAME_SIGHTING_METERS) {
-      const kept = await prisma.caseSighting.update({ where: { id: recent.id }, data: { sightedAt: now }, select: { id: true, sightedAt: true } });
+    const since = (date) => now.getTime() - new Date(date).getTime();
+    const same =
+      newest &&
+      since(newest.createdAt) <= SAME_SIGHTING_MS &&
+      since(newest.sightedAt) <= SAME_SIGHTING_MS &&
+      distanceMeters({ lat: newest.latitude, lng: newest.longitude }, point) <= SAME_SIGHTING_METERS;
+    if (same) {
+      const kept = await prisma.caseSighting.update({ where: { id: newest.id }, data: { sightedAt: now }, select: { id: true, sightedAt: true } });
       return { sighting: kept, place, told: { owner: false, bell: 0, pushed: 0 }, again: true, caseNumber: pet.caseNumber, ownerName };
     }
   }

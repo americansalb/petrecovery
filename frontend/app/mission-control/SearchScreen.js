@@ -133,6 +133,7 @@ function Screen({ mission }) {
   const [photo, setPhoto] = useState(false);
   const [gps, setGps] = useState(null);
   const [where, setWhere] = useState(null); // the sighting being sent: { lat, lng, address, city }
+  const [whereFrom, setWhereFrom] = useState(null); // 'phone': where the phone is. 'hand': typed, or the pin was put there.
   const [minutes, setMinutes] = useState(0);
   const [locating, setLocating] = useState(false);
   const [mySeen, setMySeen] = useState(null);
@@ -177,9 +178,12 @@ function Screen({ mission }) {
   // "I've seen it": one form, where and when. A phone is asked where it is
   // and the pin is set there; a desk, or a phone that will not say, types
   // the street.
+  const phoneSpot = useRef(null);
   const openSeen = useCallback(async () => {
     setProblem('');
     setWhere(null);
+    setWhereFrom(null);
+    phoneSpot.current = null;
     setMinutes(desk ? 30 : 0);
     setView('seen');
     if (desk) return;
@@ -190,11 +194,32 @@ function Screen({ mission }) {
     setLocating(false);
     if (here && here.accuracy <= SIGHTING_ACCURACY_METERS) {
       const point = { lat: here.lat, lng: here.lng };
-      setWhere({ ...point, address: placeFromStreets(naming.current, point) || '', city: '' });
+      const spot = { ...point, address: placeFromStreets(naming.current, point) || '', city: '' };
+      phoneSpot.current = spot;
+      setWhere(spot);
+      setWhereFrom('phone');
     } else if (here) {
       setProblem('Your phone only gave a rough location. Type the street or the corner.');
     }
   }, [desk, locate]);
+  // Where the phone is now is where the pet is only for "Just now". Someone at home in the evening, sending
+  // what they saw at noon, must not pin the pet (and themselves) to their own house: for any earlier time the
+  // phone's pin comes off and the place is typed, or put there by hand. Back on "Just now" it returns.
+  function chooseWhen(next) {
+    setMinutes(next);
+    if (next > 0 && whereFrom === 'phone') {
+      setWhere(null);
+      setWhereFrom(null);
+    } else if (next === 0 && !where && phoneSpot.current) {
+      setWhere(phoneSpot.current);
+      setWhereFrom('phone');
+    }
+  }
+  // Typing a street, moving the pin or pressing "Use my location" is the person saying where. That stands whatever the time.
+  function placeByHand(value) {
+    setWhere(value);
+    setWhereFrom(value ? 'hand' : null);
+  }
 
   useEffect(() => {
     if (caseId) setWalkFrom(readNote(caseId, 'walk_from'));
@@ -213,13 +238,23 @@ function Screen({ mission }) {
     }
   }, [picture, mySightings, now]);
 
-  // ?action=sighting: the pet's page sends "I've seen" straight here.
+  // ?action=sighting: "I've seen" on the pet's page opens the form here. ?action=walk: "Give me a job, on foot"
+  // there opens the join card, so nobody is asked the same thing twice. Each is used once and taken off the
+  // address: a reload or a restored tab opens the map and asks the phone nothing.
   const linked = useRef(false);
   useEffect(() => {
-    if (linked.current || !picture || resolving) return;
+    // Not until the first load is whole: who this person is (a helper who joined before) arrives with it.
+    if (linked.current || !picture || resolving || search.loading) return;
     linked.current = true;
-    if (params.get('action') === 'sighting' && picture.open) openSeen();
-  }, [picture, params, resolving, openSeen]);
+    const action = params.get('action');
+    if (!action) return;
+    const rest = new URLSearchParams(window.location.search);
+    rest.delete('action');
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}?${rest}`);
+    if (!picture.open) return;
+    if (action === 'sighting') openSeen();
+    else if (action === 'walk' && !desk && !viewer?.isOwner && !viewer?.waiver) go('join');
+  }, [picture, params, resolving, search.loading, openSeen, desk, viewer, go]);
 
   // The owner opening a fresh sighting is itself news for the witness.
   useEffect(() => {
@@ -258,41 +293,57 @@ function Screen({ mission }) {
   );
 
   // ----- A helper's actions -----
+  // The streets this person passed on, so "Different street" moves down the list and never hands one back.
+  const passed = useRef(new Set());
   // A street is theirs as soon as they are given it. Taking a new one hands back the old (the server does both).
+  // Answers { ok } or { error }, and never leaves the button spinning: a dropped signal is words on the card.
   async function takeStreet(exceptId = null) {
-    if (busy) return undefined;
+    if (busy) return { error: '' };
     setBusy('walk');
     setProblem('');
     setDone(null);
-    const here = await locate();
-    const list = rank(items, here || position).filter((i) => i.id !== exceptId);
-    let taken = null;
-    let last = null;
-    // Someone else may take the same street in the same second: the next one is tried, a few times at most.
-    for (const item of list.slice(0, 4)) {
-      const result = await search.act(unit, item.id, 'claim');
-      if (!result.error) {
-        taken = item;
-        break;
+    try {
+      const here = await locate();
+      if (exceptId) passed.current.add(exceptId);
+      let list = rank(items, here || position).filter((i) => i.id !== exceptId && !passed.current.has(i.id));
+      if (!list.length && passed.current.size) {
+        // Every other one has been passed on: the round starts again.
+        passed.current = new Set();
+        list = rank(items, here || position).filter((i) => i.id !== exceptId);
       }
-      last = result;
-      if (result.code === 'WAIVER_NOT_ACCEPTED' || result.code === 'NOT_JOINED') {
-        setBusy(null);
-        return go('join');
+      let taken = null;
+      let last = null;
+      // Someone else may take the same street in the same second: the next one is tried, a few times at most.
+      for (const item of list.slice(0, 4)) {
+        const result = await search.act(unit, item.id, 'claim');
+        if (!result.error) {
+          taken = item;
+          break;
+        }
+        last = result;
+        if (result.code === 'WAIVER_NOT_ACCEPTED' || result.code === 'NOT_JOINED') {
+          go('join');
+          return { error: '' };
+        }
+        if (result.code !== 'TAKEN') break;
       }
-      if (result.code !== 'TAKEN') break;
+      if (!taken) {
+        const words = last?.error || `Every ${thing} has someone on it right now. One comes free when it has been walked.`;
+        // Said on the first card, which has the button to try again.
+        setView('main');
+        setProblem(words);
+        return { error: words };
+      }
+      const from = here ? { lat: here.lat, lng: here.lng } : null;
+      setWalkFrom(from);
+      saveNote(caseId, 'walk_from', from);
+      // The app records the walk. A browser does not, and does not say it does.
+      if (app && gps && viewer?.signedIn) gps.start().catch(() => {});
+      go('main');
+      return { ok: true };
+    } finally {
+      setBusy(null);
     }
-    setBusy(null);
-    if (!taken) {
-      setProblem(last?.error || `Every ${thing} has someone on it right now. Thank you for coming.`);
-      return undefined;
-    }
-    const from = here ? { lat: here.lat, lng: here.lng } : null;
-    setWalkFrom(from);
-    saveNote(caseId, 'walk_from', from);
-    // The app records the walk. A browser does not, and does not say it does.
-    if (app && gps && viewer?.signedIn) gps.start().catch(() => {});
-    return go('main');
   }
   function startWalk() {
     if (!viewer || !viewer.waiver) return go('join');
@@ -301,22 +352,28 @@ function Screen({ mission }) {
   async function walked() {
     if (!mineRaw || busy) return undefined;
     setBusy('walked');
-    const title = unit === 'street' ? walkTitle(mineRaw) : mineRaw.title;
-    const result = await search.act(unit, mineRaw.id, 'searched');
-    setBusy(null);
-    if (result.error) return setProblem(result.error);
-    if (gps?.recording) gps.stop().catch(() => {});
-    setDone(title);
-    return go('main');
+    try {
+      const title = unit === 'street' ? walkTitle(mineRaw) : mineRaw.title;
+      const result = await search.act(unit, mineRaw.id, 'searched');
+      if (result.error) return setProblem(result.error);
+      if (gps?.recording) gps.stop().catch(() => {});
+      setDone(title);
+      return go('main');
+    } finally {
+      setBusy(null);
+    }
   }
   async function stopWalking() {
     if (!mineRaw || busy) return undefined;
     setBusy('stop');
-    const result = await search.act(unit, mineRaw.id, 'release');
-    setBusy(null);
-    if (result.error) return setProblem(result.error);
-    if (gps?.recording) gps.stop().catch(() => {});
-    return go('main');
+    try {
+      const result = await search.act(unit, mineRaw.id, 'release');
+      if (result.error) return setProblem(result.error);
+      if (gps?.recording) gps.stop().catch(() => {});
+      return go('main');
+    } finally {
+      setBusy(null);
+    }
   }
 
   // ----- A witness's one action -----
@@ -327,17 +384,20 @@ function Screen({ mission }) {
     }
     setBusy('send');
     setProblem('');
-    const result = await search.sendSighting({
-      lat: Number(where.lat ?? where.latitude),
-      lng: Number(where.lng ?? where.longitude),
-      address: where.address || '',
-      minutesAgo: minutes,
-      sure: 'LIKELY',
-    });
-    setBusy(null);
-    if (result.error) return setProblem(result.error);
-    setMySeen(result.sighting);
-    return go('sent');
+    try {
+      const result = await search.sendSighting({
+        lat: Number(where.lat ?? where.latitude),
+        lng: Number(where.lng ?? where.longitude),
+        address: where.address || '',
+        minutesAgo: minutes,
+        sure: 'LIKELY',
+      });
+      if (result.error) return setProblem(result.error);
+      setMySeen(result.sighting);
+      return go('sent');
+    } finally {
+      setBusy(null);
+    }
   }
 
   // ----- The owner's actions -----
@@ -346,7 +406,8 @@ function Screen({ mission }) {
   // read its position: opening directions never puts the phone's location question on the screen.
   function going() {
     if (!hot) return;
-    const told = search.answer(hot.id, 'going');
+    // Told once. Opening directions again only brings the distance up to date.
+    const told = hot.ownerGoingAt ? Promise.resolve() : search.answer(hot.id, 'going');
     locate({ ifAllowed: true }).then(async (here) => {
       if (!here || !(here.accuracy <= SIGHTING_ACCURACY_METERS)) return;
       const meters = distanceMeters(here, hot);
@@ -507,14 +568,16 @@ function Screen({ mission }) {
     );
   }
 
-  const line = isOwner && !hot && picture.neighbors?.told ? { text: neighborsLine(picture.neighbors, name), tone: 'lost' } : situationLine(picture, now);
+  // The owner reads who was alerted only while nobody has seen the pet: that line ends "you are told the moment
+  // someone sees Max", which is not a thing to say above a sighting.
+  const line = isOwner && !hot && !picture.sightings.length && picture.neighbors?.told ? { text: neighborsLine(picture.neighbors, name), tone: 'lost' } : situationLine(picture, now);
 
   // ----- The card: one for each person at any moment -----
   let step;
   let full = false; // a card that takes the whole phone screen, with no map behind it
   if (view === 'seen') {
     full = true;
-    step = <Seen name={name} owner={owner} signedIn={Boolean(viewer?.signedIn)} where={where} onWhere={setWhere} near={hot || picture.lastSeen} locating={locating} canLocate={!desk} minutes={minutes} onMinutes={setMinutes} onSend={sendSeen} busy={busy === 'send'} problem={problem} />;
+    step = <Seen name={name} owner={owner} signedIn={Boolean(viewer?.signedIn)} where={where} onWhere={placeByHand} near={hot || picture.lastSeen} locating={locating} canLocate={!desk} minutes={minutes} onMinutes={chooseWhen} onSend={sendSeen} busy={busy === 'send'} problem={problem} />;
   } else if (view === 'sent' && mySeen) {
     full = true;
     step = <Sent picture={picture} name={name} owner={owner} mine={mySeen} signedIn={Boolean(viewer?.signedIn)} onAgain={openSeen} onDone={() => go('main')} />;
@@ -523,7 +586,7 @@ function Screen({ mission }) {
   } else if (isOwner) {
     step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} />;
   } else if (mine) {
-    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={candidates.length > 0} />;
+    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} />;
   } else if (view === 'join') {
     step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {

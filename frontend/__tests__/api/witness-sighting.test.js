@@ -191,6 +191,16 @@ describe('the place is a street or a corner, never a house', () => {
     expect(wakeForces.mock.calls[0][0].body).toMatch(/^Near Barton Springs Rd\./);
   });
 
+  test('an address that will not give up its house number is not passed on at all', async () => {
+    const out = await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.77, address: '4001 1/2 Ramsey Ave, Austin' }).value, { now: NOW });
+    expect(out.place).toBeNull();
+    expect(wakeForces.mock.calls[0][0].body).toMatch(/^Marked on the map\./);
+    expect(JSON.stringify([wakeForces.mock.calls, broadcast.mock.calls, prisma.notification.create.mock.calls, sendEmail.mock.calls])).not.toContain('4001');
+    // A landmark with no number in it is a place.
+    prisma.caseSighting.create.mockClear();
+    expect((await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.77, address: 'Zilker Park' }).value, { now: NOW })).place).toBe('Zilker Park');
+  });
+
   test('off every street, with nothing typed, it is still recorded, as marked on the map', async () => {
     await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.4, lng: -97.9 }).value, { now: NOW });
     expect(prisma.caseSighting.create.mock.calls[0][0].data.address).toBe('Marked on the map');
@@ -200,15 +210,19 @@ describe('the place is a street or a corner, never a house', () => {
 
 describe('the same place sent again is the same sighting', () => {
   const HERE = { lat: 30.3105, lng: -97.747 };
+  const ago = (minutes) => new Date(NOW.getTime() - minutes * 60000);
+  // The newest sighting on the search: first sent `sent` minutes ago, and saying the pet was seen `seen` minutes ago.
+  const newest = ({ sent = 3, seen = sent, at = HERE } = {}) => ({ id: 'sight-0', latitude: at.lat, longitude: at.lng, createdAt: ago(sent), sightedAt: ago(seen) });
 
-  test('within ten minutes and a few steps, its time moves up and nobody is told twice', async () => {
-    prisma.caseSighting.findFirst.mockResolvedValueOnce({ id: 'sight-0', latitude: HERE.lat, longitude: HERE.lng });
+  test('within ten minutes of the first send and a few steps of it, its time moves up and nobody is told twice', async () => {
+    prisma.caseSighting.findFirst.mockResolvedValueOnce(newest());
     // About thirty metres along the street.
     const out = await recordWitnessSighting('case-max', checkWitnessSighting({ lat: HERE.lat + 0.00027, lng: HERE.lng }).value, { now: NOW });
+    // It is the newest sighting on the search that is looked at, whoever sent it.
     expect(prisma.caseSighting.findFirst).toHaveBeenCalledWith({
-      where: { missionId: 'case-max', sightedAt: { gte: new Date(NOW.getTime() - 10 * 60 * 1000) } },
+      where: { missionId: 'case-max' },
       orderBy: { sightedAt: 'desc' },
-      select: { id: true, latitude: true, longitude: true },
+      select: { id: true, latitude: true, longitude: true, sightedAt: true, createdAt: true },
     });
     expect(prisma.caseSighting.update).toHaveBeenCalledWith({ where: { id: 'sight-0' }, data: { sightedAt: NOW }, select: { id: true, sightedAt: true } });
     expect(out).toMatchObject({ sighting: { id: 'sight-0', sightedAt: NOW }, again: true, told: { owner: false, bell: 0, pushed: 0 }, caseNumber: 'AUS-2026-0001', ownerName: 'Avery' });
@@ -217,8 +231,35 @@ describe('the same place sent again is the same sighting', () => {
     for (const sent of everyoneTold) expect(sent).not.toHaveBeenCalled();
   });
 
-  test('further along than that, it is a new sighting and everyone is told', async () => {
-    prisma.caseSighting.findFirst.mockResolvedValueOnce({ id: 'sight-0', latitude: HERE.lat, longitude: HERE.lng });
+  test('the quiet cannot be kept going: ten minutes after the first send, the same spot is a new sighting and everyone hears it', async () => {
+    // First sent two hours ago, and re-sent every few minutes since, so its time reads two minutes ago.
+    prisma.caseSighting.findFirst.mockResolvedValueOnce(newest({ sent: 120, seen: 2 }));
+    const out = await recordWitnessSighting('case-max', checkWitnessSighting(HERE).value, { now: NOW });
+    expect(out.again).toBeUndefined();
+    expect(prisma.caseSighting.update).not.toHaveBeenCalled();
+    expect(prisma.caseSighting.create).toHaveBeenCalledTimes(1);
+    expect(wakeForces).toHaveBeenCalledTimes(1);
+    expect(prisma.notification.create).toHaveBeenCalledTimes(1);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  test('at the edge of the ten minutes it still folds, and a minute past it does not', async () => {
+    prisma.caseSighting.findFirst.mockResolvedValueOnce(newest({ sent: 10 }));
+    expect((await recordWitnessSighting('case-max', checkWitnessSighting(HERE).value, { now: NOW })).again).toBe(true);
+    prisma.caseSighting.findFirst.mockResolvedValueOnce(newest({ sent: 11, seen: 1 }));
+    expect((await recordWitnessSighting('case-max', checkWitnessSighting(HERE).value, { now: NOW })).again).toBeUndefined();
+  });
+
+  test('a report for earlier is never turned into "now": sent a minute ago for half an hour back, it stays as it is', async () => {
+    prisma.caseSighting.findFirst.mockResolvedValueOnce(newest({ sent: 1, seen: 30 }));
+    const out = await recordWitnessSighting('case-max', checkWitnessSighting(HERE).value, { now: NOW });
+    expect(out.again).toBeUndefined();
+    expect(prisma.caseSighting.update).not.toHaveBeenCalled();
+    expect(wakeForces.mock.calls[0][0].title).toBe('Max was just seen');
+  });
+
+  test('further along than a few steps, it is a new sighting and everyone is told', async () => {
+    prisma.caseSighting.findFirst.mockResolvedValueOnce(newest());
     // About two hundred metres on: the pet has moved.
     const out = await recordWitnessSighting('case-max', checkWitnessSighting({ lat: HERE.lat + 0.0018, lng: HERE.lng }).value, { now: NOW });
     expect(out.again).toBeUndefined();
@@ -228,14 +269,14 @@ describe('the same place sent again is the same sighting', () => {
     expect(prisma.notification.create).toHaveBeenCalledTimes(1);
   });
 
-  test('with no sighting in the last ten minutes there is nothing to be the same as', async () => {
+  test('with no sighting on the search there is nothing to be the same as', async () => {
     const out = await recordWitnessSighting('case-max', checkWitnessSighting(HERE).value, { now: NOW });
     expect(out.again).toBeUndefined();
     expect(prisma.caseSighting.create).toHaveBeenCalledTimes(1);
   });
 
   test('a sighting sent for earlier is never folded into one happening now', async () => {
-    prisma.caseSighting.findFirst.mockResolvedValue({ id: 'sight-0', latitude: HERE.lat, longitude: HERE.lng });
+    prisma.caseSighting.findFirst.mockResolvedValue(newest());
     await recordWitnessSighting('case-max', checkWitnessSighting({ ...HERE, minutesAgo: 30 }).value, { now: NOW });
     expect(prisma.caseSighting.findFirst).not.toHaveBeenCalled();
     expect(prisma.caseSighting.create.mock.calls[0][0].data.sightedAt).toEqual(new Date(NOW.getTime() - 30 * 60000));
@@ -254,12 +295,14 @@ describe('POST /api/public/missions/[caseNumber]/sighting', () => {
     expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: 'case.sighting_reported' }));
   });
 
-  test('200 and "again" when it is the same sighting, with no second record of it', async () => {
-    prisma.caseSighting.findFirst.mockResolvedValueOnce({ id: 'sight-0', latitude: 30.26, longitude: -97.74 });
+  test('200 and "again" when it is the same sighting, kept on record as a re-send', async () => {
+    const justNow = new Date(Date.now() - 60000);
+    prisma.caseSighting.findFirst.mockResolvedValueOnce({ id: 'sight-0', latitude: 30.26, longitude: -97.74, createdAt: justNow, sightedAt: justNow });
     const res = await call({ lat: 30.26, lng: -97.74 });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ again: true, sighting: { id: 'sight-0' }, told: { owner: false, bell: 0, pushed: 0 } });
-    expect(logEvent).not.toHaveBeenCalled();
+    expect(prisma.caseSighting.create).not.toHaveBeenCalled();
+    expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: 'case.sighting_resent', action: 'update' }));
   });
 
   test('400 in words, 404, 409 when closed, 429 when hammered', async () => {

@@ -101,14 +101,25 @@ describe('sightings', () => {
     expect(ownerSighting([seen(20, { sentAt: sentAgo(20) })], NOW).id).toBe('s-20');
     // Seen three hours ago, sent five minutes ago: the owner was just told, and it leads.
     expect(ownerSighting([seen(180, { sentAt: sentAgo(5) })], NOW).id).toBe('s-180');
-    // Seen yesterday and sent yesterday: old news.
-    expect(ownerSighting([seen(1440, { sentAt: sentAgo(1400) })], NOW)).toBeNull();
+    // Seen yesterday, sent yesterday and opened yesterday: old news.
+    expect(ownerSighting([seen(1440, { sentAt: sentAgo(1400), ownerSeenAt: sentAgo(1390) })], NOW)).toBeNull();
     // Only the newest place the pet was seen can lead: an older sighting that arrives late does not send the owner back there.
-    expect(ownerSighting([seen(120, { sentAt: sentAgo(120) }), seen(1440, { sentAt: sentAgo(2) })], NOW)).toBeNull();
-    // Without a sent time it falls back to when the pet was seen.
-    expect(ownerSighting([seen(30)], NOW).id).toBe('s-30');
-    expect(ownerSighting([seen(90)], NOW)).toBeNull();
+    expect(ownerSighting([seen(120, { sentAt: sentAgo(120), ownerSeenAt: sentAgo(110) }), seen(1440, { sentAt: sentAgo(2) })], NOW)).toBeNull();
     expect(ownerSighting([], NOW)).toBeNull();
+  });
+
+  test('a sighting the owner has not opened yet still leads, however late they come to it, and for an hour after', () => {
+    const sentAgo = (minutes) => at(NOW - minutes * 60000);
+    // Seen at two in the night, opened at seven: the card and its directions are there.
+    expect(ownerSighting([seen(300, { sentAt: sentAgo(300), ownerSeenAt: null })], NOW).id).toBe('s-300');
+    // Opened ten minutes ago: it stays while they act on it.
+    expect(ownerSighting([seen(300, { sentAt: sentAgo(300), ownerSeenAt: sentAgo(10) })], NOW).id).toBe('s-300');
+    // Opened two hours ago: the card goes back to who is looking. The map still shows where.
+    expect(ownerSighting([seen(300, { sentAt: sentAgo(300), ownerSeenAt: sentAgo(120) })], NOW)).toBeNull();
+    // Never opened, and three days old: history, not news.
+    expect(ownerSighting([seen(3 * 1440, { sentAt: sentAgo(3 * 1440), ownerSeenAt: null })], NOW)).toBeNull();
+    // Just inside two days.
+    expect(ownerSighting([seen(47 * 60, { sentAt: sentAgo(47 * 60), ownerSeenAt: null })], NOW).id).toBe(`s-${47 * 60}`);
   });
 });
 
@@ -186,15 +197,16 @@ describe('counts', () => {
   });
 });
 
-describe('the searcher\'s brief on the screen is the site\'s brief, with one edit', () => {
+describe('the searcher\'s brief on the screen is the site\'s brief, word for word', () => {
   const picture = { pet: { name: 'Max', species: 'DOG', color: 'Black and tan', breed: 'Shepherd mix' } };
   const source = briefFor({ way: 'foot', pet: { petName: 'Max', petSpecies: 'DOG', petColor: 'Black and tan', petBreed: 'Shepherd mix' } });
 
-  test('the only change is the button\'s name, so the sentence names the button on this screen', () => {
+  test('nothing is changed, and the button it names is the one on the screen', () => {
     const brief = searcherBrief(picture);
     expect(brief.look).toBe(source[1]);
     expect(brief.call).toBe(source[2]);
-    expect(brief.never).toBe(source[3].split('"I saw Max"').join('"I\'ve seen Max"'));
+    expect(brief.never).toBe(source[3]);
+    expect(JSON.stringify(['foot', 'car', 'home', 'gear'].map((way) => briefFor({ way, pet: { petName: 'Max', petSpecies: 'DOG' } })))).not.toMatch(/I saw/);
     expect(brief.never).toBe('If you see Max, don\'t chase or call out. Sit down, look away, tap "I\'ve seen Max". The owner\'s voice is what Max comes to.');
     expect(brief.neverFirst).toBe("If you see Max, don't chase or call out.");
   });

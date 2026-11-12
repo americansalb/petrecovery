@@ -15,14 +15,22 @@
  * the force first (`onJoin`), like the needs below.
  *
  * Someone with no account who wants to walk goes straight to the search
- * screen, which takes a first name and the safety tick instead of an
- * account (app/mission-control).
+ * screen's join card, which takes a first name and the safety tick
+ * instead of an account (app/mission-control, `?action=walk`). They have
+ * already said "on foot" here, so they are not asked again there.
+ *
+ * The brief is the site's (app/lib/brief.js), with two cuts so that every
+ * line is true on this page (`briefOnPage` there): nothing here says a
+ * path is recorded, which happens only in the app and is said there while
+ * it records; and a job that is one street is not told to "walk every
+ * street in the block".
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Car, Check, Footprints, Loader2, Phone, Wrench, ArrowRight, RotateCcw } from 'lucide-react';
 import WaiverModal from '@/components/WaiverModal';
+import { briefOnPage } from '@/app/lib/brief';
 
 const WAYS = [
   { id: 'foot', label: 'On foot', sub: 'Walk a street, check hiding spots', icon: Footprints },
@@ -99,8 +107,8 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
 
   async function ask() {
     if (!signedIn) {
-      // Walking a street needs no account: the search screen takes a first name.
-      router.push(way === 'foot' ? missionHref : `/login?callbackUrl=${encodeURIComponent(`/cases/${caseNumber}`)}`);
+      // Walking a street needs no account: the search screen takes a first name, and opens on that card.
+      router.push(way === 'foot' ? `${missionHref}&action=walk` : `/login?callbackUrl=${encodeURIComponent(`/cases/${caseNumber}`)}`);
       return;
     }
     setStage('loading');
@@ -171,6 +179,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
   }
 
   const wayLabel = WAYS.find((w) => w.id === way)?.label || 'On foot';
+  const brief = briefOnPage(picked?.brief, job);
 
   return (
     <div className="rounded-2xl border-2 border-midnight-200 bg-white p-4 sm:p-5">
@@ -252,12 +261,12 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
           </p>
           <p className="mt-1 text-lg font-bold leading-snug text-midnight-900">{job.title}</p>
           {job.why && <p className="mt-1 text-sm text-midnight-600">{job.why}</p>}
-          {picked?.brief?.length > 0 && (
+          {brief.length > 0 && (
             <ol className="mt-3 space-y-2">
-              {picked.brief.map((line, i) => (
+              {brief.map((line, i) => (
                 <li key={line} className="flex items-start gap-2.5 text-sm text-midnight-800">
-                  <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white ${i === picked.brief.length - 1 ? 'bg-red-600' : 'bg-midnight-900'}`}>
-                    {i === picked.brief.length - 1 ? '!' : i + 1}
+                  <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white ${i === brief.length - 1 ? 'bg-red-600' : 'bg-midnight-900'}`}>
+                    {i === brief.length - 1 ? '!' : i + 1}
                   </span>
                   <span>{line}</span>
                 </li>

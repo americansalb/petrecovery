@@ -39,6 +39,19 @@ export function placeName(address) {
   return parsePlace(address)?.label || '';
 }
 
+/**
+ * A place as it may be shown to people who are not the owner: the street
+ * or the landmark, and never a house number. Where the street cannot be
+ * told apart from the number ("4001 1/2 Ramsey Ave"), nothing is shown
+ * rather than the address as typed.
+ */
+export function placeOnly(address) {
+  const label = placeName(address);
+  if (label) return label;
+  const first = String(address || '').split(',')[0].trim();
+  return first && !/\d/.test(first) ? first : '';
+}
+
 /** The title a need of this kind gets for a place or a shelter. */
 export function needTitle(kind, { place, shelter } = {}) {
   if (kind === 'shelter') return shelter ? `Check ${shelter.name}` : '';

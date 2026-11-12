@@ -162,7 +162,8 @@ describe('no maze: eight cards, and one next step on each', () => {
   test('the owner has one button on a sighting: it opens the way there and tells the witness', () => {
     const card = cardsOf(owner).find((c) => c.name === 'OwnerSighting').source;
     expect(card).toMatch(/<Primary href=\{mapsHref\} newTab onClick=\{onGoing\}[^>]*>\s*Directions\s*<\/Primary>/);
-    expect(code(shell)).toMatch(/const told = search\.answer\(hot\.id, 'going'\);/);
+    // The witness is told once. Opening directions again only brings the distance up to date.
+    expect(code(shell)).toMatch(/const told = hot\.ownerGoingAt \? Promise\.resolve\(\) : search\.answer\(hot\.id, 'going'\);/);
     // Opening directions never puts the phone's location question on the screen: the distance is read only where it is already allowed.
     expect(code(shell)).toMatch(/locate\(\{ ifAllowed: true \}\)\.then\(/);
     expect(read('app/mission-control/hooks/useSearch.js')).toMatch(/allowed = status\?\.state === 'granted';[\s\S]*?if \(!allowed\) return null;/);
@@ -178,6 +179,60 @@ describe('no maze: eight cards, and one next step on each', () => {
     expect(shell).toMatch(/: situationLine\(picture, now\);/);
     // What leads the owner's screen is the newest sighting while it is news to them; for everyone else, one seen within the hour.
     expect(shell).toMatch(/const hot = isOwner \? ownerSighting\(picture\?\.sightings, now\) : seenLately;/);
+  });
+});
+
+describe('nothing is left wrong or stuck when a person does the ordinary thing', () => {
+  test('where the phone is now is where the pet is only for "Just now": an earlier time takes the phone\'s pin off', () => {
+    // Someone at home in the evening, sending what they saw at noon, must not pin the pet to their own house.
+    expect(code(shell)).toMatch(/if \(next > 0 && whereFrom === 'phone'\) \{\s*setWhere\(null\);\s*setWhereFrom\(null\);/);
+    // A place the person typed or put there by hand stands whatever the time.
+    expect(code(shell)).toMatch(/function placeByHand\(value\) \{\s*setWhere\(value\);\s*setWhereFrom\(value \? 'hand' : null\);/);
+    expect(shell).toMatch(/<Seen\b.*onWhere=\{placeByHand\}.*onMinutes=\{chooseWhen\}/);
+  });
+
+  test('a link that opens a card is used once: a reload or a restored tab asks the phone nothing', () => {
+    expect(code(shell)).toMatch(/rest\.delete\('action'\);\s*window\.history\.replaceState\(window\.history\.state, '', `\$\{window\.location\.pathname\}\?\$\{rest\}`\);/);
+    // The action is taken off the address before anything is opened.
+    const effect = code(shell).slice(code(shell).indexOf("const action = params.get('action');"));
+    expect(effect.indexOf('window.history.replaceState')).toBeLessThan(effect.indexOf('openSeen()'));
+    // Two actions and no others: the sighting form, and the join card for someone who said "on foot" on the pet's page.
+    expect([...code(shell).matchAll(/action === '([a-z]+)'/g)].map((m) => m[1]).sort()).toEqual(['sighting', 'walk']);
+  });
+
+  test('a dropped signal is words on the card, and no button is left spinning', () => {
+    const hook = read('app/mission-control/hooks/useSearch.js');
+    // Every write goes through the one request that answers null instead of throwing.
+    expect(code(hook)).toMatch(/function send\(url, init\) \{\s*return fetch\(url, init\)\.catch\(\(\) => null\);/);
+    expect(code(hook).match(/await send\(/g)).toHaveLength(5);
+    expect(code(hook).match(/if \(!res\) return \{ error: NO_SIGNAL/g)).toHaveLength(5);
+    // And each thing a person presses clears its own spinner whatever happens.
+    for (const name of ['takeStreet', 'walked', 'stopWalking', 'sendSeen']) {
+      const body = code(shell).slice(code(shell).indexOf(`async function ${name}(`));
+      const end = body.indexOf('\n  }\n');
+      expect({ name, ok: /finally \{\s*setBusy\(null\);\s*\}/.test(body.slice(0, end)) }).toEqual({ name, ok: true });
+    }
+  });
+
+  test('"Different street" moves down the list and never hands one back', () => {
+    expect(code(shell)).toMatch(/if \(exceptId\) passed\.current\.add\(exceptId\);/);
+    expect(code(shell)).toMatch(/\.filter\(\(i\) => i\.id !== exceptId && !passed\.current\.has\(i\.id\)\)/);
+    // A desk holds a street only if a phone took it: it cannot be handed another.
+    expect(shell).toMatch(/<Street\b.*canOther=\{!desk && candidates\.length > 0\}/);
+  });
+
+  test('when no street can be given, the first card says why and nobody is sent off', () => {
+    expect(code(shell)).toMatch(/setView\('main'\);\s*setProblem\(words\);/);
+    expect(code(shell)).not.toMatch(/Thank you for coming/);
+  });
+
+  test('the map is looked at, not tapped', () => {
+    const map = read('app/mission-control/components/SearchMap.js');
+    expect(code(map)).not.toMatch(/\.on\('click'|onPick|offered|bearing/);
+  });
+
+  test('the owner is never told "nobody has answered yet" above a sighting', () => {
+    expect(code(shell)).toMatch(/const line = isOwner && !hot && !picture\.sightings\.length && picture\.neighbors\?\.told \?/);
   });
 });
 
@@ -240,8 +295,9 @@ describe('three instruments: a browser reads its position once and never watches
     const limit = Number(shell.match(/const SIGHTING_ACCURACY_METERS = (\d+);/)[1]);
     expect(limit).toBeLessThanOrEqual(200);
     // The pin is set from the phone's reading in one place, behind the check.
-    expect(code(shell)).toMatch(/if \(here && here\.accuracy <= SIGHTING_ACCURACY_METERS\) \{\s*const point = \{ lat: here\.lat, lng: here\.lng \};\s*setWhere\(/);
-    expect(code(shell).match(/setWhere\(\{/g)).toHaveLength(1);
+    expect(code(shell)).toMatch(/if \(here && here\.accuracy <= SIGHTING_ACCURACY_METERS\) \{\s*const point = \{ lat: here\.lat, lng: here\.lng \};\s*const spot = [^;]+;\s*phoneSpot\.current = spot;\s*setWhere\(spot\);\s*setWhereFrom\('phone'\);/);
+    // Nowhere else is a pin made from a reading.
+    expect(code(shell).match(/phoneSpot\.current = (?!null)/g)).toHaveLength(1);
     // The owner's distance is not guessed from a rough reading either.
     expect(code(shell)).toMatch(/if \(!here \|\| !\(here\.accuracy <= SIGHTING_ACCURACY_METERS\)\) return;/);
   });
