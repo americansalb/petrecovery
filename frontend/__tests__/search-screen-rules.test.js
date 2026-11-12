@@ -186,6 +186,10 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
   test('where the phone is now is where the pet is only for "Just now": an earlier time takes the phone\'s pin off', () => {
     // Someone at home in the evening, sending what they saw at noon, must not pin the pet to their own house.
     expect(code(shell)).toMatch(/if \(next > 0 && whereFrom === 'phone'\) \{\s*setWhere\(null\);\s*setWhereFrom\(null\);/);
+    // The reading can arrive after "Today" was already tapped: the pin is held back then too.
+    expect(code(shell)).toMatch(/function chooseWhen\(next\) \{\s*pickedMinutes\.current = next;/);
+    expect(code(shell).match(/setWhereFrom\('phone'\)/g)).toHaveLength(2);
+    expect(code(shell)).toMatch(/\} else if \(next === 0 && !where && phoneSpot\.current\) \{\s*setWhere\(phoneSpot\.current\);\s*setWhereFrom\('phone'\);/);
     // A place the person typed or put there by hand stands whatever the time.
     expect(code(shell)).toMatch(/function placeByHand\(value\) \{\s*setWhere\(value\);\s*setWhereFrom\(value \? 'hand' : null\);/);
     expect(shell).toMatch(/<Seen\b.*onWhere=\{placeByHand\}.*onMinutes=\{chooseWhen\}/);
@@ -295,7 +299,7 @@ describe('three instruments: a browser reads its position once and never watches
     const limit = Number(shell.match(/const SIGHTING_ACCURACY_METERS = (\d+);/)[1]);
     expect(limit).toBeLessThanOrEqual(200);
     // The pin is set from the phone's reading in one place, behind the check.
-    expect(code(shell)).toMatch(/if \(here && here\.accuracy <= SIGHTING_ACCURACY_METERS\) \{\s*const point = \{ lat: here\.lat, lng: here\.lng \};\s*const spot = [^;]+;\s*phoneSpot\.current = spot;\s*setWhere\(spot\);\s*setWhereFrom\('phone'\);/);
+    expect(code(shell)).toMatch(/if \(here && here\.accuracy <= SIGHTING_ACCURACY_METERS\) \{\s*const point = \{ lat: here\.lat, lng: here\.lng \};\s*const spot = [^;]+;\s*phoneSpot\.current = spot;\s*if \(pickedMinutes\.current === 0\) \{\s*setWhere\(spot\);\s*setWhereFrom\('phone'\);/);
     // Nowhere else is a pin made from a reading.
     expect(code(shell).match(/phoneSpot\.current = (?!null)/g)).toHaveLength(1);
     // The owner's distance is not guessed from a rough reading either.

@@ -179,12 +179,15 @@ function Screen({ mission }) {
   // and the pin is set there; a desk, or a phone that will not say, types
   // the street.
   const phoneSpot = useRef(null);
+  // The time picked, as it is now: the reading below can arrive after someone has already tapped "Today".
+  const pickedMinutes = useRef(0);
   const openSeen = useCallback(async () => {
     setProblem('');
     setWhere(null);
     setWhereFrom(null);
     phoneSpot.current = null;
-    setMinutes(desk ? 30 : 0);
+    pickedMinutes.current = desk ? 30 : 0;
+    setMinutes(pickedMinutes.current);
     setView('seen');
     if (desk) return;
     setLocating(true);
@@ -196,9 +199,12 @@ function Screen({ mission }) {
       const point = { lat: here.lat, lng: here.lng };
       const spot = { ...point, address: placeFromStreets(naming.current, point) || '', city: '' };
       phoneSpot.current = spot;
-      setWhere(spot);
-      setWhereFrom('phone');
-    } else if (here) {
+      // Only for "Just now". If an earlier time was picked while the phone was still finding itself, the pin is kept back.
+      if (pickedMinutes.current === 0) {
+        setWhere(spot);
+        setWhereFrom('phone');
+      }
+    } else if (here && pickedMinutes.current === 0) {
       setProblem('Your phone only gave a rough location. Type the street or the corner.');
     }
   }, [desk, locate]);
@@ -206,6 +212,7 @@ function Screen({ mission }) {
   // what they saw at noon, must not pin the pet (and themselves) to their own house: for any earlier time the
   // phone's pin comes off and the place is typed, or put there by hand. Back on "Just now" it returns.
   function chooseWhen(next) {
+    pickedMinutes.current = next;
     setMinutes(next);
     if (next > 0 && whereFrom === 'phone') {
       setWhere(null);
