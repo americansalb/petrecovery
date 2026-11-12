@@ -31,7 +31,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Share2, TriangleAlert } from 'lucide-react';
-import { SAFETY_RULES, SAFETY_AGREEMENT } from '@/app/lib/safetyRules';
+import { SAFETY_RULES, SAFETY_AGREEMENT, WAIVER_IN_SHORT, searchTraining } from '@/app/lib/safetyRules';
 import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Pinned, Stamp } from '../components/kit';
 import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
@@ -233,7 +233,13 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
   );
 }
 
-/** Asked once: a first name and the safety tick. */
+/**
+ * Asked once, and again when the waiver changes: a first name and the
+ * safety tick, with what the waiver does said in plain view above it.
+ * Then "Before you go out", the short training, whose one button gives
+ * them their area. The screen never calls the training optional, and the
+ * server refuses nobody for want of it (founder, 2026-11-12).
+ */
 export function Join({ picture, name, owner, viewer, unit, instrument, search, onJoined, onBack }) {
   const signedIn = Boolean(viewer?.signedIn);
   // The app records a walk for someone signed in. A browser records nothing, and neither does the app for a guest.
@@ -244,6 +250,8 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
   const [waiver, setWaiver] = useState(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
+  // 'agree' is the tick; 'training' is what they read once they have agreed.
+  const [stage, setStage] = useState('agree');
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const ownerName = owner?.firstName || 'The owner';
@@ -265,16 +273,25 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
     if (!agreed) return setProblem('Tick the box to say you have read the safety rules and the waiver.');
     setBusy(true);
     setProblem('');
-    const result = signedIn ? await search.acceptWaiver() : await search.join({ name: first, waiverVersion: waiver?.version || null });
-    if (result.error) {
-      setBusy(false);
-      return setProblem(result.error);
-    }
-    // Joined. If no ground could be given, the first card says why and has the button to try again.
-    await onJoined();
+    const result = signedIn ? await search.acceptWaiver({ waiverVersion: waiver?.version || null }) : await search.join({ name: first, waiverVersion: waiver?.version || null });
     setBusy(false);
+    if (result.error) return setProblem(result.error);
+    // Agreed. What to know before going out comes next, and its button gives them their ground.
+    setStage('training');
     return undefined;
   }
+
+  async function setOff() {
+    if (busy) return;
+    setBusy(true);
+    // Recorded if it can be. Nobody is kept from a search by it.
+    search.trained?.().catch(() => {});
+    // If no ground could be given, the first card says why and has the button to try again.
+    await onJoined();
+    setBusy(false);
+  }
+
+  if (stage === 'training') return <Training name={name} unit={unit} instrument={instrument} busy={busy} onGo={setOff} />;
 
   return (
     <>
@@ -300,6 +317,14 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
           />
         </>
       )}
+      {/* What the waiver does, where nobody agreeing can miss it. The full text is behind "Read them". */}
+      <ul role="note" aria-label="What you are agreeing to" className="mt-3.5 flex flex-col gap-1 rounded-2xl border-2 border-[var(--mc-line-strong)] bg-[var(--mc-raised)] px-3.5 py-3">
+        {WAIVER_IN_SHORT.map((line) => (
+          <li key={line} className="text-[15px] font-semibold leading-[21px] text-[var(--mc-ink)]">
+            {line}
+          </li>
+        ))}
+      </ul>
       <label className="mt-3.5 flex cursor-pointer items-start gap-3">
         <span className="relative mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-2 border-[var(--mc-check)]" style={agreed ? { background: 'var(--mc-check)' } : undefined}>
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="absolute -inset-2.5 h-11 w-11 cursor-pointer opacity-0" />
@@ -333,13 +358,49 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
       )}
       <Problem className="mt-2">{problem}</Problem>
       <Primary onClick={submit} busy={busy} className="mt-3">
-        Give me {ground ? 'an area' : `a ${thing}`}
+        I agree
       </Primary>
       {/* Who sees what, said once and truthfully for the person reading it. */}
       <Note className="mt-2.5 text-center">
         {picture.forces > 0 ? `${ownerName} and the Rescue Force looking for ${name} see` : `${ownerName} sees`} your first name and the {thing} you {ground ? 'search' : 'walk'}.{' '}
         {records ? 'The app records your path while you walk it.' : 'Nobody sees where you are.'}
       </Note>
+    </>
+  );
+}
+
+/**
+ * "Before you go out": what someone reads once they have agreed, and
+ * before their first ground. A card of its own, reached only from Join,
+ * with the one button that gives them their area. It is never called
+ * optional and has no way round it on the screen; the server refuses
+ * nobody for want of it (founder, 2026-11-12: "a bit of optional training
+ * on rescue ... but not say its optional").
+ */
+export function Training({ name, unit, instrument, busy, onGo }) {
+  const ground = unit === 'area';
+  const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
+  return (
+    <>
+      <Heading>Before you go out</Heading>
+      <ol className="mt-3 flex flex-col gap-3">
+        {searchTraining(name).map((point, i) => (
+          <li key={point.title} className="flex gap-3">
+            <span aria-hidden="true" className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--mc-raised)] text-[13px] font-extrabold leading-none text-[var(--mc-ink)]">
+              {i + 1}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">{point.title}</span>
+              <span className="block text-[15px] font-medium leading-[21px] text-[var(--mc-soft)]">{point.text}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <Pinned on={instrument !== 'command'}>
+        <Primary onClick={onGo} busy={busy} className="mt-4">
+          I understand. Give me {ground ? 'an area' : `a ${thing}`}
+        </Primary>
+      </Pinned>
     </>
   );
 }

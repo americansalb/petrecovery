@@ -28,6 +28,7 @@ import { ensureMissionControl } from '@/app/lib/missionControl/ensure';
 import { ownVolunteerId, cleanPlace } from '@/app/lib/missionControl/guard';
 import { missionWhere } from '@/app/lib/shareMetadata';
 import { withRateLimitAsync } from '@/app/lib/rateLimit';
+import { recordWaiver } from '@/app/lib/waiver';
 
 /**
  * Joining a search takes no account, so each join makes a new helper for
@@ -99,6 +100,10 @@ export async function POST(request, { params }) {
         waiverAccepted: data?.waiverAccepted ?? body?.waiverAccepted,
         waiverVersion: data?.waiverVersion ?? body?.waiverVersion,
       });
+      // The proof of the agreement: who, which version, when and from where.
+      if (result?.success) {
+        await recordWaiver({ request, userId, volunteerId: result.volunteerId, caseId: caseRow.id, name, shownVersion: data?.waiverVersion ?? body?.waiverVersion, adult: Boolean(data?.adult ?? body?.adult) });
+      }
     } else if (['CHECK_IN', 'CHECK_OUT', 'SIGNAL', 'FLAG_RESOURCES'].includes(action)) {
       const limit = await withRateLimitAsync(request, action === 'SIGNAL' ? SIGNAL_LIMIT : HELPER_LIMIT, action === 'SIGNAL' ? 'search:signal' : 'search:helper');
       if (!limit.success) return NextResponse.json(SLOW_DOWN, { status: 429 });

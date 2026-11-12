@@ -87,7 +87,9 @@ describe('no maze: eight cards, and one next step on each', () => {
   test('the screen is eight cards for three people', () => {
     // `Area` is the card of someone's ground. `Street` is the same card for a search from before it was on areas:
     // a search shows one or the other, never both, so it is still eight cards to anyone looking at one.
-    expect(cardsOf(helper).map((c) => c.name)).toEqual(['Main', 'Join', 'Area', 'Street', 'Home']);
+    // `Training` is the second half of joining, shown once after the tick: "Before you go out" (founder,
+    // 2026-11-12: "a bit of optional training on rescue ... but not say its optional").
+    expect(cardsOf(helper).map((c) => c.name)).toEqual(['Main', 'Join', 'Training', 'Area', 'Street', 'Home']);
     expect(code(shell)).toMatch(/\} else if \(mine && ground\) \{\s*step = <Area\b/);
     expect(code(shell)).toMatch(/\} else if \(mine\) \{\s*step = <Street\b/);
     expect(code(shell).match(/<(Area|Street)\b/g)).toHaveLength(2);
@@ -749,7 +751,7 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
   });
 
   test('the safety rules a helper agrees to are the patrol\'s own list, in one file', () => {
-    expect(helper).toMatch(/import \{ SAFETY_RULES, SAFETY_AGREEMENT \} from '@\/app\/lib\/safetyRules';/);
+    expect(helper).toMatch(/import \{ SAFETY_RULES, SAFETY_AGREEMENT, WAIVER_IN_SHORT, searchTraining \} from '@\/app\/lib\/safetyRules';/);
     expect(read('app/patrol/join/page.js')).toMatch(/from '@\/app\/lib\/safetyRules'/);
   });
 });

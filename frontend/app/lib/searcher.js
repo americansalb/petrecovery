@@ -12,6 +12,7 @@
  */
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
+import { waiverIsCurrent } from '@/app/lib/waiverVersion';
 import prisma from '@/app/lib/prisma';
 import { forcesOf } from '@/app/lib/forceFeed';
 import { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER } from '@/app/lib/searcherHeaders';
@@ -75,7 +76,7 @@ export async function searcherFor(request, caseId) {
   const userId = session?.user?.id || null;
   if (userId) {
     const [user, pet] = await Promise.all([
-      prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, waiverAcceptedAt: true, role: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, waiverAcceptedAt: true, waiverVersionAccepted: true, role: true } }),
       prisma.case.findUnique({ where: { id: caseId }, select: OWNED }),
     ]);
     if (user) {
@@ -103,7 +104,9 @@ export async function searcherFor(request, caseId) {
         volunteerId: null,
         firstName: firstWord(user.firstName) || 'A helper',
         isOwner,
-        waiver: Boolean(user.waiverAcceptedAt) || isOwner,
+        waiver: waiverIsCurrent(user.waiverAcceptedAt, user.waiverVersionAccepted) || isOwner,
+        // Agreed to an earlier version: enough to finish ground already taken, not to take more.
+        signedBefore: Boolean(user.waiverAcceptedAt),
         seesNames: isOwner || inForce || admin,
         // The owner's, and the site's own admins': see the note above before widening it.
         leads: isOwner || admin,
@@ -122,7 +125,7 @@ export async function searcherFor(request, caseId) {
   if (volunteerId && key) {
     const volunteer = await prisma.missionVolunteer.findFirst({
       where: { id: String(volunteerId), odId: String(key), mission: { caseId } },
-      select: { id: true, displayName: true, waiverAcceptedAt: true },
+      select: { id: true, displayName: true, waiverAcceptedAt: true, waiverVersionAccepted: true },
     });
     if (volunteer) {
       return {
@@ -132,7 +135,8 @@ export async function searcherFor(request, caseId) {
         volunteerId: volunteer.id,
         firstName: firstWord(volunteer.displayName) || 'A helper',
         isOwner: false,
-        waiver: Boolean(volunteer.waiverAcceptedAt),
+        waiver: waiverIsCurrent(volunteer.waiverAcceptedAt, volunteer.waiverVersionAccepted),
+        signedBefore: Boolean(volunteer.waiverAcceptedAt),
         seesNames: false,
         leads: false,
       };

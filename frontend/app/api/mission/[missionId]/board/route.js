@@ -239,7 +239,10 @@ export async function PATCH(request, { params }) {
     }
     // Starting an area or saying it is searched is going out to search, which
     // takes the safety waiver. Stopping does not, and neither does steering from a desk.
-    if (action !== 'release' && !steering && !searcher.waiver) {
+    // Someone out on an area when the waiver changed can still say they searched it: they agreed to the version
+    // in force when they took it. Taking more ground asks them again.
+    const finishing = action === 'searched' && searcher.signedBefore;
+    if (action !== 'release' && !steering && !searcher.waiver && !finishing) {
       return NextResponse.json({ error: 'Accept the safety waiver before you search.', code: WAIVER_CODE }, { status: 403 });
     }
 

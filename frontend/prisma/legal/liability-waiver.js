@@ -7,145 +7,137 @@
  * the same version-aware path.
  *
  * v1.1.0: renamed the released party from PetRecovery.org to
- * ReunitePets. Nothing else changed - no obligation added, removed or
- * reworded. The site had been renamed and this document still released
- * a party under a name the site no longer uses, which is a poor thing to
- * ask someone to sign.
+ * ReunitePets. Nothing else changed.
+ *
+ * v2.0.0 (2026-11-12): rewritten. Founder: "We need to find a stronger
+ * way to remove any liability." What v1 did not say, and this does:
+ *
+ *  - what ReunitePets is and is not: it checks no ground, the map it
+ *    shows can be wrong, a warning list is never complete, nobody is
+ *    watching where a helper is, and it is not an emergency service;
+ *  - that a helper is a volunteer acting on their own, who chooses
+ *    whether, where and how to search, and is nobody's employee or agent;
+ *  - the risks by name: roads, water, rail lines, the dark, animals,
+ *    other people, private property, the phone, driving;
+ *  - that it is for adults, and a child comes only with their own parent
+ *    or guardian;
+ *  - that the pet's owner and the other helpers are released too.
+ *
+ * It keeps v1's release, indemnity, medical, photo and severability
+ * terms. It is written to be read as plain text as well as rendered
+ * (the join screen shows it raw), so it uses headings and lists only.
+ *
+ * A version change asks everyone again: app/lib/waiver.js counts an
+ * acceptance only when it is of the version in this file. NOT REVIEWED
+ * BY A LAWYER. It is a stronger draft, and what a waiver can release
+ * differs by state and by country.
  */
 
 const LIABILITY_WAIVER_DOC = {
   slug: 'liability-waiver',
   type: 'LIABILITY_WAIVER',
-  version: '1.1.0',
-  title: 'Liability Waiver for Rescue Force Participation',
-  summary: 'Required before joining rescue forces or participating in searches',
-  content: `# Liability Waiver for Rescue Force Participation
+  version: '2.0.0',
+  title: 'Liability Waiver and Assumption of Risk',
+  summary: 'Required before joining a Rescue Force or taking part in a search',
+  content: `# Liability Waiver and Assumption of Risk
 
-**Last Updated:** November 24, 2025
-**Version:** 1.0.0
+Version 2.0.0. Last updated November 12, 2026.
 
-## ⚠️ IMPORTANT: READ CAREFULLY BEFORE PARTICIPATING
+## In short
 
-By joining a rescue force or participating in pet searches through ReunitePets, you acknowledge and agree to the following terms:
+- You search at your own risk.
+- ReunitePets does not check any ground, and nobody is watching where you are.
+- You give up the right to sue ReunitePets, the owner of the pet and the other people helping, if you are hurt or lose something while you take part.
+- The full terms are below. Read all of them before you agree.
 
-## 1. Voluntary Participation
+## 1. You take part by your own choice
 
-- You are participating **voluntarily** and at your own risk
-- You are under no obligation to participate in any search or rescue activity
-- You may withdraw from participation at any time
+- You are a volunteer. Nobody is paying you, and you are not an employee, agent or contractor of ReunitePets, of the owner of the pet, or of a Rescue Force.
+- You decide whether to help, where you go, when, how, and for how long.
+- An area, a street or a job that the site or another person offers you is a suggestion. You may turn any of it down, swap it, or stop at any time, without giving a reason.
+- Nobody supervises you while you search.
 
-## 2. Assumption of Risk
+## 2. What ReunitePets is, and is not
 
-You understand and acknowledge that participating in pet search and rescue activities involves inherent risks, including but not limited to:
+- ReunitePets is a website and app that passes messages between people and shows a map.
+- It does not inspect, visit or know the condition of any place. It does not know who or what is there.
+- The map and anything read from it, including any main road, rail line or water that the site names in an area, comes from other sources and can be wrong, out of date or incomplete. A list of things to take care near is never a complete list.
+- An area with no warning on it is not safe ground. Nothing on the site says, or should be read as saying, that a place is safe.
+- ReunitePets is not an emergency service. In an emergency, call your local emergency number.
 
-### Physical Risks
-- **Outdoor Hazards**: Uneven terrain, slippery surfaces, obstacles, debris
-- **Weather Exposure**: Heat, cold, rain, snow, lightning
-- **Wildlife Encounters**: Dogs, cats, wild animals, insects, snakes
-- **Traffic**: Searching near roads, parking lots, and vehicle traffic
-- **Physical Exertion**: Walking, running, climbing, lifting
+## 3. The risks you accept
 
-### Other Risks
-- **Property Damage**: Potential damage to personal belongings or equipment
-- **Illness**: Exposure to allergens, diseases, or infections
-- **Emotional Stress**: Exposure to distressed pets or unsuccessful search outcomes
+Looking for a lost animal outdoors can injure or kill you, and can damage or lose your property. You understand and accept all of the risks, including these:
 
-## 3. Release of Liability
+- Roads and traffic, including being hit by a vehicle, and the risks of driving.
+- Water of any kind: rivers, creeks, canals, ponds, lakes, drains, ice and flooding.
+- Rail lines and trains.
+- Rough, steep, slippery or unlit ground, and searching in the dark.
+- Weather: heat, cold, rain, snow, lightning.
+- Animals, including the pet you are looking for: bites, scratches, attacks and disease.
+- Other people, including confrontation, assault and other crime.
+- Going onto land or into a building that is not yours.
+- Physical effort, and any health condition you have.
+- Being distracted by your phone while you walk or drive.
+- Loss of or damage to your belongings.
+- Distress at what you see or at how a search ends.
+- The acts or mistakes of other people, including the Released Parties named in section 6.
 
-In consideration for being allowed to participate in rescue force activities, you hereby:
+## 4. What you promise
 
-### Release and Hold Harmless
-You release, waive, discharge, and covenant not to sue ReunitePets, its operators, officers, employees, volunteers, and fellow rescue force members (collectively "Released Parties") from any and all liability, claims, demands, actions, and causes of action whatsoever arising out of or related to:
+- You are 18 or older. Someone under 18 takes part only with their own parent or legal guardian, who has accepted this waiver themselves, accepts it for the child, and stays with the child the whole time.
+- You are fit to take part, and you will not search while affected by alcohol or drugs.
+- You will follow the safety rules shown when you join.
+- You will obey the law, including traffic law.
+- You will stay off private property unless the person in charge of it says you may go on.
+- You will stay out of the road, out of water and drains, and off rail lines.
+- You will look at your phone only when you are standing still, and will pull over before you use it if you are driving.
+- You will not chase, corner or try to catch an animal, and you will keep away from any animal that seems aggressive or sick.
+- You will stop and leave if you feel unsafe.
 
-- Any loss, damage, or injury (including death) that may be sustained by you
-- Any property damage or loss
-- Any actions or omissions of the Released Parties
+## 5. Medical care and insurance
 
-### Scope of Release
-This release applies to claims based on:
-- Negligence of the Released Parties
-- Defective equipment or property
-- Breach of contract or warranty
-- Violation of any statute or regulation
+- ReunitePets provides no insurance of any kind for you: no medical, accident, liability or workers' compensation cover.
+- You are responsible for your own insurance and for the cost of any medical or emergency care you receive.
+- If you cannot consent, you agree to emergency medical treatment being given to you.
 
-**Exception**: This release does not apply to claims arising from gross negligence or willful misconduct.
+## 6. Release
 
-## 4. Medical Insurance & Treatment
+To the fullest extent the law allows, you release and agree not to sue:
 
-- **Insurance**: You are responsible for maintaining your own medical/health insurance
-- **Medical Costs**: You agree to be solely responsible for any medical or emergency costs
-- **Emergency Treatment**: You authorize emergency medical treatment if you are unable to consent
+- ReunitePets and its owners, operators, officers, staff, contractors and volunteers;
+- the owner of any pet you help look for, and anyone running that search;
+- every Rescue Force and its members; and
+- everyone else helping in a search,
 
-## 5. Safety Protocols
+(together, the "Released Parties") for any claim, loss, injury, death, damage or cost that arises from or relates to your taking part, however caused, INCLUDING WHERE IT IS CAUSED BY THE NEGLIGENCE OF A RELEASED PARTY.
 
-You agree to:
+This release covers claims of every kind, including negligence, breach of contract or warranty, and breach of any statute, and claims brought by your family, heirs, estate or anyone else on your behalf.
 
-- Follow all safety guidelines provided by squad leaders
-- Use appropriate safety equipment when recommended
-- Report any hazards or unsafe conditions immediately
-- Stop participation if you feel unsafe or unwell
-- Follow traffic laws and property rights
-- Avoid trespassing on private property without permission
+It does not apply to gross negligence, recklessness or intentional misconduct, or to any liability that the law does not allow to be released.
 
-## 6. Fitness to Participate
+## 7. Indemnity
 
-You represent and warrant that:
+You will pay for and defend the Released Parties against any claim, loss or cost (including reasonable legal fees) that arises from what you do or fail to do while taking part, including trespass, damage to property, injury to another person or to an animal, and any breach of this waiver or of the law.
 
-- You are physically and mentally fit to participate in search activities
-- You have no medical conditions that would prevent safe participation
-- You will not participate if under the influence of drugs or alcohol
-- You will inform squad leaders of any relevant medical conditions or limitations
+## 8. Photographs
 
-## 7. Indemnification
+You agree that photographs or video taken during a search may be used to document it, to teach, and to promote ReunitePets.
 
-You agree to **indemnify and hold harmless** the Released Parties from:
+## 9. General
 
-- Any claims brought against them by third parties
-- Any costs, damages, or expenses (including attorney fees) resulting from your participation
-- Any claims arising from your violation of these terms or applicable laws
+- The ReunitePets Terms of Service also apply to you, including what they say about the law that governs.
+- If part of this waiver cannot be enforced, the rest still applies, and that part applies as far as the law allows.
+- Agreeing on a screen is your signature. This waiver binds you and your heirs, estate and representatives.
+- It applies to every search you take part in through ReunitePets, now and later, until a new version replaces it.
 
-## 8. Photographic Release
+## 10. Your agreement
 
-You grant permission for photographs or videos taken during rescue activities to be used for:
-- Documentation purposes
-- Platform promotion and awareness
-- Educational materials
+BY AGREEING, YOU CONFIRM THAT YOU HAVE READ THIS WAIVER, THAT YOU UNDERSTAND IT, THAT YOU ARE GIVING UP LEGAL RIGHTS INCLUDING THE RIGHT TO SUE, AND THAT YOU AGREE TO IT FREELY.
 
-## 9. Acknowledgment of Understanding
+If you do not agree, do not join a Rescue Force or take part in a search.
 
-By accepting this waiver, you acknowledge that:
-
-- ✅ You have read this entire waiver
-- ✅ You understand all terms and conditions
-- ✅ You are voluntarily waiving legal rights
-- ✅ You have had opportunity to ask questions and seek legal counsel
-- ✅ You understand this is a legal document binding you and your heirs
-
-## 10. Severability
-
-If any provision of this waiver is found to be unenforceable, the remaining provisions shall remain in full force and effect.
-
-## 11. Governing Law
-
-This waiver is governed by the laws of the United States and the state in which our headquarters are located.
-
----
-
-## ⚠️ FINAL ACKNOWLEDGMENT
-
-**I HAVE READ THIS WAIVER OF LIABILITY, ASSUMPTION OF RISK, AND INDEMNITY AGREEMENT. I FULLY UNDERSTAND ITS TERMS AND UNDERSTAND THAT I AM GIVING UP SUBSTANTIAL RIGHTS, INCLUDING MY RIGHT TO SUE.**
-
-**I ACKNOWLEDGE THAT I AM SIGNING THIS AGREEMENT FREELY AND VOLUNTARILY, AND INTEND MY ACCEPTANCE TO BE A COMPLETE AND UNCONDITIONAL RELEASE OF ALL LIABILITY TO THE GREATEST EXTENT ALLOWED BY LAW.**
-
----
-
-**If you do not agree to these terms, you may NOT join rescue forces or participate in search activities.**
-
-**If you have questions about this waiver, please contact:**
-- Email: legal@petrecovery.org
-- Website: petrecovery.org
-
-**For emergency situations during searches, call 911 immediately.**`
+Questions about this waiver: support@petrecovery.org`,
 };
 
 module.exports = { LIABILITY_WAIVER_DOC };

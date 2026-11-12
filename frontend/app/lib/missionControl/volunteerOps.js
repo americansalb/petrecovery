@@ -5,6 +5,7 @@
  * Design: They go from SMS link to active search in 3 seconds.
  */
 
+import { WAIVER_VERSION, waiverIsCurrent } from '@/app/lib/waiverVersion';
 import prisma from '@/app/lib/prisma';
 import { VOLUNTEER_STATUS, ZONE_STATUS } from './index';
 import { getProbabilityMap } from './state';
@@ -31,6 +32,10 @@ export async function quickJoin(missionId, options = {}) {
       error: 'Please accept the liability waiver before joining the search.',
       code: 'WAIVER_NOT_ACCEPTED',
     };
+  }
+  // A screen that showed an older text cannot agree to this one.
+  if (waiverVersion && String(waiverVersion) !== WAIVER_VERSION) {
+    return { success: false, error: 'The waiver was updated while this page was open. Reload the page, read it again and tick the box.', code: 'WAIVER_CHANGED' };
   }
 
   const mission = await prisma.missionControl.findUnique({
@@ -60,8 +65,9 @@ export async function quickJoin(missionId, options = {}) {
         status: VOLUNTEER_STATUS.ACTIVE,
         userId: options.userId || already.userId,
         isAnonymous: !(options.userId || already.userId),
-        waiverAcceptedAt: already.waiverAcceptedAt || new Date(),
-        waiverVersionAccepted: waiverVersion || already.waiverVersionAccepted,
+        // Agreeing again, to the waiver as it reads today, is a new agreement with today's date.
+        waiverAcceptedAt: waiverIsCurrent(already.waiverAcceptedAt, already.waiverVersionAccepted) ? already.waiverAcceptedAt : new Date(),
+        waiverVersionAccepted: WAIVER_VERSION,
         ...(location ? { currentLocation: JSON.stringify(location), lastLocationUpdate: new Date() } : {}),
       },
     });
@@ -94,7 +100,8 @@ export async function quickJoin(missionId, options = {}) {
       currentLocation: location ? JSON.stringify(location) : null,
       lastLocationUpdate: location ? new Date() : null,
       waiverAcceptedAt: new Date(),
-      waiverVersionAccepted: waiverVersion || null,
+      // The version in force, which the screen was checked against above: never what a request says it is.
+      waiverVersionAccepted: WAIVER_VERSION,
     }
   });
 
