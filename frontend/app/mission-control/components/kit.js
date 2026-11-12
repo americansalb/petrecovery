@@ -47,12 +47,12 @@ function Inner({ busy, icon: Icon, children }) {
 
 const BUTTON = `flex h-[54px] w-full shrink-0 items-center justify-center gap-2.5 rounded-xl px-4 text-[17px] font-bold leading-6 transition active:scale-[0.99] disabled:opacity-60 ${FOCUS}`;
 
-/** The one yellow button. `href` makes it a link (a phone call, a page). */
-export function Primary({ children, onClick, href, busy = false, disabled = false, icon, className = '' }) {
+/** The one yellow button. `href` makes it a link (a phone call, directions); `newTab` opens it beside the search. */
+export function Primary({ children, onClick, href, newTab = false, busy = false, disabled = false, icon, className = '' }) {
   const look = `${BUTTON} bg-gradient-to-b from-flash-300 to-flash-400 text-midnight-950 shadow-[0_6px_18px_rgba(250,204,21,0.22)] hover:from-flash-200 hover:to-flash-300 ${className}`;
   if (href) {
     return (
-      <a href={href} className={look}>
+      <a href={href} onClick={onClick} className={look} {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
         <Inner icon={icon}>{children}</Inner>
       </a>
     );
@@ -83,12 +83,12 @@ export function Second({ children, onClick, href, busy = false, disabled = false
   );
 }
 
-/** "I've seen Max": on every search screen, the same button in the same place. */
-export function SeenButton({ name, onClick, className = '' }) {
+/** "I've seen Max": on every search screen, the same button in the same place. `label` words it for someone sending again. */
+export function SeenButton({ name, onClick, label = null, className = '' }) {
   return (
     <button type="button" onClick={onClick} className={`${BUTTON} border border-[var(--mc-line-strong)] bg-[var(--mc-raised)] text-[var(--mc-ink)] hover:brightness-110 ${className}`}>
       <Eye size={20} className="text-[var(--mc-seen)]" aria-hidden="true" />
-      <span>I&apos;ve seen {name}</span>
+      <span>{label || `I've seen ${name}`}</span>
     </button>
   );
 }
@@ -149,24 +149,6 @@ export function AdviceBlock({ source, lines = [], className = '' }) {
           {line}
         </p>
       ))}
-    </div>
-  );
-}
-
-/** Something a person asked for, in their name: never the product's own voice. */
-export function AskCard({ from, who = 'asks the helpers', text, className = '' }) {
-  const letter = String(from || '?').trim().charAt(0).toUpperCase() || '?';
-  return (
-    <div className={`flex gap-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3 ${className}`}>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-400 text-sm font-extrabold text-midnight-950" aria-hidden="true">
-        {letter}
-      </span>
-      <div className="min-w-0">
-        <p className="text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">
-          {from || 'The owner'} {who}
-        </p>
-        <p className="text-base font-semibold leading-[22px] text-[var(--mc-ink)]">{text}</p>
-      </div>
     </div>
   );
 }

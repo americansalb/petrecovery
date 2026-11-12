@@ -3,6 +3,10 @@
  * against its source. Like global-chrome.test.js this is static: no DOM,
  * fast, and it fails in CI the moment someone writes past a rule.
  *
+ * No maze (founder, 2026-11-11, on the version with fourteen cards):
+ *   eight cards for three people, one yellow button to a card, and a
+ *   sighting never interrupts anyone. It changes the line at the top.
+ *
  * Three instruments, three jobs (app/hooks/useInstrument.js):
  *   a desk         sees and plans. It is never asked where it is and is
  *                  never handed a street.
@@ -12,8 +16,8 @@
  *
  * Three rules on what the product says (founder, 2026-11-11):
  *   1. It never tells a helper to stop or not to search.
- *   2. Holding people back is the owner's or the lead's ask, in their
- *      name, and a helper can decline.
+ *   2. Nothing on the screen asks a helper to hold back. (The owner's
+ *      "ask" was one more thing to answer; it went with the maze.)
  *   3. Advice is the site's own, word for word. The screen writes none.
  */
 
@@ -75,9 +79,107 @@ const shell = read('app/mission-control/SearchScreen.js');
 const helper = read('app/mission-control/steps/Helper.js');
 const owner = read('app/mission-control/steps/Owner.js');
 const witness = read('app/mission-control/steps/Witness.js');
+const STEP_FILES = ['app/mission-control/steps/Helper.js', 'app/mission-control/steps/Owner.js', 'app/mission-control/steps/Witness.js'];
+
+/** The cards a step file exports, each as { name, source }. */
+function cardsOf(source) {
+  return source
+    .split(/\nexport function /)
+    .slice(1)
+    .map((step) => ({ name: step.slice(0, step.indexOf('(')), source: step }));
+}
 
 // The GPS walk's own machinery: only the app runs it.
 const RECORDER = ['app/mission-control/hooks/useSearchLeg.js', 'app/mission-control/hooks/useSearchSession.js', 'app/mission-control/components/FieldGps.js'];
+
+describe('no maze: eight cards, and one next step on each', () => {
+  test('the screen is eight cards for three people', () => {
+    expect(cardsOf(helper).map((c) => c.name)).toEqual(['Main', 'Join', 'Street', 'Home']);
+    expect(cardsOf(witness).map((c) => c.name)).toEqual(['Seen', 'Sent']);
+    expect(cardsOf(owner).map((c) => c.name)).toEqual(['OwnerNow', 'OwnerSighting']);
+    // No fourth file of steps appears beside them.
+    expect(fs.readdirSync(path.join(SCREEN, 'steps')).sort()).toEqual(['Helper.js', 'Owner.js', 'Witness.js']);
+  });
+
+  test('the screen moves between four views and no others', () => {
+    const views = new Set([...code(shell).matchAll(/\b(?:go|setView)\('([a-zA-Z]+)'\)/g)].map((m) => m[1]));
+    expect([...views].sort()).toEqual(['join', 'main', 'seen', 'sent']);
+    expect(shell).toMatch(/useState\('main'\); \/\/ main \| join \| seen \| sent/);
+  });
+
+  test('one yellow button to a card', () => {
+    // <Primary> is the one yellow button, and it is the next step.
+    for (const file of STEP_FILES) {
+      for (const card of cardsOf(read(file))) {
+        const count = (code(card.source).match(/<Primary\b/g) || []).length;
+        expect({ file, card: card.name, ok: count <= 1 }).toEqual({ file, card: card.name, ok: true });
+      }
+    }
+  });
+
+  test('never more than two full-width buttons on a card', () => {
+    for (const file of STEP_FILES) {
+      for (const card of cardsOf(read(file))) {
+        const count = (code(card.source).match(/<(Primary|Second|SeenButton)\b/g) || []).length;
+        expect({ file, card: card.name, ok: count <= 2 }).toEqual({ file, card: card.name, ok: true });
+      }
+    }
+  });
+
+  test('a street is theirs when it is given: no step between getting it and walking it', () => {
+    expect(code(helper)).not.toMatch(/I am going|Start walking|onStart\b/);
+    // The claim is made in the same breath as the choice.
+    expect(code(shell)).toMatch(/const result = await search\.act\(unit, item\.id, 'claim'\);/);
+    // The one button on the street's card ends it.
+    const street = cardsOf(helper).find((c) => c.name === 'Street').source;
+    expect(street).toMatch(/<Primary onClick=\{onWalked\}[^>]*>\s*I walked it\s*<\/Primary>/);
+  });
+
+  test('a sighting is a place and a time: one form, one button, and no questions after it', () => {
+    const seen = cardsOf(witness).find((c) => c.name === 'Seen').source;
+    expect(seen).toMatch(/<LocationPicker\b/);
+    expect(seen).toMatch(/role="radiogroup"/);
+    // Which way the pet went is not asked: a second sighting from the new spot shows it.
+    expect(code(witness)).not.toMatch(/direction|which way|toward/i);
+    // What is sent is the place, the time, and nothing the witness had to think about.
+    const body = code(shell).match(/search\.sendSighting\(\{([\s\S]*?)\}\);/)[1];
+    const keys = [...body.matchAll(/^\s*([a-zA-Z]+):/gm)].map((m) => m[1]);
+    expect(keys).toEqual(['lat', 'lng', 'address', 'minutesAgo', 'sure']);
+    // There is nothing to press after sending but call, send again, or done.
+    const sent = cardsOf(witness).find((c) => c.name === 'Sent').source;
+    expect([...code(sent).matchAll(/on[A-Z][a-zA-Z]*=\{(on[A-Z][a-zA-Z]*)\}/g)].map((m) => m[1]).sort()).toEqual(['onAgain', 'onDone']);
+    // A sighting is not edited after it is sent: the route takes new ones only.
+    expect(read('app/api/public/missions/[caseNumber]/sighting/route.js')).not.toMatch(/export async function (PATCH|PUT|DELETE)/);
+  });
+
+  test('the same place sent again is the same sighting, and nobody is told twice', () => {
+    const lib = read('app/lib/witness.js');
+    expect(lib).toMatch(/const SAME_SIGHTING_MS = 10 \* 60 \* 1000;/);
+    expect(lib).toMatch(/const SAME_SIGHTING_METERS = \d+;/);
+    expect(lib).toMatch(/told: \{ owner: false, bell: 0, pushed: 0 \}, again: true/);
+  });
+
+  test('the owner has one button on a sighting: it opens the way there and tells the witness', () => {
+    const card = cardsOf(owner).find((c) => c.name === 'OwnerSighting').source;
+    expect(card).toMatch(/<Primary href=\{mapsHref\} newTab onClick=\{onGoing\}[^>]*>\s*Directions\s*<\/Primary>/);
+    expect(code(shell)).toMatch(/const told = search\.answer\(hot\.id, 'going'\);/);
+    // Opening directions never puts the phone's location question on the screen: the distance is read only where it is already allowed.
+    expect(code(shell)).toMatch(/locate\(\{ ifAllowed: true \}\)\.then\(/);
+    expect(read('app/mission-control/hooks/useSearch.js')).toMatch(/allowed = status\?\.state === 'granted';[\s\S]*?if \(!allowed\) return null;/);
+    // No switch, no menu, no second question.
+    expect(code(owner)).not.toMatch(/type="checkbox"|role="switch"|<select\b/);
+  });
+
+  test('a sighting never takes over a helper\'s card: it is the line at the top', () => {
+    const chain = shell.slice(shell.indexOf('// ----- The card'), shell.indexOf('const overlays'));
+    // The only card a sighting chooses is the owner's.
+    const uses = [...code(chain).matchAll(/\bif \(([^)]*\bhot\b[^)]*)\)/g)].map((m) => m[1]);
+    expect(uses).toEqual(['isOwner && hot']);
+    expect(shell).toMatch(/: situationLine\(picture, now\);/);
+    // What leads the owner's screen is the newest sighting while it is news to them; for everyone else, one seen within the hour.
+    expect(shell).toMatch(/const hot = isOwner \? ownerSighting\(picture\?\.sightings, now\) : seenLately;/);
+  });
+});
 
 describe('three instruments: the GPS walk is the app\'s alone', () => {
   test('the screen is the files its page reaches', () => {
@@ -109,7 +211,8 @@ describe('three instruments: the GPS walk is the app\'s alone', () => {
     expect(code(shell).match(/gps\.start\(/g)).toHaveLength(1);
     // "Your path records as you go" is shown only while the app is recording.
     expect(helper).toMatch(/const recording = instrument === 'field' && gps\?\.recording;/);
-    expect(helper).toMatch(/\{recording \? brief\.records : /);
+    expect(helper).toMatch(/\{recording \? ` \$\{brief\.records\}` : ''\}/);
+    expect(helper.match(/brief\.records/g)).toHaveLength(1);
     // The recorded path is drawn only from the app's recorder.
     expect(shell).toMatch(/const track = app && gps\?\.recording && /);
   });
@@ -127,13 +230,20 @@ describe('three instruments: a browser reads its position once and never watches
     const readers = browserFiles.filter((file) => /getCurrentPosition/.test(read(file)));
     expect(readers).toEqual(['app/mission-control/hooks/useSearch.js']);
     expect(read('app/mission-control/hooks/useSearch.js').match(/getCurrentPosition/g)).toHaveLength(1);
+    // Each of the three things that read it is something the person pressed: a street, a sighting, directions.
+    const callers = [...code(shell).matchAll(/\blocate\(/g)].length;
+    expect(callers).toBe(4); // a street; a sighting and its one retry; directions
   });
 
-  test('a reading too rough to name a street is never sent as a sighting', () => {
+  test('a reading too rough to name a street never sets the pin of a sighting', () => {
     expect(shell).toMatch(/const SIGHTING_ACCURACY_METERS = \d+;/);
     const limit = Number(shell.match(/const SIGHTING_ACCURACY_METERS = (\d+);/)[1]);
     expect(limit).toBeLessThanOrEqual(200);
-    expect(code(shell)).toMatch(/if \(!here \|\| !\(here\.accuracy <= SIGHTING_ACCURACY_METERS\)\) \{/);
+    // The pin is set from the phone's reading in one place, behind the check.
+    expect(code(shell)).toMatch(/if \(here && here\.accuracy <= SIGHTING_ACCURACY_METERS\) \{\s*const point = \{ lat: here\.lat, lng: here\.lng \};\s*setWhere\(/);
+    expect(code(shell).match(/setWhere\(\{/g)).toHaveLength(1);
+    // The owner's distance is not guessed from a rough reading either.
+    expect(code(shell)).toMatch(/if \(!here \|\| !\(here\.accuracy <= SIGHTING_ACCURACY_METERS\)\) return;/);
   });
 });
 
@@ -142,22 +252,25 @@ describe('three instruments: a desk is never asked where it is and is never hand
     expect(code(shell)).toMatch(/const locate = useCallback\(\(options\) => \(desk \? Promise\.resolve\(null\) : readPosition\(options\)\), \[desk, readPosition\]\);/);
     // The hook's own reader is named once, to build that function, and never called directly.
     expect(code(shell).match(/search\.locate/g)).toHaveLength(1);
-    expect(code(shell)).not.toMatch(/search\.locate\(/);
-    for (const file of ['app/mission-control/steps/Helper.js', 'app/mission-control/steps/Owner.js', 'app/mission-control/steps/Witness.js', 'app/mission-control/desktop/Rail.js']) {
+    expect(code(shell)).not.toMatch(/search\.locate\(|readPosition\((?!options\))/);
+    for (const file of [...STEP_FILES, 'app/mission-control/desktop/Rail.js']) {
       expect(read(file)).not.toMatch(/\.locate\(|geolocation/);
     }
   });
 
   test('"I\'ve seen" from a desk is a typed street, not the desk\'s position', () => {
-    expect(code(shell)).toMatch(/if \(desk\) \{\s*setEarlierFrom\(30\);\s*return go\('seenEarlier'\);\s*\}/);
-    // Every way into the sighting steps goes through that one function.
-    expect(code(shell).match(/go\('seen'\)/g)).toHaveLength(1);
-    expect(code(shell)).not.toMatch(/setView\('seen'\)/);
+    // The form opens, and a desk goes no further: the phone's reading is asked for only after this line.
+    expect(code(shell)).toMatch(/setView\('seen'\);\s*if \(desk\) return;\s*setLocating\(true\);\s*let here = await locate\(\);/);
+    // Every way into the form goes through that one function.
+    expect(code(shell).match(/setView\('seen'\)/g)).toHaveLength(1);
+    expect(code(shell)).not.toMatch(/go\('seen'\)/);
   });
 
-  test('the typed-street form does not offer "Use my location" on a desk', () => {
-    expect(shell).toMatch(/<SeenEarlier\b.*canLocate=\{!desk\}/);
-    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{setWhere\} variant="lost" canLocate=\{canLocate\} \/>/);
+  test('the form does not offer "Use my location" on a desk', () => {
+    expect(shell).toMatch(/<Seen\b.*canLocate=\{!desk\}/);
+    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{onWhere\} variant="lost" canLocate=\{canLocate\} search=\{typing \|\| !placed\} near=\{near\} \/>/);
+    // A typed street is looked for around the search, since a desk has no position of its own to lean on.
+    expect(shell).toMatch(/<Seen\b.*near=\{hot \|\| picture\.lastSeen\}/);
     const picker = read('app/components/report/LocationPicker.js');
     // Both of the picker's own location buttons sit behind the switch.
     const buttons = picker.match(/onClick=\{useMyLocation\}/g) || [];
@@ -185,74 +298,40 @@ describe('rule 1: the product never tells a helper to stop or not to search', ()
     expect(lines).toEqual([]);
   });
 
-  test('"stay back" is said to a helper only as the owner\'s ask, or as the helper\'s own answer', () => {
-    // The sentence itself lives in two places that a test holds together (searchWords.test.js).
-    const sayers = [...folderFiles, 'app/lib/searchPicture.js'].filter((file) => /Please stay back/.test(read(file)));
-    expect(sayers.sort()).toEqual(['app/lib/searchPicture.js', 'app/mission-control/lib/ask.js']);
-    // On a helper's screen the only other uses are the helper's own words.
-    const left = code(helper)
-      .replace(/I will stay back/g, '')
-      .replace(/'stay back'/g, '');
-    expect(left).not.toMatch(/stay back/i);
-    // A witness is never told to stay back by the screen: how to behave near the pet is the owner's own answer.
-    expect(code(witness)).not.toMatch(/stay back/i);
-  });
-
-  test('a sighting screen says what was seen and gives the helper a way to carry on', () => {
-    const sighting = helper.slice(helper.indexOf('export function SightingIn'), helper.indexOf('export function Home'));
-    expect(sighting).toMatch(/was seen/);
-    expect(sighting).toMatch(/'Back to my street' : 'Back to the map'/);
-    // With no ask from the owner there is nothing to answer.
-    expect(sighting).toMatch(/\{ask && mine && !answered && \(/);
+  test('stopping is the helper\'s own word, said by them and never to them', () => {
+    const street = cardsOf(helper).find((c) => c.name === 'Street').source;
+    expect(street).toMatch(/<QuietLink onClick=\{onStop\}>I am stopping<\/QuietLink>/);
+    const others = [...folderFiles, 'app/lib/searchPicture.js'].filter((file) => /\bstopping\b/i.test(code(read(file)).replace(/I am stopping/g, '')));
+    expect(others).toEqual([]);
   });
 });
 
-describe('rule 2: holding people back is a person\'s ask, in their name, and can be declined', () => {
-  test('the ask on a helper\'s screen is the one the picture carries, shown under a name', () => {
-    // Whatever sighting leads the screen, the ask shown is the one the picture carries: a newer sighting does not drop it.
-    expect(shell).toMatch(/<SightingIn[\s\S]*?ask=\{picture\.ask\}/);
-    expect(helper).toMatch(/\{ask && <AskCard from=\{ask\.from \|\| owner\?\.firstName\} text=\{ask\.text\}/);
-    expect(read('app/mission-control/components/kit.js')).toMatch(/\{from \|\| 'The owner'\} \{who\}/);
+describe('rule 2: nothing on the screen asks a helper to hold back', () => {
+  test('no file of the screen, and nothing the picture sends, says "stay back"', () => {
+    const sayers = [...folderFiles, 'app/lib/searchPicture.js', 'app/lib/witness.js'].filter((file) => /stay(ing)? back|hold back|keep (your )?distance/i.test(code(read(file))));
+    expect(sayers).toEqual([]);
   });
 
-  test('the two answers are the same button, side by side', () => {
-    const answers = helper.match(/<Second onClick=\{\(\) => onAnswer\('(back|looking)'\)\} className="([^"]*)">\s*(I will stay back|I will keep looking)\s*<\/Second>/g) || [];
-    expect(answers).toHaveLength(2);
-    const classes = answers.map((a) => a.match(/className="([^"]*)"/)[1]);
-    expect(classes[0]).toBe(classes[1]);
-    expect(helper).toMatch(/<div className="mt-4 grid grid-cols-2 gap-2\.5">\s*<Second onClick=\{\(\) => onAnswer\('back'\)\}/);
+  test('the picture carries no ask, and the screen has nothing to answer one with', () => {
+    const picture = code(read('app/lib/searchPicture.js'));
+    expect(picture).not.toMatch(/\bask\b|holdAsk|holdEnded/);
+    const asking = folderFiles.filter((file) => /AskCard|onHold\b|'hold'|holdAskText|picture\.ask\b|onAnswer\b/.test(code(read(file))));
+    expect(asking).toEqual([]);
+    expect(fs.existsSync(path.join(SCREEN, 'lib', 'ask.js'))).toBe(false);
   });
 
-  test('the owner\'s switch is off until the owner turns it on, shows the words that go out, and says helpers can decline', () => {
-    // The switch shows what the helpers are seeing: on exactly while an ask stands.
-    expect(shell).toMatch(/<OwnerSighting\b.*held=\{Boolean\(picture\.ask\)\}/);
-    expect(owner).toMatch(/checked=\{held\}/);
-    expect(owner).toMatch(/'Off\. Nobody is asked to stop\.'/);
-    expect(owner).toMatch(/They got: "\$\{holdAskTextFor\(name\)\}" They can decline\./);
-    // Only the owner's step can send it.
-    const senders = folderFiles.filter((file) => /onHold|'hold'/.test(code(read(file))));
-    expect(senders.sort()).toEqual(['app/mission-control/SearchScreen.js', 'app/mission-control/steps/Owner.js']);
-  });
-
-  test('on the server, an ask stands only when a person sent it and has not ended it, and only they or a lead can send it', () => {
-    const picture = read('app/lib/searchPicture.js');
-    expect(picture).toMatch(/s\.witnessState !== 'NOT_THE_PET' && s\.holdAskedAt && !s\.holdEndedAt && now - new Date\(s\.sightedAt\)\.getTime\(\) <= HOT_SIGHTING_MS/);
-    expect(picture).toMatch(/const held = open\s*\?/);
+  test('the one thing an owner tells the server about a sighting is that they saw it and that they are going', () => {
     const answer = read('app/api/mission/[missionId]/answer/route.js');
-    expect(answer).toMatch(/const ownersAnswer = action === 'seen' \|\| action === 'going';/);
-    expect(answer).toMatch(/if \(!searcher \|\| !\(ownersAnswer \? searcher\.isOwner : searcher\.leads\)\) \{/);
-    const schema = read('prisma/schema.prisma');
-    expect(schema).toMatch(/\n\s+holdAskedAt\s+DateTime\?\n/);
-    expect(schema).toMatch(/\n\s+holdEndedAt\s+DateTime\?\n/);
+    expect(answer).toMatch(/const ACTIONS = \['seen', 'going'\];/);
+    // Only the owner can say it: a helper or a force member answering in the owner's name is refused.
+    expect(code(answer)).toMatch(/if \(!searcher\?\.isOwner\) return NextResponse\.json\(\{ error: 'Only the owner can answer a sighting\.' \}, \{ status: 403 \}\);/);
   });
 });
 
 describe('rule 3: advice is the site\'s own, word for word', () => {
-  const stepFiles = ['app/mission-control/steps/Helper.js', 'app/mission-control/steps/Owner.js', 'app/mission-control/steps/Witness.js'];
-
   test('every block of advice names its source and is handed whole lines, never words written on the spot', () => {
     let blocks = 0;
-    for (const file of stepFiles) {
+    for (const file of STEP_FILES) {
       for (const block of read(file).match(/<AdviceBlock\b[^>]*\/>/g) || []) {
         blocks += 1;
         expect(block).toMatch(/\bsource=/);
@@ -262,17 +341,31 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
         expect(lines[1]).not.toMatch(/['"`]/);
       }
     }
-    // Walking, a sighting coming in, the owner's sighting, and the witness's screens.
-    expect(blocks).toBe(4);
+    // A helper's street, the owner's sighting, and what the witness reads once it is sent.
+    expect(blocks).toBe(3);
   });
 
   test('the lines come from the three places the site already keeps them', () => {
     expect(helper).toMatch(/import \{ searcherBrief \} from '\.\.\/lib\/briefLines';/);
     expect(read('app/mission-control/lib/briefLines.js')).toMatch(/import \{ briefFor \} from '@\/app\/lib\/brief';/);
+    expect(helper).toMatch(/lines=\{\[brief\.look\]\}/);
     expect(owner).toMatch(/import \{ adviceFor \} from '@\/app\/lib\/adviceFor';/);
     expect(read('app/lib/adviceFor.js')).toMatch(/from '@\/app\/lib\/petAdvice'|from '\.\/petAdvice'/);
+    expect(owner).toMatch(/const first = advice\.mistakes\[0\]\?\.full;/);
     expect(witness).toMatch(/lines=\{\[picture\.approach\]\}/);
     expect(read('app/lib/searchPicture.js')).toMatch(/approach: guide\.approach \|\| ''/);
+  });
+
+  test('the owner\'s steps are the engine\'s own list, under the engine\'s own name for it', () => {
+    const card = cardsOf(owner).find((c) => c.name === 'OwnerNow').source;
+    expect(card).toMatch(/const steps = \[\.\.\.advice\.steps, \.\.\.advice\.more\]\.slice\(0, 5\);/);
+    expect(card).toMatch(/<Eyebrow>\{advice\.source\}<\/Eyebrow>/);
+    expect(card).toMatch(/\{item\.lead\}/);
+  });
+
+  test('the line on the map is the brief\'s own first sentence', () => {
+    expect(shell.match(/\{brief\.neverFirst\}/g)).toHaveLength(2); // a desk and a phone
+    expect(read('app/mission-control/lib/briefLines.js')).toMatch(/neverFirst: never\.slice\(0, never\.indexOf\('\.'\) \+ 1\)/);
   });
 
   test('the safety rules a helper agrees to are the patrol\'s own list, in one file', () => {
@@ -295,35 +388,27 @@ describe('the screen keeps the house rules', () => {
     expect(code(shell).match(/`\$\{getBaseUrl\(\)\}\/join\/\$\{encodeURIComponent\(picture\.caseNumber\)\}`/g)).toHaveLength(2);
   });
 
-  test('the witness\'s key is never stored or sent on: only its hash is kept', () => {
-    const lib = read('app/lib/witness.js');
-    expect(lib).toMatch(/witnessKeyHash: hashWitnessKey\(key\)/);
-    expect(lib).toMatch(/witnessKeyHash: hashWitnessKey\(value\.key\)/);
+  test('a sighting carries no key: nothing is kept on the phone that could change one later', () => {
+    expect(read('app/lib/witness.js')).not.toMatch(/witnessKey|witnessState/);
+    expect(read('app/mission-control/lib/identity.js')).not.toMatch(/\bkey\b.*rp_seen|rp_seen.*\bkey\b/);
     expect(read('prisma/schema.prisma')).not.toMatch(/\bwitnessKey\s+String/);
-    // No source file reads or writes a plain key column.
+    // No source file reads or writes a plain key column. (Two older routes still strip the unused hash from the rows they return.)
     const appFiles = walk(path.join(FRONTEND, 'app')).map(rel);
     expect(appFiles.filter((file) => /\bwitnessKey\b(?!Hash)/.test(read(file)))).toEqual([]);
+  });
+
+  test('a sighting taken back on the day the screen allowed it stays off every screen, and the others stay on', () => {
+    // A plain NOT would drop every row whose state is empty, which is all the others.
+    expect(read('app/lib/searchPicture.js')).toMatch(/where: \{ OR: \[\{ witnessState: null \}, \{ witnessState: \{ not: 'NOT_THE_PET' \} \}\] \},/);
   });
 
   test('what the screen promises about names is true for the person reading it', () => {
     // Someone signed in is recorded as themselves, so they are not told "not your name".
     expect(witness).toMatch(/\{signedIn \? ', in your name\. Not your number\.' : '\. Not your name or number\.'\}/);
     expect(witness).toMatch(/\{signedIn \? ', in your name\. Not your number\.' : ', not your name or number\.'\}/);
-    // The join screen names everyone who sees a helper's first name, and only says nobody sees where they are when nothing records it.
+    // The join card names everyone who sees a helper's first name, and only says nobody sees where they are when nothing records it.
     expect(helper).toMatch(/picture\.forces > 0 \? `\$\{ownerName\} and the Rescue Force looking for \$\{name\} see` : `\$\{ownerName\} sees`/);
     expect(helper).toMatch(/const records = instrument === 'field' && signedIn;/);
     expect(helper).toMatch(/\{records \? 'The app records your path while you walk it\.' : 'Nobody sees where you are\.'\}/);
-  });
-
-  test('one yellow button to a step', () => {
-    // <Primary> is the one yellow button. A step may branch between two, and never shows two at once.
-    for (const [name, source] of [['Helper', helper], ['Owner', owner], ['Witness', witness]]) {
-      const steps = source.split(/\nexport function /).slice(1);
-      for (const step of steps) {
-        const title = step.slice(0, step.indexOf('('));
-        const count = (code(step).match(/<Primary\b/g) || []).length;
-        expect({ file: name, step: title, ok: count <= 2 }).toEqual({ file: name, step: title, ok: true });
-      }
-    }
   });
 });

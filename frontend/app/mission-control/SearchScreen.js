@@ -3,10 +3,19 @@
 /**
  * SearchScreen - Mission Control: the search view of one pet's page.
  *
- * One step for each person: a verb, a place, a time, and when it ends.
- * One yellow button to a screen, and it is the next step in the search.
- * The line at the top always says where the search stands. It opens for
- * anyone holding the pet's link, with no account.
+ * Three people, and one card for each at any moment:
+ *
+ *   someone who wants to help   two buttons; then their street and
+ *                               "I walked it"
+ *   someone who saw the pet     where and when, and "Send"; then "Sent"
+ *   the owner                   who is looking and "Text the link";
+ *                               on a sighting, "Directions"
+ *
+ * One yellow button to a card, and it is the next step. The line at the
+ * top always says where the search stands, so nothing ever interrupts a
+ * card to say it. It opens for anyone holding the pet's link, with no
+ * account. (The version before this one had fourteen cards with up to six
+ * choices on one; the founder called it a maze, 2026-11-11.)
  *
  * One mission, three instruments (app/hooks/useInstrument.js), and they
  * do different jobs:
@@ -19,13 +28,9 @@
  *                         screen off.
  *   app (native shell)    everything the phone does, plus the GPS walk.
  *
- * Three rules on what the product says (founder, 2026-11-11):
- *   1. It never tells a helper to stop or not to search. It says what
- *      was seen, and what to do on seeing the pet.
- *   2. Holding people back is the owner's or the lead's choice, sent in
- *      their name, and a helper can decline.
- *   3. Advice wording is the advice engine's, the searcher's brief's and
- *      the owner's own answers, word for word. None is written here.
+ * What the product says (founder, 2026-11-11): it never tells a helper to
+ * stop or not to search, and its advice is the advice engine's, the
+ * searcher's brief's and the owner's own answers, word for word.
  */
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -36,29 +41,25 @@ import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { distanceMeters } from '@/app/lib/searchGrid';
 // The site's own address, built in: a link or a QR code made here never carries the host's name (app/lib/config.js).
 import { getBaseUrl } from '@/app/lib/config';
-import { orientWalk, walkTitle } from '@/app/lib/streetWalks';
+import { orientWalk, walkTitle, placeFromStreets } from '@/app/lib/streetWalks';
 import useSearch from './hooks/useSearch';
 import TopBar from './components/TopBar';
 import PhotoView from './components/PhotoView';
 import FieldGps from './components/FieldGps';
 import { Stamp } from './components/kit';
-import { Main, Join, Street, Walking, SightingIn, Home } from './steps/Helper';
-import { Seen, SeenWay, SeenSent, SeenEarlier } from './steps/Witness';
-import { OwnerNow, OwnerSighting, OwnerMore, SightingList } from './steps/Owner';
+import { Main, Join, Street, Home } from './steps/Helper';
+import { Seen, Sent } from './steps/Witness';
+import { OwnerNow, OwnerSighting } from './steps/Owner';
 import Rail from './desktop/Rail';
 import MarkReunitedModal from './components/overlays/MarkReunitedModal';
-import UpdateModal from './components/modals/UpdateModal';
-import FlyerPickerModal from './components/FlyerPickerModal';
 import { readNote, saveNote } from './lib/identity';
-import { clockTime, dayAndTime, situationLine, neighborsLine, standing, petSub } from './lib/words';
+import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SIGHTING_MS } from './lib/words';
 import { searcherBrief } from './lib/briefLines';
 
 const SearchMap = dynamic(() => import('./components/SearchMap'), {
   ssr: false,
   loading: () => <div className="h-full w-full bg-[var(--mc-ground)]" />,
 });
-
-const COMPASS_BEARING = { NORTH: 0, NORTHEAST: 45, EAST: 90, SOUTHEAST: 135, SOUTH: 180, SOUTHWEST: 225, WEST: 270, NORTHWEST: 315 };
 
 /**
  * A reading rougher than this is not a place. A phone with precise
@@ -67,6 +68,8 @@ const COMPASS_BEARING = { NORTH: 0, NORTHEAST: 45, EAST: 90, SOUTHEAST: 135, SOU
  * this, the witness types the street instead.
  */
 const SIGHTING_ACCURACY_METERS = 150;
+/** A fresh sighting this close to a helper's street is drawn on the same map as the street. Further off, the top line says where. */
+const SIGHTING_IN_VIEW_METERS = 1200;
 /** One reading says where the phone was, not where it is: the "You" dot is dropped after this long. */
 const POSITION_FRESH_MS = 2 * 60 * 1000;
 const NO_TRACK = [];
@@ -104,28 +107,37 @@ function around(lat, lng, meters) {
   ];
 }
 
+/**
+ * What to give someone next: the most urgent street nobody has walked,
+ * the nearer one on a tie, and after those the street searched longest
+ * ago (a pet moves, and an old pass is worth a second).
+ */
+function rank(items, here) {
+  const away = (i) => (here ? distanceMeters(here, i.center) : 0);
+  const free = items.filter((i) => !i.mine && (i.status === 'UNSEARCHED' || i.status === 'NEEDS_REVISIT')).sort((a, b) => b.priority - a.priority || away(a) - away(b));
+  const again = items.filter((i) => !i.mine && i.status === 'SEARCHED').sort((a, b) => new Date(a.searchedAt) - new Date(b.searchedAt));
+  return [...free, ...again];
+}
+
 function Screen({ mission }) {
   const params = useSearchParams();
   const missionParam = mission || params.get('mission') || params.get('caseId');
   const { instrument, resolving } = useInstrument();
   const search = useSearch(missionParam);
-  const { picture, items, unit, mine: mineRaw, viewer, now, hot, position, mySightings } = search;
+  const { picture, items, unit, mine: mineRaw, viewer, now, hot: seenLately, position, mySightings } = search;
 
-  const [view, setView] = useState('main');
-  const [skip, setSkip] = useState(0);
+  const [view, setView] = useState('main'); // main | join | seen | sent
   const [done, setDone] = useState(null);
   const [busy, setBusy] = useState(null);
   const [problem, setProblem] = useState('');
   const [photo, setPhoto] = useState(false);
   const [gps, setGps] = useState(null);
+  const [where, setWhere] = useState(null); // the sighting being sent: { lat, lng, address, city }
+  const [minutes, setMinutes] = useState(0);
+  const [locating, setLocating] = useState(false);
   const [mySeen, setMySeen] = useState(null);
-  const [earlierFrom, setEarlierFrom] = useState(30);
-  const [pendingKind, setPendingKind] = useState(null); // "I see it now" that fell back to a typed street
-  const [acked, setAcked] = useState(null);
-  const [askAnswer, setAskAnswer] = useState(null);
-  const [ownerStep, setOwnerStep] = useState(0);
   const [walkFrom, setWalkFrom] = useState(null);
-  const [modal, setModal] = useState(null); // 'home' | 'message' | 'flyer'
+  const [endOpen, setEndOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState(null);
   const [toast, setToast] = useState('');
@@ -139,6 +151,10 @@ function Screen({ mission }) {
   const name = picture?.pet?.name || 'this pet';
   const owner = picture?.owner || null;
   const isOwner = Boolean(viewer?.isOwner);
+  // The sighting that leads this person's screen. For everyone, one seen within the hour. For the owner, also one
+  // that only just reached them, whenever it was seen: they were just told about it and came to see where.
+  const hot = isOwner ? ownerSighting(picture?.sightings, now) : seenLately;
+  const thing = unit === 'block' ? 'block' : 'street';
   const petHref = picture ? `/cases/${encodeURIComponent(picture.caseNumber)}` : '/lost-and-found';
   const go = useCallback((next) => {
     setProblem('');
@@ -153,39 +169,47 @@ function Screen({ mission }) {
   // watches a pet from one.
   const readPosition = search.locate;
   const locate = useCallback((options) => (desk ? Promise.resolve(null) : readPosition(options)), [desk, readPosition]);
-  // "I've seen it": a phone is asked whether it is now, a desk goes straight to the street.
-  const openSeen = useCallback(() => {
-    setPendingKind(null);
-    if (desk) {
-      setEarlierFrom(30);
-      return go('seenEarlier');
+
+  // The board's streets and the ring just past them, for calling a place by its corner.
+  const naming = useRef([]);
+  naming.current = unit === 'street' ? [...items, ...search.around] : [];
+
+  // "I've seen it": one form, where and when. A phone is asked where it is
+  // and the pin is set there; a desk, or a phone that will not say, types
+  // the street.
+  const openSeen = useCallback(async () => {
+    setProblem('');
+    setWhere(null);
+    setMinutes(desk ? 30 : 0);
+    setView('seen');
+    if (desk) return;
+    setLocating(true);
+    let here = await locate();
+    // A phone's first answer can be an old, rough one. It is asked once more for a new reading before the street has to be typed.
+    if (here && !(here.accuracy <= SIGHTING_ACCURACY_METERS)) here = (await locate({ fresh: true })) || here;
+    setLocating(false);
+    if (here && here.accuracy <= SIGHTING_ACCURACY_METERS) {
+      const point = { lat: here.lat, lng: here.lng };
+      setWhere({ ...point, address: placeFromStreets(naming.current, point) || '', city: '' });
+    } else if (here) {
+      setProblem('Your phone only gave a rough location. Type the street or the corner.');
     }
-    return go('seen');
-  }, [desk, go]);
+  }, [desk, locate]);
 
-  // What this phone remembers about this pet.
   useEffect(() => {
-    if (!caseId) return;
-    setAcked(readNote(caseId, 'sighting_ack'));
-    setOwnerStep(Number(readNote(caseId, 'owner_step')) || 0);
-    setWalkFrom(readNote(caseId, 'walk_from'));
+    if (caseId) setWalkFrom(readNote(caseId, 'walk_from'));
   }, [caseId]);
-  // What this helper answered to the ask that stands now. One ask, one answer: a newer sighting does not ask again.
-  const askId = picture?.ask?.sightingId || null;
-  useEffect(() => {
-    setAskAnswer(caseId && askId ? readNote(caseId, `ask_${askId}`) : null);
-  }, [caseId, askId]);
 
-  // A witness coming back to the page finds what they sent, not the start.
+  // A witness coming back to the page finds what they sent, and what the owner did about it.
   const resumed = useRef(false);
   useEffect(() => {
     if (resumed.current || !picture || !mySightings.length) return;
     resumed.current = true;
-    const mine = mySightings[0];
-    const report = picture.sightings.find((s) => s.id === mine.id);
-    if (report && (report.state === 'WATCHING' || report.state === 'WITH_WITNESS') && now - new Date(report.at).getTime() < 60 * 60 * 1000) {
-      setMySeen(mine);
-      setView('seenSent');
+    const last = mySightings[0];
+    const report = picture.sightings.find((s) => s.id === last.id);
+    if (report && now - new Date(report.at).getTime() < HOT_SIGHTING_MS) {
+      setMySeen(last);
+      setView('sent');
     }
   }, [picture, mySightings, now]);
 
@@ -217,19 +241,16 @@ function Screen({ mission }) {
     };
   }, [desk, picture, isOwner]);
 
-  // ----- The street this person is offered, and the one they hold -----
-  const candidates = useMemo(() => {
-    const away = (i) => (position ? distanceMeters(position, i.center) : 0);
-    const free = items.filter((i) => !i.mine && (i.status === 'UNSEARCHED' || i.status === 'NEEDS_REVISIT')).sort((a, b) => b.priority - a.priority || away(a) - away(b));
-    const again = items.filter((i) => !i.mine && i.status === 'SEARCHED').sort((a, b) => new Date(a.searchedAt) - new Date(b.searchedAt));
-    return [...free, ...again];
-  }, [items, position]);
-  const offer = useMemo(() => {
-    const raw = candidates.length ? candidates[skip % candidates.length] : null;
-    if (!raw) return null;
-    const turned = unit === 'street' ? orientWalk(raw, position) : raw;
-    return { ...turned, searchedClock: raw.searchedAt ? dayAndTime(raw.searchedAt, picture?.timeZone, now) : '' };
-  }, [candidates, skip, unit, position, picture?.timeZone, now]);
+  // ----- The street this person holds, and what is left to give out -----
+  const candidates = useMemo(() => rank(items, position), [items, position]);
+  // "10 to 20": the shortest and longest of what could be given, so the first card never contradicts the street that is.
+  const minutesWords = useMemo(() => {
+    const all = candidates.filter((c) => c.status !== 'SEARCHED').map((c) => c.minutes).filter(Number.isFinite);
+    if (!all.length) return '';
+    const low = Math.min(...all);
+    const high = Math.max(...all);
+    return low === high ? `${low}` : `${low} to ${high}`;
+  }, [candidates]);
   const mine = useMemo(() => (mineRaw && unit === 'street' ? orientWalk(mineRaw, walkFrom || position) : mineRaw), [mineRaw, unit, walkFrom, position]);
   const counts = useMemo(
     () => ({ total: items.length, searched: items.filter((i) => i.status === 'SEARCHED').length, inProgress: items.filter((i) => i.status === 'IN_PROGRESS').length }),
@@ -237,42 +258,49 @@ function Screen({ mission }) {
   );
 
   // ----- A helper's actions -----
-  async function startWalk() {
-    setDone(null);
-    if (!viewer || !viewer.waiver) return go('join');
+  // A street is theirs as soon as they are given it. Taking a new one hands back the old (the server does both).
+  async function takeStreet(exceptId = null) {
+    if (busy) return undefined;
     setBusy('walk');
-    await locate();
-    setBusy(null);
-    setSkip(0);
-    return go('street');
-  }
-  async function afterJoin() {
-    await locate();
-    setSkip(0);
-    go('street');
-  }
-  async function claim() {
-    if (!offer || busy) return;
-    setBusy('go');
     setProblem('');
-    const result = await search.act(unit, offer.id, 'claim');
-    setBusy(null);
-    if (result.error) {
-      if (result.code === 'WAIVER_NOT_ACCEPTED' || result.code === 'NOT_JOINED') return go('join');
-      setProblem(result.error);
-      if (result.code === 'TAKEN') setSkip((s) => s + 1);
-      return;
+    setDone(null);
+    const here = await locate();
+    const list = rank(items, here || position).filter((i) => i.id !== exceptId);
+    let taken = null;
+    let last = null;
+    // Someone else may take the same street in the same second: the next one is tried, a few times at most.
+    for (const item of list.slice(0, 4)) {
+      const result = await search.act(unit, item.id, 'claim');
+      if (!result.error) {
+        taken = item;
+        break;
+      }
+      last = result;
+      if (result.code === 'WAIVER_NOT_ACCEPTED' || result.code === 'NOT_JOINED') {
+        setBusy(null);
+        return go('join');
+      }
+      if (result.code !== 'TAKEN') break;
     }
-    const from = position ? { lat: position.lat, lng: position.lng } : null;
+    setBusy(null);
+    if (!taken) {
+      setProblem(last?.error || `Every ${thing} has someone on it right now. Thank you for coming.`);
+      return undefined;
+    }
+    const from = here ? { lat: here.lat, lng: here.lng } : null;
     setWalkFrom(from);
     saveNote(caseId, 'walk_from', from);
     // The app records the walk. A browser does not, and does not say it does.
     if (app && gps && viewer?.signedIn) gps.start().catch(() => {});
-    go('main');
+    return go('main');
   }
-  async function reached() {
-    if (!mineRaw || busy) return;
-    setBusy('reached');
+  function startWalk() {
+    if (!viewer || !viewer.waiver) return go('join');
+    return takeStreet();
+  }
+  async function walked() {
+    if (!mineRaw || busy) return undefined;
+    setBusy('walked');
     const title = unit === 'street' ? walkTitle(mineRaw) : mineRaw.title;
     const result = await search.act(unit, mineRaw.id, 'searched');
     setBusy(null);
@@ -282,7 +310,7 @@ function Screen({ mission }) {
     return go('main');
   }
   async function stopWalking() {
-    if (!mineRaw || busy) return;
+    if (!mineRaw || busy) return undefined;
     setBusy('stop');
     const result = await search.act(unit, mineRaw.id, 'release');
     setBusy(null);
@@ -291,75 +319,42 @@ function Screen({ mission }) {
     return go('main');
   }
 
-  // ----- A witness's actions -----
-  async function seeNow(kind) {
-    if (busy) return;
-    setBusy(kind);
-    setProblem('');
-    let here = await locate();
-    // A phone's first answer can be an old, rough one. It is asked once more for a new reading before the street has to be typed.
-    if (here && !(here.accuracy <= SIGHTING_ACCURACY_METERS)) here = (await locate({ fresh: true })) || here;
-    if (!here || !(here.accuracy <= SIGHTING_ACCURACY_METERS)) {
-      setBusy(null);
-      setEarlierFrom(0);
-      setPendingKind(kind);
-      setProblem(here ? 'Your phone only gave a rough location. Type the street or the corner instead.' : 'Your phone did not share where you are. Type the street instead.');
-      setView('seenEarlier');
-      return;
+  // ----- A witness's one action -----
+  async function sendSeen() {
+    if (busy) return undefined;
+    if (!where || !Number.isFinite(Number(where.lat ?? where.latitude))) {
+      return setProblem(`Mark where you saw ${name}: type the street or the corner.`);
     }
-    const result = await search.sendSighting({ lat: here.lat, lng: here.lng, sure: 'LIKELY', state: kind === 'with' ? 'WITH_WITNESS' : 'WATCHING' }, kind);
-    setBusy(null);
-    if (result.error) return setProblem(result.error);
-    setMySeen(result.sighting);
-    go(kind === 'with' ? 'seenSent' : 'seenWay');
-  }
-  async function sendWay(patch) {
-    if (!mySeen) return go('seenSent');
-    setBusy('way');
-    const result = patch ? await search.updateSighting(mySeen, patch) : { ok: true };
-    setBusy(null);
-    if (result.error) return setProblem(result.error);
-    return go('seenSent');
-  }
-  async function witnessState(state) {
-    if (!mySeen || busy) return;
-    setBusy(state);
-    const result = await search.updateSighting(mySeen, { state });
-    setBusy(null);
-    if (result.error) setProblem(result.error);
-  }
-  async function sendEarlier(body) {
-    setBusy('earlier');
+    setBusy('send');
     setProblem('');
-    // "I see it now" that had to be typed is still someone watching the pet.
-    const live = Boolean(pendingKind) && body.minutesAgo === 0;
-    const kind = live ? pendingKind : 'earlier';
-    const result = await search.sendSighting({ ...body, sure: 'LIKELY', ...(live ? { state: kind === 'with' ? 'WITH_WITNESS' : 'WATCHING' } : {}) }, kind);
+    const result = await search.sendSighting({
+      lat: Number(where.lat ?? where.latitude),
+      lng: Number(where.lng ?? where.longitude),
+      address: where.address || '',
+      minutesAgo: minutes,
+      sure: 'LIKELY',
+    });
     setBusy(null);
     if (result.error) return setProblem(result.error);
-    setPendingKind(null);
     setMySeen(result.sighting);
-    return go(kind === 'now' ? 'seenWay' : 'seenSent');
+    return go('sent');
   }
 
   // ----- The owner's actions -----
-  async function hold(on) {
+  // "Directions" is a link the browser opens by itself. This runs beside it, so the witness hears at once
+  // that the owner is coming. How far away the owner is follows where the phone already lets this page
+  // read its position: opening directions never puts the phone's location question on the screen.
+  function going() {
     if (!hot) return;
-    setBusy('hold');
-    // Turning it off ends the ask wherever it was sent from; the server ends every one still standing.
-    const result = on ? await search.answer(hot.id, 'hold') : await search.answer(askId || hot.id, 'release');
-    setBusy(null);
-    if (result.error) setProblem(result.error);
-  }
-  async function going() {
-    if (!hot || busy) return;
-    setBusy('going');
-    const here = await locate();
-    const meters = here && here.accuracy <= SIGHTING_ACCURACY_METERS ? distanceMeters(here, hot) : NaN;
-    const etaMinutes = Number.isFinite(meters) && meters < 3000 ? Math.max(1, Math.ceil(meters / 80)) : undefined;
-    const result = await search.answer(hot.id, 'going', { etaMinutes });
-    setBusy(null);
-    if (result.error) setProblem(result.error);
+    const told = search.answer(hot.id, 'going');
+    locate({ ifAllowed: true }).then(async (here) => {
+      if (!here || !(here.accuracy <= SIGHTING_ACCURACY_METERS)) return;
+      const meters = distanceMeters(here, hot);
+      if (meters >= 3000) return;
+      // The distance follows the news, never the other way round.
+      await told;
+      search.answer(hot.id, 'going', { etaMinutes: Math.max(1, Math.ceil(meters / 80)) });
+    });
   }
   async function confirmHome({ resolution, resolutionNotes }) {
     setSaving(true);
@@ -374,17 +369,13 @@ function Screen({ mission }) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || data.error || 'Could not update the search');
       }
-      setModal(null);
+      setEndOpen(false);
       await search.reload();
     } catch (error) {
       setModalError(error.message);
     } finally {
       setSaving(false);
     }
-  }
-  function nextOwnerStep(next) {
-    setOwnerStep(next);
-    saveNote(caseId, 'owner_step', next);
   }
 
   function share() {
@@ -399,13 +390,8 @@ function Screen({ mission }) {
     }
   }
 
-  // ----- Which step this person is on -----
-  const witnessing = view.startsWith('seen');
-  const myHot = Boolean(hot && (mySeen?.id === hot.id || mySightings.some((m) => m.id === hot.id)));
-  const sightingIn = Boolean(hot && !isOwner && !myHot && acked !== hot.id && !witnessing && view !== 'join');
-  const ownerSighting = Boolean(hot && isOwner && view === 'main');
-  // Where this person is, to themselves: the app's recorded path while it
-  // records, otherwise the one reading while it is fresh.
+  // ----- Where this person is, to themselves -----
+  // The app's recorded path while it records, otherwise the one reading while it is fresh.
   const track = app && gps?.recording && Array.isArray(gps.path) && gps.path.length ? gps.path : NO_TRACK;
   const lastMark = track.length ? track[track.length - 1] : null;
   const fresh = position && now - position.at < POSITION_FRESH_MS ? position : null;
@@ -414,10 +400,9 @@ function Screen({ mission }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [lastMark?.lat, lastMark?.lng, fresh?.lat, fresh?.lng]
   );
-  const awayFrom = mine ? mine.center : position;
-  const awayMeters = hot && awayFrom ? distanceMeters(awayFrom, hot) : NaN;
 
   // ----- The map -----
+  const sending = view === 'seen' || view === 'sent';
   const zone = picture?.timeZone;
   const lastSeenTag = useMemo(() => {
     const at = picture?.lastSeen;
@@ -426,36 +411,31 @@ function Screen({ mission }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picture?.lastSeen?.lat, picture?.lastSeen?.lng, picture?.lastSeen?.at, zone, Math.floor(now / 60000)]);
   const mapSightings = useMemo(
-    () =>
-      standing(picture?.sightings || [])
-        .slice(0, 6)
-        .map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, label: `Seen ${dayAndTime(s.at, zone, now)}`, hot: hot?.id === s.id, bearing: COMPASS_BEARING[s.direction] })),
+    () => (picture?.sightings || []).slice(0, 6).map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, label: `Seen ${dayAndTime(s.at, zone, now)}`, hot: hot?.id === s.id })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [picture?.sightings, zone, hot?.id, Math.floor(now / 60000)]
   );
   const mapStreets = useMemo(() => (unit === 'street' ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: i.mine, who: i.claimedByName || null })) : []), [unit, items]);
   const mapCells = useMemo(() => (unit === 'block' ? items : []), [unit, items]);
-  const offering = view === 'street' && !mine && !sightingIn;
-  const walking = Boolean(mine) && !witnessing;
-  const lit = walking ? mine : offering ? offer : null;
+  const lit = mine && !sending && !isOwner ? mine : null;
   const mapTags = useMemo(() => {
     if (!lit || unit !== 'street' || !lit.path?.length) return [];
     const first = lit.path[0];
     const last = lit.path[lit.path.length - 1];
-    // Each end's words sit beyond the end of the line, so they never cover the street.
-    const northFirst = first[0] >= last[0];
-    const tags = [{ lat: last[0], lng: last[1], text: `End: ${lit.toName || 'the end'}`, tone: 'flash', side: northFirst ? 'below' : 'above' }];
-    if (!walking) tags.push({ lat: first[0], lng: first[1], text: `Start: ${lit.fromName || 'here'}`, side: northFirst ? 'above' : 'below' });
-    return tags;
-  }, [lit, unit, walking]);
+    // The words sit beyond the end of the line, so they never cover the street.
+    return [{ lat: last[0], lng: last[1], text: `End: ${lit.toName || 'the end'}`, tone: 'flash', side: first[0] >= last[0] ? 'below' : 'above' }];
+  }, [lit, unit]);
+  const hotNear = Boolean(hot && lit?.center && distanceMeters(lit.center, hot) <= SIGHTING_IN_VIEW_METERS);
   const fit = useMemo(() => {
-    const me = position ? [[position.lat, position.lng]] : [];
-    if (hot && (sightingIn || ownerSighting)) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, desk ? 420 : 180), ...(mine ? pointsOf(mine, unit) : me)];
-    if (lit) return [...pointsOf(lit, unit), ...me];
+    const self = me ? [[me.lat, me.lng]] : [];
+    if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, desk ? 420 : 180), ...self];
+    // A helper keeps their street in view, with a fresh sighting beside it when it is near enough to share a map.
+    if (lit) return [...pointsOf(lit, unit), ...self, ...(hotNear ? [[hot.lat, hot.lng]] : [])];
+    if (hot) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 220), ...(lastSeenTag ? [[lastSeenTag.lat, lastSeenTag.lng]] : [])];
     if (lastSeenTag) return [...around(lastSeenTag.lat, lastSeenTag.lng, 330), ...mapSightings.slice(0, 3).map((s) => [s.lat, s.lng])];
     return [];
-  }, [hot, sightingIn, ownerSighting, mine, lit, unit, position, lastSeenTag, mapSightings, desk]);
-  const fitKey = `${sightingIn || ownerSighting ? `seen:${hot?.id}` : lit ? `lit:${lit.id}` : 'home'}|${lastSeenTag ? 1 : 0}|${desk}|${Math.round(sheetHeight / 40)}`;
+  }, [hot, hotNear, isOwner, lit, unit, me, lastSeenTag, mapSightings, desk]);
+  const fitKey = `${lit ? `lit:${lit.id}:${hotNear ? hot.id : ''}` : hot ? `seen:${hot.id}` : 'home'}|${lastSeenTag ? 1 : 0}|${desk}|${Math.round(sheetHeight / 40)}`;
 
   // The sheet's height, so the map keeps what matters above it.
   const sheetRef = useCallback((el) => {
@@ -529,91 +509,25 @@ function Screen({ mission }) {
 
   const line = isOwner && !hot && picture.neighbors?.told ? { text: neighborsLine(picture.neighbors, name), tone: 'lost' } : situationLine(picture, now);
 
-  // ----- The step -----
+  // ----- The card: one for each person at any moment -----
   let step;
-  let full = false; // a step that takes the whole phone screen, with no map behind it
+  let full = false; // a card that takes the whole phone screen, with no map behind it
   if (view === 'seen') {
     full = true;
-    step = <Seen picture={picture} name={name} owner={owner} signedIn={Boolean(viewer?.signedIn)} onNow={() => seeNow('now')} onWithMe={() => seeNow('with')} onEarlier={() => { setEarlierFrom(30); go('seenEarlier'); }} onBack={() => go('main')} busy={busy} problem={problem} />;
-  } else if (view === 'seenWay' && mySeen) {
+    step = <Seen name={name} owner={owner} signedIn={Boolean(viewer?.signedIn)} where={where} onWhere={setWhere} near={hot || picture.lastSeen} locating={locating} canLocate={!desk} minutes={minutes} onMinutes={setMinutes} onSend={sendSeen} busy={busy === 'send'} problem={problem} />;
+  } else if (view === 'sent' && mySeen) {
     full = true;
-    const report = picture.sightings.find((s) => s.id === mySeen.id);
-    const spot = report ? [{ id: report.id, lat: report.lat, lng: report.lng, label: 'You saw ' + name + ' here', hot: true }] : [];
-    step = (
-      <SeenWay
-        picture={picture}
-        name={name}
-        owner={owner}
-        mine={mySeen}
-        streets={unit === 'street' ? [...items, ...search.around] : []}
-        map={report ? <SearchMap theme="dark" sightings={spot} fit={around(report.lat, report.lng, 110)} fitKey={`way:${report.id}`} label={`Map of where you saw ${name}`} /> : null}
-        onPick={(way) => sendWay({ direction: way.compass, toward: way.toward || '' })}
-        onStaying={() => sendWay({ direction: 'STAYING', toward: '' })}
-        onUnsure={() => sendWay(null)}
-        onClose={() => go('seenSent')}
-        busy={Boolean(busy)}
-        problem={problem}
-      />
-    );
-  } else if (view === 'seenSent' && mySeen) {
-    full = true;
-    step = (
-      <SeenSent
-        picture={picture}
-        name={name}
-        owner={owner}
-        mine={mySeen}
-        signedIn={Boolean(viewer?.signedIn)}
-        onState={witnessState}
-        onAgain={openSeen}
-        onChangeWay={() => go('seenWay')}
-        onDone={() => go('main')}
-        busy={busy}
-        problem={problem}
-      />
-    );
-  } else if (view === 'seenEarlier') {
-    full = true;
-    step = <SeenEarlier name={name} owner={owner} onSend={sendEarlier} onBack={() => go(desk ? 'main' : 'seen')} busy={busy === 'earlier'} problem={problem} startMinutes={earlierFrom} canLocate={!desk} />;
-  } else if (isOwner && view === 'more') {
-    step = <OwnerMore picture={picture} name={name} now={now} petHref={petHref} onClose={() => go('main')} onShare={share} onMessage={() => setModal('message')} onFlyer={() => setModal('flyer')} onSightings={() => go('sightings')} onEnd={() => setModal('home')} />;
-  } else if (isOwner && view === 'sightings') {
-    step = <SightingList picture={picture} name={name} now={now} onClose={() => go('more')} />;
-  } else if (ownerSighting) {
-    step = <OwnerSighting picture={picture} name={name} hot={hot} held={Boolean(picture.ask)} awayMeters={me ? distanceMeters(me, hot) : NaN} helpers={picture.looking?.helpers || 0} onHold={hold} onGoing={going} onHome={() => setModal('home')} onMore={() => go('more')} busy={busy} problem={problem} />;
+    step = <Sent picture={picture} name={name} owner={owner} mine={mySeen} signedIn={Boolean(viewer?.signedIn)} onAgain={openSeen} onDone={() => go('main')} />;
+  } else if (isOwner && hot) {
+    step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} />;
   } else if (isOwner) {
-    step = <OwnerNow picture={picture} name={name} now={now} step={ownerStep} onStep={nextOwnerStep} onShare={share} onHome={() => setModal('home')} onMore={() => go('more')} />;
-  } else if (sightingIn) {
-    step = (
-      <SightingIn
-        picture={picture}
-        name={name}
-        owner={owner}
-        hot={hot}
-        ask={picture.ask}
-        mine={mine}
-        awayMeters={awayMeters}
-        answered={askAnswer}
-        onAnswer={(value) => {
-          setAskAnswer(value);
-          if (askId) saveNote(caseId, `ask_${askId}`, value);
-        }}
-        onSeen={openSeen}
-        onBack={() => {
-          setAcked(hot.id);
-          saveNote(caseId, 'sighting_ack', hot.id);
-        }}
-        onShare={mine ? null : share}
-      />
-    );
+    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} />;
   } else if (mine) {
-    step = <Walking picture={picture} name={name} owner={owner} unit={unit} mine={mine} instrument={instrument} gps={gps} onReached={reached} onStop={stopWalking} onSeen={openSeen} busy={busy === 'reached'} problem={problem} />;
+    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={candidates.length > 0} />;
   } else if (view === 'join') {
-    step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={afterJoin} onBack={() => go('main')} />;
-  } else if (view === 'street') {
-    step = <Street name={name} owner={owner} unit={unit} offer={offer} counts={counts} onGo={claim} onOther={() => { setProblem(''); setSkip((s) => s + 1); }} onSeen={openSeen} busy={busy === 'go'} problem={problem} canOther={candidates.length > 1} />;
+    step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} offer={offer} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} />;
+    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} />;
   }
 
   const overlays = (
@@ -625,26 +539,16 @@ function Screen({ mission }) {
           {toast}
         </p>
       )}
-      {modal === 'home' && (
+      {endOpen && (
         <div className="relative z-[850]">
-          <MarkReunitedModal mission={{ petName: name }} onClose={() => setModal(null)} onConfirm={confirmHome} isSaving={saving} error={modalError} />
-        </div>
-      )}
-      {modal === 'message' && (
-        <div className="relative z-[850]">
-          <UpdateModal missionId={caseId} petName={name} onClose={() => setModal(null)} onPosted={() => { setModal(null); say('Posted. Everyone helping sees it.'); }} />
-        </div>
-      )}
-      {modal === 'flyer' && (
-        <div className="relative z-[850]">
-          <FlyerPickerModal caseNumber={picture.caseNumber} petName={name} onClose={() => setModal(null)} onQuickFlyer={() => window.open(petHref, '_blank')} />
+          <MarkReunitedModal mission={{ petName: name }} onClose={() => setEndOpen(false)} onConfirm={confirmHome} isSaving={saving} error={modalError} />
         </div>
       )}
     </>
   );
 
   const brief = searcherBrief(picture);
-  const showChip = !isOwner && view === 'main' && !mine && !sightingIn && !witnessing;
+  const showChip = !isOwner && view === 'main' && !mine;
   const keyBits = [
     counts.searched > 0 ? ['bar', 'Already searched'] : null,
     counts.inProgress > (mine ? 1 : 0) ? ['dots', 'Someone is on it now'] : null,
@@ -657,15 +561,13 @@ function Screen({ mission }) {
       sightings={mapSightings}
       streets={mapStreets}
       cells={mapCells}
-      offered={offering ? offer?.id : null}
       me={me}
       track={track}
       tags={mapTags}
       fit={fit}
       fitKey={fitKey}
-      padding={desk ? { top: 60, right: 80, bottom: 60, left: 80 } : { top: showChip ? 60 : sheetHeight > 460 ? 28 : 44, right: 64, bottom: sheetHeight + (sheetHeight > 460 ? 30 : 44), left: 64 }}
+      padding={desk ? { top: 60, right: 80, bottom: 60, left: 80 } : { top: showChip ? 60 : sheetHeight > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: sheetHeight + (sheetHeight > 460 ? 30 : 44), left: 64 }}
       zoomControl={desk}
-      onPick={offering ? (id) => { const at = candidates.findIndex((c) => c.id === id); if (at >= 0) { setProblem(''); setSkip(at); } } : null}
       label={`Map of the search for ${name}`}
     />
   );
@@ -694,8 +596,15 @@ function Screen({ mission }) {
         <TopBar picture={picture} line={line} backHref={petHref} onPhoto={() => setPhoto(true)} wide />
         <div className="flex min-h-0 flex-1">
           <aside className="w-[400px] shrink-0 overflow-y-auto p-5" aria-label="Your step">
-            {/* The sighting steps carry their own padding (they fill a phone's screen), so the card adds none. */}
-            <div className={`rounded-2xl border border-[var(--mc-line)] bg-[var(--mc-surface)] ${full ? 'overflow-hidden pb-2' : 'p-5'}`}>{step}</div>
+            {/* The sighting cards carry their own padding (they fill a phone's screen), so the frame adds none. */}
+            <div className={`rounded-2xl border border-[var(--mc-line)] bg-[var(--mc-surface)] ${full ? 'overflow-hidden pb-2' : 'p-5'}`}>
+              {full && (
+                <button type="button" onClick={() => go('main')} className="ml-4 mt-3 inline-flex min-h-[36px] items-center gap-1.5 text-[15px] font-semibold text-[var(--mc-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
+                  <ArrowLeft size={18} aria-hidden="true" /> Back to the map
+                </button>
+              )}
+              {step}
+            </div>
           </aside>
           <div className="relative min-w-0 flex-1 border-x border-[var(--mc-line)]">
             <div className="absolute inset-0 z-0">{map}</div>
@@ -715,27 +624,20 @@ function Screen({ mission }) {
 
   // ----- A phone, in a browser or in the app -----
   if (full) {
-    const slim = view !== 'seen';
     return (
       <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-surface)]">
-        {slim ? (
-          <header className="flex h-[60px] shrink-0 items-center gap-2 border-b border-[var(--mc-line)] px-2 pt-[env(safe-area-inset-top)]">
-            <button type="button" onClick={() => go(view === 'seenEarlier' ? 'seen' : 'main')} aria-label="Back" className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--mc-ink)] hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
-              <ArrowLeft size={22} aria-hidden="true" />
-            </button>
-            <div className="min-w-0">
-              <p className="flex items-center gap-2">
-                <span className="truncate text-[17px] font-bold leading-6 text-[var(--mc-ink)]">{name}</span>
-                <Stamp kind="lost" />
-              </p>
-              <p className="truncate text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{petSub({ owner: owner?.firstName, species: picture.pet?.species, color: picture.pet?.color, breed: picture.pet?.breed })}</p>
-            </div>
-          </header>
-        ) : (
-          <button type="button" onClick={() => go('main')} aria-label="Back to the map" className="absolute left-3 top-[calc(12px+env(safe-area-inset-top))] z-[500] flex h-11 w-11 items-center justify-center rounded-full bg-slate-950/70 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
+        <header className="flex h-[60px] shrink-0 items-center gap-2 border-b border-[var(--mc-line)] px-2 pt-[env(safe-area-inset-top)]">
+          <button type="button" onClick={() => go('main')} aria-label="Back to the map" className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--mc-ink)] hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
             <ArrowLeft size={22} aria-hidden="true" />
           </button>
-        )}
+          <div className="min-w-0">
+            <p className="flex items-center gap-2">
+              <span className="truncate text-[17px] font-bold leading-6 text-[var(--mc-ink)]">{name}</span>
+              <Stamp kind="lost" />
+            </p>
+            <p className="truncate text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{petSub({ owner: owner?.firstName, species: picture.pet?.species, color: picture.pet?.color, breed: picture.pet?.breed })}</p>
+          </div>
+        </header>
         <div className="min-h-0 flex-1 overflow-y-auto">{step}</div>
         {overlays}
       </div>

@@ -10,7 +10,7 @@
  * because it names people.
  */
 import { Eyebrow } from '../components/kit';
-import { dayAndTime, placeWords, goingWords, clockTime } from '../lib/words';
+import { dayAndTime, placeWords, clockTime } from '../lib/words';
 
 function Card({ title, right = null, children }) {
   return (
@@ -32,7 +32,7 @@ export default function Rail({ picture, items, unit, now }) {
   const out = items.filter((i) => i.status === 'IN_PROGRESS');
   const open = items.filter((i) => i.status === 'UNSEARCHED' || i.status === 'NEEDS_REVISIT');
   const searched = items.filter((i) => i.status === 'SEARCHED').length;
-  const sightings = picture.sightings.filter((s) => s.state !== 'NOT_THE_PET');
+  const sightings = picture.sightings;
   return (
     <div className="flex flex-col gap-3.5">
       <Card title={`On the ${thing}s now`} right={<Eyebrow>{out.length}</Eyebrow>}>
@@ -77,7 +77,6 @@ export default function Rail({ picture, items, unit, now }) {
               <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--mc-seen)]" aria-hidden="true" />
               <span className="min-w-0 text-sm font-medium leading-5 text-[var(--mc-ink)]">
                 {placeWords(s.place) ? `Seen ${placeWords(s.place)}` : 'Marked on the map'}
-                {goingWords(s) ? `, ${goingWords(s)}` : ''}
                 {s.by ? `, from ${s.by}` : ''}
               </span>
             </li>

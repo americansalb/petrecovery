@@ -1,7 +1,7 @@
 /**
  * The facts of a search, in sentences (app/mission-control/lib/words.js),
- * and the two places the screen takes words from someone else: the
- * searcher's brief and the owner's ask.
+ * and the one place the screen takes a helper's words from someone else:
+ * the searcher's brief.
  */
 
 import {
@@ -11,9 +11,8 @@ import {
   searchDay,
   petSub,
   placeWords,
-  goingWords,
-  standing,
   hotSighting,
+  ownerSighting,
   situationLine,
   lookingLine,
   neighborsLine,
@@ -21,11 +20,7 @@ import {
   phoneTel,
 } from '@/app/mission-control/lib/words';
 import { searcherBrief } from '@/app/mission-control/lib/briefLines';
-import { holdAskTextFor } from '@/app/mission-control/lib/ask';
 import { briefFor } from '@/app/lib/brief';
-
-jest.mock('@/app/lib/prisma', () => ({ __esModule: true, default: {} }));
-import { holdAskText } from '@/app/lib/searchPicture';
 
 const ZONE = 'America/Chicago';
 const NOW = new Date('2026-11-11T04:10:00Z').getTime(); // 10:10 pm in Austin, Tuesday
@@ -76,14 +71,6 @@ describe('who and where', () => {
     expect(placeWords(null)).toBe('');
   });
 
-  test('which way it went, by the street it took when the witness named one', () => {
-    expect(goingWords({ direction: 'SOUTHEAST', toward: 'Rosedale Ave' })).toBe('going toward Rosedale Ave');
-    expect(goingWords({ direction: 'NORTH', toward: null })).toBe('heading north');
-    expect(goingWords({ direction: 'STAYING' })).toBe('staying there');
-    expect(goingWords({})).toBe('');
-    expect(goingWords(null)).toBe('');
-  });
-
   test('a phone number as people read it, and as a phone dials it', () => {
     expect(phoneWords('5125550100')).toBe('(512) 555-0100');
     expect(phoneWords('+1 512 555 0100')).toBe('(512) 555-0100');
@@ -94,18 +81,34 @@ describe('who and where', () => {
 });
 
 describe('sightings', () => {
-  const seen = (minutesAgo, over = {}) => ({ id: `s-${minutesAgo}`, at: at(NOW - minutesAgo * 60000), lat: 30.31, lng: -97.74, place: 'W 40th St and Ramsey Ave', direction: null, toward: null, state: null, ...over });
+  const seen = (minutesAgo, over = {}) => ({ id: `s-${minutesAgo}`, at: at(NOW - minutesAgo * 60000), lat: 30.31, lng: -97.74, place: 'W 40th St and Ramsey Ave', ...over });
 
-  test('a sighting the witness took back does not stand', () => {
-    const list = [seen(5, { state: 'NOT_THE_PET' }), seen(20)];
-    expect(standing(list).map((s) => s.id)).toEqual(['s-20']);
-    expect(hotSighting(list, NOW).id).toBe('s-20');
+  test('the newest sighting is the one that counts', () => {
+    expect(hotSighting([seen(5), seen(20)], NOW).id).toBe('s-5');
   });
 
   test('a sighting leads the screen for an hour', () => {
     expect(hotSighting([seen(59)], NOW)).not.toBeNull();
     expect(hotSighting([seen(61)], NOW)).toBeNull();
     expect(hotSighting([], NOW)).toBeNull();
+    // An old sighting on top is not passed over for a newer-looking one below it: the list comes newest first.
+    expect(hotSighting([seen(61), seen(5)], NOW)).toBeNull();
+  });
+
+  test('the owner\'s screen leads with the newest sighting while the news is new: seen within the hour, or only just sent', () => {
+    const sentAgo = (minutes) => at(NOW - minutes * 60000);
+    // Seen within the hour.
+    expect(ownerSighting([seen(20, { sentAt: sentAgo(20) })], NOW).id).toBe('s-20');
+    // Seen three hours ago, sent five minutes ago: the owner was just told, and it leads.
+    expect(ownerSighting([seen(180, { sentAt: sentAgo(5) })], NOW).id).toBe('s-180');
+    // Seen yesterday and sent yesterday: old news.
+    expect(ownerSighting([seen(1440, { sentAt: sentAgo(1400) })], NOW)).toBeNull();
+    // Only the newest place the pet was seen can lead: an older sighting that arrives late does not send the owner back there.
+    expect(ownerSighting([seen(120, { sentAt: sentAgo(120) }), seen(1440, { sentAt: sentAgo(2) })], NOW)).toBeNull();
+    // Without a sent time it falls back to when the pet was seen.
+    expect(ownerSighting([seen(30)], NOW).id).toBe('s-30');
+    expect(ownerSighting([seen(90)], NOW)).toBeNull();
+    expect(ownerSighting([], NOW)).toBeNull();
   });
 });
 
@@ -124,22 +127,29 @@ describe('situationLine: where the search stands, in one sentence', () => {
   });
 
   test('a fresh sighting takes the line and turns it orange', () => {
-    const picture = { ...base, sightings: [{ id: 's', at: '2026-11-11T04:01:00Z', place: 'W 40th St and Ramsey Ave', direction: 'SOUTHEAST', toward: 'Rosedale Ave', state: 'WATCHING' }] };
-    expect(situationLine(picture, NOW)).toEqual({ text: 'Seen at 10:01 pm at W 40th St and Ramsey Ave, going toward Rosedale Ave.', tone: 'seen' });
+    const picture = { ...base, sightings: [{ id: 's', at: '2026-11-11T04:01:00Z', place: 'W 40th St and Ramsey Ave' }] };
+    expect(situationLine(picture, NOW)).toEqual({ text: 'Seen at 10:01 pm at W 40th St and Ramsey Ave.', tone: 'seen' });
+  });
+
+  test('once the owner has opened the way there, everyone else reads that the owner is coming', () => {
+    const sighting = { id: 's', at: '2026-11-11T04:01:00Z', place: 'W 40th St and Ramsey Ave', ownerGoingAt: '2026-11-11T04:03:00Z' };
+    const picture = { ...base, owner: { firstName: 'Avery' }, sightings: [sighting] };
+    expect(situationLine(picture, NOW).text).toBe('Seen at 10:01 pm at W 40th St and Ramsey Ave. Avery is on the way.');
+    // The owner is not told their own news.
+    expect(situationLine({ ...picture, viewer: { isOwner: true } }, NOW).text).toBe('Seen at 10:01 pm at W 40th St and Ramsey Ave.');
+    // With no name to say, nothing is said.
+    expect(situationLine({ ...picture, owner: null }, NOW).text).toBe('Seen at 10:01 pm at W 40th St and Ramsey Ave.');
+    // And not before the owner has set off.
+    expect(situationLine({ ...picture, sightings: [{ ...sighting, ownerGoingAt: null }] }, NOW).text).toBe('Seen at 10:01 pm at W 40th St and Ramsey Ave.');
   });
 
   test('a sighting with no named place still says when', () => {
-    const picture = { ...base, sightings: [{ id: 's', at: '2026-11-11T04:01:00Z', place: null, direction: null, toward: null, state: null }] };
+    const picture = { ...base, sightings: [{ id: 's', at: '2026-11-11T04:01:00Z', place: null }] };
     expect(situationLine(picture, NOW).text).toBe('Seen at 10:01 pm.');
   });
 
-  test('the pet is with whoever found it', () => {
-    const picture = { ...base, sightings: [{ id: 's', at: '2026-11-11T04:01:00Z', place: 'Ramsey Ave', state: 'WITH_WITNESS' }] };
-    expect(situationLine(picture, NOW)).toEqual({ text: 'Max is with someone on Ramsey Ave, since 10:01 pm.', tone: 'seen' });
-  });
-
   test('an older sighting is the last thing known', () => {
-    const picture = { ...base, lastSeen: { at: at(NOW - 3 * 86400000), place: 'Sinclair Ave' }, sightings: [{ id: 's', at: '2026-11-10T01:10:00Z', place: 'Shoal Creek Blvd', state: null }] };
+    const picture = { ...base, lastSeen: { at: at(NOW - 3 * 86400000), place: 'Sinclair Ave' }, sightings: [{ id: 's', at: '2026-11-10T01:10:00Z', place: 'Shoal Creek Blvd' }] };
     expect(situationLine(picture, NOW).text).toBe('Lost 3 days ago near Sinclair Ave. Last seen Mon 7:10 pm on Shoal Creek Blvd.');
   });
 
@@ -151,7 +161,8 @@ describe('situationLine: where the search stands, in one sentence', () => {
   test('it states facts and tells nobody what to do', () => {
     const lines = [
       situationLine(base, NOW).text,
-      situationLine({ ...base, sightings: [{ id: 's', at: at(NOW - 60000), place: 'Ramsey Ave', direction: 'NORTH', state: 'WATCHING' }] }, NOW).text,
+      situationLine({ ...base, sightings: [{ id: 's', at: at(NOW - 60000), place: 'Ramsey Ave' }] }, NOW).text,
+      situationLine({ ...base, owner: { firstName: 'Avery' }, sightings: [{ id: 's', at: at(NOW - 60000), place: 'Ramsey Ave', ownerGoingAt: at(NOW) }] }, NOW).text,
       lookingLine(0),
       lookingLine(3),
       neighborsLine({ told: 38, answered: 0 }, 'Max'),
@@ -197,13 +208,5 @@ describe('the searcher\'s brief on the screen is the site\'s brief, with one edi
     const cat = searcherBrief({ pet: { name: 'Mochi', species: 'CAT' } });
     expect(cat.look).toMatch(/^Look low and close/);
     expect(cat.never).toBe('If you see Mochi, don\'t chase. Note where and which way, tap "I\'ve seen Mochi", and keep your distance.');
-  });
-});
-
-describe('the owner\'s ask', () => {
-  test('the owner is shown exactly the words that go out in their name', () => {
-    expect(holdAskTextFor('Max')).toBe(holdAskText('Max'));
-    expect(holdAskTextFor('Max')).toBe('Please stay back while I go to Max.');
-    expect(holdAskTextFor(null)).toBe(holdAskText(null));
   });
 });

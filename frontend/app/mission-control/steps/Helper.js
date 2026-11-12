@@ -1,38 +1,28 @@
 'use client';
 
 /**
- * A helper's path through a search, one step to a screen:
+ * Someone who wants to help, one card at a time:
  *
- *   Main        what anyone with the link sees, and the one ask
- *   Join        a first name and the safety tick, and who sees what
- *   Street      the street they are offered, and "I am going"
- *   Walking     the street they hold, the brief, and "I reached ..."
- *   SightingIn  a sighting came in: what was seen, and what the owner asks
- *   Home        the pet is home: thank you
+ *   Main    what anyone with the link sees: two buttons
+ *   Join    asked once: a first name and the safety tick
+ *   Street  the street that is theirs, and the one button that ends it
+ *   Home    the pet is home: thank you
  *
- * The product never tells a helper to stop or not to search (founder
- * rule, 2026-11-11). A sighting screen says what was seen and shows the
- * brief's own line for seeing the pet. If helpers are asked to stay
- * back, the ask is the owner's, shown in the owner's name, with two
- * equal answers.
+ * There is no step between being given a street and walking it: the
+ * street is theirs when they get it. Nothing interrupts a walk either. A
+ * sighting shows in the line at the top of every screen, and the product
+ * never tells a helper to stop or not to search (founder rule,
+ * 2026-11-11).
  */
 import { useEffect, useState } from 'react';
 import { Share2 } from 'lucide-react';
 import { SAFETY_RULES, SAFETY_AGREEMENT } from '@/app/lib/safetyRules';
-import { walkTitle } from '@/app/lib/streetWalks';
-import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, AskCard, Problem, Stamp } from '../components/kit';
-import { clockTime, lookingLine, placeWords, goingWords } from '../lib/words';
+import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Stamp } from '../components/kit';
+import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '';
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL || '';
-
-/** "350 m" or "0.8 mi", the way the pet's page already writes distances. */
-export function distanceWords(meters) {
-  if (!Number.isFinite(meters)) return '';
-  if (meters < 1000) return `${Math.max(50, Math.round(meters / 50) * 50)} m`;
-  return `${(meters / 1609.344).toFixed(1)} mi`;
-}
 
 function ShareLink({ onShare }) {
   return (
@@ -46,8 +36,8 @@ function ShareLink({ onShare }) {
   );
 }
 
-/** What anyone with the link sees: the streets, the one ask, and the sighting button. */
-export function Main({ picture, name, owner, unit, items, counts, offer, done, instrument, onWalk, onSeen, onShare, busy, problem, qr }) {
+/** What anyone with the link sees: the streets, and two buttons. */
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, instrument, onWalk, onSeen, onShare, busy, problem, qr }) {
   const thing = unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
   const desk = instrument === 'command';
@@ -57,20 +47,20 @@ export function Main({ picture, name, owner, unit, items, counts, offer, done, i
       <Heading className="mt-1">Help look for {name}</Heading>
       {done ? (
         <Lead className="mt-1.5">
-          {done} is marked searched. Thank you. {counts.searched} of {counts.total} {thing}s {counts.searched === 1 ? 'is' : 'are'} searched so far.
+          {done} is searched. Thank you. {counts.searched} of {counts.total} {thing}s {counts.searched === 1 ? 'is' : 'are'} searched so far.
         </Lead>
       ) : desk ? (
-        <Lead className="mt-1.5">Walking a {thing} is done on a phone. Open {name}&apos;s search on yours to be handed one.</Lead>
+        <Lead className="mt-1.5">Walking a {thing} is done on a phone. Open {name}&apos;s search on yours to be given one.</Lead>
       ) : hasBoard ? (
         <Lead className="mt-1.5">
-          You get one {thing} near you to walk.{offer ? ` About ${offer.minutes} minutes in all.` : ''}
+          You get one {thing} near you to walk.{minutes ? ` About ${minutes} minutes.` : ''}
         </Lead>
       ) : (
         <Lead className="mt-1.5">If you see {name}, send where. It reaches {owner?.firstName || 'the owner'} at once.</Lead>
       )}
       <Problem className="mt-2">{problem}</Problem>
       {desk ? (
-        // A desk is never handed a street: it hands the search to a phone.
+        // A desk is never given a street: it hands the search to a phone.
         qr && (
           <div className="mt-4 flex items-center gap-4 rounded-2xl bg-[var(--mc-raised)] p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -93,7 +83,7 @@ export function Main({ picture, name, owner, unit, items, counts, offer, done, i
   );
 }
 
-/** Joining: a first name, the safety tick, and who sees what. */
+/** Asked once: a first name and the safety tick. */
 export function Join({ picture, name, owner, viewer, unit, instrument, search, onJoined, onBack }) {
   const signedIn = Boolean(viewer?.signedIn);
   // The app records a walk for someone signed in. A browser records nothing, and neither does the app for a guest.
@@ -125,28 +115,23 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
     setBusy(true);
     setProblem('');
     const result = signedIn ? await search.acceptWaiver() : await search.join({ name: first, waiverVersion: waiver?.version || null });
+    if (result.error) {
+      setBusy(false);
+      return setProblem(result.error);
+    }
+    await onJoined();
     setBusy(false);
-    if (result.error) return setProblem(result.error);
-    onJoined();
     return undefined;
   }
 
   return (
     <>
       <div className="flex items-start justify-between gap-3">
-        <Heading>Join the search party</Heading>
+        <Heading>Join the search</Heading>
         <QuietLink onClick={onBack} className="!min-h-[28px] shrink-0">
           Back
         </QuietLink>
       </div>
-      <Lead className="mt-1.5">
-        ReunitePets is the lost pet site {ownerName === 'The owner' ? 'the owner' : ownerName} posted {name} on.
-        {signedIn ? '' : ' It needs your first name.'}
-      </Lead>
-      <p className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3 text-[15px] font-semibold leading-[22px] text-[var(--mc-ink)]">
-        {picture.forces > 0 ? `${ownerName} and the Rescue Force looking for ${name} see` : `${ownerName} sees`} your first name and the {thing} you walk.{' '}
-        {records ? 'The app records your path while you walk it.' : 'Nobody sees where you are.'}
-      </p>
       {!signedIn && (
         <>
           <label htmlFor="mc-first-name" className="mt-3 block text-[13px] font-semibold leading-5 text-[var(--mc-soft)]">
@@ -163,7 +148,7 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
           />
         </>
       )}
-      <label className="mt-3 flex cursor-pointer items-start gap-3">
+      <label className="mt-3.5 flex cursor-pointer items-start gap-3">
         <span className="relative mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-2 border-[var(--mc-check)]" style={agreed ? { background: 'var(--mc-check)' } : undefined}>
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="absolute -inset-2.5 h-11 w-11 cursor-pointer opacity-0" />
           {agreed && (
@@ -196,67 +181,47 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
       )}
       <Problem className="mt-2">{problem}</Problem>
       <Primary onClick={submit} busy={busy} className="mt-3">
-        Show me a {thing} to walk
+        Give me a {thing}
       </Primary>
-      <Note className="mt-2 text-center">
-        Your phone will ask where you are, to pick a {thing} near you{records ? ' and to record your walk.' : '. Where you are stays on this phone.'}
+      {/* Who sees what, said once and truthfully for the person reading it. */}
+      <Note className="mt-2.5 text-center">
+        {picture.forces > 0 ? `${ownerName} and the Rescue Force looking for ${name} see` : `${ownerName} sees`} your first name and the {thing} you walk.{' '}
+        {records ? 'The app records your path while you walk it.' : 'Nobody sees where you are.'}
       </Note>
     </>
   );
 }
 
-/** The street someone is offered: where, how long door to door, and the one button. */
-export function Street({ name, owner, unit, offer, counts, onGo, onOther, onSeen, busy, problem, canOther }) {
-  const thing = unit === 'block' ? 'block' : 'street';
-  if (!offer) {
-    return (
-      <>
-        <Heading>Every {thing} has someone on it</Heading>
-        <Lead className="mt-1.5">
-          {counts.searched} of {counts.total} are searched and the rest are being walked now.
-        </Lead>
-        <SeenButton name={name} onClick={onSeen} className="mt-4" />
-        <BottomRow owner={owner} />
-      </>
-    );
-  }
-  const again = offer.status === 'SEARCHED';
-  return (
-    <>
-      <Heading>Walk {unit === 'block' ? offer.title : walkTitle(offer)}</Heading>
-      <Lead className="mt-1.5">
-        About {offer.minutes} minutes in all{unit === 'block' ? '' : ', with the walk back'}.{' '}
-        {again ? `It was walked at ${offer.searchedClock}. ${name} may have moved since.` : `${counts.searched} of ${counts.total} ${thing}s ${counts.searched === 1 ? 'is' : 'are'} searched so far.`}
-      </Lead>
-      <Problem className="mt-2">{problem}</Problem>
-      <Primary onClick={onGo} busy={busy} className="mt-4">
-        I am going
-      </Primary>
-      <Note className="mt-2 text-center">Tap it when you set off, so nobody else is sent here.</Note>
-      <SeenButton name={name} onClick={onSeen} className="mt-2.5" />
-      <BottomRow owner={owner}>{canOther && <QuietLink onClick={onOther}>Other {thing}</QuietLink>}</BottomRow>
-    </>
-  );
+/** "From 45th St to 41st St. " where the street's ends are named. */
+function spanWords(street) {
+  if (street.fromName && street.toName) return `From ${street.fromName} to ${street.toName}. `;
+  if (street.toName) return `As far as ${street.toName}. `;
+  if (street.fromName) return `From ${street.fromName} to the end. `;
+  return '';
 }
 
-/** Walking: the street they hold, the site's own brief, and how it ends. */
-export function Walking({ picture, name, owner, unit, mine, instrument, gps, onReached, onStop, onSeen, busy, problem }) {
+/** The street that is theirs: where, how long, and the one button that ends it. */
+export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther }) {
   const brief = searcherBrief(picture);
-  const end = unit === 'block' ? null : mine.toName;
+  const block = unit === 'block';
+  const thing = block ? 'block' : 'street';
   const recording = instrument === 'field' && gps?.recording;
   return (
     <>
-      <Heading>{unit === 'block' ? `Walk ${mine.title}` : `Keep walking on ${mine.name}${end ? ` until ${end}` : ' to the end'}`}</Heading>
-      <Lead className="mt-1.5">{recording ? brief.records : `Tap the button when you ${end ? `reach ${end}` : 'finish'}. That marks the ${unit === 'block' ? 'block' : 'street'} searched.`}</Lead>
-      <AdviceBlock source="The searcher's brief" lines={[brief.look, brief.call, brief.never]} className="mt-3" />
+      <Heading>Walk {block ? mine.title : mine.name}</Heading>
+      <Lead className="mt-1.5">
+        {block ? '' : spanWords(mine)}About {mine.minutes} minutes.{recording ? ` ${brief.records}` : ''}
+      </Lead>
+      <AdviceBlock source="The searcher's brief" lines={[brief.look]} className="mt-3" />
       <Problem className="mt-2">{problem}</Problem>
-      <Primary onClick={onReached} busy={busy} className="mt-4">
-        {unit === 'block' ? 'I walked it' : end ? `I reached ${end}` : 'I reached the end'}
+      <Primary onClick={onWalked} busy={busy === 'walked'} disabled={Boolean(busy)} className="mt-4">
+        I walked it
       </Primary>
       <SeenButton name={name} onClick={onSeen} className="mt-2.5" />
-      <BottomRow owner={owner}>
+      <div className="mt-1 flex items-center justify-between gap-3">
+        {canOther ? <QuietLink onClick={onOther}>Different {thing}</QuietLink> : <span />}
         <QuietLink onClick={onStop}>I am stopping</QuietLink>
-      </BottomRow>
+      </div>
       {instrument === 'bridge' && (APP_STORE_URL || PLAY_STORE_URL) && (
         <Note className="mt-1">
           The app records your path with GPS as you walk.{' '}
@@ -273,57 +238,6 @@ export function Walking({ picture, name, owner, unit, mine, instrument, gps, onR
           )}
         </Note>
       )}
-    </>
-  );
-}
-
-/**
- * A sighting came in. It says what was seen and shows the brief's line
- * for seeing the pet. It tells nobody to stop. Where the owner has asked
- * the helpers to stay back, that ask is shown in the owner's name, and
- * someone walking a street gets two equal answers. Without an ask, or for
- * someone who is only looking, there is nothing to answer.
- */
-export function SightingIn({ picture, name, owner, hot, ask, mine, awayMeters, answered, onAnswer, onSeen, onBack, onShare }) {
-  const brief = searcherBrief(picture);
-  const where = placeWords(hot.place);
-  const going = goingWords(hot);
-  const withThem = hot.state === 'WITH_WITNESS';
-  const mineThing = mine ? `the ${mine.name ? 'street' : 'block'} you are walking` : null;
-  return (
-    <>
-      <Heading>{withThem ? `${name} is with someone${where ? ` ${where}` : ''}` : `${name} was seen${where ? ` ${where}` : ''}`}</Heading>
-      <Lead className="mt-1.5">
-        {clockTime(hot.at, picture.timeZone)}
-        {going && !withThem ? `, ${going}` : ''}.{mineThing && Number.isFinite(awayMeters) ? ` About ${distanceWords(awayMeters)} from ${mineThing}.` : ''}
-      </Lead>
-      {ask && <AskCard from={ask.from || owner?.firstName} text={ask.text} className="mt-3" />}
-      {!withThem && <AdviceBlock source="The searcher's brief" lines={[brief.never]} className="mt-3" />}
-      {ask && mine && !answered && (
-        <div className="mt-4 grid grid-cols-2 gap-2.5">
-          <Second onClick={() => onAnswer('back')} className="!px-2 !text-[15px]">
-            I will stay back
-          </Second>
-          <Second onClick={() => onAnswer('looking')} className="!px-2 !text-[15px]">
-            I will keep looking
-          </Second>
-        </div>
-      )}
-      {ask && mine && answered && (
-        <Note className="mt-3">
-          You said you will {answered === 'back' ? 'stay back' : 'keep looking'}.{' '}
-          <button type="button" onClick={() => onAnswer(null)} className="font-bold underline underline-offset-4">
-            Change
-          </button>
-        </Note>
-      )}
-      {(!ask || !mine || answered) && (
-        <Second onClick={onBack} className="mt-4">
-          {mine ? 'Back to my street' : 'Back to the map'}
-        </Second>
-      )}
-      <SeenButton name={name} onClick={onSeen} className="mt-2.5" />
-      <BottomRow owner={owner}>{onShare && <ShareLink onShare={onShare} />}</BottomRow>
     </>
   );
 }

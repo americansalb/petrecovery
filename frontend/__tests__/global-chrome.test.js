@@ -78,9 +78,9 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     expect(bar).toMatch(/href=\{backHref\}/);
     expect(bar).toMatch(/aria-label=\{`Back to \$\{name\}'s page`\}/);
     expect(screen).toMatch(/backHref=\{petHref\}/);
-    // The screens with no map (a sighting being sent) carry their own arrow back.
-    expect(screen).toMatch(/aria-label="Back"/);
+    // The two cards with no map (a sighting being sent, and sent) carry their own arrow back, on a phone and on a desk.
     expect(screen).toMatch(/aria-label="Back to the map"/);
+    expect(screen).toMatch(/<ArrowLeft size=\{18\} aria-hidden="true" \/> Back to the map/);
   });
 
   test('the Rasuwa letter tool is an immersive takeover (crisis page, non-pet audience)', () => {

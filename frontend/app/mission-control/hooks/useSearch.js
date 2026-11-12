@@ -148,12 +148,25 @@ export default function useSearch(missionParam) {
    * One reading of where the phone is. Resolves to the position, or null
    * when it is refused or unavailable. `fresh` refuses an answer the phone
    * had saved and waits a little for a new one: a saved answer can be a
-   * rough one from before its GPS woke up.
+   * rough one from before its GPS woke up. `ifAllowed` reads only where
+   * the phone has already said this page may: it is for a reading that
+   * rides along with something else the person pressed, and it never
+   * puts the phone's own question on the screen.
    */
   const locate = useCallback(
-    ({ fresh = false } = {}) =>
-      new Promise((resolve) => {
-        if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+    async ({ fresh = false, ifAllowed = false } = {}) => {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) return null;
+      if (ifAllowed) {
+        let allowed = false;
+        try {
+          const status = await navigator.permissions?.query({ name: 'geolocation' });
+          allowed = status?.state === 'granted';
+        } catch {
+          // A browser that cannot say is treated as one that has not said yes.
+        }
+        if (!allowed) return null;
+      }
+      return new Promise((resolve) => {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             const here = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy, at: Date.now() };
@@ -163,8 +176,8 @@ export default function useSearch(missionParam) {
           () => resolve(null),
           { enableHighAccuracy: true, timeout: fresh ? 5000 : 10000, maximumAge: fresh ? 0 : 30000 }
         );
-        return undefined;
-      }),
+      });
+    },
     []
   );
 
@@ -213,9 +226,9 @@ export default function useSearch(missionParam) {
     [missionParam, headers, loadBoard, loadPicture]
   );
 
-  /** Send a sighting. The key that comes back stays on this phone, so it can say what happened next. */
+  /** Send a sighting: a place and a time. This phone remembers which one it sent, so coming back shows what the owner did about it. */
   const sendSighting = useCallback(
-    async (body, kind = 'now') => {
+    async (body) => {
       const res = await fetch(`/api/public/missions/${encodeURIComponent(missionParam)}/sighting`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -223,41 +236,28 @@ export default function useSearch(missionParam) {
       });
       const data = await readJson(res);
       if (!res.ok) return { error: data.error || 'That did not send. Check your connection and try again.' };
-      const mine = { id: data.sighting.id, key: data.key, kind, at: data.sighting.sightedAt, place: data.place || null };
+      // `at` is when the pet was seen, which can be yesterday. `sentAt` is now, and is what "Sent at" on the next card means.
+      const mine = { id: data.sighting.id, at: data.sighting.sightedAt, sentAt: new Date().toISOString(), place: data.place || null };
       if (caseIdRef.current) {
         saveMySighting(caseIdRef.current, mine);
         setMySightings(readMySightings(caseIdRef.current));
       }
-      loadPicture().catch(() => null);
+      await loadPicture().catch(() => null);
       return { ok: true, sighting: mine, told: data.told, ownerName: data.ownerName };
     },
     [missionParam, loadPicture]
   );
 
-  /** Change a sighting this phone sent: which way the pet went, or what the witness is doing now. */
-  const updateSighting = useCallback(
-    async (mine, patch) => {
-      const res = await fetch(`/api/public/missions/${encodeURIComponent(missionParam)}/sighting`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: mine.id, key: mine.key, ...patch }),
-      });
-      const data = await readJson(res);
-      if (!res.ok) return { error: data.error || 'That did not send. Check your connection and try again.' };
-      loadPicture().catch(() => null);
-      return { ok: true };
-    },
-    [missionParam, loadPicture]
-  );
-
-  /** The owner's answer to a sighting: seen, going, hold, release. */
+  /** The owner's answer to a sighting: seen, or going. Sent so that it still lands if the tap also opens the maps app. */
   const answer = useCallback(
     async (sightingId, action, extra = {}) => {
       const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sightingId, action, ...extra }),
-      });
+        keepalive: true,
+      }).catch(() => null);
+      if (!res) return { error: 'That did not go through. Try again in a moment.' };
       const data = await readJson(res);
       if (!res.ok) return { error: data.error || 'That did not go through. Try again in a moment.' };
       await loadPicture().catch(() => null);
@@ -291,7 +291,6 @@ export default function useSearch(missionParam) {
     acceptWaiver,
     act,
     sendSighting,
-    updateSighting,
     answer,
   };
 }

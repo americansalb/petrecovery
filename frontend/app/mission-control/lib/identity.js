@@ -6,9 +6,9 @@
  * Joining a pet's search from its share link makes a volunteer on the
  * server and gives back its id. The id and the device key this browser
  * joined with are the pair the board asks for (app/lib/searcher.js), sent
- * as two headers. Both live only in this browser's storage. A witness's
- * own sightings are kept the same way, each with the key that lets this
- * phone, and no other, say what happened next.
+ * as two headers. Both live only in this browser's storage. Which
+ * sightings this phone sent is kept the same way, so coming back to the
+ * page shows what the owner did about the last one.
  *
  * Storage can be missing or blocked (a private window): every read
  * answers null and every write is a no-op then, and the screen still
@@ -78,10 +78,10 @@ export function volunteerHeaders(volunteer) {
   return { [VOLUNTEER_ID_HEADER]: volunteer.id, [VOLUNTEER_KEY_HEADER]: deviceKey() };
 }
 
-/** The sightings this phone sent for a pet: [{ id, key, kind }], newest first. */
+/** The sightings this phone sent for a pet: [{ id, at, sentAt, place }], newest first. `at` is when the pet was seen. */
 export function readMySightings(caseId) {
   const list = readJson(`rp_seen_${caseId}`);
-  return Array.isArray(list) ? list.filter((s) => s && s.id && s.key) : [];
+  return Array.isArray(list) ? list.filter((s) => s && s.id).map(({ id, at, sentAt, place }) => ({ id, at, sentAt: sentAt || at, place })) : [];
 }
 
 export function saveMySighting(caseId, sighting) {
@@ -89,7 +89,7 @@ export function saveMySighting(caseId, sighting) {
   write(`rp_seen_${caseId}`, JSON.stringify([sighting, ...rest].slice(0, 10)));
 }
 
-/** Small per-pet notes this phone keeps: which owner step is next, what was answered. */
+/** Small per-pet notes this phone keeps, such as where a walk was started from. */
 export function readNote(caseId, name) {
   return readJson(`rp_note_${caseId}_${name}`);
 }

@@ -1,20 +1,16 @@
 /**
  * POST /api/public/missions/[caseNumber]/sighting
  *
- * A witness reports a sighting from the pet's share link, with no account
+ * A witness reports a sighting from the pet's link, with no account
  * (app/lib/witness.js). Body: { lat, lng, address?, sure: SURE | LIKELY |
- * UNSURE, direction?, toward?, state?, minutesAgo?, name?, note? }. Signed
- * in or not; a session only adds the Discussion post in the witness's
- * name. Rate limited like every public write. 201 with { sighting, key,
- * place, told, caseNumber }, 400 in words, 404, or 409 when the search
- * has ended. `key` is the witness's own hold on the sighting.
+ * UNSURE, minutesAgo?, direction?, name?, note? }. Signed in or not; a
+ * session only adds the Discussion post in the witness's name. Rate
+ * limited like every public write. 201 with { sighting, place, told,
+ * caseNumber }, 400 in words, 404, or 409 when the search has ended.
  *
- * PATCH /api/public/missions/[caseNumber]/sighting
- *
- * The witness changes their own sighting from the same phone: { id, key,
- * direction?, toward? } for which way the pet went, { id, key, state } for
- * what they are doing now (WATCHING, LOST_SIGHT, LEFT, NOT_THE_PET,
- * WITH_WITNESS). 200 with { sighting }, 400 in words, 404 without the key.
+ * The same place sent again within a few minutes is the same sighting:
+ * its time is moved up, nobody is alerted twice, and the answer carries
+ * `again: true`. That is how a witness says "still here".
  */
 
 import { NextResponse } from 'next/server';
@@ -22,7 +18,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { logEvent } from '@/lib/logging';
-import { checkWitnessSighting, recordWitnessSighting, checkWitnessUpdate, updateWitnessSighting } from '@/app/lib/witness';
+import { checkWitnessSighting, recordWitnessSighting } from '@/app/lib/witness';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,43 +42,24 @@ export async function POST(request, { params }) {
     if (out.error === 'NOT_FOUND') return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     if (out.error === 'CLOSED') return NextResponse.json({ error: 'This search has ended. Thank you for looking.' }, { status: 409 });
 
-    logEvent({
-      event_type: 'case.sighting_reported',
-      resource_type: 'mission',
-      resource_id: out.caseNumber,
-      action: 'create',
-      result: 'success',
-      actor_user_id: userId,
-      metadata: { sightingId: out.sighting.id, witness: !userId, sure: checked.value.sure, told: out.told },
-    }).catch(() => {});
+    if (!out.again) {
+      logEvent({
+        event_type: 'case.sighting_reported',
+        resource_type: 'mission',
+        resource_id: out.caseNumber,
+        action: 'create',
+        result: 'success',
+        actor_user_id: userId,
+        metadata: { sightingId: out.sighting.id, witness: !userId, sure: checked.value.sure, told: out.told },
+      }).catch(() => {});
+    }
 
-    return NextResponse.json({ sighting: out.sighting, key: out.key, place: out.place, told: out.told, caseNumber: out.caseNumber, ownerName: out.ownerName }, { status: 201 });
+    return NextResponse.json(
+      { sighting: out.sighting, place: out.place, told: out.told, again: Boolean(out.again), caseNumber: out.caseNumber, ownerName: out.ownerName },
+      { status: out.again ? 200 : 201 }
+    );
   } catch (error) {
     console.error('[witness] sighting failed:', error);
-    return NextResponse.json({ error: 'That did not send. Check your connection and try again.' }, { status: 500 });
-  }
-}
-
-export async function PATCH(request, { params }) {
-  // A change needs the sighting's own key, which only the phone that sent it holds, so this is not the open
-  // door a new sighting is. The limit only has to stop guessing, and must not lock out a second witness on
-  // the same network who is tapping "I lost sight".
-  const rl = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_READ, 'witness:sighting:update');
-  if (!rl.success) return rateLimitResponse(rl);
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Nothing to change.' }, { status: 400 });
-  }
-  const checked = checkWitnessUpdate(body);
-  if (checked.error) return NextResponse.json({ error: checked.error }, { status: 400 });
-  try {
-    const out = await updateWitnessSighting(params.caseNumber, checked.value);
-    if (out.error) return NextResponse.json({ error: 'That sighting cannot be changed from this phone.' }, { status: 404 });
-    return NextResponse.json({ sighting: out.sighting });
-  } catch (error) {
-    console.error('[witness] sighting update failed:', error);
     return NextResponse.json({ error: 'That did not send. Check your connection and try again.' }, { status: 500 });
   }
 }

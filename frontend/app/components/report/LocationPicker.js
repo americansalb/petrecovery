@@ -15,7 +15,11 @@
  *
  * `canLocate={false}` takes "Use my location" away, for a screen that
  * must not ask where the device is (the search screen on a desktop,
- * whose position is a guess from the network).
+ * whose position is a guess from the network). `search={false}` hides
+ * the search box, for a screen that already has the spot and offers
+ * typing as a second way (the search screen's sighting form). `near`
+ * is a point the typed search leans toward when there is no pin and no
+ * device fix yet: on a pet's search, "W 41st St" means the one by the pet.
  */
 
 import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
@@ -125,6 +129,8 @@ export default function LocationPicker({
   onLocated, // (spot) after "Use my location" lands: the screen can move on by itself
   controlRef, // a ref the parent fills to call locate() from its own button
   canLocate = true, // false: never offer or ask for the device's position
+  search = true, // false: no search box; the pin is placed from outside and can be dragged
+  near: nearby = null, // { lat, lng }: where a typed search leans when nothing else says where
 }) {
   const mapHex = variant === 'found' ? '#10b981' : '#ef4444';
   const [query, setQuery] = useState('');
@@ -292,7 +298,7 @@ export default function LocationPicker({
       // an unchanged panel - whether the address had no matches or every
       // geocoder was unreachable. A person in a panic reads that as "the
       // app is broken". Say so, and point at the by-hand path.
-      const near = value ? { lat: value.lat, lng: value.lng } : lastFixRef.current;
+      const near = value ? { lat: value.lat, lng: value.lng } : lastFixRef.current || (nearby && Number.isFinite(nearby.lat) && Number.isFinite(nearby.lng) ? { lat: nearby.lat, lng: nearby.lng } : null);
       let found = [];
       try {
         const [photonResults, nominatimResults, appleResults] = await Promise.allSettled([
@@ -388,7 +394,7 @@ export default function LocationPicker({
   return (
     <div className="flex-1 flex flex-col min-h-0 gap-3">
       {/* Search */}
-      <div className="relative z-30 shrink-0">
+      <div className={`relative z-30 shrink-0 ${search ? '' : 'hidden'}`}>
         <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-midnight-400" />
         <input
           type="text"

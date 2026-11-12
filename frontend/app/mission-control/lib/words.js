@@ -11,7 +11,7 @@
  */
 import { speciesLabel } from '@/app/lib/species';
 
-/** A sighting this fresh leads every screen. The server uses the same window (app/lib/searchPicture.js). */
+/** A sighting this fresh turns the line at the top orange on every screen. The pet's page uses the same hour (app/cases/[caseNumber]/CasePageClient.js). */
 export const HOT_SIGHTING_MS = 60 * 60 * 1000;
 
 const MINUTE = 60 * 1000;
@@ -87,25 +87,26 @@ export function placeWords(place) {
   return `near ${label}`;
 }
 
-/** "going toward Rosedale Ave", "heading north", "staying there", or ''. */
-export function goingWords(sighting) {
-  if (!sighting) return '';
-  if (sighting.direction === 'STAYING') return 'staying there';
-  if (sighting.toward) return `going toward ${sighting.toward}`;
-  if (sighting.direction) return `heading ${String(sighting.direction).toLowerCase()}`;
-  return '';
-}
-
-/** The sightings that still stand: not the ones the witness took back. */
-export function standing(sightings = []) {
-  return sightings.filter((s) => s && s.state !== 'NOT_THE_PET');
-}
-
-/** The newest standing sighting, if it is under an hour old. */
+/** The newest sighting, if it is under an hour old. */
 export function hotSighting(sightings = [], now = Date.now()) {
-  const newest = standing(sightings)[0];
+  const newest = sightings[0];
   if (!newest) return null;
   return now - new Date(newest.at).getTime() <= HOT_SIGHTING_MS ? newest : null;
+}
+
+/**
+ * The sighting that leads the owner's screen: the newest place the pet
+ * was seen, while that news is under an hour old. News is new when the
+ * pet was seen within the hour, or when the sighting only reached the
+ * owner within the hour, whenever it was seen ("seen yesterday", sent
+ * now): the owner was just told about it and opens the screen to see it.
+ */
+export function ownerSighting(sightings = [], now = Date.now()) {
+  const newest = sightings[0];
+  if (!newest) return null;
+  const seen = now - new Date(newest.at).getTime();
+  const sent = newest.sentAt ? now - new Date(newest.sentAt).getTime() : Infinity;
+  return Math.min(seen, sent) <= HOT_SIGHTING_MS ? newest : null;
 }
 
 /**
@@ -120,16 +121,15 @@ export function situationLine(picture, now = Date.now()) {
   if (!picture.open) return { text: 'This search has ended.', tone: 'closed' };
   const hot = hotSighting(picture.sightings, now);
   if (hot) {
-    if (hot.state === 'WITH_WITNESS') {
-      return { text: `${name} is with someone ${placeWords(hot.place) || 'nearby'}, since ${clockTime(hot.at, zone)}.`, tone: 'seen' };
-    }
     const bits = [`Seen at ${clockTime(hot.at, zone)}`, placeWords(hot.place)].filter(Boolean).join(' ');
-    const going = goingWords(hot);
-    return { text: `${bits}${going ? `, ${going}` : ''}.`, tone: 'seen' };
+    // Everyone looking learns the owner is heading there. It is a fact about the owner, and asks nothing of anyone.
+    const owner = picture.owner?.firstName;
+    const coming = hot.ownerGoingAt && owner && !picture.viewer?.isOwner ? ` ${owner} is on the way.` : '';
+    return { text: `${bits}.${coming}`, tone: 'seen' };
   }
   const lost = picture.lastSeen?.at ? `Lost ${agoWords(picture.lastSeen.at, now)}` : 'Lost';
   const from = picture.lastSeen?.place ? ` near ${picture.lastSeen.place}` : '';
-  const newest = standing(picture.sightings)[0];
+  const newest = (picture.sightings || [])[0];
   const since = newest
     ? `Last seen ${dayAndTime(newest.at, zone, now)}${placeWords(newest.place) ? ` ${placeWords(newest.place)}` : ''}.`
     : `Nobody has seen ${name} since.`;
