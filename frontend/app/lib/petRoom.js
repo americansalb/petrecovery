@@ -19,8 +19,9 @@ import { whenText } from '@/app/lib/forcePage';
 
 const LIVE_ASSIGNMENTS = ['ACCEPTED', 'ACTIVE', 'STANDBY'];
 const OPEN_CASES = ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'];
-// Out searching now: recording a walk in the last half hour, or holding a
-// block of the search map claimed in the last two hours.
+// Out searching now: recording a walk in the last half hour, or on an area
+// of the search's ground started in the last two hours (a square claimed in
+// that time counts the same, for a search from before it was on areas).
 const WALK_WINDOW_MS = 30 * 60 * 1000;
 const CLAIM_WINDOW_MS = 2 * 3600 * 1000;
 const OTHERS_SHOWN = 8;
@@ -44,7 +45,7 @@ const OTHER_FIELDS = {
 export async function searchingNow(caseId, now = new Date()) {
   const walkSince = new Date(now.getTime() - WALK_WINDOW_MS);
   const claimSince = new Date(now.getTime() - CLAIM_WINDOW_MS);
-  const [walks, claims] = await Promise.all([
+  const [walks, claims, onAreas] = await Promise.all([
     prisma.searchSession.findMany({
       where: {
         missionId: caseId,
@@ -57,8 +58,14 @@ export async function searchingNow(caseId, now = new Date()) {
       where: { grid: { caseId }, status: 'IN_PROGRESS', claimedAt: { gte: claimSince } },
       select: { claimedById: true },
     }),
+    // On an area of the search's ground now (app/lib/searchZones.js). A helper with no account is "v:" and
+    // their own id there, so each is one person.
+    prisma.searchZoneVisit.findMany({
+      where: { caseId, endedAt: null, startedAt: { gte: claimSince } },
+      select: { searcherId: true },
+    }),
   ]);
-  const people = new Set([...walks.map((w) => w.userId), ...claims.map((c) => c.claimedById)].filter(Boolean));
+  const people = new Set([...walks.map((w) => w.userId), ...claims.map((c) => c.claimedById), ...onAreas.map((v) => v.searcherId)].filter(Boolean));
   // A walk recorded without an account is still a person out searching.
   return people.size + walks.filter((w) => !w.userId).length;
 }

@@ -70,9 +70,9 @@ describe('the pet\'s page says what the search screen does', () => {
   const intake = read('app/cases/[caseNumber]/components/HelpIntake.js');
   const page = read('app/cases/[caseNumber]/CasePageClient.js');
 
-  test('its link to the search speaks of streets, as the screen does', () => {
-    expect(help).toMatch(/'See which streets still need searching'/);
-    expect(help).not.toMatch(/blocks still need/);
+  test('its link to the search speaks of areas of ground, as the screen does', () => {
+    expect(help).toMatch(/'See which areas still need searching'/);
+    expect(help).not.toMatch(/(blocks|streets) still need/);
   });
 
   test('"I\'ve seen" promises the form the screen has, and not one tap', () => {
@@ -162,7 +162,10 @@ describe('the homepage shows and describes the screen that exists', () => {
     const alt = home.match(/src="\/landing\/mission-control\.jpg"\s+alt="([^"]+)"/);
     expect(alt).not.toBeNull();
     expect(alt[1]).toMatch(/^Mission Control/);
-    expect(alt[1]).toMatch(/street map/);
+    // The search is a circle of ground in areas. It is not described as streets to walk, which it no longer is.
+    expect(alt[1]).toMatch(/a circle of ground/);
+    expect(alt[1]).toMatch(/areas of ground/);
+    expect(alt[1]).not.toMatch(/street/i);
     expect(alt[1]).not.toMatch(GONE);
   });
 
@@ -170,7 +173,8 @@ describe('the homepage shows and describes the screen that exists', () => {
     const step = home.match(/title: 'Members search from Mission Control',\s*body: '([^']+)'/);
     expect(step).not.toBeNull();
     expect(step[1]).not.toMatch(GONE);
-    expect(step[1]).toMatch(/one street/);
+    expect(step[1]).toMatch(/one area of ground to search/);
+    expect(step[1]).not.toMatch(/street|walk/i);
   });
 
   test('the picture is a real capture of the current screen, at the size the page lays it out', () => {

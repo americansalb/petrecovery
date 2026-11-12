@@ -125,7 +125,7 @@ export default function HowToHelp({ name, caseId, caseNumber, signedIn, lost, ro
                 <span className="block text-sm text-midnight-200">
                   {searching > 0
                     ? `${searching} ${searching === 1 ? 'person is' : 'people are'} searching right now`
-                    : 'See which streets still need searching'}
+                    : 'See which areas still need searching'}
                 </span>
               </span>
               <ChevronRight size={20} className="shrink-0 text-midnight-300" aria-hidden="true" />
