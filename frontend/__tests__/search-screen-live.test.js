@@ -65,6 +65,12 @@ import useSearch from '@/app/mission-control/hooks/useSearch';
 import SearchScreen from '@/app/mission-control/SearchScreen';
 import Messages from '@/app/mission-control/desktop/Messages';
 
+/**
+ * Where things are, since this browser lays nothing out: a phone 844 tall, its sheet from 300 down, the buttons
+ * kept at the sheet's bottom from 700, and everything else (a word, the line to answer in) where `place.word`
+ * says. A test moves `place.word` to put a word under the buttons or back above them.
+ */
+const place = { word: { top: 400, bottom: 440 } };
 beforeAll(() => {
   window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
   Element.prototype.scrollIntoView = () => {};
@@ -72,9 +78,15 @@ beforeAll(() => {
     observe() {}
     disconnect() {}
   };
+  Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 });
+  Element.prototype.getBoundingClientRect = function box() {
+    const at = this.hasAttribute('data-sheet') ? { top: 300, bottom: 844 } : this.hasAttribute('data-pinned') ? { top: 700, bottom: 834 } : place.word;
+    return { top: at.top, bottom: at.bottom, left: 0, right: 390, width: 390, height: at.bottom - at.top, x: 0, y: at.top };
+  };
 });
 beforeEach(() => {
   made.groups.length = 0;
+  place.word = { top: 400, bottom: 440 };
 });
 
 const NOW = new Date('2026-11-12T04:00:05Z').getTime();
@@ -230,6 +242,78 @@ describe('a word written to someone is on their card, and the card says when it 
     useSearch.mockReturnValue({ ...state, now: NOW + 93000, words: [{ ...words[0], seen: true }] });
     await act(async () => view.rerender(<SearchScreen mission="AUS-1" />));
     expect(told()).toBe(2);
+  });
+
+  test('a word under the buttons has not been shown: it is said when it is scrolled to where it can be read', async () => {
+    // Its middle is at 750, and the buttons kept at the bottom of the sheet start at 700.
+    place.word = { top: 720, bottom: 780 };
+    const state = hook({ items: [street('a', { status: 'IN_PROGRESS', mine: true })], words });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(view.container.querySelector('[aria-label="Your step"]').textContent).toMatch(/Do not go into the yard/);
+    expect(state.saw).not.toHaveBeenCalledWith({ words: ['m1'] });
+    // The sheet is scrolled, and the word is above the buttons now.
+    place.word = { top: 500, bottom: 560 };
+    await act(async () => view.container.querySelector('[data-sheet]').dispatchEvent(new Event('scroll')));
+    expect(state.saw).toHaveBeenCalledWith({ words: ['m1'] });
+  });
+
+  test('a new word moves the sheet so it, and the line to answer in, are above the buttons', async () => {
+    // The end of what was said is at 780: 80 below the top of the buttons.
+    place.word = { top: 720, bottom: 780 };
+    const state = hook({ items: [street('a', { status: 'IN_PROGRESS', mine: true })], words });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const sheet = view.container.querySelector('[data-sheet]');
+    expect(sheet.scrollTop).toBe(88);
+    // Drawn again with nothing new said, the sheet is left where the person put it.
+    sheet.scrollTop = 20;
+    await act(async () => view.rerender(<SearchScreen mission="AUS-1" />));
+    expect(sheet.scrollTop).toBe(20);
+    // A second word arrives: it moves again.
+    useSearch.mockReturnValue({ ...state, words: [...words, { id: 'm2', at: new Date(NOW - 5000).toISOString(), text: 'Come to the corner when you are done.', mine: false, from: 'Avery', seen: false }] });
+    await act(async () => view.rerender(<SearchScreen mission="AUS-1" />));
+    expect(sheet.scrollTop).toBe(108);
+  });
+
+  test('on a phone the one main button is kept on the sheet, with "I\'ve seen" under it, whatever the card is', async () => {
+    const pinnedWords = (view) => (view.container.querySelector('[data-pinned]')?.textContent || '');
+    // Holding a street.
+    useSearch.mockReturnValue(hook({ items: [street('a', { status: 'IN_PROGRESS', mine: true })], words }));
+    let view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(pinnedWords(view)).toMatch(/I walked it/);
+    expect(pinnedWords(view)).toMatch(/I've seen Max/);
+    // What was said is not in with the buttons: it scrolls under them.
+    expect(pinnedWords(view)).not.toMatch(/Do not go into the yard/);
+    view.unmount();
+    // With no street.
+    useSearch.mockReturnValue(hook({ words }));
+    view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(pinnedWords(view)).toMatch(/I can walk a street/);
+    expect(pinnedWords(view)).toMatch(/I've seen Max/);
+    view.unmount();
+    // Asked to walk one.
+    useSearch.mockReturnValue(hook({ items: [street('a', { askedOfMe: true, askedNote: '', askedBy: 'Avery', askedSeen: true })] }));
+    view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(pinnedWords(view)).toMatch(/Start/);
+  });
+
+  test('a desk keeps nothing in place: its card is one of several in a column', async () => {
+    const useInstrument = require('@/app/hooks/useInstrument').default;
+    useInstrument.mockReturnValue({ instrument: 'command', resolving: false });
+    window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
+    useSearch.mockReturnValue(hook({ items: [street('a', { status: 'IN_PROGRESS', mine: true })], words }));
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(view.container.textContent).toMatch(/I walked it/);
+    expect(view.container.querySelector('[data-pinned]')).toBeNull();
+    useInstrument.mockReturnValue({ instrument: 'bridge', resolving: false });
+    window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
   });
 
   test('asked for another street while walking one: the street card shows the ask, and says it did', async () => {

@@ -132,6 +132,7 @@ export default function SearchMap({
   zoomControl = false,
   label = 'Map of the search',
   desk = false, // every street drawn, and the map answers to the pointer
+  creditBottom = 0, // how far above the map's bottom edge its credit sits: what the screen lays over that edge
   selected = null, // id of the street or square that is picked
   hovered = null, // id pointed at from the list beside the map
   onSelect = null, // (id | null) => void
@@ -417,9 +418,6 @@ export default function SearchMap({
         maxZoom: maxFitZoom,
         animate: true,
       });
-      // On a phone the credit sits above the sheet that covers the bottom of the map. On a desk nothing covers its corner.
-      const credit = map.attributionControl?.getContainer();
-      if (credit) credit.style.marginBottom = desk ? '0px' : `${Math.max(0, padding.bottom - 12)}px`;
     };
     const soon = () => {
       clearTimeout(timer);
@@ -434,6 +432,20 @@ export default function SearchMap({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey, padding.top, padding.bottom, padding.left, padding.right]);
+
+  // Where the map's credit sits: above whatever the screen lays over the bottom of the map (a phone's sheet and
+  // the key above it), so the two never share a line. It is its own step, so it follows the sheet as it grows
+  // and not only when the map is fitted again.
+  useEffect(() => {
+    const el = holder.current;
+    const place = () => {
+      const credit = state.current.map?.attributionControl?.getContainer();
+      if (credit) credit.style.marginBottom = `${Math.max(0, Math.round(creditBottom))}px`;
+    };
+    place();
+    el?.addEventListener('searchmap:ready', place);
+    return () => el?.removeEventListener('searchmap:ready', place);
+  }, [creditBottom]);
 
   // The colour behind the tiles is set inline: Leaflet's own stylesheet paints its container light grey.
   return <div ref={holder} className="h-full w-full" style={{ background: theme === 'dark' ? '#0b1220' : '#e2e8f0' }} role="img" aria-label={label} />;

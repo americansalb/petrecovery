@@ -24,11 +24,11 @@
  * shown as theirs. The card says when it has shown an ask or a word, and
  * that is what the desk reads as "seen".
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Share2 } from 'lucide-react';
 import { SAFETY_RULES, SAFETY_AGREEMENT } from '@/app/lib/safetyRules';
-import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Stamp } from '../components/kit';
-import Word, { Answer, useShown, beatOf } from '../components/Word';
+import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Pinned, Stamp } from '../components/kit';
+import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 
@@ -43,7 +43,15 @@ const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL || '';
  * new word arriving does not throw away an answer that is being typed. Each word written to this person says so
  * when it has been shown (`onShown`), which is what the desk reads as "seen".
  */
-function Said({ said = [], picture, now, onSay, onShown }) {
+function Said({ said = [], picture, now, onSay, onShown, also = null }) {
+  const end = useRef(null);
+  // A new word is read where it lands: a phone's sheet moves so the word, and the line to answer in, are above
+  // the buttons kept at its bottom. Only when what was said changes, so reading further up is left alone.
+  // `also` is anything else that arrives above the words and pushes them down (the street someone was asked to walk).
+  const which = said.map((word) => word.id).join(' ');
+  useEffect(() => {
+    if (which) keepInView(end.current);
+  }, [which, also]);
   if (!said.length) return null;
   const who = said[0].from || picture.owner?.firstName || 'the people running the search';
   return (
@@ -52,6 +60,7 @@ function Said({ said = [], picture, now, onSay, onShown }) {
         <Word key={word.id} word={word} timeZone={picture.timeZone} now={now} onShown={onShown} />
       ))}
       {onSay && <Answer key="answer" who={who} onSay={onSay} />}
+      <span ref={end} key="end" className="block h-0" aria-hidden="true" />
     </>
   );
 }
@@ -115,25 +124,28 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
         <Lead className="mt-1.5">If you see {name}, send where. It reaches {owner?.firstName || 'the owner'} at once.</Lead>
       )}
       {/* With an ask on the card too: a word written to this person is always where they can read it. */}
-      <Said said={said} picture={picture} now={now} onSay={onSay} onShown={onShown} />
-      <Problem className="mt-2">{problem}</Problem>
-      {desk ? (
-        // A desk is never given a street: it hands the search to a phone.
-        qr && (
-          <div className="mt-4 flex items-center gap-4 rounded-2xl bg-[var(--mc-raised)] p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qr} alt={`QR code that opens ${name}'s search on a phone`} className="h-28 w-28 shrink-0 rounded-lg bg-white p-1.5" />
-            <Note>Point your phone&apos;s camera at this. It opens this page there.</Note>
-          </div>
-        )
-      ) : (
-        hasBoard && (
-          <Primary onClick={onWalk} busy={busy} className="mt-4">
-            {ask ? 'Start' : done ? `I can walk another ${thing}` : `I can walk a ${thing}`}
-          </Primary>
-        )
-      )}
-      <SeenButton name={name} onClick={onSeen} className="mt-2.5" />
+      <Said said={said} picture={picture} now={now} onSay={onSay} onShown={onShown} also={ask?.id || null} />
+      {/* On a phone the buttons stay on the screen, whatever was said above them. */}
+      <Pinned on={!desk}>
+        <Problem className={desk ? 'mt-2' : 'pb-2'}>{problem}</Problem>
+        {desk ? (
+          // A desk is never given a street: it hands the search to a phone.
+          qr && (
+            <div className="mt-4 flex items-center gap-4 rounded-2xl bg-[var(--mc-raised)] p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qr} alt={`QR code that opens ${name}'s search on a phone`} className="h-28 w-28 shrink-0 rounded-lg bg-white p-1.5" />
+              <Note>Point your phone&apos;s camera at this. It opens this page there.</Note>
+            </div>
+          )
+        ) : (
+          hasBoard && (
+            <Primary onClick={onWalk} busy={busy}>
+              {ask ? 'Start' : done ? `I can walk another ${thing}` : `I can walk a ${thing}`}
+            </Primary>
+          )
+        )}
+        <SeenButton name={name} onClick={onSeen} className={desk || hasBoard ? 'mt-2.5' : ''} />
+      </Pinned>
       <BottomRow owner={owner}>{ask && onCannot ? <QuietLink onClick={onCannot}>{CANNOT_WORDS}</QuietLink> : <ShareLink onShare={onShare} />}</BottomRow>
     </>
   );
@@ -261,10 +273,13 @@ function spanWords(street) {
 export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther, asked = null, onAskShown = null, said = [], onSay = null, onShown = null, now }) {
   const brief = searcherBrief(picture);
   // This card shows the ask too, so it says so: the desk is not left reading "asked" until this street is done.
-  useShown(asked && asked.askedSeen === false ? asked.id : null, onAskShown, beatOf(now));
+  // Only once the ask is where it can be read, and not while it is scrolled out of the card.
+  const askBox = useRef(null);
+  useShown(asked && asked.askedSeen === false ? asked.id : null, onAskShown, beatOf(now), askBox);
   const block = unit === 'block';
   const thing = block ? 'block' : 'street';
   const recording = instrument === 'field' && gps?.recording;
+  const desk = instrument === 'command';
   return (
     <>
       <Heading>Walk {block ? mine.title : mine.name}</Heading>
@@ -273,20 +288,23 @@ export function Street({ picture, name, unit, mine, instrument, gps, onWalked, o
       </Lead>
       {asked && (
         // Asked for another street while on this one: said here, and it is the first card when this street is done.
-        <div className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3">
+        <div ref={askBox} className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3">
           <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">{asked.askedBy || 'The people running the search'} asked you</p>
           <p className="mt-0.5 break-words text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">
             Walk {asked.name}.{asked.askedNote ? ` "${asked.askedNote}"` : ''}
           </p>
         </div>
       )}
-      <Said said={said} picture={picture} now={now} onSay={onSay} onShown={onShown} />
+      <Said said={said} picture={picture} now={now} onSay={onSay} onShown={onShown} also={asked?.id || null} />
       <AdviceBlock source="The searcher's brief" lines={[brief.look]} className="mt-3" />
-      <Problem className="mt-2">{problem}</Problem>
-      <Primary onClick={onWalked} busy={busy === 'walked'} disabled={Boolean(busy)} className="mt-4">
-        I walked it
-      </Primary>
-      <SeenButton name={name} onClick={onSeen} className="mt-2.5" />
+      {/* On a phone the buttons stay on the screen, whatever was said above them. */}
+      <Pinned on={!desk}>
+        <Problem className={desk ? 'mt-2' : 'pb-2'}>{problem}</Problem>
+        <Primary onClick={onWalked} busy={busy === 'walked'} disabled={Boolean(busy)} className={desk ? 'mt-4' : ''}>
+          I walked it
+        </Primary>
+        <SeenButton name={name} onClick={onSeen} className="mt-2.5" />
+      </Pinned>
       <div className="mt-1 flex items-center justify-between gap-3">
         {canOther ? <QuietLink onClick={onOther}>Different {thing}</QuietLink> : <span />}
         <QuietLink onClick={onStop}>I am stopping</QuietLink>
