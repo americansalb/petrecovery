@@ -448,7 +448,7 @@ export const ACTION_TYPES = {
   check_hiding: {
     id: 'check_hiding',
     title: 'Check hiding spots',
-    description: 'Sheds, garages, under decks, in bushes',
+    description: 'Under decks and in bushes. Ask at the door before a shed or garage',
     role: 'BOTH',
     petType: 'CAT',
     phase: 2,

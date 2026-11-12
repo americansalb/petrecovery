@@ -212,3 +212,10 @@ describe('what the route writes and says', () => {
     expect(body.error).toBe('Your report did not go through. Try again in a moment.');
   }, 15000);
 });
+
+test('found-pet reports from someone not signed in carry the same hourly and daily limits', () => {
+  const found = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'app/api/reports/found-pet/route.js'), 'utf8');
+  expect(found).toMatch(/const FOUND_AN_HOUR = \{ windowMs: 60 \* 60 \* 1000, maxRequests: 6,/);
+  expect(found).toMatch(/const FOUND_A_DAY = \{ windowMs: 24 \* 60 \* 60 \* 1000, maxRequests: 15,/);
+  expect(found).toMatch(/if \(!session\?\.user\) \{[\s\S]{0,200}\[FOUND_AN_HOUR, 'reports:found:hour'\], \[FOUND_A_DAY, 'reports:found:day'\]/);
+});

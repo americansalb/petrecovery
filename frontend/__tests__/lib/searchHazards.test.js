@@ -249,3 +249,14 @@ describe('the board', () => {
     expect(zones).toMatch(/hazards: parseHazards\(row\.hazards\)\.map\(\(\{ kind, name, what \}\) => \(\{ kind, name: name \|\| '', what \}\)\)/);
   });
 });
+
+describe('the rest of the site says the same', () => {
+  test('the owner advice sends nobody into water, a culvert or a neighbor\'s building', () => {
+    const advice = read('app/lib/petAdvice.js');
+    expect(advice).not.toMatch(/inside open garages|Check under bridges and in culverts|creek bed, drainage ditch, pond area/);
+    expect(advice).toMatch(/Stay out of the water, and do not go into a culvert or a drain\./);
+    expect(advice).toMatch(/Ask neighbors to check their own garages and sheds\./);
+    expect(read('app/simulator/components/RecoveryGuidance.js')).not.toMatch(/Search drainage ditches and culverts|Check all backyard structures/);
+    expect(read('app/lib/missionControl/taskPriority.js')).not.toMatch(/'Sheds, garages, under decks, in bushes'/);
+  });
+});
