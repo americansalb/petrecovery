@@ -15,7 +15,7 @@ jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
   default: {
     user: { findUnique: jest.fn() },
-    searchSession: { updateMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    searchSession: { updateMany: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
     locationPing: { create: jest.fn() },
   },
 }));
@@ -45,7 +45,7 @@ describe('Live search: mark -> ping adapter (CRIT)', () => {
     getServerSession.mockResolvedValue({ user: { email: 'searcher@example.com' } });
     prisma.user.findUnique.mockResolvedValue({ id: 'u1' });
     prisma.searchSession.updateMany.mockResolvedValue({ count: 0 });
-    prisma.searchSession.findUnique.mockResolvedValue({
+    prisma.searchSession.findFirst.mockResolvedValue({
       id: 's1', status: 'ACTIVE', locationPings: [], lastSeenLat: null, lastSeenLng: null,
     });
     prisma.searchSession.update.mockResolvedValue({});
@@ -64,6 +64,10 @@ describe('Live search: mark -> ping adapter (CRIT)', () => {
     expect(data.latitude).toBe(40.0);   // point.lat -> latitude (the rename)
     expect(data.longitude).toBe(-75.0); // point.lng -> longitude
     expect(data.isValid).toBe(true);    // point.inZone -> isValid, in-zone + valid speed
+    // The walk is looked up as this person's own, on this pet: an id alone does not find it.
+    expect(prisma.searchSession.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 's1', userId: 'u1', missionId: 'case-1' } })
+    );
   });
 
   test('an unknown action still 400s (so "mark" being handled is meaningful)', async () => {
@@ -73,7 +77,7 @@ describe('Live search: mark -> ping adapter (CRIT)', () => {
   });
 
   test('an out-of-zone mark is recorded but flagged invalid (scoring integrity)', async () => {
-    prisma.searchSession.findUnique.mockResolvedValue({
+    prisma.searchSession.findFirst.mockResolvedValue({
       id: 's1', status: 'ACTIVE', locationPings: [], lastSeenLat: 40.0, lastSeenLng: -75.0,
     });
     // far from the last-seen point => out of search radius => isValid false

@@ -157,6 +157,14 @@ export async function GET(request, { params }) {
     const isOwner = missionData.reporterId === session.user.id;
     const isAdmin = user?.role === 'ADMIN';
 
+    // The whole report is the owner's and staff's: its row holds the owner's full name and phone, what they
+    // wrote about the pet, everyone assigned to it and who reported each sighting. It was the old Mission
+    // Control's read and went to anyone signed in. The search screen reads .../picture and .../board, which
+    // give each person what is theirs, and the pet's own page has what is public.
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: 'Only the owner can see the whole report.', code: 'NOT_ALLOWED' }, { status: 403 });
+    }
+
     const responseTime = Date.now() - startTime;
 
     await logEvent({

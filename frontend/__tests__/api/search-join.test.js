@@ -23,6 +23,7 @@ jest.mock('@/app/lib/missionControl/volunteerOps', () => ({
   checkOut: jest.fn(),
 }));
 jest.mock('@/app/lib/rateLimit', () => ({ __esModule: true, withRateLimitAsync: jest.fn(async () => ({ success: true })) }));
+jest.mock('@/app/lib/missionControl/guard', () => ({ __esModule: true, ownVolunteerId: jest.fn(async () => 'vol-1'), cleanPlace: (p) => p || null }));
 
 import prisma from '@/app/lib/prisma';
 import { quickJoin, checkIn } from '@/app/lib/missionControl/volunteerOps';
@@ -61,5 +62,6 @@ test('what a helper who has already joined does is not counted as joining', asyn
   const res = await post({ action: 'CHECK_IN', volunteerId: 'vol-1', estimatedMinutes: 30 });
   expect(res.status).toBe(200);
   expect(checkIn).toHaveBeenCalled();
-  expect(withRateLimitAsync).not.toHaveBeenCalled();
+  // It has a count of its own (__tests__/api/mission-volunteer-proof.test.js), and never the join's.
+  expect(withRateLimitAsync.mock.calls.map(([, , key]) => key)).toEqual(['search:helper']);
 });

@@ -31,9 +31,13 @@ export async function isAdmin(userId) {
 /**
  * True if the user may take privileged actions on a case (== mission):
  *   - platform ADMIN, OR
- *   - the case reporter/owner, OR
- *   - an active founder, leader or coordinator (FORCE_COMMAND_ROLES) of a
- *     rescue force assigned to the case.
+ *   - the case reporter/owner.
+ *
+ * It used to add a third: an active founder, leader or coordinator of a
+ * rescue force assigned to the case. Nobody has to agree to that role
+ * (app/lib/searcher.js says why), so it is not authority over someone
+ * else's pet. When an owner can hand their search to another person, that
+ * person is added here.
  *
  * @param {string} userId
  * @param {string} caseId   The Case id (mission command routes use the caseId as missionId).
@@ -48,31 +52,7 @@ export async function userHasCaseAuthority(userId, caseId) {
     where: { id: caseId },
     select: { reporterId: true },
   });
-  if (!theCase) return false;
-  if (theCase.reporterId === userId) return true;
-
-  // Active leader of an assigned squad?
-  const assignments = await prisma.caseAssignment.findMany({
-    where: {
-      missionId: caseId, // CaseAssignment.missionId is @map("caseId")
-      status: { in: ['ACCEPTED', 'ACTIVE'] },
-      rescueSquadId: { not: null },
-    },
-    select: { rescueSquadId: true },
-  });
-  if (assignments.length === 0) return false;
-
-  const squadIds = assignments.map((a) => a.rescueSquadId);
-  const leadership = await prisma.rescueForceMember.findFirst({
-    where: {
-      userId,
-      rescueSquadId: { in: squadIds },
-      isActive: true,
-      role: { in: FORCE_COMMAND_ROLES },
-    },
-    select: { id: true },
-  });
-  return Boolean(leadership);
+  return Boolean(theCase && theCase.reporterId === userId);
 }
 
 /**

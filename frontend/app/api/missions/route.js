@@ -13,6 +13,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { normalizePhotoUrl } from '@/app/lib/utils';
+import { isAdmin } from '@/app/lib/authz';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -39,7 +40,10 @@ export async function GET(request) {
     const reportType = searchParams.get('reportType'); // LOST or FOUND
     const species = searchParams.get('species');
     const search = searchParams.get('search');
-    const myOnly = searchParams.get('myOnly') === 'true';
+    // Every row carries its owner's name and email address, so the whole list is staff's (read from the
+    // database, not from the session). Anyone else is given their own reports, whatever the request asks for.
+    const staff = await isAdmin(session.user.id);
+    const myOnly = !staff || searchParams.get('myOnly') === 'true';
     const unassigned = searchParams.get('unassigned') === 'true';
     const squadId = searchParams.get('squadId');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);

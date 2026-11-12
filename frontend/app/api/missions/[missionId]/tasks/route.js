@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,13 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
+    // Tasks name who made them and who is on them, with where each one is. It took no sign-in at all.
+    // For the owner, the forces looking for the pet, and staff (2026-11-12).
+    const who = await mayKnowThePeople(request, missionData.id);
+    if (!who.allowed) {
+      return NextResponse.json({ error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' }, { status: who.status });
+    }
+
     const rescueSquadId = missionData.assignments[0]?.rescueSquadId;
 
     if (!rescueSquadId) {
@@ -48,26 +56,10 @@ export async function GET(request, { params }) {
         caseId: missionData.id, // SquadTask field is caseId (no @map)
       },
       include: {
-        assignedTo: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        createdBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        completedBy: {
-          select: {
-            id: true,
-            firstName: true,
-          },
-        },
+        // First names. Never an account's id or a last name.
+        assignedTo: { select: { firstName: true } },
+        createdBy: { select: { firstName: true } },
+        completedBy: { select: { firstName: true } },
       },
       orderBy: [
         { status: 'asc' },
@@ -76,7 +68,8 @@ export async function GET(request, { params }) {
       ],
     });
 
-    return NextResponse.json({ tasks });
+    // The rows' own account ids stay here too.
+    return NextResponse.json({ tasks: tasks.map(({ assignedToId, createdById, completedById, ...task }) => task) });
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json(

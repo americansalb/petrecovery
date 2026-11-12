@@ -70,7 +70,7 @@ describe('maySearch and waiverRefusal', () => {
   });
 });
 
-describe('GET /api/missions/[id]: open without the waiver', () => {
+describe('GET /api/missions/[id]: the whole report, for its owner and staff', () => {
   const mission = {
     id: CASE,
     caseNumber: 'AUS-2026-0001',
@@ -95,23 +95,17 @@ describe('GET /api/missions/[id]: open without the waiver', () => {
     prisma.case.findFirst.mockResolvedValue({ ...mission, reporter: { ...mission.reporter } });
   });
 
-  test('a helper who has not signed it reads the search, is told to sign before searching, and gets no owner email or home spot', async () => {
-    prisma.user.findUnique.mockResolvedValue(UNSIGNED);
-    const res = await read();
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.viewer).toEqual({ isOwner: false, waiverAccepted: false });
-    expect(body.petName).toBe('Max');
-    expect(body.ownerEmail).toBeUndefined();
-    expect(body.reporterLatitude).toBeUndefined();
-    expect(body.reporterLongitude).toBeUndefined();
-    expect(body.reporterToLastSeenMiles).toBeUndefined();
-    expect(body.reporter).toEqual({ id: 'u-avery', firstName: 'Avery', lastName: 'Smith' });
-  });
-
-  test('a helper who signed it is not asked again', async () => {
-    prisma.user.findUnique.mockResolvedValue(SIGNED);
-    expect((await (await read()).json()).viewer).toEqual({ isOwner: false, waiverAccepted: true });
+  test('someone who is not the owner is not given the report: it holds the owner\'s full name and phone, and who reported each sighting', async () => {
+    // It was the old Mission Control's read and went to anyone signed in. The search screen reads the picture
+    // and the board, which give each person what is theirs.
+    for (const account of [UNSIGNED, SIGNED]) {
+      prisma.user.findUnique.mockResolvedValue(account);
+      const res = await read();
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body).toEqual({ error: 'Only the owner can see the whole report.', code: 'NOT_ALLOWED' });
+      expect(JSON.stringify(body)).not.toMatch(/Smith|5125550100|avery@example\.com/);
+    }
   });
 
   test('the owner and an admin see the whole report', async () => {

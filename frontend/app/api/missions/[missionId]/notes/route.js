@@ -11,6 +11,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { onlyText, hasText, cut, UPDATE_MAX } from '@/app/lib/searchText';
+import { withRateLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
+
+const NOTE_LIMIT = { windowMs: 60 * 1000, maxRequests: 20, blockDurationMs: 60 * 1000 };
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -31,12 +35,16 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse request body
-    const body = await request.json();
-    const { content, isPinned } = body;
+    const limit = await withRateLimitAsync(request, NOTE_LIMIT, 'case:note');
+    if (!limit.success) return rateLimitResponse(limit);
 
-    // Validate content
-    if (!content || content.trim().length === 0) {
+    // Parse request body
+    const sent = await request.json().catch(() => null);
+    const { content, isPinned } = sent && typeof sent === 'object' && !Array.isArray(sent) ? sent : {};
+
+    // An update is text: the person's words with their line breaks, without what is not text, held to a length.
+    const text = typeof content === 'string' ? cut(onlyText(content).replace(/\n{3,}/g, '\n\n').trim(), UPDATE_MAX) : '';
+    if (!hasText(text)) {
       return NextResponse.json({
         error: 'Note content is required'
       }, { status: 400 });
@@ -83,9 +91,9 @@ export async function POST(request, { params }) {
       data: {
         caseId: params.missionId, // CaseUpdate's field is caseId (no missionId) - was 500ing every note POST
         authorId: session.user.id,
-        content: content.trim(),
+        content: text,
         isUpdate: true,
-        isPinned: isPinned || false,
+        isPinned: isPinned === true,
       },
       include: {
         author: {
@@ -140,9 +148,10 @@ export async function POST(request, { params }) {
       }
     });
 
+    // What went wrong is in the log above, and is not sent to whoever asked.
     return NextResponse.json({
       error: 'Failed to add note',
-      message: error.message
+      message: 'That did not post. Try again in a moment.'
     }, { status: 500 });
   }
 }
@@ -188,20 +197,22 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
     }
 
-    // Get case updates/notes
-    const updates = await prisma.caseUpdate.findMany({
+    // Get case updates/notes. The owner and staff see who wrote each in full. A helper sees a first name and
+    // whether a note is their own: starting a walk makes anyone a helper, so it is not a way to learn an
+    // owner's last name or account id.
+    const full = isOwner || isAdmin;
+    const rows = await prisma.caseUpdate.findMany({
       where: { caseId: params.missionId }, // CaseUpdate's field is caseId (no @map)
       include: {
         author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true
-          }
+          select: full ? { id: true, firstName: true, lastName: true } : { firstName: true }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
+    const updates = full
+      ? rows
+      : rows.map(({ authorId, ...update }) => ({ ...update, mine: authorId === session.user.id }));
 
     return NextResponse.json({
       updates,

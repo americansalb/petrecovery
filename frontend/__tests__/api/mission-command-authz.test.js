@@ -4,8 +4,10 @@
  * EA's audit found the command route had `// TODO: Verify user is a leader` and
  * zero checks - ANY logged-in user could POST {action:'RESOLVE_DECEASED'} or
  * {action:'BROADCAST'} to ANY missionId, marking a stranger's pet deceased or
- * mass-messaging all volunteers. Fixed with userHasCaseAuthority() (owner /
- * assigned squad leader / admin) gating both GET and POST before any action.
+ * mass-messaging all volunteers. It was first fixed with userHasCaseAuthority()
+ * (owner / assigned squad leader / admin). A squad's command role turned out to
+ * be something any member of a leaderless squad can take, so the gate is now
+ * the owner or staff, read from the database (app/lib/missionControl/guard.js).
  *
  * Keystone assertion: an unauthorized caller is 403'd AND the dangerous action
  * functions are never invoked.
@@ -18,11 +20,20 @@ import { NextRequest } from 'next/server';
 
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
-  default: { missionControl: { findUnique: jest.fn() } },
+  default: {
+    missionControl: { findUnique: jest.fn() },
+    case: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn() },
+  },
 }));
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
-jest.mock('@/app/lib/authz', () => ({ __esModule: true, userHasCaseAuthority: jest.fn() }));
+jest.mock('@/app/lib/searcher', () => ({ __esModule: true, searcherFor: jest.fn(async () => null) }));
+jest.mock('@/app/lib/rateLimit', () => ({
+  __esModule: true,
+  withRateLimitAsync: jest.fn(async () => ({ success: true })),
+  rateLimitResponse: () => new Response('{}', { status: 429 }),
+}));
 jest.mock('@/app/lib/missionControl/commandCenter', () => ({
   __esModule: true,
   getCommandView: jest.fn(),
@@ -45,7 +56,6 @@ jest.mock('@/app/lib/missionControl/endStates', () => ({
 import { GET, POST } from '@/app/api/mission/[missionId]/command/route';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
-import { userHasCaseAuthority } from '@/app/lib/authz';
 import { sendBroadcast } from '@/app/lib/missionControl/commandCenter';
 import { resolvePetDeceased } from '@/app/lib/missionControl/endStates';
 
@@ -70,7 +80,9 @@ describe('SEC-1: mission command center authz', () => {
     jest.clearAllMocks();
     getServerSession.mockResolvedValue({ user: { id: 'random-user' } });
     prisma.missionControl.findUnique.mockResolvedValue({ id: 'mc-1' });
-    userHasCaseAuthority.mockResolvedValue(false); // not owner/leader/admin
+    // Not the owner, and not staff.
+    prisma.case.findUnique.mockResolvedValue({ reporterId: 'the-owner' });
+    prisma.user.findUnique.mockResolvedValue({ role: 'USER' });
     sendBroadcast.mockResolvedValue({ ok: true });
   });
 
@@ -92,10 +104,26 @@ describe('SEC-1: mission command center authz', () => {
     expect(sendBroadcast).not.toHaveBeenCalled();
   });
 
-  test('an authorized user (owner/leader/admin) CAN broadcast', async () => {
-    userHasCaseAuthority.mockResolvedValue(true);
+  test('the owner CAN broadcast', async () => {
+    getServerSession.mockResolvedValue({ user: { id: 'the-owner' } });
     const res = await post({ action: 'BROADCAST', message: 'real alert', type: 'ALERT' });
+    expect(res.status).toBe(200);
     expect(sendBroadcast).toHaveBeenCalledTimes(1);
+  });
+
+  test('staff CAN broadcast, and the role is read from the database, not the session', async () => {
+    getServerSession.mockResolvedValue({ user: { id: 'random-user', role: 'USER' } });
+    prisma.user.findUnique.mockResolvedValue({ role: 'ADMIN' });
+    const res = await post({ action: 'BROADCAST', message: 'real alert', type: 'ALERT' });
+    expect(res.status).toBe(200);
+    expect(sendBroadcast).toHaveBeenCalledTimes(1);
+  });
+
+  test('a session that says ADMIN is not enough when the database says USER', async () => {
+    getServerSession.mockResolvedValue({ user: { id: 'random-user', role: 'ADMIN' } });
+    const res = await post({ action: 'BROADCAST', message: 'phishing', type: 'ALERT' });
+    expect(res.status).toBe(403);
+    expect(sendBroadcast).not.toHaveBeenCalled();
   });
 
   test('GET command view requires authority (403 for non-authorized)', async () => {

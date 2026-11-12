@@ -48,10 +48,10 @@ export async function GET(request, { params }) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
-      // Send initial connection message
+      // Send initial connection message. The mission row's own id stays on the server: the older pause and
+      // resume actions used to act on whatever mission id they were sent, and this is where one could be learned.
       const data = JSON.stringify({
         type: 'CONNECTED',
-        missionId: mission.id,
         mode: mission.mode,
         timestamp: new Date().toISOString(),
       });

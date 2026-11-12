@@ -1,7 +1,17 @@
 /**
- * Command Center API (Leaders only)
+ * Command Center API (the older one)
  * GET: Get command view
- * POST: Broadcasts, zone assignments, resources, traps
+ * POST: Broadcasts, zone assignments, resources, traps, and the end of a search
+ *
+ * Nothing on the site calls it: the owner runs a search from the desk
+ * (app/mission-control/desktop/Command.js) through .../board and
+ * .../message. It stays for the owner and for staff, and nobody else.
+ *
+ * It used to trust a command role in a Rescue Force assigned to the pet.
+ * A force with no leader gives that role to any member who asks, and
+ * anyone can found a force (app/lib/searcher.js says how), so a stranger
+ * could reach it in two taps: read where every helper is, push a sentence
+ * of their own to every helper's phone, and end someone's search.
  */
 
 import { NextResponse } from 'next/server';
@@ -20,7 +30,17 @@ import {
   getShiftSummary,
 } from '@/app/lib/missionControl/commandCenter';
 import { resolvePetFound, resolvePetDeceased, pauseToColdCase } from '@/app/lib/missionControl/endStates';
-import { userHasCaseAuthority } from '@/app/lib/authz';
+import { ownsPet, isStaff } from '@/app/lib/missionControl/guard';
+import { onlyText, cut } from '@/app/lib/searchText';
+import { withRateLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
+
+const COMMAND_LIMIT = { windowMs: 60 * 1000, maxRequests: 20, blockDurationMs: 60 * 1000 };
+/** A broadcast goes to phones as a notification: a few sentences, and only text. */
+const BROADCAST_MAX = 300;
+const ACTIONS = ['BROADCAST', 'ASSIGN_ZONE', 'REQUEST_RESOURCE', 'UPDATE_STALE', 'SWITCH_TRAP_OPS', 'ADD_TRAP', 'CHECK_TRAP', 'RESOLVE_FOUND', 'RESOLVE_DECEASED', 'COLD_CASE'];
+
+/** The owner of the pet the address names, or staff. */
+const runsIt = async (userId, caseId) => (await ownsPet(userId, caseId)) || (await isStaff(userId));
 
 export async function GET(request, { params }) {
   try {
@@ -32,7 +52,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    const { missionId } = params;
+    const { missionId } = await params;
     const { searchParams } = new URL(request.url);
     const view = searchParams.get('view');
 
@@ -48,8 +68,8 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Command view is leaders-only: case owner / assigned squad leader / admin.
-    if (!(await userHasCaseAuthority(session.user.id, missionId))) {
+    // Where every helper is, and their rows' ids: the owner's, and staff's.
+    if (!(await runsIt(session.user.id, missionId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -79,9 +99,18 @@ export async function POST(request, { params }) {
       );
     }
 
-    const { missionId } = params;
-    const body = await request.json();
-    const { action, ...data } = body;
+    const limit = await withRateLimitAsync(request, COMMAND_LIMIT, 'mission:command');
+    if (!limit.success) return rateLimitResponse(limit);
+
+    const { missionId } = await params;
+    const sent = await request.json().catch(() => null);
+    const { action, ...data } = sent && typeof sent === 'object' && !Array.isArray(sent) ? sent : {};
+    if (!ACTIONS.includes(action)) {
+      return NextResponse.json(
+        { error: 'Invalid action' },
+        { status: 400 }
+      );
+    }
 
     const mission = await prisma.missionControl.findUnique({
       where: { caseId: missionId },
@@ -95,32 +124,41 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Privileged command actions (broadcast, resolve, traps, zones) require
-    // authority over this case: owner / assigned squad leader / admin.
-    if (!(await userHasCaseAuthority(session.user.id, missionId))) {
+    // Broadcasts, zones, traps and the end of a search: the owner's, and staff's.
+    if (!(await runsIt(session.user.id, missionId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     let result;
 
     switch (action) {
-      case 'BROADCAST':
+      case 'BROADCAST': {
+        const message = cut(onlyText(typeof data.message === 'string' ? data.message : '').replace(/\s+/g, ' ').trim(), BROADCAST_MAX);
+        if (!message) return NextResponse.json({ error: 'Write something first.' }, { status: 400 });
         result = await sendBroadcast(
           mission.id,
-          data.message,
-          data.type,
+          message,
+          typeof data.type === 'string' ? data.type.slice(0, 40) : undefined,
           session.user.id
         );
         break;
+      }
 
-      case 'ASSIGN_ZONE':
+      case 'ASSIGN_ZONE': {
+        // A zone and a helper of this pet's own search: ids from another search are not on it.
+        const [zone, helper] = await Promise.all([
+          typeof data.zoneId === 'string' ? prisma.missionZone.findFirst({ where: { id: data.zoneId, missionId: mission.id }, select: { id: true } }) : null,
+          typeof data.volunteerId === 'string' ? prisma.missionVolunteer.findFirst({ where: { id: data.volunteerId, missionId: mission.id }, select: { id: true } }) : null,
+        ]);
+        if (!zone || !helper) return NextResponse.json({ error: 'That is not on this search.' }, { status: 404 });
         result = await assignZone(
           mission.id,
-          data.zoneId,
-          data.volunteerId,
+          zone.id,
+          helper.id,
           session.user.id
         );
         break;
+      }
 
       case 'REQUEST_RESOURCE':
         result = await requestResource(
@@ -143,9 +181,12 @@ export async function POST(request, { params }) {
         result = await addTrap(mission.id, data, session.user.id);
         break;
 
-      case 'CHECK_TRAP':
-        result = await checkTrap(data.trapId, data, session.user.id);
+      case 'CHECK_TRAP': {
+        const trap = typeof data.trapId === 'string' ? await prisma.missionTrap.findFirst({ where: { id: data.trapId, missionId: mission.id }, select: { id: true } }) : null;
+        if (!trap) return NextResponse.json({ error: 'That is not on this search.' }, { status: 404 });
+        result = await checkTrap(trap.id, data, session.user.id);
         break;
+      }
 
       // End states
       case 'RESOLVE_FOUND':

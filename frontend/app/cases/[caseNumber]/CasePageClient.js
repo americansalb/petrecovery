@@ -287,7 +287,8 @@ export default function CasePageClient() {
   const phone = casePhone(c);
   const contactName = c.contact?.name && c.contact.name !== 'The owner' ? c.contact.name : '';
   const signedIn = authStatus === 'authenticated';
-  const isOwner = signedIn && Boolean(session?.user?.id) && session.user.id === c.reporterId;
+  // The page's data says whether the person asking is the owner. The owner's account id is not sent to the page.
+  const isOwner = signedIn && Boolean(session?.user?.id) && c.viewerIsOwner === true;
   const lat = Number(c.lastSeenLatitude);
   const lng = Number(c.lastSeenLongitude);
   const hasCoords = c.lastSeenLatitude != null && c.lastSeenLongitude != null && Number.isFinite(lat) && Number.isFinite(lng);

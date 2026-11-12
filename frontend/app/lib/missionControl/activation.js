@@ -38,12 +38,8 @@ export async function canActivate(missionId, userId) {
     return { allowed: true, role: 'OWNER' };
   }
 
-  // Squad/Division leaders can activate
-  const squadLeaders = missionData.assignment?.rescueSquad?.members || [];
-  const isLeader = squadLeaders.some(m => m.userId === userId);
-  if (isLeader) {
-    return { allowed: true, role: 'LEADER' };
-  }
+  // A command role in a Rescue Force does not activate a search. A force with no leader gives the role to any
+  // member who asks, and anyone can found a force, so nobody had to agree to it (app/lib/searcher.js).
 
   // Check if user is a site admin
   const user = await prisma.user.findUnique({
@@ -51,11 +47,11 @@ export async function canActivate(missionId, userId) {
     select: { role: true }
   });
 
-  if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
+  if (user?.role === 'ADMIN') {
     return { allowed: true, role: 'ADMIN' };
   }
 
-  return { allowed: false, reason: 'Only owner or rescue force leaders can activate' };
+  return { allowed: false, reason: 'Only the owner can activate' };
 }
 
 /**

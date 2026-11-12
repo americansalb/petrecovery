@@ -179,7 +179,13 @@ export async function uploadVoiceClip(missionId, ownerId, audioUrl) {
 export async function triggerCallMode(missionId, triggeredBy) {
   const mission = await prisma.missionControl.findUnique({
     where: { id: missionId },
+    include: { case: true }
   });
+
+  // The owner's own voice, sent to every helper's phone: the owner's to send, like everything else in this file.
+  if (!mission || mission.case.reporterId !== triggeredBy) {
+    return { success: false, error: 'Unauthorized' };
+  }
 
   if (!mission.ownerVoiceClipUrl) {
     return { success: false, error: 'No voice clip uploaded' };
@@ -221,7 +227,16 @@ export async function triggerCallMode(missionId, triggeredBy) {
 /**
  * Stop Call Mode
  */
-export async function stopCallMode(missionId) {
+export async function stopCallMode(missionId, ownerId) {
+  const mission = await prisma.missionControl.findUnique({
+    where: { id: missionId },
+    include: { case: true }
+  });
+
+  if (!mission || mission.case.reporterId !== ownerId) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
   await prisma.missionControl.update({
     where: { id: missionId },
     data: {

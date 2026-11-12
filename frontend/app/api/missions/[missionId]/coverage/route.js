@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
 
 export async function GET(request, { params }) {
   try {
@@ -32,6 +33,14 @@ export async function GET(request, { params }) {
 
     if (!mission) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
+    }
+
+    // Where each person walked, and where the ones out now are: for the owner, the forces looking for the pet,
+    // and staff. It answered any account, with every walker's account id, full name and path (2026-11-12).
+    // Nothing on the site calls it; the search screen shows streets as walked or being walked, never a person's dot.
+    const who = await mayKnowThePeople(request, mission.id);
+    if (!who.allowed) {
+      return NextResponse.json({ error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' }, { status: who.status });
     }
 
     // Fetch ALL search sessions that have GPS data - not just "COMPLETED"
@@ -106,25 +115,22 @@ export async function GET(request, { params }) {
       select: {
         id: true,
         firstName: true,
-        lastName: true,
-        profileImage: true,
       },
     });
 
-    const userMap = Object.fromEntries(users.map(u => [u.id, {
-      ...u,
-      name: [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Anonymous',
-      image: u.profileImage, // Alias for backwards compatibility
+    // A person is a first name and a number that means something only in this answer (so one person's walks
+    // can be drawn in one colour). Never their account's id, their last name or their picture.
+    const userMap = Object.fromEntries(users.map((u, i) => [u.id, {
+      name: u.firstName || 'A helper',
+      walker: i + 1,
     }]));
 
     // Format response
     const coverage = {
       // Historical completed searches
       completed: searchSessions.map(session => ({
-        id: session.id,
-        userId: session.userId,
-        userName: userMap[session.userId]?.name || 'Anonymous',
-        userImage: userMap[session.userId]?.image || null,
+        walker: userMap[session.userId]?.walker || 0,
+        userName: userMap[session.userId]?.name || 'A helper',
         startedAt: session.startedAt,
         endedAt: session.endedAt,
         distanceMiles: session.validatedDistanceMiles || 0,
@@ -137,10 +143,8 @@ export async function GET(request, { params }) {
 
       // Active searches (for real-time overlay)
       active: activeSessions.map(session => ({
-        id: session.id,
-        userId: session.userId,
-        userName: userMap[session.userId]?.name || 'Searcher',
-        userImage: userMap[session.userId]?.image || null,
+        walker: userMap[session.userId]?.walker || 0,
+        userName: userMap[session.userId]?.name || 'A helper',
         startedAt: session.startedAt,
         path: session.locationPings.map(ping => ({
           lat: ping.latitude,

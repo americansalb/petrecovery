@@ -25,6 +25,14 @@ const HOLDS_TEXT_TOGETHER = /[\u200C-\u200F]/g;
 /** A first name as the search shows it: one word, and not a paragraph. A helper types their own. */
 export const NAME_MAX = 30;
 
+/**
+ * How long an update may be (what the owner tells everyone helping:
+ * /api/missions/[missionId]/notes). It is shown on the pet's page and on
+ * every helper's card, and the boxes it is typed in stop at 400 and 500:
+ * this is the server's own limit, for a request that did not come from a box.
+ */
+export const UPDATE_MAX = 1000;
+
 /** `text` without what is not text. A tab becomes a space, so two words do not run together. Line breaks are kept. */
 export function onlyText(text) {
   return String(text ?? '')

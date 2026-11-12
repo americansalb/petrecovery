@@ -63,10 +63,10 @@ export async function GET(request) {
       include: {
         case: {
           include: {
+            // The owner's first name. Joining a force is one tap, so a member is not told the last name.
             reporter: {
               select: {
                 firstName: true,
-                lastName: true,
               },
             },
           },
