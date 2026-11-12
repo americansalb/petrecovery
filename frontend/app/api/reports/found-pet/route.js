@@ -15,6 +15,11 @@ import { sendSms } from '@/app/lib/sms';
 import { withCaseNumberRetry } from '@/app/lib/caseNumber';
 import { routeFoundReport, alertForceMembers } from '@/app/lib/forceCoverage';
 
+// Someone not signed in can send six found-pet reports an hour and fifteen a day, the same as lost-pet reports
+// (app/api/reports/create/route.js). A person who finds an animal sends one; this stops reports made in bulk.
+const FOUND_AN_HOUR = { windowMs: 60 * 60 * 1000, maxRequests: 6, blockDurationMs: 60 * 60 * 1000 };
+const FOUND_A_DAY = { windowMs: 24 * 60 * 60 * 1000, maxRequests: 15, blockDurationMs: 6 * 60 * 60 * 1000 };
+
 export async function POST(request) {
   // Mints accounts and emails owners, so it is throttled like the lost-pet
   // intake (it had no limit at all).
@@ -23,6 +28,13 @@ export async function POST(request) {
 
   try {
     const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      // Not signed in: the slower limits on top of the one above.
+      for (const [limit, name] of [[FOUND_AN_HOUR, 'reports:found:hour'], [FOUND_A_DAY, 'reports:found:day']]) {
+        const more = await withRateLimitAsync(request, limit, name);
+        if (!more.success) return rateLimitResponse(more);
+      }
+    }
     const body = await request.json();
     let {
       email, phone, firstName,

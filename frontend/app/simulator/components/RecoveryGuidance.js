@@ -170,8 +170,8 @@ const TERRAIN_TIPS = {
     focus: 'Suburban areas offer yards, sheds, and wooded edges as hiding spots.',
     tips: [
       'Knock on every door within 5 houses',
-      'Check all backyard structures: sheds, playhouses, under decks',
-      'Search drainage ditches and culverts',
+      'Ask neighbors to check their sheds, playhouses and under their decks',
+      'Look along drainage ditches from the bank. Do not go into a culvert',
     ],
   },
   RURAL: {
