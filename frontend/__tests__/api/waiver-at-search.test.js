@@ -10,6 +10,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { WAIVER_VERSION } from '@/app/lib/waiverVersion';
 
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
@@ -40,7 +41,7 @@ import { POST as postSearch } from '@/app/api/mission/[missionId]/search/route';
 import { POST as joinSearch } from '@/app/api/rescue-forces/[id]/missions/[missionId]/help/route';
 
 const CASE = 'cmuh8qki0000d3zr9v5n1kdjy';
-const SIGNED = { waiverAcceptedAt: new Date('2026-01-01'), role: 'USER' };
+const SIGNED = { waiverAcceptedAt: new Date('2026-01-01'), waiverVersionAccepted: WAIVER_VERSION, role: 'USER' };
 const UNSIGNED = { waiverAcceptedAt: null, role: 'USER' };
 
 beforeEach(() => {

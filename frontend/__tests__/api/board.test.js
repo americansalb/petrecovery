@@ -14,6 +14,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { WAIVER_VERSION } from '@/app/lib/waiverVersion';
 
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
@@ -181,14 +182,14 @@ describe('PATCH: taking a street', () => {
 
   test('is refused once the search has ended', async () => {
     prisma.case.findFirst.mockResolvedValue({ ...PET, status: 'REUNITED' });
-    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date() });
+    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
     const res = await PATCH(req('PATCH', { body: claim, headers: VOLUNTEER }), ctx);
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ code: 'CLOSED' });
   });
 
   test('a helper without an account takes one: stored under their own key, with their first name', async () => {
-    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date() });
+    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
     prisma.searchStreet.findFirst
       .mockResolvedValueOnce(street({ id: 'st-2', name: 'Ramsey Ave' }))
       .mockResolvedValueOnce(street({ id: 'st-2', name: 'Ramsey Ave', status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedByName: 'Dana', claimedAt: new Date() }));
@@ -212,7 +213,7 @@ describe('PATCH: taking a street', () => {
 
   test('two people tap the same street: the second is told in words', async () => {
     getServerSession.mockResolvedValue({ user: { id: 'u-mike' } });
-    prisma.user.findUnique.mockResolvedValue({ firstName: 'Mike', waiverAcceptedAt: new Date() });
+    prisma.user.findUnique.mockResolvedValue({ firstName: 'Mike', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
     prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2', name: 'Ramsey Ave', status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedAt: new Date() }));
     prisma.searchStreet.updateMany.mockResolvedValue({ count: 0 });
     const res = await PATCH(req('PATCH', { body: claim }), ctx);
@@ -225,7 +226,7 @@ describe('PATCH: taking a street', () => {
 
   test('only the person walking a street can mark it searched', async () => {
     getServerSession.mockResolvedValue({ user: { id: 'u-mike' } });
-    prisma.user.findUnique.mockResolvedValue({ firstName: 'Mike', waiverAcceptedAt: new Date() });
+    prisma.user.findUnique.mockResolvedValue({ firstName: 'Mike', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
     prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2', status: 'IN_PROGRESS', claimedById: 'u-sam' }));
     prisma.searchStreet.updateMany.mockResolvedValue({ count: 0 });
     const res = await PATCH(req('PATCH', { body: { ...claim, action: 'searched' } }), ctx);
@@ -234,7 +235,7 @@ describe('PATCH: taking a street', () => {
   });
 
   test('a helper without an account marks a square searched: credited by the board\'s key, since an account id cannot name them', async () => {
-    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date() });
+    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
     const cell = { id: 'c-1', gridId: 'grid-1', row: 0, col: 2, status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedAt: new Date(), searchedAt: null, searchCount: 0 };
     prisma.gridCell.findFirst.mockResolvedValueOnce(cell).mockResolvedValueOnce({ ...cell, status: 'SEARCHED', claimedById: null, claimedAt: null, searchedAt: new Date(), searchCount: 1 });
     prisma.gridCell.updateMany.mockResolvedValue({ count: 1 });
@@ -248,14 +249,14 @@ describe('PATCH: taking a street', () => {
 
   test('a street from another search is not found', async () => {
     getServerSession.mockResolvedValue({ user: { id: 'u-mike' } });
-    prisma.user.findUnique.mockResolvedValue({ firstName: 'Mike', waiverAcceptedAt: new Date() });
+    prisma.user.findUnique.mockResolvedValue({ firstName: 'Mike', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
     prisma.searchStreet.findFirst.mockResolvedValue(null);
     const res = await PATCH(req('PATCH', { body: claim }), ctx);
     expect(res.status).toBe(404);
   });
 
   test('a street of the ring outside the board cannot be taken', async () => {
-    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date() });
+    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
     prisma.searchStreet.findFirst.mockResolvedValue(null);
     const res = await PATCH(req('PATCH', { headers: VOLUNTEER, body: { unit: 'street', id: 'st-ring', action: 'claim' } }), ctx);
     expect(res.status).toBe(404);
@@ -384,7 +385,7 @@ describe('PATCH: steering from the desk', () => {
     prisma.rescueForceMember.findMany.mockResolvedValue([]);
     expect((await steer('first')).status).toBe(403);
     getServerSession.mockResolvedValue(null);
-    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date() });
+    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
     expect((await PATCH(req('PATCH', { headers: VOLUNTEER, body: { unit: 'street', id: 'st-2', action: 'walked' } }), ctx)).status).toBe(403);
     prisma.missionVolunteer.findFirst.mockResolvedValue(null);
     expect((await steer('first')).status).toBe(401);
@@ -394,7 +395,7 @@ describe('PATCH: steering from the desk', () => {
 
   test('a street asked for first goes back to its place once it has been walked, by a helper or from the desk', async () => {
     // A helper on a phone walks it: the ask is met, so the next people are not sent to it ahead of everything again.
-    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date() });
+    prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
     const held = street({ id: 'st-2', priority: FIRST_PRIORITY, status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedByName: 'Dana', claimedAt: new Date() });
     prisma.searchStreet.findFirst.mockResolvedValue(held);
     prisma.searchStreet.updateMany.mockResolvedValue({ count: 1 });

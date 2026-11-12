@@ -110,6 +110,21 @@ moving. Never say or imply that ground is safe: the map can be wrong. Do
 not rate neighbourhoods. Enforced by
 `frontend/__tests__/lib/searchHazards.test.js`.
 
+### The waiver is asked for the text as it reads today, and the training is never called optional
+
+Founder, 2026-11-12: "We need to find a stronger way to remove any
+liability. I know the waiver and maybe a bit of optional training on
+rescue? but not say its optional". The waiver is
+`frontend/prisma/legal/liability-waiver.js`; change its text only with a
+version bump, which asks everyone again (`frontend/app/lib/waiverVersion.js`).
+Every agreement writes a `WaiverAcceptance` row and that table is proof:
+never edit or delete rows. What the waiver does stays in plain view above
+the tick. "Before you go out" follows the tick as a step everyone passes
+through: no "optional", "skip" or "later" on it, and nothing on the server
+refuses a search for want of it. No wording here has been reviewed by a
+lawyer; do not tell anyone it removes liability. Enforced by
+`frontend/__tests__/lib/waiver-strength.test.js`.
+
 ### The site's address is built in, never configured
 
 Every absolute URL the pet site produces (email and SMS links, flyer QR

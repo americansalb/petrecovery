@@ -285,7 +285,7 @@ export default function useSearch(missionParam, { desk = false } = {}) {
       const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/volunteer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'JOIN', deviceId: deviceKey(), name: String(name || '').trim() || undefined, waiverAccepted: true, waiverVersion }),
+        body: JSON.stringify({ action: 'JOIN', deviceId: deviceKey(), name: String(name || '').trim() || undefined, waiverAccepted: true, waiverVersion, adult: true }),
       });
       if (!res) return { error: NO_SIGNAL };
       const data = await readJson(res);
@@ -300,14 +300,30 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     [missionParam, reload]
   );
 
-  /** Someone signed in accepts the safety rules and the waiver. */
-  const acceptWaiver = useCallback(async () => {
-    const res = await send('/api/legal/accept-waiver', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-    if (!res) return { error: NO_SIGNAL };
-    if (!res.ok) return { error: 'That did not go through. Try again in a moment.' };
-    await reload();
-    return { ok: true };
-  }, [reload]);
+  /** Someone signed in accepts the safety rules and the waiver: the version their screen showed, as an adult. */
+  const acceptWaiver = useCallback(
+    async ({ waiverVersion = null } = {}) => {
+      const res = await send('/api/legal/accept-waiver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: waiverVersion || undefined, adult: true, caseId: caseIdRef.current || undefined }),
+      });
+      if (!res) return { error: NO_SIGNAL };
+      if (!res.ok) {
+        const data = await readJson(res);
+        return { error: data.code === 'WAIVER_CHANGED' ? data.error : 'That did not go through. Try again in a moment.' };
+      }
+      await reload();
+      return { ok: true };
+    },
+    [reload]
+  );
+
+  /** They have read "Before you go out". Recorded if it can be; nothing waits on it. */
+  const trained = useCallback(
+    () => send(`/api/mission/${encodeURIComponent(missionParam)}/trained`, { method: 'POST', headers: headers({ 'Content-Type': 'application/json' }) }).then(() => undefined),
+    [missionParam, headers]
+  );
 
   /** One change to the board, and the board read again after it. */
   const change = useCallback(
@@ -480,6 +496,7 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     locate,
     join,
     acceptWaiver,
+    trained,
     act,
     sendSighting,
     answer,

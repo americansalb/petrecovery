@@ -233,6 +233,34 @@ enum PatrolLevel {
 // LEGAL DOCUMENT SYSTEM (Phase 0)
 // ============================================================================
 
+// One row each time someone agrees to the liability waiver: who, which
+// version of the text, when, and from where. It is the proof kept of an
+// agreement, so rows are added and never changed, except `trainedAt`,
+// stamped when the same person finishes "Before you go out" (the short
+// training shown after agreeing, app/lib/safetyRules.js).
+model WaiverAcceptance {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId      String? // the account, where there is one
+  volunteerId String? // MissionVolunteer.id, for someone helping without an account
+  caseId      String? // the search they were joining, where known
+  name        String? // the first name they gave
+
+  version      String // the version of the waiver in force when they agreed
+  shownVersion String? // the version their screen said it was showing
+  adult        Boolean @default(false) // the tick says "I am 18 or older"
+
+  ipAddress String?
+  userAgent String?
+
+  trainedAt DateTime?
+
+  @@index([userId])
+  @@index([volunteerId])
+  @@index([caseId])
+}
+
 model LegalDocument {
   id String @id @default(cuid())
 

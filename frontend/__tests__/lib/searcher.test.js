@@ -29,6 +29,7 @@ jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
 
 import prisma from '@/app/lib/prisma';
+import { WAIVER_VERSION } from '@/app/lib/waiverVersion';
 import { getServerSession } from 'next-auth';
 import { searcherFor } from '@/app/lib/searcher';
 import { FORCE_COMMAND_ROLES } from '@/app/lib/forceRoles';
@@ -39,7 +40,7 @@ const request = (headers = {}) => new Request('http://localhost/api/mission/case
 beforeEach(() => {
   jest.clearAllMocks();
   getServerSession.mockResolvedValue(null);
-  prisma.user.findUnique.mockResolvedValue({ firstName: 'Sarah Jane', waiverAcceptedAt: new Date() });
+  prisma.user.findUnique.mockResolvedValue({ firstName: 'Sarah Jane', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
   prisma.case.findUnique.mockResolvedValue({ reporterId: 'user-avery' });
   prisma.caseAssignment.findMany.mockResolvedValue([{ rescueSquadId: 'force-1' }]);
   prisma.rescueForceMember.findMany.mockResolvedValue([]);
@@ -53,7 +54,7 @@ test('someone only looking is nobody', async () => {
 test('the owner sees names, leads, and needs no waiver for their own pet', async () => {
   getServerSession.mockResolvedValue({ user: { id: 'user-avery' } });
   prisma.user.findUnique.mockResolvedValue({ firstName: 'Avery', waiverAcceptedAt: null });
-  expect(await searcherFor(request(), CASE)).toEqual({ id: 'user-avery', kind: 'user', userId: 'user-avery', volunteerId: null, firstName: 'Avery', isOwner: true, waiver: true, seesNames: true, leads: true, admin: false });
+  expect(await searcherFor(request(), CASE)).toEqual({ id: 'user-avery', kind: 'user', userId: 'user-avery', volunteerId: null, firstName: 'Avery', isOwner: true, waiver: true, signedBefore: false, seesNames: true, leads: true, admin: false });
   // No force is consulted for the owner.
   expect(prisma.rescueForceMember.findMany).not.toHaveBeenCalled();
 });
@@ -90,14 +91,14 @@ test('leading a force that is not looking for this pet counts for nothing here',
 });
 
 test('a helper without an account is the pair of their id and the device key, for this pet', async () => {
-  prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana Smith', waiverAcceptedAt: new Date() });
+  prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana Smith', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
   const who = await searcherFor(request({ 'x-volunteer-id': 'vol-1', 'x-volunteer-key': 'dev_abc' }), CASE);
-  expect(who).toEqual({ id: 'v:vol-1', kind: 'volunteer', userId: null, volunteerId: 'vol-1', firstName: 'Dana', isOwner: false, waiver: true, seesNames: false, leads: false });
+  expect(who).toEqual({ id: 'v:vol-1', kind: 'volunteer', userId: null, volunteerId: 'vol-1', firstName: 'Dana', isOwner: false, waiver: true, signedBefore: true, seesNames: false, leads: false });
   expect(prisma.missionVolunteer.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'vol-1', odId: 'dev_abc', mission: { caseId: CASE } } }));
 });
 
 test('the id alone, or the key alone, is nobody', async () => {
-  prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date() });
+  prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION });
   expect(await searcherFor(request({ 'x-volunteer-id': 'vol-1' }), CASE)).toBeNull();
   expect(await searcherFor(request({ 'x-volunteer-key': 'dev_abc' }), CASE)).toBeNull();
   expect(prisma.missionVolunteer.findFirst).not.toHaveBeenCalled();
@@ -111,10 +112,10 @@ test('the site\'s own admin runs any search: an account an existing admin made o
   // Not the owner: answering a sighting, and writing to everyone in the owner's name, stay the owner's.
   expect(who.isOwner).toBe(false);
   // The role is read from the account's own row, never from what the request says about itself.
-  expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { id: 'user-root' }, select: { firstName: true, waiverAcceptedAt: true, role: true } });
+  expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { id: 'user-root' }, select: { firstName: true, waiverAcceptedAt: true, waiverVersionAccepted: true, role: true } });
   // Every other role runs nothing.
   for (const role of ['USER', 'GUEST', 'PATROL', 'MODERATOR']) {
-    prisma.user.findUnique.mockResolvedValue({ firstName: 'Sam', waiverAcceptedAt: new Date(), role });
+    prisma.user.findUnique.mockResolvedValue({ firstName: 'Sam', waiverAcceptedAt: new Date(), waiverVersionAccepted: WAIVER_VERSION, role });
     expect(await searcherFor(request(), CASE)).toMatchObject({ leads: false, admin: false });
   }
 });
@@ -162,4 +163,13 @@ describe('the owner\'s key: someone who reported without signing in runs their o
     expect(getServerSession).toHaveBeenCalledTimes(1);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
+});
+
+test('an acceptance of an older version of the waiver no longer counts, but is remembered', async () => {
+  getServerSession.mockResolvedValue({ user: { id: 'user-sarah' } });
+  prisma.user.findUnique.mockResolvedValue({ firstName: 'Sarah', waiverAcceptedAt: new Date('2026-01-01'), waiverVersionAccepted: '1.0' });
+  expect(await searcherFor(request(), CASE)).toMatchObject({ waiver: false, signedBefore: true });
+  getServerSession.mockResolvedValue(null);
+  prisma.missionVolunteer.findFirst.mockResolvedValue({ id: 'vol-1', displayName: 'Dana', waiverAcceptedAt: new Date('2026-01-01'), waiverVersionAccepted: '1.1.0' });
+  expect(await searcherFor(request({ 'x-volunteer-id': 'vol-1', 'x-volunteer-key': 'dev_abc' }), CASE)).toMatchObject({ waiver: false, signedBefore: true });
 });
