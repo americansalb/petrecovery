@@ -157,6 +157,7 @@ export default function SearchMap({
   onSelect = null, // (id | null) => void
   onHover = null, // (id | null) => void
   rings = NONE, // [{ meters, label }] around where the pet was lost
+  spot = null, // { lat, lng, meters }: the circle of the search. Everything outside it is dimmed, so the search stands out
   trail = false, // join the sightings in the order they happened
   layer = 'map', // 'map' | 'satellite'
   maxFitZoom = 17, // how close a fit may go
@@ -294,6 +295,20 @@ export default function SearchMap({
       const named = drawn.filter((a) => a.label && a.center && Number.isFinite(a.center.lat));
       nameSpan.current = named.reduce((far, a) => Math.max(far, ...named.map((b) => map.distance([a.center.lat, a.center.lng], [b.center.lat, b.center.lng]))), 0);
       crowd();
+      if (spot && Number.isFinite(spot.lat) && spot.meters > 0) {
+        // The ground of the search stands out from the town round it: everything outside the circle is dimmed.
+        // One shape, the size of a country, with the circle cut out of it.
+        const far = 4;
+        const world = [[spot.lat - far, spot.lng - far], [spot.lat - far, spot.lng + far], [spot.lat + far, spot.lng + far], [spot.lat + far, spot.lng - far]];
+        const hole = [];
+        for (let turn = 0; turn < 360; turn += 4) {
+          const t = (turn * Math.PI) / 180;
+          hole.push([spot.lat + (spot.meters * Math.cos(t)) / 111320, spot.lng + (spot.meters * Math.sin(t)) / (111320 * Math.cos((spot.lat * Math.PI) / 180))]);
+        }
+        L.polygon([world, hole], { stroke: false, fillColor: dark ? '#020617' : '#0f172a', fillOpacity: dark ? 0.5 : 0.28, interactive: false }).addTo(layers);
+        // And its edge, drawn once and firmly, under the areas' own lines.
+        L.polygon(hole, { color: look.ink, weight: 3, opacity: 0.9, fill: false, interactive: false }).addTo(layers);
+      }
       for (const area of drawn) {
         if (!Array.isArray(area.outline) || area.outline.length < 4) continue;
         const lit = Boolean(area.mine);
@@ -302,7 +317,13 @@ export default function SearchMap({
         const busy = area.status === 'IN_PROGRESS';
         // Searched, and put up for another look: it keeps its green and gets an ink edge, since it is open again.
         const again = area.status === 'NEEDS_REVISIT';
-        const fill = searched ? { fillColor: look.walked, fillOpacity: area.searchCount > 1 ? 0.5 : 0.26 } : sightingCircle ? { fillColor: seenLine, fillOpacity: 0.1 } : { fillOpacity: 0 };
+        const fill = searched
+          ? { fillColor: look.walked, fillOpacity: area.searchCount > 1 ? 0.62 : 0.36 }
+          : sightingCircle
+            ? { fillColor: seenLine, fillOpacity: 0.14 }
+            : busy && desk
+              ? { fillColor: look.walking, fillOpacity: 0.14 }
+              : { fillOpacity: 0 };
         const edge = lit
           ? { color: FLASH, weight: 4, fillColor: FLASH, fillOpacity: searched ? 0.3 : 0.2 }
           : busy
@@ -310,7 +331,7 @@ export default function SearchMap({
             : sightingCircle
               ? { color: seenLine, weight: 2.5, dashArray: '6 6' }
               : desk
-                ? { color: area.next || again ? look.ink : look.later, weight: area.next ? 3.5 : again ? 2.5 : 1.5 }
+                ? { color: look.ink, opacity: area.next || again ? 1 : 0.55, weight: area.next ? 4 : again ? 2.5 : 1.75, ...(again ? { dashArray: '3 6' } : {}) }
                 : { color: dark ? 'rgba(203,213,225,0.55)' : 'rgba(51,65,85,0.5)', weight: 1.5 };
         if (lit) L.polygon(area.outline, { color: casing, weight: 8, opacity: 0.9, fill: false, lineJoin: 'round', interactive: false }).addTo(layers);
         const shape = L.polygon(area.outline, { lineJoin: 'round', ...fill, ...edge, interactive: desk }).addTo(layers);
@@ -446,7 +467,8 @@ export default function SearchMap({
     draw();
     el?.addEventListener('searchmap:ready', draw);
     return () => el?.removeEventListener('searchmap:ready', draw);
-  }, [theme, lastSeen, sightings, areas, streets, cells, me, tags, track, desk, rings, trail]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, lastSeen, sightings, areas, streets, cells, me, tags, track, desk, rings, trail, spot?.lat, spot?.lng, spot?.meters]);
 
   // The street that is picked, and the one pointed at from the list: drawn over everything else, and redrawn
   // alone, so pointing at a row does not repaint the whole search.

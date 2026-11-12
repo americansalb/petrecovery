@@ -214,7 +214,7 @@ export default function Board({ picture, items, unit, circle = null, onWiden = n
   const tabs = overview ? [['overview', 'Overview'], ...named] : named;
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 border-b border-[var(--mc-line)] px-1" role="tablist" aria-label="The search">
+      <div className="m-2.5 mb-0 flex shrink-0 gap-0.5 rounded-xl bg-[var(--mc-ground)] p-1" role="tablist" aria-label="The search">
         {tabs.map(([id, words]) => (
           <button
             key={id}
@@ -222,8 +222,8 @@ export default function Board({ picture, items, unit, circle = null, onWiden = n
             role="tab"
             aria-selected={tab === id}
             onClick={() => onTab(id)}
-            className={`-mb-px flex min-h-[48px] flex-auto items-center justify-center gap-1 whitespace-nowrap border-b-[3px] px-1.5 text-[14px] leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${
-              tab === id ? 'border-[var(--mc-ink)] font-extrabold text-[var(--mc-ink)]' : 'border-transparent font-semibold text-[var(--mc-muted)] hover:text-[var(--mc-ink)]'
+            className={`flex min-h-[38px] flex-auto items-center justify-center gap-1 whitespace-nowrap rounded-[10px] px-1.5 text-[14px] leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${
+              tab === id ? 'bg-[var(--mc-raised)] font-extrabold text-[var(--mc-ink)] shadow-sm' : 'font-semibold text-[var(--mc-muted)] hover:text-[var(--mc-ink)]'
             }`}
           >
             {words}

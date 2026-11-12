@@ -165,7 +165,8 @@ export function wordFrom(word, { timeZone, now = Date.now() } = {}) {
 export function stream({ events = [], words = [] } = {}) {
   const lines = [];
   for (const e of events) {
-    lines.push({ id: e.id, at: e.at, kind: e.kind === 'seen' ? 'seen' : e.kind === 'said' ? 'said' : 'event', text: e.text, streetId: e.streetId || null, sightingId: e.sightingId || null });
+    // `what` is what happened (lost, seen, start, walk, owner, said): the log marks each with its own colour.
+    lines.push({ id: e.id, at: e.at, kind: e.kind === 'seen' ? 'seen' : e.kind === 'said' ? 'said' : 'event', what: e.kind, text: e.text, streetId: e.streetId || null, sightingId: e.sightingId || null });
   }
   for (const w of words) {
     lines.push({

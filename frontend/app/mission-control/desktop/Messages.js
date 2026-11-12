@@ -104,13 +104,21 @@ export default function Messages({ picture, items, unit = 'street', now, people 
           }
           const act = l.streetId ? () => onSelect(l.streetId) : l.sightingId ? () => onFocus(l.sightingId) : null;
           const seen = l.kind === 'seen';
+          // Each line carries a mark in the colour of what happened: red where the pet was lost, orange for a
+          // sighting, teal for someone starting an area, green for an area searched. The marks stand on one rail,
+          // so the log reads as one run of time.
+          const mark = l.what === 'lost' ? 'bg-[var(--mc-lost)]' : seen ? 'bg-[var(--mc-seen)]' : l.what === 'walk' ? 'bg-[var(--mc-done)]' : l.what === 'start' ? 'bg-[var(--mc-teal)]' : 'bg-[var(--mc-muted)]';
           const row = (
             <>
-              <span className={`w-[58px] shrink-0 text-[13px] font-semibold leading-5 tabular-nums ${seen ? 'text-[var(--mc-seen-ink)]' : 'text-[var(--mc-muted)]'}`}>{clockTime(l.at, zone)}</span>
+              <span className={`w-[62px] shrink-0 whitespace-nowrap text-right text-[13px] font-semibold leading-5 tabular-nums ${seen ? 'text-[var(--mc-seen-ink)]' : 'text-[var(--mc-muted)]'}`}>{clockTime(l.at, zone)}</span>
+              <span className="relative flex w-3 shrink-0 justify-center self-stretch" aria-hidden="true">
+                <span className="absolute -bottom-1.5 -top-1.5 w-px bg-[var(--mc-line)]" />
+                <span className={`relative mt-[6px] h-2 w-2 rounded-full ring-2 ring-[var(--mc-surface)] ${mark}`} />
+              </span>
               <span className={`min-w-0 flex-1 text-[14px] leading-5 ${seen ? 'font-semibold text-[var(--mc-ink)]' : l.kind === 'said' ? 'font-semibold text-[var(--mc-ink)]' : 'font-medium text-[var(--mc-soft)]'}`}>{l.text}</span>
             </>
           );
-          const look = `flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left ${seen ? 'my-0.5 border border-[var(--mc-seen)] bg-[var(--mc-seen-bg)]' : ''}`;
+          const look = `flex w-full items-start gap-2.5 rounded-lg px-2 py-1.5 text-left ${seen ? 'bg-[var(--mc-seen-bg)]' : ''}`;
           return (
             <li key={l.id}>
               {act ? (

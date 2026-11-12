@@ -306,7 +306,7 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
 
   test('on the desk a sighting\'s circle can be pointed at: it is drawn after the areas it lies in', () => {
     const map = read('app/mission-control/components/SearchMap.js');
-    expect(map).toMatch(/const drawn = \[\.\.\.areas\]\.sort\(\(a, b\) => Number\(a\.ring === 3\) - Number\(b\.ring === 3\)\);[\s\S]{0,400}?for \(const area of drawn\) \{/);
+    expect(map).toMatch(/const drawn = \[\.\.\.areas\]\.sort\(\(a, b\) => Number\(a\.ring === 3\) - Number\(b\.ring === 3\)\);[\s\S]{0,2400}?for \(const area of drawn\) \{/);
   });
 
   test('when no street can be given, the first card says why and nobody is sent off', () => {
@@ -434,7 +434,7 @@ describe('three instruments: a desk is never asked where it is and is never hand
   });
 
   test('a desk is a view of its own, and the screen switches to it in one place', () => {
-    expect(fs.readdirSync(path.join(SCREEN, 'desktop')).sort()).toEqual(['Board.js', 'Command.js', 'Ground.js', 'Know.js', 'Messages.js', 'Needs.js', 'People.js']);
+    expect(fs.readdirSync(path.join(SCREEN, 'desktop')).sort()).toEqual(['Board.js', 'Command.js', 'Dial.js', 'Ground.js', 'Know.js', 'Messages.js', 'Needs.js', 'People.js']);
     expect(code(shell).match(/<Command\b/g)).toHaveLength(1);
     expect(code(shell)).toMatch(/if \(desk\) \{\s*return \(\s*<Command\b/);
     // It is given this person's own card as it is, so a desk and a phone never say different things about a step.

@@ -23,10 +23,10 @@ import { searcherBrief } from '../lib/briefLines';
 
 export function Card({ title, right = null, children, className = '' }) {
   return (
-    <section className={`rounded-2xl border border-[var(--mc-line)] bg-[var(--mc-surface)] px-4 pb-4 pt-3.5 ${className}`}>
+    <section className={`border-t border-[var(--mc-line)] px-4 pb-4 pt-3.5 ${className}`}>
       {title && (
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[13px] font-bold leading-5 text-[var(--mc-muted)]">{title}</h2>
+          <h2 className="text-[14px] font-extrabold leading-5 text-[var(--mc-ink)]">{title}</h2>
           {right}
         </div>
       )}

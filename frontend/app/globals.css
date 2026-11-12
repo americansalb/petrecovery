@@ -1131,6 +1131,10 @@ img {
 .mc-dark path.leaflet-interactive:focus {
   outline: none;
 }
+/* On a wide desk a panel floats over the right of the map: the map's zoom buttons and credit stand clear of it. */
+.mc-stage-wide .leaflet-right {
+  right: 400px;
+}
 /* Zoomed far out, the names of the areas would lie on top of each other, so they are left off. */
 .mc-far .mc-area-name {
   display: none;
@@ -1144,6 +1148,7 @@ img {
   --mc-muted: #a3b1c6;
   --mc-line: rgba(148, 163, 184, 0.22);
   --mc-line-strong: rgba(148, 163, 184, 0.5);
+  --mc-lost: #ef4444;
   --mc-seen: #fb923c;
   --mc-seen-ink: #fdba74;
   --mc-seen-bg: #3a2a1f;
@@ -1170,6 +1175,7 @@ img {
   --mc-muted: #475569;
   --mc-line: #dbe2ea;
   --mc-line-strong: #64748b;
+  --mc-lost: #dc2626;
   --mc-seen: #c2410c;
   --mc-seen-ink: #9a3412;
   --mc-seen-bg: #fff4e8;
