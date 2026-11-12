@@ -17,6 +17,7 @@ import { forcesOf } from '@/app/lib/forceFeed';
 import { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER } from '@/app/lib/searcherHeaders';
 // A name is one word, and not a paragraph: a helper types their own, and it is shown to the owner and put in notices.
 import { firstWord } from '@/app/lib/searchText';
+import { holdsOwnerKey, ownerKeyFrom } from '@/app/lib/ownerKey';
 
 export { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER };
 
@@ -47,16 +48,40 @@ export { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER };
  * Someone else runs a search only once the owner has handed it to them,
  * and that is not built: when it is, it is added here.
  */
+const OWNED = { id: true, reporterId: true, ownerName: true, ownerKeyHash: true, ownerKeyAt: true };
+
+/**
+ * The owner, known by their key and not by a session. They are the account the report was filed to, for this one
+ * search and nothing else of that account. `viaKey` says so, for a screen that wants to tell them how to keep it.
+ */
+function ownerWithKey(pet) {
+  return {
+    id: pet.reporterId,
+    kind: 'user',
+    userId: pet.reporterId,
+    volunteerId: null,
+    firstName: firstWord(pet.ownerName) || 'The owner',
+    isOwner: true,
+    waiver: true,
+    seesNames: true,
+    leads: true,
+    admin: false,
+    viaKey: true,
+  };
+}
+
 export async function searcherFor(request, caseId) {
   const session = await getServerSession(authOptions).catch(() => null);
   const userId = session?.user?.id || null;
   if (userId) {
     const [user, pet] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, waiverAcceptedAt: true, role: true } }),
-      prisma.case.findUnique({ where: { id: caseId }, select: { reporterId: true } }),
+      prisma.case.findUnique({ where: { id: caseId }, select: OWNED }),
     ]);
     if (user) {
       const isOwner = Boolean(pet && pet.reporterId === userId);
+      // Signed in as someone else, on the browser the report was sent from: the key is the owner's.
+      if (!isOwner && pet && holdsOwnerKey(request, pet)) return ownerWithKey(pet);
       // Whoever runs the site can run any search on it. That role is given by an existing admin, one account at a
       // time (app/lib/auth.js): unlike a role in a Rescue Force, nobody can reach it by themselves.
       const admin = user.role === 'ADMIN';
@@ -85,6 +110,12 @@ export async function searcherFor(request, caseId) {
         admin,
       };
     }
+  }
+  // Not signed in, with the owner's key for this search: the browser the report was sent from, or the link in the
+  // owner's email (app/lib/ownerKey.js). Nothing is looked up for a request that carries no key.
+  if (ownerKeyFrom(request, caseId)) {
+    const pet = await prisma.case.findUnique({ where: { id: caseId }, select: OWNED }).catch(() => null);
+    if (pet && holdsOwnerKey(request, pet)) return ownerWithKey(pet);
   }
   const volunteerId = request.headers.get(VOLUNTEER_ID_HEADER);
   const key = request.headers.get(VOLUNTEER_KEY_HEADER);

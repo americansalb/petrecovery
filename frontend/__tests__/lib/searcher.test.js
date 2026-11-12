@@ -118,3 +118,48 @@ test('the site\'s own admin runs any search: an account an existing admin made o
     expect(await searcherFor(request(), CASE)).toMatchObject({ leads: false, admin: false });
   }
 });
+
+describe('the owner\'s key: someone who reported without signing in runs their own search', () => {
+  const { mintOwnerKey } = require('@/app/lib/ownerKey');
+  const mine = mintOwnerKey();
+  const KEPT = { id: CASE, reporterId: 'user-avery', ownerName: 'Avery Lee', ownerKeyHash: mine.hash, ownerKeyAt: new Date() };
+
+  test('not signed in, with the key: they are the owner of this search', async () => {
+    prisma.case.findUnique.mockResolvedValue(KEPT);
+    const who = await searcherFor(request({ cookie: `rp_owner_${CASE}=${mine.key}` }), CASE);
+    expect(who).toEqual({ id: 'user-avery', kind: 'user', userId: 'user-avery', volunteerId: null, firstName: 'Avery', isOwner: true, waiver: true, seesNames: true, leads: true, admin: false, viaKey: true });
+  });
+
+  test('a wrong key, an old key or another search\'s key is someone only looking', async () => {
+    prisma.case.findUnique.mockResolvedValue(KEPT);
+    expect(await searcherFor(request({ cookie: `rp_owner_${CASE}=${mintOwnerKey().key}` }), CASE)).toBeNull();
+    expect(await searcherFor(request({ cookie: `rp_owner_other-case=${mine.key}` }), CASE)).toBeNull();
+    prisma.case.findUnique.mockResolvedValue({ ...KEPT, ownerKeyAt: new Date(Date.now() - 61 * 24 * 60 * 60 * 1000) });
+    expect(await searcherFor(request({ cookie: `rp_owner_${CASE}=${mine.key}` }), CASE)).toBeNull();
+    // A search made by someone signed in has no key at all.
+    prisma.case.findUnique.mockResolvedValue({ ...KEPT, ownerKeyHash: null, ownerKeyAt: null });
+    expect(await searcherFor(request({ cookie: `rp_owner_${CASE}=${mine.key}` }), CASE)).toBeNull();
+  });
+
+  test('nothing is looked up for a visitor who carries no key', async () => {
+    await searcherFor(request(), CASE);
+    await searcherFor(request({ cookie: 'session=abc' }), CASE);
+    expect(prisma.case.findUnique).not.toHaveBeenCalled();
+  });
+
+  test('signed in as someone else on the browser the report was sent from: the key is still the owner\'s', async () => {
+    getServerSession.mockResolvedValue({ user: { id: 'user-sarah' } });
+    prisma.case.findUnique.mockResolvedValue(KEPT);
+    expect(await searcherFor(request({ cookie: `rp_owner_${CASE}=${mine.key}` }), CASE)).toMatchObject({ id: 'user-avery', isOwner: true, leads: true, viaKey: true });
+    // Without it they are who they signed in as.
+    expect(await searcherFor(request(), CASE)).toMatchObject({ id: 'user-sarah', isOwner: false, leads: false });
+  });
+
+  test('the key opens one search, not the account: a helper\'s headers beside it change nothing, and it is never a session', async () => {
+    prisma.case.findUnique.mockResolvedValue(KEPT);
+    const who = await searcherFor(request({ cookie: `rp_owner_${CASE}=${mine.key}` }), CASE);
+    expect(who.viaKey).toBe(true);
+    expect(getServerSession).toHaveBeenCalledTimes(1);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+});

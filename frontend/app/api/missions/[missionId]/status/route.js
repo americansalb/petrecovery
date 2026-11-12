@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
+import { ownerByKey } from '@/app/lib/ownerKey';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
@@ -29,6 +30,11 @@ export async function POST(request, { params }) {
   try {
     // Authentication check
     session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      // Not signed in, with the owner's key to this search (app/lib/ownerKey.js): the owner is who is asking.
+      const owner = await ownerByKey(request, params.missionId);
+      if (owner) session = { user: { id: owner.userId, role: 'USER' } };
+    }
 
     if (!session?.user?.id) {
       await logEvent({

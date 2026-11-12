@@ -355,7 +355,9 @@ export default function ReportLostPet() {
       if (!response.ok) {
         // An email that already has an account: signing in files the report
         // to it (the draft is kept). The nav is hidden here, so link it.
-        if (data.signInUrl) setErrorLink({ href: data.signInUrl, label: 'Sign in to post it' });
+        // Already a search open from this browser: the way on is that search, which the answer names.
+        if (data.code === 'OPEN_REPORT_EXISTS' && data.openUrl) setErrorLink({ href: data.openUrl, label: 'Open that search' });
+        else if (data.signInUrl) setErrorLink({ href: data.signInUrl, label: 'Sign in to post it' });
         // A contact that belongs to an account: the other way out is a
         // different number or email, one tap away on the contact screen.
         if (data.code === 'PHONE_EXISTS' || data.code === 'ACCOUNT_EXISTS') {

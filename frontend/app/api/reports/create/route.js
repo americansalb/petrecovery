@@ -21,6 +21,30 @@ import { feedPost } from '@/app/lib/forceFeed';
 import { fillForceOutlineSoon } from '@/app/lib/forceOutlines';
 import { normalizeDetails, isEmptyDetails, needsMedication, healthUrgency, petFieldsFromDetails } from '@/app/lib/caseDetails';
 import { signDetailsToken } from '@/app/lib/detailsToken';
+import { mintOwnerKey, ownerCookie, madeCookie, casesHeldBy } from '@/app/lib/ownerKey';
+import { OPEN_CASE_STATUSES, isCaseOpen } from '@/app/lib/caseStatus';
+
+/**
+ * How many searches one person can have open at once (founder, 2026-11-12:
+ * "is it possible to ensure that we don't get spammed? Like one lost pet
+ * per person"). Someone who has not signed in is one email, one phone and
+ * one browser, and none of those has been proven theirs, so they get one.
+ * Someone signed in has confirmed their email, and two pets do get out of
+ * the same open gate, so they get a few. A report that is closed (the pet
+ * is home, or the search was called off) no longer counts.
+ */
+const MAX_OPEN_SEARCHES_GUEST = 1;
+const MAX_OPEN_SEARCHES_SIGNED_IN = 3;
+/**
+ * And how many reports one address can send without signing in, whoever it
+ * says it is: a few an hour and a handful a day. Every report mints an
+ * account and sends email, texts and alerts to neighbours, so making them
+ * in bulk is both spam and a bill. Signed-in people are held to their own
+ * limit above and not to this one, which a whole office or a phone network
+ * can share.
+ */
+const REPORTS_AN_HOUR = { windowMs: 60 * 60 * 1000, maxRequests: 6, blockDurationMs: 60 * 60 * 1000 };
+const REPORTS_A_DAY = { windowMs: 24 * 60 * 60 * 1000, maxRequests: 15, blockDurationMs: 6 * 60 * 60 * 1000 };
 
 // Allow large body for base64 image uploads and longer timeout
 export const maxDuration = 30;
@@ -47,6 +71,33 @@ export async function POST(request) {
 
   try {
     const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      // Not signed in: the slower limits on top of the one above.
+      for (const [limit, name] of [[REPORTS_AN_HOUR, 'reports:create:hour'], [REPORTS_A_DAY, 'reports:create:day']]) {
+        const more = await withRateLimitAsync(request, limit, name);
+        if (!more.success) {
+          logEvent({ event_type: 'report.create.rate_limited', correlation_id: correlationId, resource_type: 'case', action: 'create', result: 'failure', error_code: 'RATE_LIMITED', metadata: { limit: name } }).catch(() => {});
+          return rateLimitResponse(more);
+        }
+      }
+      // This browser already has a search open: it holds that search's own key (app/lib/ownerKey.js), so it can
+      // be told which, and sent to it.
+      // Only searches this browser itself reported, and not one that has run past its date and was never closed.
+      const open = (await casesHeldBy(request, { madeHere: true })).filter((c) => c.reportType === 'LOST' && isCaseOpen(c.status) && !(c.expiresAt && new Date(c.expiresAt) < new Date()));
+      if (open.length >= MAX_OPEN_SEARCHES_GUEST) {
+        const [mine] = open;
+        return NextResponse.json(
+          {
+            error: `You already have a search open for ${mine.petName}. Mark ${mine.petName} found or close that search before reporting another pet, or sign in to report a second one.`,
+            code: 'OPEN_REPORT_EXISTS',
+            caseNumber: mine.caseNumber,
+            openUrl: `/mission-control?mission=${encodeURIComponent(mine.caseNumber)}`,
+            signInUrl: '/login?callbackUrl=%2Freport%2Fnew',
+          },
+          { status: 409 }
+        );
+      }
+    }
     const body = await request.json();
     let {
       email, phone, firstName,
@@ -144,6 +195,9 @@ export async function POST(request) {
     // Neither input depends on the lookup inside the transaction, so both can be
     // computed up front. When the user already exists the hash is simply unused;
     // one wasted hash off the transaction's clock is the right trade.
+    // Someone not signed in is given the key to this one search (app/lib/ownerKey.js): their browser keeps it, and
+    // it is in the link emailed to them, so they can run the search they just started.
+    const ownerKey = session?.user ? null : mintOwnerKey();
     const optedInWithPassword = Boolean(password && createAccount);
     const candidateTempPassword = optedInWithPassword ? null : crypto.randomBytes(12).toString('base64');
     const [precomputedPasswordHash, reverseLabel] = await Promise.all([
@@ -183,6 +237,17 @@ export async function POST(request) {
       // to be enforced at signup, which is a separate change.
       if (existingUser?.emailVerified && !session?.user) {
         throw new Error('ACCOUNT_EXISTS');
+      }
+
+      // One open search to a person who has not signed in, a few to someone who has (see the limits at the top).
+      // Counted by the account the report would be filed to, inside the transaction, so two reports sent at
+      // once cannot both pass.
+      if (existingUser) {
+        // A report nobody confirmed runs out after a month: one that ran out and was never closed is not counted.
+        const openSearches = await tx.case.count({
+          where: { reporterId: existingUser.id, reportType: 'LOST', status: { in: [...OPEN_CASE_STATUSES] }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        });
+        if (openSearches >= (session?.user ? MAX_OPEN_SEARCHES_SIGNED_IN : MAX_OPEN_SEARCHES_GUEST)) throw new Error('OPEN_REPORT_EXISTS');
       }
 
       // If user exists and phone wasn't provided, try to get it from their record
@@ -227,7 +292,8 @@ export async function POST(request) {
             firstName,
             passwordHash,
             role: 'USER',
-            emailVerified: (password && createAccount) ? new Date() : null,
+            // Confirmed only by the link in the email sent below, like every other new account.
+            emailVerified: null,
           }
         });
       }
@@ -342,6 +408,7 @@ export async function POST(request) {
           hasReward: wantsReward,
           rewardAmount: rewardValue,
           rewardScamAcknowledgedAt: wantsReward ? new Date() : null,
+          ...(ownerKey ? { ownerKeyHash: ownerKey.hash, ownerKeyAt: new Date() } : {}),
         }
       });
 
@@ -793,6 +860,9 @@ export async function POST(request) {
       // password so they can log in and manage it (mark reunited, coordinate).
       const baseUrl = getEmailBaseUrl();
       const caseUrl = `${baseUrl}/cases/${report.caseNumber}`;
+      // The owner's own way in: this link carries the key to this one search (app/lib/ownerKey.js), so opening it on
+      // any phone or computer runs the search without a password. It is sent only to the address they gave.
+      const runUrl = ownerKey ? `${baseUrl}/api/mission/${encodeURIComponent(report.caseNumber)}/own?k=${ownerKey.key}` : caseUrl;
       const setPasswordUrl = `${baseUrl}/forgot-password?email=${encodeURIComponent(email)}`;
       // These values are user-supplied (the reporter's own name, pet name,
       // email). bodyHtml is raw HTML, so escape them; the set-password link
@@ -811,11 +881,11 @@ export async function POST(request) {
             <p>Hi ${firstNameSafe},</p>
             <p>Your lost-pet report for <strong>${petNameSafe}</strong> is now live, and your neighborhood rescue force can see it. We'll email you the moment anyone reports a sighting.</p>
             <p style="margin:20px 0 8px;"><strong>Your case:</strong> ${caseNumberSafe}</p>
-            <p style="color:#64748b; font-size:14px;">Open your case page any time to see sightings, share it, and print flyers. To mark ${petNameSafe} found or coordinate with volunteers, set a password and log in with ${emailSafe}.</p>
-            <p style="margin:16px 0 0; font-size:14px;"><a href="${setPasswordUrl}" style="color:#0f172a; font-weight:600;">Set your password</a></p>
+            <p style="color:#64748b; font-size:14px;">The button below opens Mission Control as you, the owner: from there you see who is helping, mark ground searched, answer sightings and mark ${petNameSafe} found. It works on any phone or computer for 60 days. Keep this email to yourself: anyone who opens the link can run ${petNameSafe}'s search.</p>
+            <p style="margin:16px 0 0; font-size:14px;"><a href="${caseUrl}" style="color:#0f172a; font-weight:600;">${petNameSafe}'s public page</a> &nbsp;·&nbsp; <a href="${setPasswordUrl}" style="color:#0f172a; font-weight:600;">Set a password</a></p>
           `,
-          ctaLabel: `Open ${petName}'s case`,
-          ctaUrl: caseUrl,
+          ctaLabel: `Run ${petName}'s search`,
+          ctaUrl: runUrl,
           footnote: "You're receiving this because you reported a lost pet on ReunitePets.",
         }),
       }).catch(err => {
@@ -874,7 +944,7 @@ export async function POST(request) {
       ensureStreets(report.id, { correlationId }).catch(() => {});
     }
 
-    return NextResponse.json({
+    const answer = NextResponse.json({
       success: true,
       reportId: report.id,
       caseNumber: report.caseNumber,
@@ -901,6 +971,16 @@ export async function POST(request) {
         distanceMiles: reporterToLastSeenMiles !== null ? parseFloat(reporterToLastSeenMiles.toFixed(2)) : null,
       },
     });
+    if (ownerKey) {
+      // The browser that sent the report keeps the key to it, where no script can read it: from this moment it is
+      // the owner of this search, with no password and no email to wait for.
+      const kept = ownerCookie(report.id, ownerKey.key);
+      answer.cookies.set(kept.name, kept.value, kept.options);
+      // And that this browser made the report, which is what its one-search-at-a-time limit counts.
+      const made = madeCookie(report.id);
+      answer.cookies.set(made.name, made.value, made.options);
+    }
+    return answer;
 
   } catch (error) {
     // Handle phone conflict thrown from inside transaction
@@ -913,6 +993,22 @@ export async function POST(request) {
           error: 'That email already has a ReunitePets account. Sign in and your report will be filed to it, or use a different email.',
           code: 'ACCOUNT_EXISTS',
           signInUrl: '/login?callbackUrl=%2Freport%2Fnew'
+        },
+        { status: 409 }
+      );
+    }
+
+    // The account this report would be filed to already has as many open searches as it may. Said without naming
+    // the pet or its page: someone who typed another person's address learns nothing about them from this.
+    if (error.message === 'OPEN_REPORT_EXISTS') {
+      const signedIn = Boolean((await getServerSession(authOptions).catch(() => null))?.user);
+      return NextResponse.json(
+        {
+          error: signedIn
+            ? `You have ${MAX_OPEN_SEARCHES_SIGNED_IN} searches open, which is the most one account can have at once. Mark a pet found or close a search before reporting another.`
+            : 'There is already a search open under this email. The link to it is in that inbox. Mark that pet found or close the search before reporting another pet, or sign in to report a second one.',
+          code: 'OPEN_REPORT_EXISTS',
+          signInUrl: '/login?callbackUrl=%2Freport%2Fnew',
         },
         { status: 409 }
       );
@@ -941,10 +1037,7 @@ export async function POST(request) {
       error_message: error.message
     });
 
-    return NextResponse.json(
-      { error: 'Failed to create report', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Your report did not go through. Try again in a moment.' }, { status: 500 });
   }
 }
 
