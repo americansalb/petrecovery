@@ -66,10 +66,18 @@ export const WORDS_ON_CARD = 3;
  * always there while it is fresh: the desk is told when it was seen, so it
  * has to be on the card to see, and something told to everyone later must
  * not push it off. Each: { id, kind: 'yours' | 'everyone', text, at, from,
- * seen }. `from` is the owner's first name, or null for a word from anyone
- * else who came to run the search (a helper is not told their name).
+ * seen, waiting }. `from` is the owner's first name, or null for a word
+ * from anyone else who came to run the search (a helper is not told their
+ * name).
+ *
+ * `waiting` says whether a word is still to be dealt with: written to this
+ * person since they last wrote back, or told to everyone, and not put away
+ * ("Got it"; `put` is what this phone has put away). A card whose words
+ * have all been dealt with shows them as one line (`dealtLine`) and gives
+ * the map its room back: a word stays for twelve hours, and on a small
+ * phone a card that tall leaves a strip of map.
  */
-export function wordsForCard({ words = [], updates = [], ownerName = null, now = Date.now() } = {}) {
+export function wordsForCard({ words = [], updates = [], ownerName = null, now = Date.now(), put = new Set() } = {}) {
   const fresh = (at) => at && now - new Date(at).getTime() < WORD_FRESH_MS;
   const theirs = words.filter((w) => !w.mine && fresh(w.at));
   // Those since this person last wrote back are the ones still to answer.
@@ -77,10 +85,33 @@ export function wordsForCard({ words = [], updates = [], ownerName = null, now =
   const since = words.slice(lastMine + 1).filter((w) => !w.mine && fresh(w.at));
   const direct = (since.length ? since : theirs.slice(-1)).slice(-WORDS_ON_CARD);
   const told = updates.find((u) => fresh(u.at));
+  const kept = (id) => put.has(`word-${id}`);
   return [
-    ...direct.map((w) => ({ id: w.id, kind: 'yours', text: w.text, at: w.at, from: w.from || null, seen: w.seen !== false })),
-    ...(told ? [{ id: told.id, kind: 'everyone', text: told.text, at: told.at, from: ownerName || null, seen: true }] : []),
+    ...direct.map((w) => ({ id: w.id, kind: 'yours', text: w.text, at: w.at, from: w.from || null, seen: w.seen !== false, waiting: since.includes(w) && !kept(w.id) })),
+    ...(told ? [{ id: told.id, kind: 'everyone', text: told.text, at: told.at, from: ownerName || null, seen: true, waiting: !kept(told.id) }] : []),
   ];
+}
+
+/**
+ * The one line a helper's card shows in place of words that have all been
+ * dealt with: that this person answered, or whose the newest word was, and
+ * when. `said` is wordsForCard's list and `words` this person's messages
+ * with the desk, oldest first. '' when nothing was said.
+ */
+export function dealtLine({ said = [], words = [], timeZone, now = Date.now() } = {}) {
+  if (!said.length) return '';
+  const newest = said.reduce((last, w) => (!last || new Date(w.at) > new Date(last.at) ? w : last), null);
+  const who = newest.from || 'the people running the search';
+  const mine = [...words].reverse().find((w) => w.mine);
+  if (mine && new Date(mine.at) >= new Date(newest.at)) return `You answered ${who} ${whenWords(mine.at, timeZone, now)}`;
+  const Who = newest.from || 'The people running the search';
+  return newest.kind === 'everyone' ? `${Who} told everyone ${whenWords(newest.at, timeZone, now)}` : `${Who} wrote to you ${whenWords(newest.at, timeZone, now)}`;
+}
+
+/** "at 9:57 pm" today, "yesterday at 9:57 pm" before that: a time as a sentence takes it. */
+function whenWords(at, timeZone, now) {
+  const when = dayAndTime(at, timeZone, now);
+  return /^\d/.test(when) ? `at ${when}` : when;
 }
 
 /**
