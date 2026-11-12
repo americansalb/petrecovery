@@ -36,6 +36,14 @@ export const CELL_SIZE_CHOICES = [100, 125, 150, 175, 200, 250, 300];
 /** Sightings older than this stop bending priority. */
 export const SIGHTING_PRIORITY_WINDOW_MS = 72 * 60 * 60 * 1000;
 
+/**
+ * The priority a street or a square is asked for first with. The search
+ * itself ranks from 1 to 10 (cellPriority, sightingPull), so anything
+ * above is a person's doing: the owner sending the next helpers there
+ * before anywhere else (app/lib/searchBoard.js, "first").
+ */
+export const FIRST_PRIORITY = 11;
+
 export function milesToMeters(miles) {
   return miles * 1609.344;
 }

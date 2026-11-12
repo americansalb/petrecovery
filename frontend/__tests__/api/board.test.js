@@ -419,7 +419,9 @@ describe('PATCH: steering from the desk', () => {
     prisma.searchStreet.findFirst.mockResolvedValueOnce(street({ id: 'st-2', priority: 4 })).mockResolvedValueOnce(street({ id: 'st-2', priority: FIRST_PRIORITY }));
     const res = await steer('first');
     expect(res.status).toBe(200);
-    expect(prisma.searchStreet.update).toHaveBeenCalledWith({ where: { id: 'st-2' }, data: { priority: FIRST_PRIORITY } });
+    // Written on what the row is when the write lands, in its own search and never the ring's.
+    expect(prisma.searchStreet.updateMany).toHaveBeenCalledWith({ where: { id: 'st-2', caseId: CASE, context: false }, data: { priority: FIRST_PRIORITY } });
+    expect(prisma.searchStreet.update).not.toHaveBeenCalled();
     expect((await res.json()).item).toMatchObject({ id: 'st-2', first: true, priority: 11, status: 'UNSEARCHED' });
     expect(FIRST_PRIORITY).toBeGreaterThan(10);
     expect(broadcast).toHaveBeenCalledWith(CASE, { type: 'STREET_UPDATED', unit: 'street', item: { id: 'st-2', status: 'UNSEARCHED' } });
@@ -429,7 +431,9 @@ describe('PATCH: steering from the desk', () => {
     asOwner();
     prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2', status: 'SEARCHED', searchCount: 1 }));
     await steer('first');
-    expect(prisma.searchStreet.update).toHaveBeenCalledWith({ where: { id: 'st-2' }, data: { priority: FIRST_PRIORITY, status: 'NEEDS_REVISIT' } });
+    // Only where it is walked at that moment: a street someone took in between stays theirs (the states are
+    // followed through in __tests__/lib/searchBoardStates.test.js).
+    expect(prisma.searchStreet.updateMany).toHaveBeenCalledWith({ where: { id: 'st-2', caseId: CASE, context: false, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT', againAt: expect.any(Date) } });
   });
 
   test('"normal" gives it back the place the search worked out for it', async () => {
@@ -437,9 +441,10 @@ describe('PATCH: steering from the desk', () => {
     prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2', priority: FIRST_PRIORITY }));
     const res = await steer('normal');
     expect(res.status).toBe(200);
-    const natural = prisma.searchStreet.update.mock.calls[0][0].data.priority;
-    expect(natural).toBeGreaterThanOrEqual(1);
-    expect(natural).toBeLessThanOrEqual(10);
+    const back = prisma.searchStreet.updateMany.mock.calls.find(([arg]) => 'priority' in arg.data)[0];
+    expect(back.where).toEqual({ id: 'st-2', caseId: CASE, context: false });
+    expect(back.data.priority).toBeGreaterThanOrEqual(1);
+    expect(back.data.priority).toBeLessThanOrEqual(10);
   });
 
   test('"walked" records ground covered off the site: by whom it was put down, and not as a person out searching', async () => {
@@ -453,7 +458,7 @@ describe('PATCH: steering from the desk', () => {
     const marked = prisma.searchStreet.updateMany.mock.calls.find(([arg]) => arg.data.status === 'SEARCHED')[0];
     // Only a street nobody on the site is on.
     expect(marked.where).toMatchObject({ id: 'st-2', caseId: CASE, status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } });
-    expect(marked.data).toMatchObject({ status: 'SEARCHED', searchedById: 'm:u-avery', searchedByName: 'Avery', searchCount: { increment: 1 } });
+    expect(marked.data).toMatchObject({ status: 'SEARCHED', searchedById: 'm:u-avery', searchedByName: 'Avery', searchCount: { increment: 1 }, againAt: null });
     expect((await res.json()).item).toMatchObject({ status: 'SEARCHED', marked: true });
     expect(isMark('m:u-avery')).toBe(true);
     expect(isMark('u-avery')).toBe(false);
@@ -477,7 +482,8 @@ describe('PATCH: steering from the desk', () => {
     prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2', status: 'SEARCHED', searchCount: 1 }));
     prisma.searchStreet.updateMany.mockResolvedValue({ count: 1 });
     expect((await steer('again')).status).toBe(200);
-    expect(prisma.searchStreet.updateMany).toHaveBeenCalledWith({ where: { id: 'st-2', caseId: CASE, context: false, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT' } });
+    // `againAt` is what keeps it "another look" if someone takes it and gives it back.
+    expect(prisma.searchStreet.updateMany).toHaveBeenCalledWith({ where: { id: 'st-2', caseId: CASE, context: false, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT', againAt: expect.any(Date) } });
     prisma.searchStreet.updateMany.mockResolvedValue({ count: 0 });
     prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2' }));
     const not = await steer('again');
@@ -485,23 +491,19 @@ describe('PATCH: steering from the desk', () => {
     expect(await not.json()).toMatchObject({ code: 'NOT_WALKED' });
   });
 
-  test('someone leading a force that is looking can steer, with no waiver', async () => {
-    for (const role of ['FOUNDER', 'LEADER', 'COORDINATOR']) {
-      asForce(role);
-      prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2' }));
-      expect((await steer('first')).status).toBe(200);
-    }
-  });
-
-  test('nobody else can: joining a force takes one tap, and a search is not redirected by it', async () => {
+  test('nobody but the owner can: no role in a Rescue Force redirects a search', async () => {
     prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2' }));
-    // A member of the force, a signed-in stranger, a helper with no account, and nobody at all.
-    asForce('MEMBER');
-    for (const action of STEER_ACTIONS) {
-      const res = await steer(action);
-      expect(res.status).toBe(403);
-      expect(await res.json()).toEqual({ error: 'Only the owner and the people leading the search can do that.', code: 'NOT_ALLOWED' });
+    // Every role a force has, the ones that run a force included: a force with no leader gives the role to any
+    // member who asks, and anyone can found one, so none of them is the owner's doing (app/lib/searcher.js).
+    for (const role of ['FOUNDER', 'LEADER', 'COORDINATOR', 'ADMINISTRATOR', 'MODERATOR', 'DIVISION_LEADER', 'MEMBER']) {
+      asForce(role);
+      for (const action of STEER_ACTIONS) {
+        const res = await steer(action);
+        expect(res.status).toBe(403);
+        expect(await res.json()).toEqual({ error: 'Only the owner can do that.', code: 'NOT_ALLOWED' });
+      }
     }
+    // A signed-in stranger, a helper with no account, and nobody at all.
     prisma.caseAssignment.findMany.mockResolvedValue([]);
     prisma.rescueForceMember.findMany.mockResolvedValue([]);
     expect((await steer('first')).status).toBe(403);
@@ -521,25 +523,23 @@ describe('PATCH: steering from the desk', () => {
     prisma.searchStreet.findFirst.mockResolvedValue(held);
     prisma.searchStreet.updateMany.mockResolvedValue({ count: 1 });
     expect((await PATCH(req('PATCH', { headers: VOLUNTEER, body: { unit: 'street', id: 'st-2', action: 'searched' } }), ctx)).status).toBe(200);
-    expect(prisma.searchStreet.update).toHaveBeenCalledTimes(1);
-    const back = prisma.searchStreet.update.mock.calls[0][0];
-    expect(back.where).toEqual({ id: 'st-2' });
-    expect(back.data.priority).toBeGreaterThanOrEqual(1);
-    expect(back.data.priority).toBeLessThanOrEqual(10);
+    // One write, and only where the street is asked for first when it lands: it may have been asked for while it
+    // was being walked, and one nobody asked for is left exactly as it was.
+    const resets = () => prisma.searchStreet.updateMany.mock.calls.map(([arg]) => arg).filter((arg) => 'priority' in arg.data);
+    expect(resets()).toHaveLength(1);
+    expect(resets()[0].where).toEqual({ id: 'st-2', caseId: CASE, context: false, priority: { gte: FIRST_PRIORITY } });
+    expect(resets()[0].data.priority).toBeGreaterThanOrEqual(1);
+    expect(resets()[0].data.priority).toBeLessThanOrEqual(10);
 
     // Put down as walked from the desk: the same.
-    prisma.searchStreet.update.mockClear();
+    prisma.searchStreet.updateMany.mockClear();
     prisma.missionVolunteer.findFirst.mockResolvedValue(null);
     asOwner();
     prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2', priority: FIRST_PRIORITY }));
     expect((await steer('walked')).status).toBe(200);
-    expect(prisma.searchStreet.update).toHaveBeenCalledTimes(1);
-    expect(prisma.searchStreet.update.mock.calls[0][0].data.priority).toBeLessThanOrEqual(10);
-
-    // A street nobody asked for is left exactly as it was.
-    prisma.searchStreet.update.mockClear();
-    prisma.searchStreet.findFirst.mockResolvedValue(street({ id: 'st-2', priority: 6 }));
-    expect((await steer('walked')).status).toBe(200);
+    expect(resets()).toHaveLength(1);
+    expect(resets()[0].where.priority).toEqual({ gte: FIRST_PRIORITY });
+    expect(resets()[0].data.priority).toBeLessThanOrEqual(10);
     expect(prisma.searchStreet.update).not.toHaveBeenCalled();
   });
 

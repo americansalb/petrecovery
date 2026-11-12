@@ -3,10 +3,13 @@
 /**
  * The right of the desk: the search itself, four ways.
  *
+ *   People     everyone on the search and what each is doing; for the
+ *              owner, give one of them a street or write to them
+ *              (People.js)
  *   Streets    every street, in the order the search hands them out
  *   Sightings  each one, numbered in the order they happened
- *   People     who is on which street
- *   Log        what happened, newest first
+ *   Messages   everything said and everything that happened, in one stream
+ *              (Messages.js)
  *
  * The list and the map point at the same thing: pointing at a row lights
  * its street, clicking it picks the street, and picking a street on the
@@ -17,16 +20,19 @@
  * else reads streets, not people.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Check, Eye, Footprints, MessageSquare, PawPrint, Send, Loader2 } from 'lucide-react';
+import { Check, Eye } from 'lucide-react';
 import { dayAndTime, clockTime, placeWords } from '../lib/words';
-import { activity, directionWord, lookFirst, metersWords, stateWords } from '../lib/insight';
+import { directionWord, lookFirst, metersWords, stateWords } from '../lib/insight';
+import { unanswered } from '../lib/team';
 import { distanceMeters } from '@/app/lib/searchGrid';
+import People from './People';
+import Messages from './Messages';
 
 const TABS = [
+  ['people', 'People'],
   ['streets', 'Streets'],
   ['sightings', 'Sightings'],
-  ['people', 'People'],
-  ['log', 'Log'],
+  ['messages', 'Messages'],
 ];
 
 const Empty = ({ children }) => <p className="px-4 py-6 text-[15px] font-medium leading-[22px] text-[var(--mc-muted)]">{children}</p>;
@@ -47,6 +53,24 @@ function Dot({ street, next }) {
   if (street.status === 'IN_PROGRESS') return <span className="mt-1 h-4 w-4 shrink-0 rounded-full border-[3px] border-dotted border-[var(--mc-teal)]" aria-hidden="true" />;
   if (next || street.first) return <span className="mx-0.5 mt-1.5 h-3 w-3 shrink-0 rounded-full bg-[var(--mc-ink)]" aria-hidden="true" />;
   return <span className="mx-1 mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--mc-muted)]" aria-hidden="true" />;
+}
+
+/**
+ * What an empty list says. An empty list is not "all done": the streets may
+ * not be here yet, or the report may have no place to draw them round.
+ */
+export function emptyWords({ show, thing, total, walking, placed, name }) {
+  if (total === 0) return placed ? `The ${thing}s of this search are not here yet. They show as soon as they load.` : `This search has no ${thing}s: the report does not say where ${name} was lost.`;
+  if (show === 'walking') return `Nobody is walking a ${thing} right now.`;
+  if (show === 'walked') return `No ${thing} has been walked yet.`;
+  return walking > 0 ? `Every ${thing} has been walked or has someone on it.` : `Every ${thing} has been walked.`;
+}
+
+/** A street kept for someone the person running the search asked: whose, where names go, and only that it is kept for everyone else. */
+function keptWords(street) {
+  const open = street.status === 'UNSEARCHED' || street.status === 'NEEDS_REVISIT';
+  if (!open || !street.reserved) return '';
+  return street.askedOfName ? `kept for ${street.askedOfName}` : 'kept for someone who was asked';
 }
 
 function Streets({ picture, items, unit, next, selected, hovered, onSelect, onHover }) {
@@ -89,10 +113,10 @@ function Streets({ picture, items, unit, next, selected, hovered, onSelect, onHo
       </div>
       {show !== 'walked' && open.length > 0 && show !== 'walking' && (
         <p className="px-4 pb-1.5 text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">
-          Most urgent first: closest to where {picture.pet?.name || 'the pet'} was lost or seen. A helper who asks for a {thing} is given the most urgent one near them.
+          Most urgent first: closest to where {picture.pet?.name || 'the pet'} was lost or seen. A helper who asks for a {thing} is given the most urgent one, the nearest to them where several are as urgent.
         </p>
       )}
-      {rows.length === 0 && <Empty>{show === 'walking' ? `Nobody is walking a ${thing} right now.` : show === 'walked' ? `No ${thing} has been walked yet.` : `Every ${thing} has been walked.`}</Empty>}
+      {rows.length === 0 && <Empty>{emptyWords({ show, thing, total: items.length, walking: walking.length, placed: Boolean(origin), name: picture.pet?.name || 'the pet' })}</Empty>}
       <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         {rows.map((street) => {
           const on = street.id === selected;
@@ -116,7 +140,7 @@ function Streets({ picture, items, unit, next, selected, hovered, onSelect, onHo
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{street.title}</span>
                   <span className="block text-[13px] font-medium leading-5 text-[var(--mc-muted)]">
-                    {[`about ${street.minutes} min`, where, street.first ? 'asked for first' : next?.has(street.id) ? 'given out next' : ''].filter(Boolean).join(' · ')}
+                    {[`about ${street.minutes} min`, where, keptWords(street) || (street.first ? 'asked for first' : next?.has(street.id) ? 'given out next' : '')].filter(Boolean).join(' · ')}
                   </span>
                 </span>
                 <span className={`shrink-0 pt-0.5 text-[13px] font-bold leading-5 ${street.status === 'IN_PROGRESS' ? 'text-[var(--mc-teal-ink)]' : street.status === 'SEARCHED' ? 'text-[var(--mc-done-ink)]' : 'text-[var(--mc-muted)]'}`}>{stateWords(street)}</span>
@@ -174,129 +198,19 @@ function Sightings({ picture, now, focused, onFocus, onAdd }) {
   );
 }
 
-function People({ picture, items, unit, onSelect }) {
-  const zone = picture.timeZone;
-  const thing = unit === 'block' ? 'block' : 'street';
-  const name = picture.pet?.name || 'the pet';
-  const out = items.filter((i) => i.status === 'IN_PROGRESS');
-  const count = picture.looking?.helpers || 0;
-  if (!picture.viewer?.seesNames) {
-    return (
-      <Empty>
-        {count === 0 ? 'Nobody is out looking right now.' : count === 1 ? '1 person is out looking.' : `${count} people are out looking.`} Who they are is shown to {picture.owner?.firstName || 'the owner'} and the Rescue Force looking for {name}. Everyone else sees {thing}s, not people.
-      </Empty>
-    );
-  }
-  return (
-    <>
-      {out.length === 0 && <Empty>Nobody is walking a {thing} right now.</Empty>}
-      <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2">
-        {out.map((i) => (
-          <li key={i.id}>
-            <button type="button" onClick={() => onSelect(i.id)} className="flex w-full items-start gap-3 rounded-xl px-2.5 py-2.5 text-left hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--mc-teal)] text-sm font-extrabold text-[var(--mc-on-teal)]" aria-hidden="true">
-                {String(i.claimedByName || '?').charAt(0).toUpperCase()}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[15px] font-bold leading-5 text-[var(--mc-ink)]">
-                  {i.claimedByName || 'A helper'}
-                  <span className="font-medium text-[var(--mc-muted)]"> since {clockTime(i.claimedAt, zone)}</span>
-                </span>
-                <span className="block text-[14px] font-medium leading-5 text-[var(--mc-soft)]">{i.title}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </>
-  );
-}
-
-const ICON = { seen: Eye, walk: Footprints, start: Footprints, said: MessageSquare, owner: Eye, lost: PawPrint };
-
-function Log({ picture, items, now, onSelect, onFocus, onTell }) {
-  const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState('');
-  const zone = picture.timeZone;
-  const events = activity({ items, picture, now });
-  async function tell() {
-    const words = text.trim();
-    if (!words || busy) return;
-    setBusy(true);
-    setProblem('');
-    const result = await onTell(words);
-    setBusy(false);
-    if (result?.error) return setProblem(result.error);
-    return setText('');
-  }
-  return (
-    <>
-      {picture.viewer?.isOwner && (
-        <div className="px-4 pb-2 pt-3">
-          <label htmlFor="mc-tell" className="block text-[13px] font-semibold leading-5 text-[var(--mc-soft)]">
-            Tell everyone helping
-          </label>
-          <textarea
-            id="mc-tell"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={2}
-            maxLength={400}
-            placeholder={`What helps someone find ${picture.pet?.name || 'the pet'}?`}
-            className="mt-1 w-full resize-none rounded-xl border border-[var(--mc-line-strong)] !bg-[var(--mc-ground)] px-3 py-2 text-[15px] font-medium leading-[22px] !text-[var(--mc-ink)] placeholder:text-[var(--mc-muted)] focus:border-flash-400 focus:outline-none focus:ring-2 focus:ring-flash-400/40"
-          />
-          {problem && (
-            <p role="alert" className="mt-1 text-sm font-semibold text-[var(--mc-danger)]">
-              {problem}
-            </p>
-          )}
-          <button type="button" onClick={tell} disabled={busy || !text.trim()} className="mt-1.5 inline-flex min-h-[36px] items-center gap-2 rounded-lg bg-[var(--mc-ink)] px-3 text-[14px] font-bold text-[var(--mc-surface)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
-            {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Send size={16} aria-hidden="true" />} Post it
-          </button>
-          <p className="mt-1 text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">It goes on {picture.pet?.name || 'the pet'}&apos;s page and in this log.</p>
-        </div>
-      )}
-      {events.length === 0 && <Empty>Nothing has happened yet.</Empty>}
-      <ol className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-1">
-        {events.map((e) => {
-          const Icon = ICON[e.kind] || PawPrint;
-          const act = e.streetId ? () => onSelect(e.streetId) : e.sightingId ? () => onFocus(e.sightingId) : null;
-          const body = (
-            <>
-              <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${e.kind === 'seen' ? 'bg-[var(--mc-seen)] text-[var(--mc-on-seen)]' : e.kind === 'lost' ? 'bg-red-600 text-white' : 'bg-[var(--mc-raised)] text-[var(--mc-soft)]'}`} aria-hidden="true">
-                <Icon size={13} strokeWidth={2.5} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-medium leading-5 text-[var(--mc-ink)]">{e.text}</span>
-                <span className="block text-[13px] font-semibold leading-[18px] text-[var(--mc-muted)]">{dayAndTime(e.at, zone, now)}</span>
-              </span>
-            </>
-          );
-          return (
-            <li key={e.id}>
-              {act ? (
-                <button type="button" onClick={act} className="flex w-full items-start gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
-                  {body}
-                </button>
-              ) : (
-                <div className="flex items-start gap-2.5 px-2.5 py-2">{body}</div>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-    </>
-  );
-}
-
-export default function Board({ picture, items, unit, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null }) {
-  const counts = { streets: items.length, sightings: picture.sightings.length, people: picture.looking?.helpers || 0 };
+export default function Board({ picture, items, unit, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null, people = [], talk = [], person = null, onPerson, to = null, onTo, onAsk, onUnask, onWord, onPick, onShare }) {
+  const names = Boolean(picture.viewer?.seesNames);
+  // How many are on the search where this person may know; otherwise how many are out, which anyone may.
+  const counts = { people: names ? people.length : picture.looking?.helpers || 0, streets: items.length, sightings: picture.sightings.length };
+  // Words from helpers that nobody running the search has answered: said on the tab, so they are seen from any other.
+  const waiting = unanswered(talk).length;
+  // Where the search is on squares, that tab says so.
+  const named = TABS.map(([id, words]) => [id, id === 'streets' && unit === 'block' ? 'Blocks' : words]);
   // On a narrower screen the left column's cards are the first tab here, and the map keeps the room.
-  const tabs = overview ? [['overview', 'Overview'], ...TABS] : TABS;
+  const tabs = overview ? [['overview', 'Overview'], ...named] : named;
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 border-b border-[var(--mc-line)] px-2" role="tablist" aria-label="The search">
+      <div className="flex shrink-0 border-b border-[var(--mc-line)] px-1" role="tablist" aria-label="The search">
         {tabs.map(([id, words]) => (
           <button
             key={id}
@@ -304,21 +218,28 @@ export default function Board({ picture, items, unit, now, tab, onTab, next, sel
             role="tab"
             aria-selected={tab === id}
             onClick={() => onTab(id)}
-            className={`-mb-px flex min-h-[48px] flex-1 items-center justify-center gap-1.5 border-b-[3px] px-1 text-[15px] leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${
+            className={`-mb-px flex min-h-[48px] flex-auto items-center justify-center gap-1 whitespace-nowrap border-b-[3px] px-1.5 text-[14px] leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${
               tab === id ? 'border-[var(--mc-ink)] font-extrabold text-[var(--mc-ink)]' : 'border-transparent font-semibold text-[var(--mc-muted)] hover:text-[var(--mc-ink)]'
             }`}
           >
             {words}
-            {!overview && counts[id] != null && <span className="text-[13px] font-bold tabular-nums text-[var(--mc-muted)]">{counts[id]}</span>}
+            {/* A count where there is something to count, and room for it: four tabs share a narrow column. */}
+            {!overview && counts[id] > 0 && <span className="text-[13px] font-bold tabular-nums text-[var(--mc-muted)]">{counts[id]}</span>}
+            {id === 'messages' && waiting > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--mc-ink)] px-1 text-[13px] font-extrabold tabular-nums text-[var(--mc-surface)]">
+                {waiting}
+                <span className="sr-only"> not answered</span>
+              </span>
+            )}
           </button>
         ))}
       </div>
       <div className="flex min-h-0 flex-1 flex-col" role="tabpanel">
         {tab === 'overview' && overview}
+        {tab === 'people' && <People picture={picture} people={people} items={items} unit={unit} now={now} selected={selected} words={talk} open={person} onOpen={onPerson} onAsk={onAsk} onUnask={onUnask} onWord={onWord} onPick={onPick} onShare={onShare} />}
         {tab === 'streets' && <Streets picture={picture} items={items} unit={unit} next={next} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} />}
         {tab === 'sightings' && <Sightings picture={picture} now={now} focused={focused} onFocus={onFocus} onAdd={onAdd} />}
-        {tab === 'people' && <People picture={picture} items={items} unit={unit} onSelect={onSelect} />}
-        {tab === 'log' && <Log picture={picture} items={items} now={now} onSelect={onSelect} onFocus={onFocus} onTell={onTell} />}
+        {tab === 'messages' && <Messages picture={picture} items={items} now={now} people={people} words={talk} to={to} onTo={onTo} onSelect={onSelect} onFocus={onFocus} onTell={onTell} onWord={onWord} onAdd={onAdd} />}
       </div>
     </div>
   );

@@ -20,11 +20,13 @@
  * One mission, three instruments (app/hooks/useInstrument.js), and they
  * do different jobs:
  *
- *   desk (desktop)        see the whole search and steer it: every street
- *                         on the map, what the numbers show, a log, and
- *                         for the owner and the leads, where helpers go
- *                         first. Nobody walks from a desk, so there is
- *                         no street to take here and no GPS.
+ *   desk (desktop)        see the whole search and run it: every street
+ *                         on the map, the people on it, what the numbers
+ *                         show, everything said and done, and for the
+ *                         owner, giving a person a street, writing to
+ *                         them and where helpers go first. Nobody walks
+ *                         from a desk, so there is no street to take
+ *                         here and no GPS.
  *   phone (mobile web)    see, join, take a street, mark it by tapping,
  *                         report a sighting with one location reading.
  *                         No GPS walk: a browser cannot record with the
@@ -58,6 +60,7 @@ import MarkReunitedModal from './components/overlays/MarkReunitedModal';
 import { readNote, saveNote } from './lib/identity';
 import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SIGHTING_MS } from './lib/words';
 import { searcherBrief } from './lib/briefLines';
+import { wordsForCard } from './lib/team';
 
 const SearchMap = dynamic(() => import('./components/SearchMap'), {
   ssr: false,
@@ -76,6 +79,7 @@ const SIGHTING_IN_VIEW_METERS = 1200;
 /** One reading says where the phone was, not where it is: the "You" dot is dropped after this long. */
 const POSITION_FRESH_MS = 2 * 60 * 1000;
 const NO_TRACK = [];
+const NO_WORDS = [];
 
 function Centered({ children }) {
   return (
@@ -117,7 +121,11 @@ function around(lat, lng, meters) {
  */
 function rank(items, here) {
   const away = (i) => (here ? distanceMeters(here, i.center) : 0);
-  const free = items.filter((i) => !i.mine && (i.status === 'UNSEARCHED' || i.status === 'NEEDS_REVISIT')).sort((a, b) => b.priority - a.priority || away(a) - away(b));
+  // A street kept for someone the person running the search asked is not offered to anyone else, and the one
+  // this person was asked to walk comes before every other (app/lib/searchAsk.js).
+  const free = items
+    .filter((i) => !i.mine && !i.reserved && (i.status === 'UNSEARCHED' || i.status === 'NEEDS_REVISIT'))
+    .sort((a, b) => Number(Boolean(b.askedOfMe)) - Number(Boolean(a.askedOfMe)) || b.priority - a.priority || away(a) - away(b));
   const again = items.filter((i) => !i.mine && i.status === 'SEARCHED').sort((a, b) => new Date(a.searchedAt) - new Date(b.searchedAt));
   return [...free, ...again];
 }
@@ -299,6 +307,17 @@ function Screen({ mission }) {
     return low === high ? `${low}` : `${low} to ${high}`;
   }, [candidates]);
   const mine = useMemo(() => (mineRaw && unit === 'street' ? orientWalk(mineRaw, walkFrom || position) : mineRaw), [mineRaw, unit, walkFrom, position]);
+  // The street the person running the search asked this person to walk, until they start it.
+  const askedRaw = useMemo(() => (unit === 'street' ? items.find((i) => i.askedOfMe && !i.mine) || null : null), [items, unit]);
+  const asked = useMemo(() => (askedRaw ? orientWalk(askedRaw, position) : null), [askedRaw, position]);
+  // What was said to this person: the newest word written to them, and what the owner last told everyone, while each is fresh.
+  const said = useMemo(
+    () => (isOwner || !picture ? NO_WORDS : wordsForCard({ words: search.words, updates: picture.updates || [], ownerName: owner?.firstName || null, now })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isOwner, picture?.updates, search.words, owner?.firstName, Math.floor(now / 60000)]
+  );
+  // Answering takes someone on the search, as the server also checks. Someone leading answers what was written to them.
+  const canSay = Boolean(viewer && !isOwner && (viewer.leads ? search.words.some((w) => !w.mine) : viewer.seesNames || search.volunteer || mineRaw || askedRaw || search.words.length > 0));
   const counts = useMemo(
     () => ({ total: items.length, searched: items.filter((i) => i.status === 'SEARCHED').length, inProgress: items.filter((i) => i.status === 'IN_PROGRESS').length }),
     [items]
@@ -310,7 +329,8 @@ function Screen({ mission }) {
   // A street is theirs as soon as they are given it. Taking a new one hands back the old (the server does both).
   // Answers { ok } or { error }, and never leaves the button spinning: a dropped signal is words on the card.
   async function takeStreet(exceptId = null) {
-    if (busy) return { error: '' };
+    // A desk is never handed a street: a tablet turned on its side while on the join card is a desk from then on.
+    if (busy || desk) return { error: '' };
     setBusy('walk');
     setProblem('');
     setDone(null);
@@ -388,6 +408,19 @@ function Screen({ mission }) {
       if (result.error) return setProblem(result.error);
       if (gps?.recording) gps.stop().catch(() => {});
       return go('main');
+    } finally {
+      setBusy(null);
+    }
+  }
+  // Asked to walk a street, and cannot: it goes back to the search, and the people running it are told.
+  async function cannot() {
+    if (busy) return undefined;
+    setBusy('cannot');
+    setProblem('');
+    try {
+      const result = await search.cannot();
+      if (result.error) return setProblem(result.error);
+      return undefined;
     } finally {
       setBusy(null);
     }
@@ -493,9 +526,11 @@ function Screen({ mission }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [picture?.sightings, zone, hot?.id, Math.floor(now / 60000)]
   );
-  const mapStreets = useMemo(() => (unit === 'street' ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: i.mine, who: i.claimedByName || null })) : []), [unit, items]);
+  // The street that is lit on this person's map: the one they hold, or else the one they were asked to walk.
+  const litId = mineRaw?.id || askedRaw?.id || null;
+  const mapStreets = useMemo(() => (unit === 'street' ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: i.id === litId, who: i.claimedByName || null })) : []), [unit, items, litId]);
   const mapCells = useMemo(() => (unit === 'block' ? items : []), [unit, items]);
-  const lit = mine && !sending && !isOwner ? mine : null;
+  const lit = !sending && !isOwner ? mine || asked : null;
   const mapTags = useMemo(() => {
     if (!lit || unit !== 'street' || !lit.path?.length) return [];
     const first = lit.path[0];
@@ -603,11 +638,11 @@ function Screen({ mission }) {
   } else if (isOwner) {
     step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} />;
   } else if (mine) {
-    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} />;
-  } else if (view === 'join') {
+    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} said={said} onSay={canSay ? search.say : null} now={now} />;
+  } else if (view === 'join' && !desk) {
     step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} />;
+    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} said={said} onSay={canSay ? search.say : null} now={now} />;
   }
 
   const overlays = (
@@ -621,7 +656,8 @@ function Screen({ mission }) {
       )}
       {endOpen && (
         <div className="relative z-[850]">
-          <MarkReunitedModal mission={{ petName: name }} onClose={() => setEndOpen(false)} onConfirm={confirmHome} isSaving={saving} error={modalError} />
+          {/* Inside this screen's own palette, day or night, so it brings none of its own. */}
+          <MarkReunitedModal mission={{ petName: name }} onClose={() => setEndOpen(false)} onConfirm={confirmHome} isSaving={saving} error={modalError} palette="" />
         </div>
       )}
     </>
@@ -645,6 +681,7 @@ function Screen({ mission }) {
         full={full}
         onBack={() => go('main')}
         onSeen={openSeen}
+        onShare={share}
         search={search}
         mapLabel={`Map of the search for ${name}`}
         overlays={overlays}

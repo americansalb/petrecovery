@@ -13,16 +13,35 @@
  * sighting shows in the line at the top of every screen, and the product
  * never tells a helper to stop or not to search (founder rule,
  * 2026-11-11).
+ *
+ * The person running the search can ask a named helper to walk one street
+ * (app/lib/searchAsk.js) and can send them a word. Neither is a new card:
+ * an ask is the first card saying which street, with the same one button,
+ * and a word is a block on the card they already have, with a line to
+ * answer in (components/Word.js). A word written to this person is always
+ * on their card while it is fresh, with what the owner told everyone
+ * under it. Both are someone's own words, shown as theirs.
  */
 import { useEffect, useState } from 'react';
 import { Share2 } from 'lucide-react';
 import { SAFETY_RULES, SAFETY_AGREEMENT } from '@/app/lib/safetyRules';
 import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Stamp } from '../components/kit';
+import Word from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '';
+// What the button says is what the people running the search are told in this person's name (app/lib/searchAsk.js, CANNOT_WORDS).
+const CANNOT_WORDS = "I can't right now";
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL || '';
+
+/**
+ * What was said to this person (lib/team.js, wordsForCard): the word written to them, and what the owner told
+ * everyone. One line to answer in, under the first: a card has one place to write.
+ */
+function Said({ said = [], picture, now, onSay }) {
+  return said.map((word, index) => <Word key={word.id} word={word} timeZone={picture.timeZone} now={now} onSay={index === 0 ? onSay : null} />);
+}
 
 function ShareLink({ onShare }) {
   return (
@@ -36,16 +55,37 @@ function ShareLink({ onShare }) {
   );
 }
 
-/** What anyone with the link sees: the streets, and two buttons. */
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, instrument, onWalk, onSeen, onShare, busy, problem, qr }) {
+/**
+ * What anyone with the link sees: the streets, and two buttons. For
+ * someone the person running the search has asked to walk a street
+ * (`asked`), the same card says which street and whose ask it is, and its
+ * one button starts it.
+ */
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, said = [], onSay = null, now }) {
   const thing = unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
   const desk = instrument === 'command';
+  // A desk is never handed a street, so an ask is shown on the phone it was made to.
+  const ask = !desk && asked ? asked : null;
+  const asker = ask?.askedBy || 'The people running the search';
   return (
     <>
-      <Eyebrow>{lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
-      <Heading className="mt-1">Help look for {name}</Heading>
-      {done ? (
+      <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
+      <Heading className="mt-1">{ask ? `Walk ${ask.name}` : `Help look for ${name}`}</Heading>
+      {ask ? (
+        <>
+          <Lead className="mt-1.5">
+            {spanWords(ask)}About {ask.minutes} minutes.
+          </Lead>
+          {ask.askedNote && (
+            // The asker's own words, shown as theirs.
+            <div className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3">
+              <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">{asker}</p>
+              <p className="mt-0.5 whitespace-pre-line break-words text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">{ask.askedNote}</p>
+            </div>
+          )}
+        </>
+      ) : done ? (
         <Lead className="mt-1.5">
           {done} is searched. Thank you. {counts.searched} of {counts.total} {thing}s {counts.searched === 1 ? 'is' : 'are'} searched so far.
         </Lead>
@@ -58,6 +98,7 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       ) : (
         <Lead className="mt-1.5">If you see {name}, send where. It reaches {owner?.firstName || 'the owner'} at once.</Lead>
       )}
+      {!ask && <Said said={said} picture={picture} now={now} onSay={onSay} />}
       <Problem className="mt-2">{problem}</Problem>
       {desk ? (
         // A desk is never given a street: it hands the search to a phone.
@@ -71,14 +112,12 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       ) : (
         hasBoard && (
           <Primary onClick={onWalk} busy={busy} className="mt-4">
-            {done ? `I can walk another ${thing}` : `I can walk a ${thing}`}
+            {ask ? 'Start' : done ? `I can walk another ${thing}` : `I can walk a ${thing}`}
           </Primary>
         )
       )}
       <SeenButton name={name} onClick={onSeen} className="mt-2.5" />
-      <BottomRow owner={owner}>
-        <ShareLink onShare={onShare} />
-      </BottomRow>
+      <BottomRow owner={owner}>{ask && onCannot ? <QuietLink onClick={onCannot}>{CANNOT_WORDS}</QuietLink> : <ShareLink onShare={onShare} />}</BottomRow>
     </>
   );
 }
@@ -202,7 +241,7 @@ function spanWords(street) {
 }
 
 /** The street that is theirs: where, how long, and the one button that ends it. */
-export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther }) {
+export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther, asked = null, said = [], onSay = null, now }) {
   const brief = searcherBrief(picture);
   const block = unit === 'block';
   const thing = block ? 'block' : 'street';
@@ -213,6 +252,16 @@ export function Street({ picture, name, unit, mine, instrument, gps, onWalked, o
       <Lead className="mt-1.5">
         {block ? '' : spanWords(mine)}About {mine.minutes} minutes.{recording ? ` ${brief.records}` : ''}
       </Lead>
+      {asked && (
+        // Asked for another street while on this one: said here, and it is the first card when this street is done.
+        <div className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3">
+          <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">{asked.askedBy || 'The people running the search'} asked you</p>
+          <p className="mt-0.5 break-words text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">
+            Walk {asked.name}.{asked.askedNote ? ` "${asked.askedNote}"` : ''}
+          </p>
+        </div>
+      )}
+      <Said said={said} picture={picture} now={now} onSay={onSay} />
       <AdviceBlock source="The searcher's brief" lines={[brief.look]} className="mt-3" />
       <Problem className="mt-2">{problem}</Problem>
       <Primary onClick={onWalked} busy={busy === 'walked'} disabled={Boolean(busy)} className="mt-4">

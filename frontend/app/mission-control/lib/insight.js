@@ -23,34 +23,42 @@ const HOUR = 60 * MINUTE;
  *
  *  - Dogs: Kremer T. A New Web-Based Tool for RTO-Focused Animal Shelter
  *    Data Analysis. Front Vet Sci. 2021;8:669428. Dallas Animal Services,
- *    fiscal year 2019, 5,228 stray dogs returned to their owners: "70% of
- *    dogs are not found beyond 1 mile away from their owner address", and
- *    42% of all dogs "go <400 ft away". Straight-line distance from the
- *    owner's address to where the dog was picked up.
+ *    fiscal year 2019 (October 2018 to September 2019), 5,228 stray dogs
+ *    returned to their owners: "70% of dogs are not found beyond 1 mile
+ *    away from their owner address", and 42% of all dogs "go <400 ft
+ *    away". Straight-line distance from the owner's address to where the
+ *    dog was picked up: from HOME, which is not always where a dog was
+ *    lost.
  *  - Cats: Huang L, and others. Search Methods Used to Locate Missing
  *    Cats and Locations Where Missing Cats Are Found. Animals.
  *    2018;8(1):5. Cats found alive: "the median distance was 50 m (25th
  *    and 75th percentiles 9 and 500 m, respectively)", measured "from
  *    where the cat went missing to where it was found".
  *
- * The sentences below say only that. They do not say where this pet is.
+ * The sentences below say only that, with the study's own limits (whose
+ * dogs, which cats, measured from where). They do not say where this pet
+ * is. A ring on the map is labelled with its distance and nothing else:
+ * a share of dogs written on this pet's map would read as a claim about
+ * this pet. `show` is what the button that draws them says.
  */
 export const RESEARCH = {
   DOG: {
     rings: [
-      { meters: 122, label: '400 ft', share: '42% of dogs' },
-      { meters: 1609, label: '1 mile', share: '70% of dogs' },
+      { meters: 122, label: '400 ft' },
+      { meters: 1609, label: '1 mile' },
     ],
-    line: 'In Dallas shelter records for 2019, 42% of stray dogs returned to their owners were found within 400 feet of home, and 70% within a mile.',
+    line: 'In Dallas shelter records for the 2019 fiscal year, of 5,228 stray dogs returned to their owners, 42% were picked up within 400 feet of home and 70% within a mile.',
+    show: 'Show 400 ft and 1 mile',
     source: 'Kremer, Frontiers in Veterinary Science, 2021',
     url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC8185155/',
   },
   CAT: {
     rings: [
-      { meters: 50, label: '50 m', share: 'half of cats' },
-      { meters: 500, label: '500 m', share: '3 in 4 cats' },
+      { meters: 50, label: '50 m' },
+      { meters: 500, label: '500 m' },
     ],
     line: 'In a study of missing cats, half of the cats found alive were within 50 metres of where they went missing, and 3 in 4 within 500 metres.',
+    show: 'Show 50 m and 500 m',
     source: 'Huang and others, Animals, 2018',
     url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC5789300/',
   },
@@ -63,15 +71,24 @@ export function researchFor(species) {
 
 const isOpen = (i) => i.status === 'UNSEARCHED' || i.status === 'NEEDS_REVISIT';
 
-/** The ground: how many streets, how many walked, how many being walked, and the walking that is left. */
+/** Walked at least once, whatever it is now: a street put up for another look, or on its second pass, has still been walked. */
+const wasWalked = (i) => i.status === 'SEARCHED' || Number(i.searchCount) > 0;
+
+/**
+ * The ground: how many streets, how many walked at least once (`searched`),
+ * how many of those are not being walked again right now (`done`, the
+ * green of the bar), how many being walked, how many up for another look,
+ * and the walking that is left.
+ */
 export function coverage(items = []) {
   const total = items.length;
-  const searched = items.filter((i) => i.status === 'SEARCHED').length;
+  const searched = items.filter(wasWalked).length;
   const walking = items.filter((i) => i.status === 'IN_PROGRESS').length;
+  const done = items.filter((i) => wasWalked(i) && i.status !== 'IN_PROGRESS').length;
   const again = items.filter((i) => i.status === 'NEEDS_REVISIT').length;
   const open = items.filter(isOpen);
   const minutesLeft = open.reduce((sum, i) => sum + (Number(i.minutes) || 0), 0);
-  return { total, searched, walking, again, open: open.length, minutesLeft, share: total ? searched / total : 0 };
+  return { total, searched, done, walking, again, open: open.length, minutesLeft, share: total ? searched / total : 0 };
 }
 
 /** "about 40 minutes", "about 1 hour", "about 2 and a half hours", "about 7 hours". */
@@ -87,20 +104,22 @@ export function durationWords(minutes) {
 }
 
 /**
- * The ground in sentences. `thing` is "street" or "block"; `out` is how
- * many people are out now, which is the only number of helpers this is
- * allowed to do sums with.
+ * The ground in sentences. `thing` is "street" or "block". The time left
+ * is given for one person and, where several are on a street right now,
+ * for that many: a sum, said as a sum, and not a promise about people who
+ * are busy on streets of their own.
  */
-export function groundLines({ items = [], unit = 'street', out = 0, name = 'the pet' } = {}) {
+export function groundLines({ items = [], unit = 'street', name = 'the pet' } = {}) {
   const thing = unit === 'block' ? 'block' : 'street';
   const c = coverage(items);
   if (!c.total) return [];
   const lines = [];
-  if (c.searched === 0 && c.walking === 0) lines.push(`${c.total} ${thing}s around where ${name} was lost. None has been walked yet.`);
+  if (c.searched === 0 && c.walking === 0) lines.push(c.total === 1 ? `1 ${thing} around where ${name} was lost. It has not been walked yet.` : `${c.total} ${thing}s around where ${name} was lost. None has been walked yet.`);
+  else if (c.total === 1) lines.push(c.walking ? `The one ${thing} is being walked now.` : `The one ${thing} has been walked.`);
   else lines.push(`${c.searched} of ${c.total} ${thing}s ${c.searched === 1 ? 'has' : 'have'} been walked${c.walking ? `, and ${c.walking === 1 ? '1 is' : `${c.walking} are`} being walked now` : ''}.`);
   if (c.open > 0) {
-    const alone = `Walking the ${c.open === 1 ? 'one' : c.open} left takes one person ${durationWords(c.minutesLeft)}`;
-    lines.push(out >= 2 ? `${alone}, or the ${out} people out now ${durationWords(c.minutesLeft / out)}.` : `${alone}.`);
+    const alone = `Walking the ${c.open === 1 ? 'one' : c.open} still to walk takes one person ${durationWords(c.minutesLeft)}`;
+    lines.push(c.walking >= 2 ? `${alone}, or ${c.walking} people ${durationWords(c.minutesLeft / c.walking)}.` : `${alone}.`);
   } else if (c.walking === 0) {
     lines.push(`Every ${thing} has been walked at least once.`);
   }
@@ -122,7 +141,8 @@ export function directionWord(a, b) {
 export function metersWords(meters) {
   if (!Number.isFinite(meters)) return '';
   if (meters < 50) return 'under 50 m';
-  if (meters < 1000) return `${Math.round(meters / 10) * 10} m`;
+  // 995 m and up is said in kilometres, so it is never "1000 m".
+  if (meters < 995) return `${Math.round(meters / 10) * 10} m`;
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
@@ -246,6 +266,20 @@ export function lookFirst(items = []) {
 }
 
 /**
+ * The streets a helper who asks now is given one of: the most urgent
+ * still to walk, all of them where several are as urgent as each other
+ * (a phone then gives the one nearest its helper, which a desk cannot
+ * know, so no single one of them can be called "the next"). One kept for
+ * someone who was asked is not given to anyone else.
+ */
+export function givenNext(items = []) {
+  const open = lookFirst(items).filter((i) => !i.reserved);
+  if (!open.length) return [];
+  const top = open[0].priority || 0;
+  return open.filter((i) => (i.priority || 0) === top);
+}
+
+/**
  * What happened, newest first: the pet was lost, streets were started and
  * walked, the pet was seen, the owner wrote something. Built from what the
  * board and the picture already carry, so it shows a name exactly where
@@ -268,8 +302,10 @@ export function activity({ items = [], picture = null, now = Date.now() } = {}) 
     if (i.status === 'IN_PROGRESS' && i.claimedAt) events.push({ id: `start-${i.id}`, at: i.claimedAt, kind: 'start', text: `${i.claimedByName || 'Someone'} started ${title}.`, streetId: i.id });
     if (i.searchedAt) events.push({ id: `walk-${i.id}`, at: i.searchedAt, kind: 'walk', text: i.marked ? `${i.searchedByName || 'Someone'} put ${title} down as walked.` : `${i.searchedByName || 'Someone'} walked ${title}.`, streetId: i.id });
   }
+  // What the owner told everyone helping: the picture sends only the owner's own words (app/lib/searchPicture.js).
+  const owner = picture.owner?.firstName || null;
   for (const u of picture.updates || []) {
-    events.push({ id: `said-${u.id}`, at: u.at, kind: 'said', text: u.by ? `${u.by}: ${u.text}` : u.text });
+    events.push({ id: `said-${u.id}`, at: u.at, kind: 'said', text: owner ? `${owner}: ${u.text}` : u.text });
   }
   return events
     .filter((e) => e.at && new Date(e.at).getTime() <= now + 5 * MINUTE)

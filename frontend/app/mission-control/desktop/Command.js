@@ -6,19 +6,25 @@
  * it is never asked where it is and is never handed a street
  * (SearchScreen.js). A phone is the opposite: one card, one button.
  *
- *   left    the numbers, this person's own card, what the search shows,
- *           and the site's advice for this pet at this stage
+ *   left    for the person running the search, what needs them now, each
+ *           with one thing to do about it (Needs.js); then the numbers,
+ *           this person's own card, what the search shows, and the site's
+ *           advice for this pet at this stage
  *   middle  the map: every street by its state. A street still to walk is
  *           dark, the ones given out next are the thickest, a walked one
  *           is green. Pointing names a street, clicking picks it.
- *   right   the streets in the order they are handed out, the sightings,
- *           who is out, and a log of what happened
+ *   right   the people on the search and what each is doing, the streets
+ *           in the order they are handed out, the sightings, and
+ *           everything said and done in one stream
  *
- * The owner, and someone leading a Rescue Force that is looking, can also
- * steer: send the next helpers to a street first, put a street down as
- * walked for someone who walked it without the site, or ask for another
- * look (app/lib/searchBoard.js, STEER_ACTIONS). Everyone else sees the
- * same search and can add a sighting.
+ * The owner runs the search from here (`viewer.leads`: app/lib/searcher.js
+ * says why it is the owner alone). They give a named person a street and
+ * see it asked, seen and walked (app/lib/searchAsk.js); they write to one
+ * person or to everyone (app/lib/searchTalk.js); and they steer: send the
+ * next helpers to a street first, put a street down as walked for someone
+ * who walked it without the site, or ask for another look
+ * (app/lib/searchBoard.js, STEER_ACTIONS). Everyone else sees the same
+ * search and can add a sighting.
  *
  * It is light by day, like an ordinary map, and dark at night by its own
  * switch. Every colour comes from the screen's two palettes
@@ -30,10 +36,12 @@ import dynamic from 'next/dynamic';
 import { ArrowLeft, Check, ExternalLink, Flag, Maximize2, Moon, RotateCcw, Sun, X, Loader2 } from 'lucide-react';
 import TopBar from '../components/TopBar';
 import { DESK_MAP } from '../components/SearchMap';
-import { dayAndTime } from '../lib/words';
-import { lookFirst, researchFor, stateWords, streetFacts } from '../lib/insight';
+import { clockTime, dayAndTime, HOT_SIGHTING_MS } from '../lib/words';
+import { givenNext, researchFor, stateWords, streetFacts } from '../lib/insight';
+import { needsYou, quietLine } from '../lib/needs';
 import { Advice, Know, Numbers } from './Know';
 import Board from './Board';
+import Needs from './Needs';
 
 const SearchMap = dynamic(() => import('../components/SearchMap'), {
   ssr: false,
@@ -43,9 +51,8 @@ const SearchMap = dynamic(() => import('../components/SearchMap'), {
 const CONTROL =
   'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] px-3 text-[13px] font-bold leading-5 text-[var(--mc-ink)] shadow-sm hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
 
-/** How many of the streets still to walk the map and the list mark as given out next. */
-const NEXT_SHOWN = 3;
 const NIGHT_KEY = 'rp_mc_night';
+const NO_RINGS = [];
 
 /** Day or night for the desk. Day, unless this person chose night on this computer before. */
 function useNight() {
@@ -67,6 +74,37 @@ function useNight() {
       return !was;
     });
   return [night, flip];
+}
+
+/**
+ * The "Needs you" cards this person has put away, kept on this computer
+ * for this pet. A card put away stays away; a new sighting, a new word or
+ * someone newly free is a new card.
+ */
+function usePutAway(caseId) {
+  const key = `rp_mc_put_${caseId}`;
+  const [put, setPut] = useState(() => new Set());
+  useEffect(() => {
+    try {
+      const kept = JSON.parse(window.localStorage.getItem(key) || '[]');
+      if (Array.isArray(kept)) setPut(new Set(kept.map(String)));
+    } catch {
+      // Nothing kept: every card shows.
+    }
+  }, [key]);
+  const putAway = (what) =>
+    setPut((was) => {
+      const next = new Set(was);
+      next.add(String(what));
+      try {
+        // The newest couple of hundred are plenty: an old card's reason has long passed.
+        window.localStorage.setItem(key, JSON.stringify([...next].slice(-200)));
+      } catch {
+        // Not kept: the card stays away until the page is closed.
+      }
+      return next;
+    });
+  return [put, putAway];
 }
 
 /** Four points round a centre, so a single mark is shown with its neighbourhood. */
@@ -96,12 +134,14 @@ function useRoomy() {
 
 const shapeOf = (item) => (item?.path?.length ? item.path : item ? [[item.northLat, item.westLng], [item.southLat, item.eastLng]] : []);
 
-/** The street that is picked: what is known about it, the way there, and what the owner or a lead can do about it. */
-function StreetCard({ street, picture, unit, now, leads, busy, problem, onSteer, onClose }) {
+/** The street that is picked: what is known about it, the way there, and what the person running the search can do about it. */
+function StreetCard({ street, picture, unit, now, leads, busy, problem, free = [], onSteer, onGive, onUnask, onClose }) {
   const name = picture.pet?.name || 'the pet';
   const thing = unit === 'block' ? 'block' : 'street';
   const facts = streetFacts(street, { lastSeen: picture.lastSeen, sightings: picture.sightings, timeZone: picture.timeZone, now, name, unit });
   const open = street.status === 'UNSEARCHED' || street.status === 'NEEDS_REVISIT';
+  // Kept for someone the person running the search asked to walk it (app/lib/searchAsk.js).
+  const kept = open && street.reserved;
   const mapsHref = street.center ? `https://www.google.com/maps/dir/?api=1&destination=${street.center.lat},${street.center.lng}&travelmode=walking` : null;
   const act = (action, words, Icon) => (
     <button key={action} type="button" onClick={() => onSteer(street, action)} disabled={Boolean(busy)} className={`${CONTROL} disabled:opacity-60`}>
@@ -127,7 +167,14 @@ function StreetCard({ street, picture, unit, now, leads, busy, problem, onSteer,
             {fact}
           </li>
         ))}
-        {street.first && <li className="text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">The next people who ask for a {thing} are sent here first.</li>}
+        {street.first && !kept && <li className="text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">The next people who ask for a {thing} are sent here first.</li>}
+        {kept && (
+          <li className="text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">
+            {street.askedOfName
+              ? `Kept for ${street.askedOfName}, who was asked to walk it at ${clockTime(street.askedAt, picture.timeZone)}${street.askedSeenAt ? ' and has seen that' : ''}.`
+              : 'Kept for someone who was asked to walk it.'}
+          </li>
+        )}
       </ul>
       {problem && (
         <p role="alert" className="mt-2 text-sm font-semibold text-[var(--mc-danger)]">
@@ -140,31 +187,51 @@ function StreetCard({ street, picture, unit, now, leads, busy, problem, onSteer,
             <ExternalLink size={15} aria-hidden="true" /> Open in Google Maps
           </a>
         )}
-        {leads && open && !street.first && act('first', 'Send people here first', Flag)}
+        {leads && open && !kept && !street.first && act('first', 'Send people here first', Flag)}
         {leads && street.first && act('normal', 'Back to its place in the order', RotateCcw)}
+        {leads && kept && street.askedOfHandle && (
+          <button type="button" onClick={() => onUnask(street)} disabled={Boolean(busy)} className={`${CONTROL} disabled:opacity-60`}>
+            {busy === 'unask' ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <RotateCcw size={15} aria-hidden="true" />} Take it back from {street.askedOfName}
+          </button>
+        )}
         {leads && open && act('walked', 'Put down as walked', Check)}
         {leads && street.status === 'SEARCHED' && act('again', 'Needs another look', RotateCcw)}
       </div>
+      {leads && unit === 'street' && open && !kept && free.length > 0 && (
+        // From a street to a person: the same ask as from the People list, started the other way round.
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--mc-line)] pt-3">
+          <span className="text-[13px] font-bold leading-5 text-[var(--mc-muted)]">Ask someone to walk it</span>
+          {free.slice(0, 3).map((p) => (
+            <button key={p.handle} type="button" onClick={() => onGive(p.handle)} className={CONTROL}>
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
       {!leads && (
         <p className="mt-2 text-[13px] font-medium leading-5 text-[var(--mc-muted)]">
-          {picture.owner?.firstName || 'The owner'} and the people leading the search decide where helpers are sent first.
+          {picture.owner?.firstName || 'The owner'} decides where helpers are sent first.
         </p>
       )}
     </section>
   );
 }
 
-export default function Command({ picture, items, unit, now, line, petHref, onPhoto, step, full, onBack, onSeen, search, mapLabel, overlays }) {
+export default function Command({ picture, items, unit, now, line, petHref, onPhoto, step, full, onBack, onSeen, onShare, search, mapLabel, overlays }) {
   const viewer = picture.viewer;
   const leads = Boolean(viewer?.leads);
+  const people = search.people;
   const name = picture.pet?.name || 'the pet';
   const zone = picture.timeZone;
   const roomy = useRoomy();
   const [night, flipNight] = useNight();
   const look = DESK_MAP[night ? 'dark' : 'light'];
   const [tabPicked, setTab] = useState(null);
-  // With three columns the list opens on the streets. With two, on the overview, which is where this person's own card is.
-  const tab = tabPicked && (roomy ? tabPicked !== 'overview' : true) ? tabPicked : roomy ? 'streets' : 'overview';
+  // With three columns the list opens on the people, for someone who may see them, and on the streets for anyone
+  // else. With two, on the overview, which is where this person's own card is.
+  const tab = tabPicked && (roomy ? tabPicked !== 'overview' : true) ? tabPicked : roomy ? (viewer?.seesNames ? 'people' : 'streets') : 'overview';
+  const [person, setPerson] = useState(null); // the person open in People, by handle
+  const [to, setTo] = useState(null); // who the Messages box is writing to: a handle, or 'everyone'
   const [selected, setSelected] = useState(null);
   const [hovered, setHovered] = useState(null);
   const [focused, setFocused] = useState(null); // a sighting picked from the list or the log
@@ -174,22 +241,33 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   const [problem, setProblem] = useState('');
   const [refit, setRefit] = useState(0);
   const study = researchFor(picture.pet?.species);
+  const [put, putAway] = usePutAway(picture.id);
+  const [allNeeds, setAllNeeds] = useState(false);
+  const [needBusy, setNeedBusy] = useState(null);
+  const [needProblem, setNeedProblem] = useState('');
 
   const street = useMemo(() => items.find((i) => i.id === selected) || null, [items, selected]);
-  // The few streets a helper who asks now would be given: the map and the list both mark them.
-  const next = useMemo(() => new Set(lookFirst(items).slice(0, NEXT_SHOWN).map((i) => i.id)), [items]);
+  // The streets a helper who asks now is given one of (lib/insight.js, givenNext): the map and the list both mark them.
+  const next = useMemo(() => new Set(givenNext(items).map((i) => i.id)), [items]);
+  const free = useMemo(() => people.filter((p) => p.state === 'free'), [people]);
   // A street that is no longer on the board lets go of itself.
   useEffect(() => {
     if (selected && !street) setSelected(null);
   }, [selected, street]);
 
+  // Picking a street shows it on the map with its card. The list stays where it is: someone giving a person a
+  // street, or reading the messages, is not moved off what they were doing.
   const pick = (id) => {
     setProblem('');
     setSelected(id);
-    if (id) {
-      setFocused(null);
-      setTab('streets');
-    }
+    if (id) setFocused(null);
+  };
+  // Open a person with a street already chosen for them.
+  const give = (handle, streetId = null) => {
+    setProblem('');
+    setTab('people');
+    setPerson(handle);
+    if (streetId) pick(streetId);
   };
   const focus = (id) => {
     setFocused(id);
@@ -207,6 +285,47 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
       setBusy(null);
     }
   }
+  // ----- What needs the person running the search -----
+  const talk = search.talk;
+  const cards = useMemo(
+    () => needsYou({ picture, items, people, words: talk, leads, put, unit, now }),
+    // The cards change with the search, and with the clock twice a minute (how long someone has been free).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [picture, items, people, talk, leads, put, unit, Math.floor(now / 30000)]
+  );
+  async function doNeed(card, what) {
+    setNeedProblem('');
+    if (what.type === 'done') return putAway(what.key);
+    if (what.type === 'show') return focus(what.sightingId);
+    if (what.type === 'give') return give(what.handle, what.streetId);
+    if (what.type === 'write') {
+      setTab('messages');
+      return setTo(what.handle);
+    }
+    if (what.type !== 'ask' || needBusy) return undefined;
+    setNeedBusy(card.id);
+    try {
+      const result = await search.ask(what.handle, what.streetId, '');
+      if (result.error) setNeedProblem(result.error);
+      // Asked: the person's panel shows it asked, then seen, then walking.
+      else give(what.handle);
+    } finally {
+      setNeedBusy(null);
+    }
+    return undefined;
+  }
+
+  async function takeBack(target) {
+    if (busy || !target.askedOfHandle) return;
+    setBusy('unask');
+    setProblem('');
+    try {
+      const result = await search.unask(target.askedOfHandle);
+      if (result.error) setProblem(result.error);
+    } finally {
+      setBusy(null);
+    }
+  }
 
   // ----- The map -----
   const numbered = useMemo(
@@ -215,14 +334,19 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   );
   const newest = numbered[numbered.length - 1] || null;
   const mapSightings = useMemo(
-    () => numbered.map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, n: s.n, label: `Seen ${dayAndTime(s.at, zone, now)}`, hot: s.id === (focused || newest?.id) })),
+    // The one that is picked stands out, and so does the newest while it is fresh. An old sighting does not keep pulsing.
+    () => numbered.map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, n: s.n, label: `Seen ${dayAndTime(s.at, zone, now)}`, hot: focused ? s.id === focused : s.id === newest?.id && now - new Date(s.at).getTime() < HOT_SIGHTING_MS })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [numbered, zone, focused, newest?.id, Math.floor(now / 60000)]
   );
   const mapStreets = useMemo(
     () =>
       unit === 'street'
-        ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: false, who: i.claimedByName || null, title: i.title, words: `${stateWords(i)} · about ${i.minutes} min`, next: next.has(i.id), first: i.first }))
+        ? items.map((i) => {
+            // Kept for someone who was asked to walk it: the map says whose, where this person may know.
+            const keptFor = i.reserved && i.askedOfName && (i.status === 'UNSEARCHED' || i.status === 'NEEDS_REVISIT') ? i.askedOfName : null;
+            return { id: i.id, path: i.path, status: i.status, mine: false, who: i.claimedByName || null, keptFor, title: i.title, words: `${keptFor ? `Kept for ${keptFor}` : stateWords(i)} · about ${i.minutes} min`, next: next.has(i.id) };
+          })
         : [],
     [unit, items, next]
   );
@@ -247,16 +371,23 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   const fitKey = `${focused ? `seen:${focused}` : street ? `street:${street.id}` : `all:${items.length}:${numbered.length}`}|${refit}`;
 
   // The map's key: what a line's weight and colour mean, in the map's own values.
+  const anyKept = mapStreets.some((s) => s.keptFor);
   const key = [
     ['thick', look.ink, 'Given out next'],
     ['thin', look.later, 'Still to walk'],
+    ...(anyKept ? [['kept', look.ink, 'Kept for someone asked']] : []),
     ['dots', look.walking, 'Being walked'],
     ['line', look.walked, 'Walked'],
   ];
+  // The distances a study found, drawn round where the pet was lost. One list while nothing changes, so the map is not redrawn.
+  const ringList = useMemo(() => (rings && study ? study.rings.map((r) => ({ meters: r.meters, label: r.label })) : NO_RINGS), [rings, study]);
 
   // The numbers, this person's own card, what the search shows, and the advice.
   const overview = (
     <div className={`flex flex-col gap-3 overflow-y-auto ${roomy ? 'p-4' : 'min-h-0 flex-1 p-3'}`}>
+      {leads && !full && (
+        <Needs cards={cards} quiet={quietLine({ unit, items, people })} busy={needBusy} problem={needProblem} onDo={doNeed} all={allNeeds} onAll={() => setAllNeeds((v) => !v)} />
+      )}
       <Numbers picture={picture} items={items} unit={unit} now={now} />
       <section aria-label="Your step" className={`rounded-2xl border border-[var(--mc-line)] ${roomy ? 'bg-[var(--mc-surface)]' : 'bg-[var(--mc-ground)]'} ${full ? 'overflow-hidden pb-2' : 'p-4'}`}>
         {full && (
@@ -306,7 +437,7 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
               hovered={hovered}
               onSelect={pick}
               onHover={setHovered}
-              rings={rings && study ? study.rings.map((r) => ({ meters: r.meters, label: `${r.label}: ${r.share}` })) : []}
+              rings={ringList}
               trail
               fit={fit}
               fitKey={fitKey}
@@ -351,6 +482,10 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
               <span key={words} className="flex items-center gap-1.5">
                 {kind === 'dots' ? (
                   <span className="w-5 border-t-[5px] border-dotted" style={{ borderColor: color }} aria-hidden="true" />
+                ) : kind === 'kept' ? (
+                  <span className="flex h-[6px] w-5 items-center rounded-full" style={{ background: color }} aria-hidden="true">
+                    <span className="w-full border-t-[3px] border-dashed border-flash-400" />
+                  </span>
                 ) : (
                   <span className="w-5 rounded-full" style={{ background: color, height: kind === 'thick' ? 6 : kind === 'thin' ? 3 : 5 }} aria-hidden="true" />
                 )}
@@ -361,7 +496,7 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
           {street && (
             // Bottom left, clear of the zoom buttons and the map's credit in the other corner.
             <div className="absolute bottom-3 left-3 z-[450] w-[min(460px,calc(100%-96px))]">
-              <StreetCard street={street} picture={picture} unit={unit} now={now} leads={leads} busy={busy} problem={problem} onSteer={steer} onClose={() => pick(null)} />
+              <StreetCard street={street} picture={picture} unit={unit} now={now} leads={leads} busy={busy} problem={problem} free={free} onSteer={steer} onGive={(handle) => give(handle, street.id)} onUnask={takeBack} onClose={() => pick(null)} />
             </div>
           )}
         </div>
@@ -381,16 +516,24 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
             onSelect={pick}
             onHover={setHovered}
             focused={focused}
-            onFocus={(id) => {
-              focus(id);
-              if (id) setTab('sightings');
-            }}
+            onFocus={focus}
             onAdd={() => {
               onSeen();
               // The form is this person's own card, which on a narrower screen is under Overview.
               if (!roomy) setTab('overview');
             }}
             onTell={search.tell}
+            people={people}
+            talk={talk}
+            person={person}
+            onPerson={setPerson}
+            to={to}
+            onTo={setTo}
+            onAsk={(who, target, note) => search.ask(who.handle, target.id, note)}
+            onUnask={(who) => search.unask(who.handle)}
+            onWord={(who, text) => search.say(text, who.handle)}
+            onPick={pick}
+            onShare={onShare}
           />
         </aside>
       </div>

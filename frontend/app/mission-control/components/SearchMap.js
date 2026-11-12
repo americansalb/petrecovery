@@ -16,8 +16,8 @@
  *
  * On a phone the map is looked at, not tapped: the card's one button does
  * the choosing. On a desk (`desk`) it is the instrument: every street of
- * the search is drawn, warmest where the search goes next, and answers to
- * the pointer. Pointing at one names it, clicking picks it, and the list
+ * the search is drawn, thickest where the search goes next, and answers
+ * to the pointer. Pointing at one names it, clicking picks it, and the list
  * beside the map and the map point at the same street. The desk can also
  * draw how far lost pets were found in published studies (`rings`), join
  * the sightings in the order they happened (`trail`), and show the
@@ -40,12 +40,22 @@ const TEAL = '#2dd4bf';
  * are the thickest, and a walked street turns green. Colour is kept for
  * meaning and never used for rank: red where the pet was lost, orange
  * where it was seen, teal for someone at work, green for done, yellow for
- * the street that is picked. The list beside the map uses the same values.
+ * the street in hand: the one that is picked, and one kept for a person
+ * who was asked to walk it, which carries their name. The list beside the
+ * map uses the same values.
  */
 export const DESK_MAP = {
   light: { ink: '#0f172a', later: '#64748b', walked: '#3f9f79', walking: '#0d9488', casing: '#ffffff' },
   dark: { ink: '#f8fafc', later: '#8493a8', walked: '#34916d', walking: '#2dd4bf', casing: '#020617' },
 };
+
+/**
+ * What a list is when none is passed. One array for all of them, and never
+ * a new one: these are what the drawing effects compare, so a new empty
+ * list on every render would clear and redraw the whole map every time
+ * anything on the screen changed.
+ */
+const NONE = Object.freeze([]);
 
 function node(tag, css, text) {
   const el = document.createElement(tag);
@@ -110,13 +120,13 @@ function tip(title, words) {
 export default function SearchMap({
   theme = 'dark',
   lastSeen = null, // { lat, lng, label }
-  sightings = [], // [{ id, lat, lng, label, hot, n }]: `n` numbers them in the order they happened
-  streets = [], // [{ id, path, status, mine, who, title, words, next, first }]: `next` is given out next, `first` was asked for first
-  cells = [], // [{ id, northLat, southLat, eastLng, westLng, status, mine, title, words }]
+  sightings = NONE, // [{ id, lat, lng, label, hot, n }]: `n` numbers them in the order they happened
+  streets = NONE, // [{ id, path, status, mine, who, keptFor, title, words, next }]: `next` is given out next, `keptFor` names who it is kept for
+  cells = NONE, // [{ id, northLat, southLat, eastLng, westLng, status, mine, title, words }]
   me = null, // { lat, lng }
-  track = [], // [{ lat, lng }, ...] this person's own recorded path (the app only)
-  tags = [], // extra word tags: [{ lat, lng, text, tone, side }]
-  fit = [], // [[lat, lng], ...] what must be in view
+  track = NONE, // [{ lat, lng }, ...] this person's own recorded path (the app only)
+  tags = NONE, // extra word tags: [{ lat, lng, text, tone, side }]
+  fit = NONE, // [[lat, lng], ...] what must be in view
   fitKey = '',
   padding = { top: 16, right: 16, bottom: 16, left: 16 },
   zoomControl = false,
@@ -126,7 +136,7 @@ export default function SearchMap({
   hovered = null, // id pointed at from the list beside the map
   onSelect = null, // (id | null) => void
   onHover = null, // (id | null) => void
-  rings = [], // [{ meters, label }] around where the pet was lost
+  rings = NONE, // [{ meters, label }] around where the pet was lost
   trail = false, // join the sightings in the order they happened
   layer = 'map', // 'map' | 'satellite'
   maxFitZoom = 17, // how close a fit may go
@@ -232,7 +242,7 @@ export default function SearchMap({
       for (const cell of cells) {
         const bounds = [[cell.southLat, cell.westLng], [cell.northLat, cell.eastLng]];
         const lit = Boolean(cell.mine);
-        const soon = cell.next || cell.first;
+        const soon = cell.next;
         const style = lit
           ? { color: FLASH, weight: 3, fillColor: FLASH, fillOpacity: 0.22 }
           : desk
@@ -268,10 +278,14 @@ export default function SearchMap({
           } else if (street.status === 'SEARCHED') {
             cased(5);
             L.polyline(street.path, { color: look.walked, weight: 5, opacity: 0.85, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
-          } else if (street.next || street.first) {
-            // Given out next: the thickest line on the map. One the owner asked for first has yellow under it.
-            if (street.first) L.polyline(street.path, { color: FLASH, weight: 13, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
-            else cased(6);
+          } else if (street.keptFor) {
+            // Kept for someone who was asked to walk it: ink with yellow along it, and their name beside it.
+            cased(6);
+            L.polyline(street.path, { color: look.ink, weight: 6, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
+            L.polyline(street.path, { color: FLASH, weight: 3, opacity: 1, dashArray: '9 9', lineCap: 'butt', interactive: false }).addTo(layers);
+          } else if (street.next) {
+            // Given out next: the thickest line on the map. (One the owner asked for first is given out next.)
+            cased(6);
             L.polyline(street.path, { color: look.ink, weight: 6, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
           } else {
             cased(2.5);
@@ -284,15 +298,18 @@ export default function SearchMap({
         }
         // On a phone a free street is the map's own street: nothing is drawn over it.
         if (desk) answer(L.polyline(street.path, { color: '#000000', weight: 20, opacity: 0, lineCap: 'round' }).addTo(layers), street);
-        if (street.who && street.status === 'IN_PROGRESS' && !lit) {
+        const walking = street.who && street.status === 'IN_PROGRESS';
+        if ((walking || (desk && street.keptFor)) && !lit) {
           // The name sits toward the end of the street that is farther from where the pet was lost, so it
           // stays clear of that mark's own words: streets near the middle of a search all pass close to it.
           const path = street.path;
           const from = lastSeen && Number.isFinite(lastSeen.lat) ? lastSeen : null;
           const away = (p) => (from ? (p[0] - from.lat) ** 2 + ((p[1] - from.lng) * Math.cos((from.lat * Math.PI) / 180)) ** 2 : 0);
-          const share = from ? (away(path[0]) > away(path[path.length - 1]) ? 0.2 : 0.8) : 0.5;
+          // A walker's name sits toward the far end. "For {name}" sits at the middle of the street it is kept on,
+          // where it reads as the whole street's.
+          const share = !walking ? 0.5 : from ? (away(path[0]) > away(path[path.length - 1]) ? 0.2 : 0.8) : 0.5;
           const at = path[Math.round((path.length - 1) * share)];
-          L.marker(at, { icon: tagged(L, { text: street.who, theme, side: 'right' }), interactive: false, keyboard: false }).addTo(layers);
+          L.marker(at, { icon: tagged(L, walking ? { text: street.who, theme, side: 'right' } : { text: `For ${street.keptFor}`, tone: 'flash', theme, side: 'right' }), interactive: false, keyboard: false }).addTo(layers);
         }
       }
 

@@ -1136,13 +1136,14 @@ img {
   --mc-check: #f8fafc;
   --mc-check-ink: #0f172a;
   --mc-on-seen: #0f172a;
+  --mc-on-flash: #0f172a;
   --mc-teal: #2dd4bf;
   --mc-teal-ink: #5eead4;
   --mc-on-teal: #0f172a;
   --mc-done: #34916d;
   --mc-done-ink: #6ee7b7;
   --mc-danger: #fca5a5;
-  --mc-pick: rgba(250, 204, 21, 0.15);
+  --mc-pick: #323227;
   --mc-shadow: 0 12px 40px rgba(2, 6, 23, 0.55);
 }
 .mc-light {
@@ -1161,6 +1162,7 @@ img {
   --mc-check: #0f172a;
   --mc-check-ink: #ffffff;
   --mc-on-seen: #ffffff;
+  --mc-on-flash: #0f172a;
   --mc-teal: #0f766e;
   --mc-teal-ink: #115e59;
   --mc-on-teal: #ffffff;

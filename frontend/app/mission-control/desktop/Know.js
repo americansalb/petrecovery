@@ -47,7 +47,6 @@ function Stat({ value, label, tone = 'plain' }) {
 export function Numbers({ picture, items, unit, now }) {
   const c = coverage(items);
   const thing = unit === 'block' ? 'blocks' : 'streets';
-  const out = picture.looking?.helpers || 0;
   const seen = picture.sightings.length;
   return (
     <div>
@@ -55,12 +54,13 @@ export function Numbers({ picture, items, unit, now }) {
       <div className="flex flex-wrap gap-2">
         <Stat value={missingFor(picture.lastSeen?.at, now) || '-'} label="missing" />
         <Stat value={c.total ? `${c.searched}/${c.total}` : '-'} label={`${thing} walked`} />
-        <Stat value={out} label="out now" />
+        {/* People on a street right now, which the streets themselves say: one street each. Not everyone who was out today. */}
+        <Stat value={c.walking} label="walking now" />
         <Stat value={seen} label={seen === 1 ? 'sighting' : 'sightings'} tone={seen ? 'seen' : 'plain'} />
       </div>
       {c.total > 0 && (
         <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-[var(--mc-line)]" role="img" aria-label={`${c.searched} of ${c.total} ${thing} walked, ${c.walking} being walked now`}>
-          <span className="h-full bg-[var(--mc-done)]" style={{ width: `${(c.searched / c.total) * 100}%` }} />
+          <span className="h-full bg-[var(--mc-done)]" style={{ width: `${(c.done / c.total) * 100}%` }} />
           <span className="h-full bg-[var(--mc-teal)]" style={{ width: `${(c.walking / c.total) * 100}%` }} />
         </div>
       )}
@@ -77,7 +77,7 @@ export function Know({ picture, items, unit, now, rings, onRings }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [picture.sightings, picture.lastSeen, picture.timeZone, name, Math.floor(now / 600000)]
   );
-  const ground = groundLines({ items, unit, out: picture.looking?.helpers || 0, name });
+  const ground = groundLines({ items, unit, name });
   const study = researchFor(picture.pet?.species);
   return (
     <Card title="What the search shows">
@@ -96,7 +96,7 @@ export function Know({ picture, items, unit, now, rings, onRings }) {
               {study.source}
             </a>
             <button type="button" onClick={onRings} aria-pressed={rings} className="text-left font-bold text-[var(--mc-ink)] underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
-              {rings ? 'Hide the rings' : `Show those distances around where ${name} was lost`}
+              {rings ? 'Hide the rings' : `${study.show} around where ${name} was lost`}
             </button>
           </p>
         </div>

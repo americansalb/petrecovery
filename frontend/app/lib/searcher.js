@@ -15,7 +15,6 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { forcesOf } from '@/app/lib/forceFeed';
 import { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER } from '@/app/lib/searcherHeaders';
-import { FORCE_COMMAND_ROLES } from '@/app/lib/forceRoles';
 
 export { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER };
 
@@ -31,10 +30,20 @@ const firstWord = (s) => String(s || '').trim().split(/\s+/)[0] || '';
  * everyone else sees streets, not people. Joining a force is one tap, so
  * membership lets someone see first names and nothing more: answering a
  * sighting is the owner's alone (app/api/mission/[missionId]/answer).
- * `leads` is who may steer the search from the desk (send people to a
- * street first, put one down as walked: app/lib/searchBoard.js): the
- * owner, and someone with a command role in a force that is looking.
- * Being a member is not leading.
+ * `leads` is who runs the search from the desk: steers it (sends people
+ * to a street first, puts one down as walked: app/lib/searchBoard.js),
+ * asks a named helper to walk a street (app/lib/searchAsk.js) and writes
+ * to them (app/lib/searchTalk.js). That is the owner, and nobody else.
+ *
+ * A command role in a Rescue Force is not enough, because nobody has to
+ * agree to it. A force made by the first report in a town has no leader,
+ * and any member of a force with none can take the role
+ * (/api/rescue-forces/[id]/claim-leadership); anyone can found a force
+ * for a town, and every pet reported there afterwards is assigned to it.
+ * So a stranger could reach such a role in two taps, and then redirect a
+ * search and write to its helpers in the name of the people running it.
+ * Someone else runs a search only once the owner has handed it to them,
+ * and that is not built: when it is, it is added here.
  */
 export async function searcherFor(request, caseId) {
   const session = await getServerSession(authOptions).catch(() => null);
@@ -47,7 +56,6 @@ export async function searcherFor(request, caseId) {
     if (user) {
       const isOwner = Boolean(pet && pet.reporterId === userId);
       let inForce = false;
-      let leadsForce = false;
       if (!isOwner) {
         const forceIds = await forcesOf(caseId).catch(() => []);
         if (forceIds.length) {
@@ -56,7 +64,6 @@ export async function searcherFor(request, caseId) {
             select: { role: true },
           });
           inForce = roles.length > 0;
-          leadsForce = roles.some((m) => FORCE_COMMAND_ROLES.includes(m.role));
         }
       }
       return {
@@ -68,7 +75,8 @@ export async function searcherFor(request, caseId) {
         isOwner,
         waiver: Boolean(user.waiverAcceptedAt) || isOwner,
         seesNames: isOwner || inForce,
-        leads: isOwner || leadsForce,
+        // The owner's alone: see the note above before widening it.
+        leads: isOwner,
       };
     }
   }

@@ -13,7 +13,7 @@
 import { listNeeds } from '@/app/lib/forceNeeds';
 import { nextParty } from '@/app/lib/petRoom';
 import { openBlocks } from '@/app/lib/searchBoard';
-import { distanceMeters } from '@/app/lib/searchGrid';
+import { distanceMeters, FIRST_PRIORITY } from '@/app/lib/searchGrid';
 import { briefFor } from '@/app/lib/brief';
 
 export { briefFor };
@@ -110,6 +110,10 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
     if (sorted.length) {
       const picked = sorted.slice(0, count);
       const hot = (picked[0].priority || 0) >= 8;
+      // Sent to first by the owner, from the desk (app/lib/searchBoard.js).
+      const asked = (picked[0].priority || 0) >= FIRST_PRIORITY;
+      // Walked once and put up for another look: it has been walked, so it never reads "nobody has walked it".
+      const again = picked[0].status === 'NEEDS_REVISIT';
       const labels = picked.map((b) => b.label);
       const title = labels.length === 1 ? `Walk ${labels[0]}` : `Walk ${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
       jobs.push({
@@ -122,8 +126,8 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
         title: way === 'car' ? `Drive the edge of the area, then ${streets ? `walk ${labels[0]}` : title.toLowerCase()}` : title,
         minutes: picked.reduce((sum, b) => sum + (b.minutes || MINUTES_PER_BLOCK), 0),
         why: [
-          hot ? 'Next to where the trail is warmest.' : 'Nobody has walked it.',
-          picked[0].status === 'NEEDS_REVISIT' ? 'Walked once in poor light; worth another look.' : null,
+          asked ? `${petName}'s owner asked for it to be walked first.` : hot ? `Close to where ${petName} was lost or seen.` : null,
+          again ? 'It has been walked once and is down for another look.' : 'Nobody has walked it.',
           picked[0].away != null ? `${walkText(picked[0].away)}.` : null,
         ].filter(Boolean).join(' '),
         score: (way === 'foot' ? 400 : 200) + (picked[0].priority || 0) * 10 - (picked[0].away != null ? Math.min(picked[0].away, 3000) / 100 : 0),

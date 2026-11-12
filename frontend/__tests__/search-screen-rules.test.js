@@ -49,40 +49,18 @@ function code(source) {
 /** Every file in the screen's folder, for rules about words. */
 const folderFiles = walk(SCREEN).map(rel);
 
-/**
- * The files the screen actually loads: everything reachable from its
- * page by imports inside the folder. The folder also keeps two hooks for
- * older components elsewhere (useFlyerTracking, useScoutTips); the screen
- * does not import them, so the rules about instruments do not read them.
- */
-function reachable(entry) {
-  const seen = new Set();
-  const queue = [entry];
-  while (queue.length) {
-    const file = queue.pop();
-    if (seen.has(file)) continue;
-    seen.add(file);
-    const source = read(file);
-    for (const match of source.matchAll(/(?:from\s+|import\()\s*['"]([^'"]+)['"]/g)) {
-      const spec = match[1];
-      let target = null;
-      if (spec.startsWith('.')) target = path.posix.normalize(path.posix.join(path.posix.dirname(file), spec));
-      else if (spec.startsWith('@/app/mission-control/')) target = spec.slice(2);
-      if (!target || !target.startsWith('app/mission-control/')) continue;
-      const hit = [target, `${target}.js`, `${target}/index.js`].find((candidate) => fs.existsSync(path.join(FRONTEND, candidate)) && fs.statSync(path.join(FRONTEND, candidate)).isFile());
-      if (hit) queue.push(hit);
-    }
-  }
-  return [...seen].sort();
-}
+// The files the screen actually loads: everything reachable from its page by imports inside the folder
+// (__tests__/helpers/searchScreenFiles.js). The folder also keeps two hooks for older components elsewhere
+// (useFlyerTracking, useScoutTips); the screen does not import them, so the rules about instruments do not read them.
+const { reachable } = require('./helpers/searchScreenFiles');
 const screenFiles = reachable('app/mission-control/page.js');
 const shell = read('app/mission-control/SearchScreen.js');
 const helper = read('app/mission-control/steps/Helper.js');
 const owner = read('app/mission-control/steps/Owner.js');
 const witness = read('app/mission-control/steps/Witness.js');
 const STEP_FILES = ['app/mission-control/steps/Helper.js', 'app/mission-control/steps/Owner.js', 'app/mission-control/steps/Witness.js'];
-// A desk's own view (the whole search, and the controls to steer it).
-const DESK_FILES = ['app/mission-control/desktop/Command.js', 'app/mission-control/desktop/Board.js', 'app/mission-control/desktop/Know.js'];
+// A desk's own view (the whole search, and the controls to run it): every file in its folder.
+const DESK_FILES = fs.readdirSync(path.join(SCREEN, 'desktop')).sort().map((name) => `app/mission-control/desktop/${name}`);
 const desk = read('app/mission-control/desktop/Command.js');
 
 /** The cards a step file exports, each as { name, source }. */
@@ -218,9 +196,15 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     expect(code(hook)).toMatch(/const timer = setTimeout\(\(\) => stop\.abort\(\), SEND_TIMEOUT_MS\);/);
     expect(Number(code(hook).match(/const SEND_TIMEOUT_MS = (\d+);/)[1])).toBeLessThanOrEqual(30000);
     expect(code(hook).match(/\bfetch\(/g)).toHaveLength(3); // the one sender, and the two readers
-    // Joining, the waiver, a street, a sighting, the owner's answer, and the owner's word to everyone helping.
-    expect(code(hook).match(/await send\(/g)).toHaveLength(6);
-    expect(code(hook).match(/if \(!res\) return \{ error: NO_SIGNAL/g)).toHaveLength(6);
+    // Joining, the waiver, a change to the board (a street taken, an ask), a sighting, the owner's answer, the
+    // owner's word to everyone helping, and a word between one person and the desk.
+    expect(code(hook).match(/await send\(/g)).toHaveLength(7);
+    expect(code(hook).match(/if \(!res\) return \{ error: NO_SIGNAL/g)).toHaveLength(7);
+    // Everything that changes the board goes through the one function that reads it again afterwards.
+    expect(code(hook)).toMatch(/const act = useCallback\(\(unit, id, action\) => change\(\{ unit, id, action \}\), \[change\]\);/);
+    expect(code(hook)).toMatch(/const ask = useCallback\(\(person, streetId, note = ''\) => change\(\{ unit: 'street', id: streetId, action: 'ask', person, note \}\), \[change\]\);/);
+    expect(code(hook)).toMatch(/const unask = useCallback\(\(person\) => change\(\{ action: 'unask', person \}\), \[change\]\);/);
+    expect(code(hook)).toMatch(/const cannot = useCallback\(\(\) => change\(\{ action: 'cannot' \}\), \[change\]\);/);
     // And each thing a person presses clears its own spinner whatever happens.
     for (const name of ['takeStreet', 'walked', 'stopWalking', 'sendSeen']) {
       const body = code(shell).slice(code(shell).indexOf(`async function ${name}(`));
@@ -353,7 +337,7 @@ describe('three instruments: a desk is never asked where it is and is never hand
   });
 
   test('a desk is a view of its own, and the screen switches to it in one place', () => {
-    expect(fs.readdirSync(path.join(SCREEN, 'desktop')).sort()).toEqual(['Board.js', 'Command.js', 'Know.js']);
+    expect(fs.readdirSync(path.join(SCREEN, 'desktop')).sort()).toEqual(['Board.js', 'Command.js', 'Know.js', 'Messages.js', 'Needs.js', 'People.js']);
     expect(code(shell).match(/<Command\b/g)).toHaveLength(1);
     expect(code(shell)).toMatch(/if \(desk\) \{\s*return \(\s*<Command\b/);
     // It is given this person's own card as it is, so a desk and a phone never say different things about a step.
@@ -390,7 +374,7 @@ describe('three instruments: a desk is never asked where it is and is never hand
   });
 });
 
-describe('a desk steers the search, and only for the owner and the people leading it', () => {
+describe('a desk steers the search, and only for the owner', () => {
   const card = desk.slice(desk.indexOf('function StreetCard'), desk.indexOf('export default function Command'));
 
   test('each steering button is behind `leads`, which comes from the server', () => {
@@ -399,6 +383,9 @@ describe('a desk steers the search, and only for the owner and the people leadin
     // No steering button anywhere else on the desk.
     expect((card.match(/act\('/g) || []).length).toBe(4);
     for (const file of DESK_FILES.filter((f) => !f.endsWith('Command.js'))) expect(read(file)).not.toMatch(/onSteer|search\.act|\bact\(/);
+    // Asking a person from a street's card, and taking an ask back, are behind it too.
+    expect(card).toMatch(/\{leads && unit === 'street' && open && !kept && free\.length > 0 && \(/);
+    expect(card).toMatch(/\{leads && kept && street\.askedOfHandle && \(/);
     expect(desk).toMatch(/const leads = Boolean\(viewer\?\.leads\);/);
     expect(read('app/lib/searchPicture.js')).toMatch(/leads: Boolean\(searcher\.leads\)/);
     // Everyone else is told whose it is to decide, in place of the buttons.
@@ -410,10 +397,12 @@ describe('a desk steers the search, and only for the owner and the people leadin
     expect(route).toMatch(/if \(steering && !searcher\.leads\) return NextResponse\.json\(\{ error: WORDS\.NOT_ALLOWED\(\), code: 'NOT_ALLOWED' \}, \{ status: 403 \}\);/);
     // And the function that writes checks again, so no other caller can steer for someone who may not.
     expect(code(read('app/lib/searchBoard.js'))).toMatch(/if \(STEER_ACTIONS\.includes\(action\)\) \{\s*if \(!searcher\.leads\) return \{ error: 'NOT_ALLOWED', title \};/);
-    // Leading is the owner, or a command role in a force that is looking for this pet. Membership alone is not it.
+    // Running a search is the owner's alone. No role in a Rescue Force is it: a force with no leader gives the
+    // role to any member who asks, and anyone can found one, so nobody had to agree to any of them.
     const who = code(read('app/lib/searcher.js'));
-    expect(who).toMatch(/FORCE_COMMAND_ROLES/);
-    expect(who).not.toMatch(/leads: seesNames|leads: true/);
+    expect(who).toMatch(/leads: isOwner,/);
+    expect(who).not.toMatch(/FORCE_COMMAND_ROLES|leadsForce/);
+    expect(who).not.toMatch(/leads: seesNames|leads: true|leads: isOwner \|\|/);
   });
 
   test('steering goes through the screen\'s one sender, and no button is left spinning', () => {
@@ -433,10 +422,18 @@ describe('a desk steers the search, and only for the owner and the people leadin
 describe('a desk steering the search is kept current, and nobody else pays for it', () => {
   const hook = code(read('app/mission-control/hooks/useSearch.js'));
 
-  test('only a desk whose viewer leads reads every few seconds', () => {
-    expect(hook).toMatch(/const steers = Boolean\(desk && picture\?\.viewer\?\.leads\);/);
-    expect(hook).toMatch(/const interval = steers \? STEER_POLL_MS : hot \|\| mySightings\.length \? POLL_HOT_MS : POLL_MS;/);
-    expect(hook).toMatch(/const boardEvery = steers \? STEER_POLL_MS : BOARD_POLL_MS;/);
+  test('only the desk of whoever runs the search reads every few seconds, and only while the search is open', () => {
+    expect(hook).toMatch(/const closed = picture \? !picture\.open : false;/);
+    expect(hook).toMatch(/const steers = Boolean\(desk && picture\?\.viewer\?\.leads && !closed\);/);
+    expect(hook).toMatch(/const interval = closed \? CLOSED_POLL_MS : steers \? STEER_POLL_MS : hot \|\| mySightings\.length \|\| onSearch \? POLL_HOT_MS : POLL_MS;/);
+    expect(hook).toMatch(/const boardEvery = closed \? CLOSED_POLL_MS : steers \? STEER_POLL_MS : BOARD_POLL_MS;/);
+    // A search that has ended is read rarely by everyone: a desk left on the thank-you screen does not keep asking.
+    expect(Number(hook.match(/const CLOSED_POLL_MS = (\d+);/)[1])).toBeGreaterThanOrEqual(120000);
+    // Someone on the search reads the small picture at the pace already kept for a fresh sighting, and the board
+    // only when the picture says they were asked to walk a street.
+    expect(hook).toMatch(/const onSearch = Boolean\(picture\?\.viewer && !picture\.viewer\.isOwner && \(volunteer \|\| everMine\.current \|\| picture\.asked \|\| picture\.words\?\.length\)\);/);
+    expect(hook).toMatch(/if \(read && 'asked' in read && \(read\.asked \|\| null\) !== askedOnBoard\.current\) loadBoard\(\)\.catch\(\(\) => null\);/);
+    expect(Number(hook.match(/const POLL_HOT_MS = (\d+);/)[1])).toBeGreaterThanOrEqual(10000);
     expect(Number(hook.match(/const STEER_POLL_MS = (\d+);/)[1])).toBeGreaterThanOrEqual(5000);
     // Everyone else keeps the slow polls: the reads are limited per address, and a search party can sit behind one.
     expect(Number(hook.match(/const POLL_MS = (\d+);/)[1])).toBeGreaterThanOrEqual(30000);
@@ -447,11 +444,26 @@ describe('a desk steering the search is kept current, and nobody else pays for i
     expect(hook).toMatch(/if \(document\.visibilityState !== 'visible' \|\| Date\.now\(\) < pausedUntil\.current\) return;/);
   });
 
-  test('a read that comes back the same changes nothing, so the map is not redrawn under the pointer', () => {
+  test('a read that comes back the same sets nothing (that the map is then not redrawn is counted in search-map-redraw.test.js)', () => {
     expect(hook).toMatch(/const text = JSON\.stringify\(data\);\s*if \(text !== lastText\.current\.picture\) \{\s*lastText\.current\.picture = text;\s*setPicture\(data\);/);
     expect(hook).toMatch(/const text = JSON\.stringify\(data\);\s*if \(text !== lastText\.current\.board\) \{\s*lastText\.current\.board = text;\s*setBoard\(data\);/);
     expect(hook.match(/setPicture\(/g)).toHaveLength(1);
     expect(hook.match(/setBoard\(/g)).toHaveLength(1);
+    // With no board there is one empty list, not a new one on every render.
+    expect(hook).toMatch(/const items = board \? \(board\.unit === 'street' \? board\.streets : board\.cells\) : NO_ITEMS;/);
+  });
+
+  test('a read that fails holds the next ones back, and an answer that arrives late is dropped', () => {
+    // Too many requests, a server error, and a link that matches no pet each pause the reads for a while.
+    expect(hook).toMatch(/if \(res\.status === 404\) \{\s*pausedUntil\.current = Date\.now\(\) \+ GONE_PAUSE_MS;\s*setFailure\('gone'\);/);
+    expect(hook).toMatch(/if \(!res\.ok\) pausedUntil\.current = Date\.now\(\) \+ \(res\.status === 429 \? SLOW_DOWN_MS : ERROR_PAUSE_MS\);/);
+    expect(hook).toMatch(/if \(!res\.ok\) \{\s*pausedUntil\.current = Date\.now\(\) \+ \(res\.status === 429 \? SLOW_DOWN_MS : ERROR_PAUSE_MS\);\s*return null;\s*\}/);
+    expect(Number(hook.match(/const ERROR_PAUSE_MS = (\d+);/)[1])).toBeGreaterThanOrEqual(15000);
+    // Reads are numbered as they are sent; one that answers after a later one was shown is out of date.
+    expect(hook).toMatch(/sent\.current\.picture \+= 1;\s*const turn = sent\.current\.picture;/);
+    expect(hook).toMatch(/if \(turn < shown\.current\.picture\) return data;\s*shown\.current\.picture = turn;/);
+    expect(hook).toMatch(/sent\.current\.board \+= 1;\s*const turn = sent\.current\.board;/);
+    expect(hook).toMatch(/if \(turn < shown\.current\.board\) return data;\s*shown\.current\.board = turn;/);
   });
 });
 
@@ -461,6 +473,10 @@ describe('what a desk says about the search is a count, a time, a distance or a 
   test('every sentence under "What the search shows" comes from the one tested file', () => {
     const know = read('app/mission-control/desktop/Know.js');
     expect(know).toMatch(/import \{ coverage, groundLines, missingFor, researchFor, sightingLines \} from '\.\.\/lib\/insight';/);
+    // The only sum with people is with how many are on a street right now, which the streets themselves say.
+    expect(know).toMatch(/const ground = groundLines\(\{ items, unit, name \}\);/);
+    expect(know).toMatch(/<Stat value=\{c\.walking\} label="walking now" \/>/);
+    expect(know).not.toMatch(/looking\?\.helpers/);
     expect(know).toMatch(/\{\[\.\.\.seen, \.\.\.ground\]\.map\(\(line\) => \(/);
     expect(know).toMatch(/\{study\.line\}/);
   });
@@ -469,8 +485,13 @@ describe('what a desk says about the search is a count, a time, a distance or a 
     const know = read('app/mission-control/desktop/Know.js');
     expect(know).toMatch(/<a href=\{study\.url\} target="_blank" rel="noopener noreferrer"[^>]*>\s*\{study\.source\}\s*<\/a>/);
     for (const url of [...insight.matchAll(/url: '([^']+)'/g)].map((m) => m[1])) expect(url).toMatch(/^https:\/\/pmc\.ncbi\.nlm\.nih\.gov\/articles\/PMC\d+\/$/);
-    // The rings are those distances drawn round where the pet was lost, and the button says so.
-    expect(know).toMatch(/`Show those distances around where \$\{name\} was lost`/);
+    // The rings are the study's distances drawn round where the pet was lost. The button says which distances and
+    // where, and a ring on the map carries its distance and nothing else: a share of dogs written on this pet's
+    // map would read as a claim about this pet.
+    expect(know).toMatch(/`\$\{study\.show\} around where \$\{name\} was lost`/);
+    expect(desk).toMatch(/study\.rings\.map\(\(r\) => \(\{ meters: r\.meters, label: r\.label \}\)\)/);
+    expect(desk).not.toMatch(/r\.share/);
+    expect(insight).not.toMatch(/share: '/);
   });
 
   test('it never says where the pet is, where it is going, or what anyone should do', () => {

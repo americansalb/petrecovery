@@ -488,7 +488,7 @@ function HowItWorks() {
           <div className="rounded-2xl md:rounded-[20px] overflow-hidden bg-midnight-900 shadow-[0_40px_80px_-40px_rgba(15,23,42,0.5)] ring-1 ring-midnight-900/10">
             <img
               src="/landing/mission-control.jpg"
-              alt="Mission Control on a desktop: a street map of a search for a lost dog. The streets given out next are drawn thickest, two streets being walked carry their helpers' first names, and an orange mark shows where the dog was just seen. Beside the map are the owner's Directions button, what the search shows, and the list of streets."
+              alt="Mission Control on a desktop: a street map of a search for a lost dog. The streets given out next are drawn thickest, a street being walked carries its helper's first name, a street kept for a helper who was asked to walk it carries theirs, and an orange mark shows where the dog was just seen. On the left is what needs the owner: the sighting, and a helper's message to answer. On the right are the three people helping and what each is doing."
               className="w-full h-auto"
               loading="lazy"
             />

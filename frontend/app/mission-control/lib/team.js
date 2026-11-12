@@ -1,0 +1,122 @@
+/**
+ * The sentences the desk says about the people on a search, and what a
+ * helper's card shows of what was said to them. Pure, so each is tested
+ * (__tests__/lib/searchTeamWords.test.js).
+ *
+ * Like every sentence on the desk (lib/insight.js) these are counts and
+ * times from the search itself. A message is always shown as someone's
+ * own words, with whose they are; the screen adds none.
+ */
+import { clockTime, dayAndTime } from './words';
+
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+
+/** How long a word stays on a helper's card. After it, the card goes back to the job. */
+export const WORD_FRESH_MS = 12 * HOUR;
+
+/** What one person is doing, in a line: for the People list on the desk. `unit` is what the search hands out. */
+export function personLine(person, { timeZone, now = Date.now(), unit = 'street' } = {}) {
+  if (!person) return '';
+  const thing = unit === 'block' ? 'block' : 'street';
+  if (person.state === 'walking' && person.on) return `Walking ${shortTitle(person.on.title)} since ${clockTime(person.since, timeZone)}`;
+  if (person.state === 'asked' && person.asked) {
+    const what = `Asked to walk ${shortTitle(person.asked.title)} at ${clockTime(person.asked.at, timeZone)}`;
+    return person.asked.seenAt ? `${what}. Seen ${clockTime(person.asked.seenAt, timeZone)}.` : `${what}. Not seen yet.`;
+  }
+  if (person.walked > 0 && person.lastWalkedAt) return `Free since ${dayAndTime(person.lastWalkedAt, timeZone, now)}. Walked ${person.walked === 1 ? `1 ${thing}` : `${person.walked} ${thing}s`}.`;
+  if (person.joinedAt) return `Joined ${dayAndTime(person.joinedAt, timeZone, now)}. No ${thing} yet.`;
+  return `No ${thing} yet.`;
+}
+
+/** "Ramsey Ave" from "Ramsey Ave from W 40th St to W 44th St": the list has room for the name, the card says the rest. */
+export function shortTitle(title) {
+  return String(title || '').split(' from ')[0];
+}
+
+/**
+ * Someone out much longer than their street takes: how many minutes, or
+ * null. Twice the street's time and a quarter of an hour, so a careful
+ * walk is never flagged. `minutes` is how long the street takes.
+ */
+export function outLong(person, minutes, now = Date.now()) {
+  if (!person || person.state !== 'walking' || !person.since) return null;
+  const out = Math.round((now - new Date(person.since).getTime()) / MINUTE);
+  const allowed = 2 * (Number(minutes) || 20) + 15;
+  return out > allowed ? out : null;
+}
+
+/** People in the order the desk lists them, in three groups. */
+export function grouped(people = []) {
+  return {
+    free: people.filter((p) => p.state === 'free'),
+    asked: people.filter((p) => p.state === 'asked'),
+    walking: people.filter((p) => p.state === 'walking'),
+  };
+}
+
+/**
+ * What a helper's card shows of what was said: the newest word written to
+ * them from the desk, and the newest thing the owner told everyone, each
+ * while it is fresh. The one written to them comes first and is always
+ * there: the desk is told when it was seen, so it has to be on the card
+ * to see, and something told to everyone later must not push it off.
+ * Each: { id, kind: 'yours' | 'everyone', text, at, from }. `from` is the
+ * owner's first name, or null for a word from anyone else who came to run
+ * the search (a helper is not told their name).
+ */
+export function wordsForCard({ words = [], updates = [], ownerName = null, now = Date.now() } = {}) {
+  const fresh = (at) => at && now - new Date(at).getTime() < WORD_FRESH_MS;
+  const direct = [...words].reverse().find((w) => !w.mine && fresh(w.at));
+  const told = updates.find((u) => fresh(u.at));
+  return [
+    direct ? { id: direct.id, kind: 'yours', text: direct.text, at: direct.at, from: direct.from || null } : null,
+    told ? { id: told.id, kind: 'everyone', text: told.text, at: told.at, from: ownerName || null } : null,
+  ].filter(Boolean);
+}
+
+/** Whose a word on a helper's card is, as its label says it. */
+export function wordFrom(word, { timeZone, now = Date.now() } = {}) {
+  if (!word) return '';
+  const who = word.from || 'The people running the search';
+  return `${who}, ${dayAndTime(word.at, timeZone, now)}${word.kind === 'everyone' ? ', to everyone' : ''}`;
+}
+
+/**
+ * The desk's Messages: everything said and everything that happened, in
+ * one stream, oldest first. `events` are lib/insight.js `activity` rows
+ * (newest first), `words` the search's messages as the picture sends them
+ * to the people running it. Each line: { id, at, kind: 'event' | 'seen' |
+ * 'said' | 'mine' | 'theirs', text, who, to, seenAt, streetId,
+ * sightingId, handle }.
+ */
+export function stream({ events = [], words = [] } = {}) {
+  const lines = [];
+  for (const e of events) {
+    lines.push({ id: e.id, at: e.at, kind: e.kind === 'seen' ? 'seen' : e.kind === 'said' ? 'said' : 'event', text: e.text, streetId: e.streetId || null, sightingId: e.sightingId || null });
+  }
+  for (const w of words) {
+    lines.push({
+      id: `word-${w.id}`,
+      at: w.at,
+      kind: w.fromDesk ? 'mine' : 'theirs',
+      text: w.text,
+      who: w.mine ? 'You' : w.from,
+      to: w.to || null,
+      seenAt: w.seenAt || null,
+      handle: w.fromDesk ? w.toHandle : w.fromHandle,
+    });
+  }
+  return lines.filter((l) => l.at).sort((a, b) => new Date(a.at) - new Date(b.at));
+}
+
+/** Words from helpers that nobody at the desk has answered since: the newest per person. Never the reader's own. */
+export function unanswered(words = []) {
+  const last = new Map();
+  for (const w of words) {
+    const key = w.fromDesk ? w.toHandle : w.fromHandle;
+    if (!key) continue;
+    last.set(key, w);
+  }
+  return [...last.values()].filter((w) => !w.fromDesk && !w.mine).sort((a, b) => new Date(b.at) - new Date(a.at));
+}

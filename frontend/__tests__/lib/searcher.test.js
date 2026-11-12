@@ -4,9 +4,12 @@
  *
  * Three things ride on it. `seesNames`: the owner and the forces looking
  * for the pet see who is on each street, and nobody else does. `leads`:
- * the owner, and only those with a command role in such a force, may
- * steer the search from the desk. Joining a force takes one tap, so
- * membership opens first names and nothing more. `isOwner` is the pet's
+ * the owner, and nobody else, runs the search from the desk: steers it,
+ * asks a named helper to walk a street, writes to them. A command role in
+ * a Rescue Force does not, because nobody has to agree to one: a force
+ * with no leader gives the role to any member who asks, and anyone can
+ * found a force. Joining a force takes one tap, so membership opens first
+ * names and nothing more. `isOwner` is the pet's
  * reporter alone, and it is what answering a sighting asks for. And a
  * helper without an account is the pair of an id and the device key they
  * joined with: the id alone is nobody.
@@ -63,10 +66,18 @@ test('a member of a force looking for the pet sees names, and neither leads nor 
   expect(prisma.rescueForceMember.findMany).toHaveBeenCalledWith({ where: { userId: 'user-mike', isActive: true, rescueSquadId: { in: ['force-1'] } }, select: { role: true } });
 });
 
-test.each(FORCE_COMMAND_ROLES)('a %s of such a force leads, and is still not the owner', async (role) => {
+test.each(FORCE_COMMAND_ROLES)('a %s of such a force sees names like any member, and does not run the search', async (role) => {
+  // A stranger reaches this role in two taps where a force has no leader (join, then claim leadership), and by
+  // founding a force for a town. None of that is the owner's doing, so none of it runs the owner's search.
   getServerSession.mockResolvedValue({ user: { id: 'user-sarah' } });
   prisma.rescueForceMember.findMany.mockResolvedValue([{ role: 'MEMBER' }, { role }]);
-  expect(await searcherFor(request(), CASE)).toMatchObject({ seesNames: true, leads: true, isOwner: false });
+  expect(await searcherFor(request(), CASE)).toMatchObject({ seesNames: true, leads: false, isOwner: false });
+});
+
+test('running a search is not read from a force role anywhere in the file', () => {
+  const source = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'app', 'lib', 'searcher.js'), 'utf8');
+  expect(source).toMatch(/leads: isOwner,/);
+  expect(source).not.toMatch(/FORCE_COMMAND_ROLES/);
 });
 
 test('leading a force that is not looking for this pet counts for nothing here', async () => {

@@ -3450,6 +3450,8 @@ model GridCell {
   // account's id, or "v:<volunteer id>" for a helper with no account, who
   // cannot be named by searchedById because that points at an account.
   searchedByKey String?
+  // When a walked square was put up for another look, as on SearchStreet.
+  againAt       DateTime?
 
   // Sessions
   sessions SearchSession[]
@@ -3499,10 +3501,58 @@ model SearchStreet {
   searchedByName String?
   searchedAt     DateTime?
   searchCount    Int       @default(0)
+  // When a walked street was put up for another look (app/lib/searchBoard.js,
+  // "again"). Kept while someone is on it, so a second pass that is given up
+  // goes back to "another look" and not to "walked". Cleared when it is walked.
+  againAt        DateTime?
+
+  // An ask. The person running the search asked one person to walk this
+  // street (app/lib/searchAsk.js). The street is kept for them for a while
+  // and their phone shows it as their next step. Cleared when they walk
+  // it, give it back, say they cannot, or the ask is taken back. Ids as for a claim: a User id, or "v:" and a
+  // MissionVolunteer id. `askedSeenAt` is when their screen first showed it.
+  askedOfId   String?
+  askedOfName String?
+  askedById   String?
+  askedByName String?
+  askedAt     DateTime?
+  askedSeenAt DateTime?
+  askedNote   String?
 
   @@index([caseId])
   @@index([caseId, status])
   @@index([claimedById])
+  @@index([askedOfId])
+}
+
+/// What people on one pet's search say to each other through the search
+/// screen: a word from the desk to one helper, and a helper's word back to
+/// the people running the search (app/lib/searchTalk.js). What the owner
+/// tells everyone is a CaseUpdate, which the pet's page shows too. Ids as
+/// for a claim on a street: a User id, or "v:" and a MissionVolunteer id.
+model SearchMessage {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  caseId String
+
+  fromId   String
+  fromName String
+  // Written from the desk by the person running the search, to one helper.
+  fromDesk Boolean @default(false)
+
+  // Who it is for. Null on a helper's word means "to the people running
+  // the search".
+  toId   String?
+  toName String?
+
+  text String
+
+  // When the person it is for first had it on their screen.
+  seenAt DateTime?
+
+  @@index([caseId, createdAt])
+  @@index([caseId, toId])
 }
 
 model CaseClue {

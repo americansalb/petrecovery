@@ -17,6 +17,7 @@ import {
   streetFacts,
   stateWords,
   lookFirst,
+  givenNext,
   whenWords,
   activity,
   missingFor,
@@ -32,10 +33,16 @@ const street = (over = {}) => ({ id: 'st-1', title: 'W 43rd St from Rosedale Ave
 
 describe('the published findings', () => {
   test('each says what its study found, with the source, and nothing about this pet', () => {
-    expect(RESEARCH.DOG.line).toBe('In Dallas shelter records for 2019, 42% of stray dogs returned to their owners were found within 400 feet of home, and 70% within a mile.');
-    expect(RESEARCH.DOG.rings.map((r) => [r.meters, r.label])).toEqual([[122, '400 ft'], [1609, '1 mile']]);
+    // With the study's own limits: whose dogs, how many, which year, and measured from home.
+    expect(RESEARCH.DOG.line).toBe('In Dallas shelter records for the 2019 fiscal year, of 5,228 stray dogs returned to their owners, 42% were picked up within 400 feet of home and 70% within a mile.');
     expect(RESEARCH.CAT.line).toBe('In a study of missing cats, half of the cats found alive were within 50 metres of where they went missing, and 3 in 4 within 500 metres.');
-    expect(RESEARCH.CAT.rings.map((r) => [r.meters, r.label])).toEqual([[50, '50 m'], [500, '500 m']]);
+    // A ring drawn on this pet's map carries its distance and nothing else: a share of dogs written on the map
+    // would read as a claim about this pet, and the dog study measured from home, not from where a dog was lost.
+    expect(RESEARCH.DOG.rings).toEqual([{ meters: 122, label: '400 ft' }, { meters: 1609, label: '1 mile' }]);
+    expect(RESEARCH.CAT.rings).toEqual([{ meters: 50, label: '50 m' }, { meters: 500, label: '500 m' }]);
+    expect(RESEARCH.DOG.show).toBe('Show 400 ft and 1 mile');
+    expect(RESEARCH.CAT.show).toBe('Show 50 m and 500 m');
+    expect(JSON.stringify([RESEARCH.DOG.rings, RESEARCH.CAT.rings, RESEARCH.DOG.show, RESEARCH.CAT.show])).not.toMatch(/%|half|dogs|cats/);
     for (const finding of Object.values(RESEARCH)) {
       expect(finding.source).toMatch(/\b20\d\d$/);
       expect(finding.url).toMatch(/^https:\/\/pmc\.ncbi\.nlm\.nih\.gov\/articles\/PMC\d+\/$/);
@@ -61,8 +68,23 @@ describe('the ground', () => {
   ];
 
   test('counts each state once, and the walking left is what nobody has walked', () => {
-    expect(coverage(items)).toEqual({ total: 5, searched: 1, walking: 1, again: 1, open: 3, minutesLeft: 50, share: 0.2 });
-    expect(coverage([])).toEqual({ total: 0, searched: 0, walking: 0, again: 0, open: 0, minutesLeft: 0, share: 0 });
+    expect(coverage(items)).toEqual({ total: 5, searched: 1, done: 1, walking: 1, again: 1, open: 3, minutesLeft: 50, share: 0.2 });
+    expect(coverage([])).toEqual({ total: 0, searched: 0, done: 0, walking: 0, again: 0, open: 0, minutesLeft: 0, share: 0 });
+  });
+
+  test('a street that was walked stays walked when it is put up for another look, or is on its second pass', () => {
+    // The one walked street is marked for another look: it has still been walked once.
+    const again = [street({ id: 'a', status: 'NEEDS_REVISIT', searchCount: 1 }), street({ id: 'b' }), street({ id: 'c' })];
+    expect(coverage(again)).toMatchObject({ total: 3, searched: 1, done: 1, again: 1, open: 3 });
+    expect(groundLines({ items: again, name: 'Max' })).toEqual([
+      '1 of 3 streets has been walked.',
+      'Walking the 3 still to walk takes one person about 30 minutes.',
+      '1 street is marked for another look.',
+    ]);
+    // Someone is on its second pass: walked once, and being walked now. The bar's green does not count it twice.
+    const second = [street({ id: 'a', status: 'IN_PROGRESS', searchCount: 1 }), street({ id: 'b' })];
+    expect(coverage(second)).toMatchObject({ searched: 1, done: 0, walking: 1 });
+    expect(groundLines({ items: second, name: 'Max' })[0]).toBe('1 of 2 streets has been walked, and 1 is being walked now.');
   });
 
   test('time, as people say it', () => {
@@ -75,17 +97,24 @@ describe('the ground', () => {
     expect(durationWords(420)).toBe('about 7 hours');
   });
 
-  test('in sentences, and the only sum with helpers is with the people who are out now', () => {
-    expect(groundLines({ items, name: 'Max', out: 1 })).toEqual([
+  test('in sentences, and the only sum with people is a sum, with how many are on a street right now', () => {
+    expect(groundLines({ items, name: 'Max' })).toEqual([
       '1 of 5 streets has been walked, and 1 is being walked now.',
-      'Walking the 3 left takes one person about 50 minutes.',
+      'Walking the 3 still to walk takes one person about 50 minutes.',
       '1 street is marked for another look.',
     ]);
-    expect(groundLines({ items, name: 'Max', out: 2 })[1]).toBe('Walking the 3 left takes one person about 50 minutes, or the 2 people out now about 25 minutes.');
-    expect(groundLines({ items: [street(), street({ id: 'x' })], name: 'Max' })).toEqual(['2 streets around where Max was lost. None has been walked yet.', 'Walking the 2 left takes one person about 20 minutes.']);
-    expect(groundLines({ items: [street({ status: 'SEARCHED' })], name: 'Max' })).toEqual(['1 of 1 streets has been walked.', 'Every street has been walked at least once.']);
+    // Two people on streets now: the time for two, said as a sum and not as what those two will do next.
+    const two = [...items, street({ id: 'f', status: 'IN_PROGRESS', minutes: 10 })];
+    expect(groundLines({ items: two, name: 'Max' })[1]).toBe('Walking the 3 still to walk takes one person about 50 minutes, or 2 people about 25 minutes.');
+    expect(groundLines({ items: two, name: 'Max' }).join(' ')).not.toMatch(/out now/);
+    expect(groundLines({ items: [street(), street({ id: 'x' })], name: 'Max' })).toEqual(['2 streets around where Max was lost. None has been walked yet.', 'Walking the 2 still to walk takes one person about 20 minutes.']);
     expect(groundLines({ items: [], name: 'Max' })).toEqual([]);
-    expect(groundLines({ items: [street()], unit: 'block', name: 'Max' })[0]).toBe('1 blocks around where Max was lost. None has been walked yet.');
+  });
+
+  test('one street or one block is said as one', () => {
+    expect(groundLines({ items: [street()], unit: 'block', name: 'Max' })[0]).toBe('1 block around where Max was lost. It has not been walked yet.');
+    expect(groundLines({ items: [street({ status: 'SEARCHED' })], name: 'Max' })).toEqual(['The one street has been walked.', 'Every street has been walked at least once.']);
+    expect(groundLines({ items: [street({ status: 'IN_PROGRESS' })], name: 'Max' })).toEqual(['The one street is being walked now.']);
   });
 });
 
@@ -104,6 +133,10 @@ describe('which way and how far', () => {
     expect(metersWords(20)).toBe('under 50 m');
     expect(metersWords(123)).toBe('120 m');
     expect(metersWords(980)).toBe('980 m');
+    // Never "1000 m".
+    expect(metersWords(994)).toBe('990 m');
+    expect(metersWords(995)).toBe('1.0 km');
+    expect(metersWords(999.6)).toBe('1.0 km');
     expect(metersWords(1640)).toBe('1.6 km');
     expect(metersWords(NaN)).toBe('');
   });
@@ -214,13 +247,25 @@ describe('where the search goes next, and what has happened', () => {
     expect(lookFirst(tied).map((i) => i.id)).toEqual(['first', 'b', 'a']);
   });
 
+  test('"given out next" is every street as urgent as the most urgent, because a phone gives the nearest of them', () => {
+    const tied = [street({ id: 'a', priority: 9 }), street({ id: 'b', priority: 9 }), street({ id: 'c', priority: 9 }), street({ id: 'd', priority: 9 }), street({ id: 'low', priority: 4 })];
+    // Not the first three by name: any of the four can be the one a helper is given.
+    expect(givenNext(tied).map((i) => i.id)).toEqual(['a', 'b', 'c', 'd']);
+    // One asked for first is alone at the top.
+    expect(givenNext([...tied, street({ id: 'first', priority: 11, first: true })]).map((i) => i.id)).toEqual(['first']);
+    // One kept for someone who was asked is not given to anyone else; a walked one or one being walked is not given out.
+    expect(givenNext([street({ id: 'kept', priority: 10, reserved: true }), street({ id: 'held', priority: 10, status: 'IN_PROGRESS' }), street({ id: 'done', priority: 10, status: 'SEARCHED' }), street({ id: 'open', priority: 6 })]).map((i) => i.id)).toEqual(['open']);
+    expect(givenNext([])).toEqual([]);
+  });
+
   test('the log, newest first, with a name only where the board and the picture carry one', () => {
     const picture = {
       pet: { name: 'Max' },
       owner: { firstName: 'Avery' },
       lastSeen: LOST,
       sightings: [{ id: 's1', at: ago(30), place: 'W 42nd St', ownerGoingAt: ago(25) }],
-      updates: [{ id: 'u1', at: ago(50), text: 'He comes to his squeaky ball.', by: 'Avery' }],
+      // The picture sends only what the owner wrote to everyone, so each is the owner's.
+      updates: [{ id: 'u1', at: ago(50), text: 'He comes to his squeaky ball.' }],
     };
     const items = [street({ id: 'a', status: 'SEARCHED', searchedAt: ago(40), searchedByName: 'Sarah' }), street({ id: 'b', status: 'IN_PROGRESS', claimedAt: ago(10) }), street({ id: 'c', title: 'W 41st St', status: 'SEARCHED', searchedAt: ago(5), searchedByName: 'Avery', marked: true })];
     expect(activity({ items, picture, now: NOW }).map((e) => e.text)).toEqual([
