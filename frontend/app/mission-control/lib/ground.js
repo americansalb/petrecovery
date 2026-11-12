@@ -177,7 +177,8 @@ export function givenNextAreas(areas = []) {
   const [top] = order;
   const open = (a) => (a.status === 'UNSEARCHED' || a.status === 'NEEDS_REVISIT') && !a.on && !a.coming;
   if (!open(top)) return [areas.find((a) => a.id === top.id)];
-  const tied = new Set(order.filter((a) => open(a) && a.priority === top.priority).map((a) => a.id));
+  // A sighting's circle is given before the side the pet was seen in, however urgent that side is: it ties with nothing.
+  const tied = new Set(order.filter((a) => open(a) && a.priority === top.priority && isSeenCircle(a) === isSeenCircle(top)).map((a) => a.id));
   return areas.filter((a) => tied.has(a.id));
 }
 
@@ -308,11 +309,15 @@ export function needsForGround({ picture, areas = [], circle = null, people = []
     });
   }
 
-  // Each free person is offered different ground: the areas in the order they are given out, one each.
-  const order = rankAreas(areas.map((a) => ({ ...a, mine: false, askedOfMe: false })));
+  // Each free person is offered different ground: the areas in the order they are given out, one each. The
+  // circle round a sighting that has its own card above is that card's to deal with: one person is asked to go
+  // there, once, and the others are offered the ground round it.
+  const order = rankAreas(areas.map((a) => ({ ...a, mine: false, askedOfMe: false }))).filter((a) => !(seen && isSeenCircle(a) && `seen-${a.sightingId}` === seen.id));
   let turn = 0;
+  // The person the sighting's card offers to send is that card's too: one card about them, not two.
+  const sent = seen?.primary.do.type === 'ask' ? seen.primary.do.handle : null;
   for (const p of people) {
-    if (p.state !== 'free') continue;
+    if (p.state !== 'free' || p.handle === sent) continue;
     const since = p.lastWalkedAt || p.joinedAt;
     if (!since) continue;
     const idle = now - new Date(since).getTime();

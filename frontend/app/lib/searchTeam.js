@@ -187,21 +187,23 @@ export async function teamOf(caseId, { ownerId = null, now = Date.now() } = {}) 
       select: { streetsStatus: true, cells: { where: { OR: [{ status: 'IN_PROGRESS' }, { searchCount: { gt: 0 } }] }, select: { id: true, row: true, col: true, status: true, claimedById: true, claimedAt: true, searchedById: true, searchedByKey: true, searchedAt: true, searchCount: true } } },
     }),
     // The areas of the search and everyone who was asked for one, is on one or searched one. The newest few
-    // hundred visits are plenty to know who is doing what.
+    // hundred visits of each area are plenty to know who is doing what.
     prisma.searchZone.findMany({
       where: { caseId },
       select: {
         id: true,
         name: true,
         visits: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: { createdAt: 'desc' },
           take: 300,
           select: { searcherId: true, searcherName: true, askedAt: true, askedSeenAt: true, askedNote: true, askedByName: true, startedAt: true, endedAt: true, outcome: true },
         },
       },
     }),
   ]);
-  if (zones.length) return areaTeam({ caseId, helpers, messages, streets, cells: grid?.cells || [], zones, ownerId, now });
+  // Read newest first, so that it is the newest that are kept; told oldest first, as they happened.
+  const areas = zones.map((z) => ({ ...z, visits: [...z.visits].reverse() }));
+  if (areas.length) return areaTeam({ caseId, helpers, messages, streets, cells: grid?.cells || [], zones: areas, ownerId, now });
   const cells = grid?.cells || [];
   // Squares keep no name beside a claim, and a street's row names only its own: anyone still unnamed is looked up.
   const named = new Set([...helpers.map((h) => h.userId || `v:${h.id}`), ...streets.flatMap((s) => [s.claimedByName && s.claimedById, s.searchedByName && s.searchedById, s.askedOfName && s.askedOfId]), ...messages.flatMap((m) => [m.fromName && m.fromId, m.toName && m.toId])].filter(Boolean));

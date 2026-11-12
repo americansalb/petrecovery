@@ -318,6 +318,14 @@ describe('the order ground is given out in', () => {
   });
 
   test('a sighting\'s circle with nobody there is given first', () => {
-    expect(order([area('middle', { priority: 8 }), area('seen-1', { priority: 10 }), area('south', { priority: 10 })])).toEqual(['seen-1', 'south', 'middle']);
+    expect(order([area('middle', { priority: 8 }), area('seen-1', { priority: 10, ring: 3 }), area('south', { priority: 10 })])).toEqual(['seen-1', 'south', 'middle']);
+  });
+
+  test('before the side the pet was seen in, even where that side is the nearer of the two', () => {
+    // Both are as urgent as each other while the sighting is fresh. One person goes to where the pet was seen first.
+    const away = (a) => ({ 'seen-1': 420, south: 380, middle: 200 })[a.id];
+    expect(order([area('south', { priority: 10 }), area('seen-1', { priority: 10, ring: 3 }), area('middle', { priority: 8 })], away)).toEqual(['seen-1', 'south', 'middle']);
+    // The owner sending people somewhere first is above both.
+    expect(order([area('seen-1', { priority: 10, ring: 3 }), area('west', { priority: 11 })], away)[0]).toBe('west');
   });
 });

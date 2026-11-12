@@ -237,6 +237,9 @@ describe('what is given out next', () => {
   test('never a sighting\'s circle that has its one person; first when it has nobody', () => {
     expect(givenNextAreas([seenCircle({ full: true, ...onIt(['Dana'], ago(8)) }), ...five()]).map((a) => a.key)).toEqual(['middle']);
     expect(givenNextAreas([seenCircle(), ...five()]).map((a) => a.key)).toEqual(['seen-s1']);
+    // The side the pet was seen in is as urgent while the sighting is fresh, and still comes after the circle.
+    expect(givenNextAreas([seenCircle(), ...five({ south: { priority: 10 } })]).map((a) => a.key)).toEqual(['seen-s1']);
+    expect(quietGround({ areas: [seenCircle(), ...five({ south: { priority: 10 } })], people: [] })).toBe('Nobody is out right now. The next person who asks is given where Max was seen.');
   });
 
   test('it is what anyone else would be given, whatever the reader is on', () => {
@@ -311,6 +314,15 @@ describe('"Needs you" on ground', () => {
     const cards = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [person('Jo', { joinedAt: ago(4) })] }));
     expect(cards[0].body).toBe('300 m south of where Max was lost. Jo is free. One person goes to a sighting, never a group.');
     expect(cards[0].primary).toEqual({ words: 'Ask Jo to go', do: { type: 'ask', handle: 'h-Jo', areaId: 'z-seen' } });
+    // One card about Jo, and a second free person is offered other ground: nobody is asked to the sighting twice.
+    const two = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [person('Jo', { joinedAt: ago(4) }), person('Priya', { joinedAt: ago(6) })] }));
+    expect(two.map((c) => c.primary.words)).toEqual(['Ask Jo to go', 'Ask Priya to search the middle']);
+  });
+
+  test('a sighting past its hour has no card of its own, so a free person is offered its circle while nobody has gone', () => {
+    const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(90), place: 'Ramsey Ave' };
+    const [card] = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle({ sightingAt: ago(90) }), ...five()], people: [person('Jo', { joinedAt: ago(4) })] }));
+    expect(card).toMatchObject({ kind: 'free', body: 'Nobody has gone to where Max was seen.', primary: { words: 'Ask Jo to go there', do: { type: 'ask', handle: 'h-Jo', areaId: 'z-seen' } } });
   });
 
   test('when the owner set off, or someone was asked, the card says so and asks nobody else', () => {

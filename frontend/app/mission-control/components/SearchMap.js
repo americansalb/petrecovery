@@ -270,6 +270,8 @@ export default function SearchMap({
         const sightingCircle = area.ring === 3;
         const searched = Number(area.searchCount) > 0;
         const busy = area.status === 'IN_PROGRESS';
+        // Searched, and put up for another look: it keeps its green and gets an ink edge, since it is open again.
+        const again = area.status === 'NEEDS_REVISIT';
         const fill = searched ? { fillColor: look.walked, fillOpacity: area.searchCount > 1 ? 0.5 : 0.26 } : sightingCircle ? { fillColor: seenLine, fillOpacity: 0.1 } : { fillOpacity: 0 };
         const edge = lit
           ? { color: FLASH, weight: 4, fillColor: FLASH, fillOpacity: searched ? 0.3 : 0.2 }
@@ -278,7 +280,7 @@ export default function SearchMap({
             : sightingCircle
               ? { color: seenLine, weight: 2.5, dashArray: '6 6' }
               : desk
-                ? { color: area.next ? look.ink : look.later, weight: area.next ? 3.5 : 1.5 }
+                ? { color: area.next || again ? look.ink : look.later, weight: area.next ? 3.5 : again ? 2.5 : 1.5 }
                 : { color: dark ? 'rgba(203,213,225,0.55)' : 'rgba(51,65,85,0.5)', weight: 1.5 };
         if (lit) L.polygon(area.outline, { color: casing, weight: 8, opacity: 0.9, fill: false, lineJoin: 'round', interactive: false }).addTo(layers);
         const shape = L.polygon(area.outline, { lineJoin: 'round', ...fill, ...edge, interactive: desk }).addTo(layers);

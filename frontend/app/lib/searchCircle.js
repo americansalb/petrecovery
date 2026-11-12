@@ -262,14 +262,17 @@ export function planCircle({ center, species, name = 'the pet', streets = [], si
  * nearest on a tie; then such ground with someone already there (a second
  * person in ten hectares is a help), fewest people first; then ground
  * searched longest ago. Never the circle round a sighting that has its
- * one person. `areas` are as the board sends them
- * (app/lib/searchZones.js), `away` gives metres from the person asking to
- * one of them.
+ * one person; and where that circle is as urgent as the side the pet was
+ * seen in, the circle comes first however near the side is: one person
+ * goes to where the pet was seen before anyone is given the ground round
+ * it. `areas` are as the board sends them (app/lib/searchZones.js), `away`
+ * gives metres from the person asking to one of them.
  */
 export function rankAreas(areas = [], away = () => 0) {
   const can = areas.filter((a) => !a.mine && !a.full);
   const people = (a) => (a.on || 0) + (a.coming || 0);
-  const urgent = (a, b) => b.priority - a.priority || away(a) - away(b);
+  const seen = (a) => Number(a.ring === RING.SEEN);
+  const urgent = (a, b) => b.priority - a.priority || seen(b) - seen(a) || away(a) - away(b);
   // Never searched, or searched and put up for another look.
   const needs = (a) => a.status === 'UNSEARCHED' || a.status === 'NEEDS_REVISIT' || !(a.searchCount > 0);
   const asked = can.filter((a) => a.askedOfMe);

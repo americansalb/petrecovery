@@ -56,10 +56,13 @@ export function inListOrder(areas = []) {
  * An area's mark beside its row, saying what its shape on the map says:
  * an empty outline for not searched (heavy where it is given out next),
  * a dashed teal edge for someone on it, green for searched and deeper
- * green for twice, an orange ring for the circle round a sighting.
+ * green for twice, an orange ring for the circle round a sighting. A
+ * searched area carries a tick; one put up for another look keeps its
+ * green and loses the tick, inside an ink edge: it is to be searched again.
  */
 export function Glyph({ area, next = false }) {
   const searched = area.searchCount > 0;
+  const again = area.status === 'NEEDS_REVISIT';
   const fill = searched ? (area.searchCount > 1 ? 'color-mix(in srgb, var(--mc-done) 72%, transparent)' : 'color-mix(in srgb, var(--mc-done) 36%, transparent)') : 'transparent';
   const edge =
     area.status === 'IN_PROGRESS'
@@ -68,12 +71,14 @@ export function Glyph({ area, next = false }) {
         ? '2px dashed var(--mc-seen)'
         : next || area.first
           ? '2.5px solid var(--mc-ink)'
+          : again
+            ? '2px solid var(--mc-ink)'
           : searched
             ? '1.5px solid var(--mc-done)'
             : '1.5px solid var(--mc-muted)';
   return (
     <span className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center ${isSeenCircle(area) ? 'rounded-full' : 'rounded-[5px]'}`} style={{ background: fill, border: edge }} aria-hidden="true">
-      {searched && area.status !== 'IN_PROGRESS' && <Check size={11} strokeWidth={3.5} className="text-[var(--mc-ink)]" />}
+      {searched && !again && area.status !== 'IN_PROGRESS' && <Check size={11} strokeWidth={3.5} className="text-[var(--mc-ink)]" />}
     </span>
   );
 }

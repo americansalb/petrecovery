@@ -294,6 +294,14 @@ describe('a search on areas of ground', () => {
       expect(team.Mike).toMatchObject({ state: 'free', walked: 0, on: null });
     });
 
+    test('of an area\'s many visits it is the newest that are read, and they are told in the order they happened', async () => {
+      // As the database returns them, newest first: Dana is on the area now, and searched it once before.
+      prisma.searchZone.findMany.mockResolvedValue([zone({ visits: [visit({ startedAt: ago(5) }), visit({ startedAt: ago(90), endedAt: ago(60), outcome: 'SEARCHED' })] })]);
+      const team = by(await teamOf(CASE, { ownerId: 'u-owner', now: NOW }));
+      expect(prisma.searchZone.findMany.mock.calls[0][0].select.visits).toMatchObject({ orderBy: { createdAt: 'desc' }, take: 300 });
+      expect(team.Dana).toMatchObject({ state: 'walking', since: ago(5), walked: 1, lastWalkedAt: ago(60) });
+    });
+
     test('a handle finds the same person', async () => {
       const dana = await personByHandle(CASE, handleFor(CASE, 'v:vol-1'), { ownerId: 'u-owner', now: NOW });
       expect(dana).toMatchObject({ id: 'v:vol-1', name: 'Dana' });

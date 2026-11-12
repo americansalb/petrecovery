@@ -406,7 +406,8 @@ export default function Command({ picture, items, unit, circle = null, now, line
     // The whole search: every street, where the pet was lost, and where it was seen.
     const all = items.flatMap((i) => shapeOf(i));
     const seen = numbered.map((s) => [s.lat, s.lng]);
-    const lost = lastSeenTag ? around(lastSeenTag.lat, lastSeenTag.lng, 200) : [];
+    // Round a street board, a neighbourhood's worth of room for where the pet was lost. Ground is its own frame: its edge.
+    const lost = lastSeenTag && !ground ? around(lastSeenTag.lat, lastSeenTag.lng, 200) : [];
     return [...all, ...seen, ...lost];
   }, [focused, street, ground, items, numbered, lastSeenTag]);
   const fitKey = `${focused ? `seen:${focused}` : street && !ground ? `street:${street.id}` : `all:${items.length}:${numbered.length}`}|${refit}`;
@@ -421,6 +422,7 @@ export default function Command({ picture, items, unit, circle = null, now, line
         ['dash', look.walking, 'Being searched'],
         ['once', look.walked, 'Searched once'],
         ['twice', look.walked, 'Twice or more'],
+        ...(items.some((i) => i.status === 'NEEDS_REVISIT') ? [['again', look.walked, 'Another look']] : []),
         ...(items.some((i) => i.ring === 3) ? [['seen', 'var(--mc-seen)', 'Round a sighting']] : []),
       ]
     : [
@@ -495,7 +497,8 @@ export default function Command({ picture, items, unit, circle = null, now, line
               fit={fit}
               fitKey={fitKey}
               padding={{ top: 70, right: 60, bottom: street && !ground ? 260 : 70, left: 60 }}
-              maxFitZoom={16.25}
+              // A dog's circle fills the map near this zoom. A cat's is a third the size, so ground may be shown closer.
+              maxFitZoom={ground ? 18 : 16.25}
               zoomControl
               label={mapWords}
             />
@@ -542,6 +545,10 @@ export default function Command({ picture, items, unit, circle = null, now, line
                   <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `${kind === 'edge' ? 3 : 1.5}px solid ${color}` }} aria-hidden="true" />
                 ) : kind === 'dash' ? (
                   <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `2.5px dashed ${color}` }} aria-hidden="true" />
+                ) : kind === 'again' ? (
+                  <span className="relative h-3.5 w-5 overflow-hidden rounded-[3px]" style={{ border: `2px solid ${look.ink}` }} aria-hidden="true">
+                    <span className="absolute inset-0" style={{ background: color, opacity: 0.45 }} />
+                  </span>
                 ) : kind === 'once' || kind === 'twice' ? (
                   <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `1.5px solid ${color}`, background: color, opacity: kind === 'twice' ? 0.85 : 0.45 }} aria-hidden="true" />
                 ) : kind === 'seen' ? (

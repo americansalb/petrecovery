@@ -170,7 +170,9 @@ describe('the desk is light by day and dark by its own switch, and the map says 
 
   test('ground is drawn the same way: weight for what is given out next, colour for what has happened', () => {
     // Nobody has searched it: an outline, heavy in ink where it is given out next.
-    expect(map).toMatch(/\? \{ color: area\.next \? look\.ink : look\.later, weight: area\.next \? 3\.5 : 1\.5 \}/);
+    // Searched and put up for another look is open again: an ink edge too, lighter than what is given out next.
+    expect(map).toMatch(/const again = area\.status === 'NEEDS_REVISIT';/);
+    expect(map).toMatch(/\? \{ color: area\.next \|\| again \? look\.ink : look\.later, weight: area\.next \? 3\.5 : again \? 2\.5 : 1\.5 \}/);
     // Searched is the map's own green, deeper for a second search; someone on it is the map's own teal, dashed.
     expect(map).toMatch(/const fill = searched \? \{ fillColor: look\.walked, fillOpacity: area\.searchCount > 1 \? 0\.5 : 0\.26 \}/);
     expect(map).toMatch(/\? \{ color: look\.walking, weight: desk \? 3\.5 : 3, dashArray: '2 9', lineCap: 'round' \}/);
