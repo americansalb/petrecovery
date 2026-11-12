@@ -20,8 +20,11 @@
  * One mission, three instruments (app/hooks/useInstrument.js), and they
  * do different jobs:
  *
- *   desk (desktop)        see and plan. Nobody walks from a desk, so
- *                         there is no street to take here and no GPS.
+ *   desk (desktop)        see the whole search and steer it: every street
+ *                         on the map, what the numbers show, a log, and
+ *                         for the owner and the leads, where helpers go
+ *                         first. Nobody walks from a desk, so there is
+ *                         no street to take here and no GPS.
  *   phone (mobile web)    see, join, take a street, mark it by tapping,
  *                         report a sighting with one location reading.
  *                         No GPS walk: a browser cannot record with the
@@ -50,7 +53,7 @@ import { Stamp } from './components/kit';
 import { Main, Join, Street, Home } from './steps/Helper';
 import { Seen, Sent } from './steps/Witness';
 import { OwnerNow, OwnerSighting } from './steps/Owner';
-import Rail from './desktop/Rail';
+import Command from './desktop/Command';
 import MarkReunitedModal from './components/overlays/MarkReunitedModal';
 import { readNote, saveNote } from './lib/identity';
 import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SIGHTING_MS } from './lib/words';
@@ -123,7 +126,8 @@ function Screen({ mission }) {
   const params = useSearchParams();
   const missionParam = mission || params.get('mission') || params.get('caseId');
   const { instrument, resolving } = useInstrument();
-  const search = useSearch(missionParam);
+  // A desk steering the search is kept current to the few seconds (hooks/useSearch.js).
+  const search = useSearch(missionParam, { desk: instrument === INSTRUMENTS.COMMAND });
   const { picture, items, unit, mine: mineRaw, viewer, now, hot: seenLately, position, mySightings } = search;
 
   const [view, setView] = useState('main'); // main | join | seen | sent
@@ -502,14 +506,14 @@ function Screen({ mission }) {
   const hotNear = Boolean(hot && lit?.center && distanceMeters(lit.center, hot) <= SIGHTING_IN_VIEW_METERS);
   const fit = useMemo(() => {
     const self = me ? [[me.lat, me.lng]] : [];
-    if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, desk ? 420 : 180), ...self];
+    if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 180), ...self];
     // A helper keeps their street in view, with a fresh sighting beside it when it is near enough to share a map.
     if (lit) return [...pointsOf(lit, unit), ...self, ...(hotNear ? [[hot.lat, hot.lng]] : [])];
     if (hot) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 220), ...(lastSeenTag ? [[lastSeenTag.lat, lastSeenTag.lng]] : [])];
     if (lastSeenTag) return [...around(lastSeenTag.lat, lastSeenTag.lng, 330), ...mapSightings.slice(0, 3).map((s) => [s.lat, s.lng])];
     return [];
-  }, [hot, hotNear, isOwner, lit, unit, me, lastSeenTag, mapSightings, desk]);
-  const fitKey = `${lit ? `lit:${lit.id}:${hotNear ? hot.id : ''}` : hot ? `seen:${hot.id}` : 'home'}|${lastSeenTag ? 1 : 0}|${desk}|${Math.round(sheetHeight / 40)}`;
+  }, [hot, hotNear, isOwner, lit, unit, me, lastSeenTag, mapSightings]);
+  const fitKey = `${lit ? `lit:${lit.id}:${hotNear ? hot.id : ''}` : hot ? `seen:${hot.id}` : 'home'}|${lastSeenTag ? 1 : 0}|${Math.round(sheetHeight / 40)}`;
 
   // The sheet's height, so the map keeps what matters above it.
   const sheetRef = useCallback((el) => {
@@ -623,6 +627,32 @@ function Screen({ mission }) {
     </>
   );
 
+  // ----- A desk -----
+  // The whole search on one screen, and the controls to steer it (desktop/Command.js). It takes this person's
+  // card as it is, so a desk and a phone never say different things about the same step. A desk has no position
+  // of its own and records no walk, so it is handed neither.
+  if (desk) {
+    return (
+      <Command
+        picture={picture}
+        items={items}
+        unit={unit}
+        now={now}
+        line={line}
+        petHref={petHref}
+        onPhoto={() => setPhoto(true)}
+        step={step}
+        full={full}
+        onBack={() => go('main')}
+        onSeen={openSeen}
+        search={search}
+        mapLabel={`Map of the search for ${name}`}
+        overlays={overlays}
+      />
+    );
+  }
+
+  // ----- A phone, in a browser or in the app -----
   const brief = searcherBrief(picture);
   const showChip = !isOwner && view === 'main' && !mine;
   const keyBits = [
@@ -632,7 +662,7 @@ function Screen({ mission }) {
   ].filter(Boolean);
   const map = (
     <SearchMap
-      theme={desk ? 'light' : 'dark'}
+      theme="dark"
       lastSeen={lit && lastSeenTag ? { ...lastSeenTag, label: '' } : lastSeenTag}
       sightings={mapSightings}
       streets={mapStreets}
@@ -642,8 +672,7 @@ function Screen({ mission }) {
       tags={mapTags}
       fit={fit}
       fitKey={fitKey}
-      padding={desk ? { top: 60, right: 80, bottom: 60, left: 80 } : { top: showChip ? 60 : sheetHeight > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: sheetHeight + (sheetHeight > 460 ? 30 : 44), left: 64 }}
-      zoomControl={desk}
+      padding={{ top: showChip ? 60 : sheetHeight > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: sheetHeight + (sheetHeight > 460 ? 30 : 44), left: 64 }}
       label={`Map of the search for ${name}`}
     />
   );
@@ -664,41 +693,6 @@ function Screen({ mission }) {
     </div>
   );
 
-  // ----- A desk -----
-  if (desk) {
-    const seesNames = Boolean(viewer?.seesNames);
-    return (
-      <div className="mc-light flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]">
-        <TopBar picture={picture} line={line} backHref={petHref} onPhoto={() => setPhoto(true)} wide />
-        <div className="flex min-h-0 flex-1">
-          <aside className="w-[400px] shrink-0 overflow-y-auto p-5" aria-label="Your step">
-            {/* The sighting cards carry their own padding (they fill a phone's screen), so the frame adds none. */}
-            <div className={`rounded-2xl border border-[var(--mc-line)] bg-[var(--mc-surface)] ${full ? 'overflow-hidden pb-2' : 'p-5'}`}>
-              {full && (
-                <button type="button" onClick={() => go('main')} className="ml-4 mt-3 inline-flex min-h-[36px] items-center gap-1.5 text-[15px] font-semibold text-[var(--mc-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
-                  <ArrowLeft size={18} aria-hidden="true" /> Back to the map
-                </button>
-              )}
-              {step}
-            </div>
-          </aside>
-          <div className="relative min-w-0 flex-1 border-x border-[var(--mc-line)]">
-            <div className="absolute inset-0 z-0">{map}</div>
-            {showChip && <p className="absolute left-4 top-4 z-[400] rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3.5 py-2 text-[13px] font-bold text-[var(--mc-ink)] shadow">{brief.neverFirst}</p>}
-            {mapKey && <div className="absolute bottom-4 left-4 z-[400]">{mapKey}</div>}
-          </div>
-          {seesNames && (
-            <aside className="w-[340px] shrink-0 overflow-y-auto p-5" aria-label="The search so far">
-              <Rail picture={picture} items={items} unit={unit} now={now} />
-            </aside>
-          )}
-        </div>
-        {overlays}
-      </div>
-    );
-  }
-
-  // ----- A phone, in a browser or in the app -----
   if (full) {
     return (
       <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-surface)]">

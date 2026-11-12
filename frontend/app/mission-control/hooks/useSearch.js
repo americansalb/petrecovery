@@ -13,6 +13,13 @@
  * polls are kept few and stop for half a minute when the server says to
  * slow down. No account is needed to read either.
  *
+ * One exception: a desk steering the search (`steers`: the owner, or
+ * someone leading a force, at a computer) reads both every five seconds.
+ * That is a handful of people per search, it is where the whole search is
+ * watched from, and a board half a minute old is not a view of it. A read
+ * that comes back the same as the last one changes nothing on the screen,
+ * so the map is redrawn only when the search really changed.
+ *
  * Who this person is comes from the session, or from the volunteer this
  * browser joined as (lib/identity.js). The position is one reading of
  * the phone's location, taken when the person asks for a street or sends
@@ -28,6 +35,8 @@ import { hotSighting } from '../lib/words';
 const POLL_MS = 30000;
 const POLL_HOT_MS = 10000;
 const BOARD_POLL_MS = 30000;
+/** How often a desk steering the search reads the picture and the board. */
+const STEER_POLL_MS = 5000;
 /** After a "too many requests" answer, nothing is asked for this long. */
 const SLOW_DOWN_MS = 30000;
 
@@ -51,7 +60,7 @@ function send(url, init) {
 const SEND_TIMEOUT_MS = 20000;
 const NO_SIGNAL = 'No connection just now. Check your signal and try again.';
 
-export default function useSearch(missionParam) {
+export default function useSearch(missionParam, { desk = false } = {}) {
   const { status: authStatus } = useSession();
   const [picture, setPicture] = useState(null);
   const [board, setBoard] = useState(null);
@@ -66,6 +75,8 @@ export default function useSearch(missionParam) {
   const caseIdRef = useRef(null);
   const boardAt = useRef(0);
   const pausedUntil = useRef(0);
+  // The last answer of each read, as text: one that comes back the same is not set again.
+  const lastText = useRef({ picture: '', board: '' });
 
   const headers = useCallback((extra = {}) => ({ ...volunteerHeaders(volunteerRef.current), ...extra }), []);
 
@@ -79,7 +90,11 @@ export default function useSearch(missionParam) {
     if (res.status === 429) pausedUntil.current = Date.now() + SLOW_DOWN_MS;
     if (!res.ok) throw new Error('picture');
     const data = await res.json();
-    setPicture(data);
+    const text = JSON.stringify(data);
+    if (text !== lastText.current.picture) {
+      lastText.current.picture = text;
+      setPicture(data);
+    }
     setFailure(null);
     return data;
   }, [missionParam, headers]);
@@ -91,7 +106,11 @@ export default function useSearch(missionParam) {
     if (!res.ok) return null;
     const data = await res.json();
     boardAt.current = Date.now();
-    setBoard(data);
+    const text = JSON.stringify(data);
+    if (text !== lastText.current.board) {
+      lastText.current.board = text;
+      setBoard(data);
+    }
     return data;
   }, [missionParam, headers]);
 
@@ -136,7 +155,10 @@ export default function useSearch(missionParam) {
 
   // Keep it current: sooner while a sighting is fresh or this phone sent one.
   const hot = useMemo(() => hotSighting(picture?.sightings, now), [picture, now]);
-  const interval = hot || mySightings.length ? POLL_HOT_MS : POLL_MS;
+  // A desk steering the search watches all of it, so it reads both often (see the note at the top).
+  const steers = Boolean(desk && picture?.viewer?.leads);
+  const interval = steers ? STEER_POLL_MS : hot || mySightings.length ? POLL_HOT_MS : POLL_MS;
+  const boardEvery = steers ? STEER_POLL_MS : BOARD_POLL_MS;
   useEffect(() => {
     if (!picture?.id) return undefined;
     const tick = setInterval(() => {
@@ -144,8 +166,8 @@ export default function useSearch(missionParam) {
       if (document.visibilityState !== 'visible' || Date.now() < pausedUntil.current) return;
       // The sightings are what changes fast. The streets change slowly, and this person's own tap reloads them at once.
       loadPicture().catch(() => null);
-      // A little slack, so a tick that lands a moment short of the half minute still reads the board.
-      if (Date.now() - boardAt.current >= BOARD_POLL_MS - 2000) loadBoard().catch(() => null);
+      // A little slack, so a tick that lands a moment short of its turn still reads the board.
+      if (Date.now() - boardAt.current >= boardEvery - 2000) loadBoard().catch(() => null);
     }, interval);
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -158,7 +180,7 @@ export default function useSearch(missionParam) {
       clearInterval(tick);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [picture?.id, interval, reload, loadPicture, loadBoard]);
+  }, [picture?.id, interval, boardEvery, reload, loadPicture, loadBoard]);
 
   /**
    * One reading of where the phone is. Resolves to the position, or null
@@ -286,6 +308,25 @@ export default function useSearch(missionParam) {
     [missionParam, loadPicture]
   );
 
+  /** The owner tells everyone helping something. It goes on the pet's page and in the desk's log. */
+  const tell = useCallback(
+    async (text) => {
+      const res = await send(`/api/missions/${encodeURIComponent(caseIdRef.current || missionParam)}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: String(text || '').trim() }),
+      });
+      if (!res) return { error: NO_SIGNAL };
+      if (!res.ok) {
+        const data = await readJson(res);
+        return { error: data.message || data.error || 'That did not post. Try again in a moment.' };
+      }
+      await loadPicture().catch(() => null);
+      return { ok: true };
+    },
+    [missionParam, loadPicture]
+  );
+
   const items = board ? (board.unit === 'street' ? board.streets : board.cells) : [];
   const mine = items.find((i) => i.mine) || null;
 
@@ -312,5 +353,6 @@ export default function useSearch(missionParam) {
     act,
     sendSighting,
     answer,
+    tell,
   };
 }

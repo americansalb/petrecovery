@@ -74,13 +74,16 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     const root = path.resolve(__dirname, '..');
     const bar = fs.readFileSync(path.join(root, 'app/mission-control/components/TopBar.js'), 'utf8');
     const screen = fs.readFileSync(path.join(root, 'app/mission-control/SearchScreen.js'), 'utf8');
-    // The arrow at the top left of every map screen goes to the pet's page.
+    const desk = fs.readFileSync(path.join(root, 'app/mission-control/desktop/Command.js'), 'utf8');
+    // The arrow at the top left of every map screen goes to the pet's page, on a phone and on a desk.
     expect(bar).toMatch(/href=\{backHref\}/);
     expect(bar).toMatch(/aria-label=\{`Back to \$\{name\}'s page`\}/);
-    expect(screen).toMatch(/backHref=\{petHref\}/);
+    expect(screen).toMatch(/<TopBar picture=\{picture\} line=\{line\} backHref=\{petHref\}/);
+    expect(desk).toMatch(/<TopBar picture=\{picture\} line=\{line\} backHref=\{petHref\}/);
+    expect(screen).toMatch(/<Command\b[\s\S]*?petHref=\{petHref\}/);
     // The two cards with no map (a sighting being sent, and sent) carry their own arrow back, on a phone and on a desk.
     expect(screen).toMatch(/aria-label="Back to the map"/);
-    expect(screen).toMatch(/<ArrowLeft size=\{18\} aria-hidden="true" \/> Back to the map/);
+    expect(desk).toMatch(/<ArrowLeft size=\{18\} aria-hidden="true" \/> Back to the map/);
   });
 
   test('the Rasuwa letter tool is an immersive takeover (crisis page, non-pet audience)', () => {

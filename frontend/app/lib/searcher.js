@@ -15,6 +15,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { forcesOf } from '@/app/lib/forceFeed';
 import { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER } from '@/app/lib/searcherHeaders';
+import { FORCE_COMMAND_ROLES } from '@/app/lib/forceRoles';
 
 export { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER };
 
@@ -30,6 +31,10 @@ const firstWord = (s) => String(s || '').trim().split(/\s+/)[0] || '';
  * everyone else sees streets, not people. Joining a force is one tap, so
  * membership lets someone see first names and nothing more: answering a
  * sighting is the owner's alone (app/api/mission/[missionId]/answer).
+ * `leads` is who may steer the search from the desk (send people to a
+ * street first, put one down as walked: app/lib/searchBoard.js): the
+ * owner, and someone with a command role in a force that is looking.
+ * Being a member is not leading.
  */
 export async function searcherFor(request, caseId) {
   const session = await getServerSession(authOptions).catch(() => null);
@@ -42,15 +47,16 @@ export async function searcherFor(request, caseId) {
     if (user) {
       const isOwner = Boolean(pet && pet.reporterId === userId);
       let inForce = false;
+      let leadsForce = false;
       if (!isOwner) {
         const forceIds = await forcesOf(caseId).catch(() => []);
         if (forceIds.length) {
-          inForce = Boolean(
-            await prisma.rescueForceMember.findFirst({
-              where: { userId, isActive: true, rescueSquadId: { in: forceIds } },
-              select: { id: true },
-            })
-          );
+          const roles = await prisma.rescueForceMember.findMany({
+            where: { userId, isActive: true, rescueSquadId: { in: forceIds } },
+            select: { role: true },
+          });
+          inForce = roles.length > 0;
+          leadsForce = roles.some((m) => FORCE_COMMAND_ROLES.includes(m.role));
         }
       }
       return {
@@ -62,6 +68,7 @@ export async function searcherFor(request, caseId) {
         isOwner,
         waiver: Boolean(user.waiverAcceptedAt) || isOwner,
         seesNames: isOwner || inForce,
+        leads: isOwner || leadsForce,
       };
     }
   }
@@ -82,6 +89,7 @@ export async function searcherFor(request, caseId) {
         isOwner: false,
         waiver: Boolean(volunteer.waiverAcceptedAt),
         seesNames: false,
+        leads: false,
       };
     }
   }

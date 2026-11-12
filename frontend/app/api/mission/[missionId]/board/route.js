@@ -16,6 +16,14 @@
  *   without an account (app/lib/searcher.js). Claiming and marking
  *   searched take the safety waiver; giving a street back does not.
  *
+ *   { unit, id, action: "first" | "normal" | "walked" | "again" }
+ *   Steering, from Mission Control on a desk: send the next helpers to a
+ *   street first, take that back, put a street down as walked for someone
+ *   who walked it without the site, or ask for another look. For the
+ *   owner and for someone with a command role in a Rescue Force that is
+ *   looking for the pet (`searcher.leads`); 403 for anyone else. No
+ *   waiver, since none of it is going out to search.
+ *
  * [missionId] is the case id or the case number, as on a share link.
  */
 import { NextResponse } from 'next/server';
@@ -25,7 +33,7 @@ import { missionWhere } from '@/app/lib/shareMetadata';
 import { isCaseOpen } from '@/app/lib/caseStatus';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { searcherFor } from '@/app/lib/searcher';
-import { ensureGrid, ensureStreets, readStreets, readStreetsAround, readCells, actOnBoard, BOARD_ACTIONS } from '@/app/lib/searchBoard';
+import { ensureGrid, ensureStreets, readStreets, readStreetsAround, readCells, actOnBoard, BOARD_ACTIONS, STEER_ACTIONS } from '@/app/lib/searchBoard';
 import { WAIVER_CODE } from '@/app/lib/waiver';
 import { broadcast } from '@/app/lib/sse/missionStream';
 import { forcesOf } from '@/app/lib/forceFeed';
@@ -125,10 +133,15 @@ const WORDS = {
   TAKEN: (title) => `Someone just took ${title}. Pick another nearby.`,
   NOT_YOURS: (title) => `${title} is not yours to give back.`,
   NOT_CLAIMED: (title) => `Take ${title} first, then mark it searched.`,
+  NOT_ALLOWED: () => 'Only the owner and the people leading the search can do that.',
+  SOMEONE_ON_IT: (title) => `Someone is on ${title} right now. They mark it when they have walked it.`,
+  ALREADY_WALKED: (title) => `${title} is already down as walked.`,
+  NOT_WALKED: (title) => `${title} has not been walked yet.`,
 };
+const STEERED = { street: 'STREET_UPDATED', block: 'CELL_UPDATED' };
 const EVENT = {
-  street: { claim: 'STREET_CLAIMED', release: 'STREET_RELEASED', searched: 'STREET_SEARCHED' },
-  block: { claim: 'CELL_CLAIMED', release: 'CELL_RELEASED', searched: 'CELL_SEARCHED' },
+  street: { claim: 'STREET_CLAIMED', release: 'STREET_RELEASED', searched: 'STREET_SEARCHED', first: STEERED.street, normal: STEERED.street, walked: 'STREET_SEARCHED', again: STEERED.street },
+  block: { claim: 'CELL_CLAIMED', release: 'CELL_RELEASED', searched: 'CELL_SEARCHED', first: STEERED.block, normal: STEERED.block, walked: 'CELL_SEARCHED', again: STEERED.block },
 };
 
 export async function PATCH(request, { params }) {
@@ -139,25 +152,29 @@ export async function PATCH(request, { params }) {
     const body = await request.json().catch(() => ({}));
     const unit = body.unit === 'block' ? 'block' : 'street';
     const { id, action } = body;
-    if (!id || !BOARD_ACTIONS.includes(action)) {
-      return NextResponse.json({ error: `Send an id and one of: ${BOARD_ACTIONS.join(', ')}.` }, { status: 400 });
+    const steering = STEER_ACTIONS.includes(action);
+    if (!id || !(BOARD_ACTIONS.includes(action) || steering)) {
+      return NextResponse.json({ error: `Send an id and one of: ${[...BOARD_ACTIONS, ...STEER_ACTIONS].join(', ')}.` }, { status: 400 });
     }
     const pet = await prisma.case.findFirst({ where: missionWhere(params.missionId), select: CASE_SELECT });
     if (!pet) return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     const searcher = await searcherFor(request, pet.id);
     if (!searcher) return NextResponse.json({ error: 'Join the search first.', code: 'NOT_JOINED' }, { status: 401 });
+    // Steering is the owner's and the leads': where the next helpers go, and ground covered off the site.
+    // Joining a force takes one tap, so being a member is not enough to redirect a search.
+    if (steering && !searcher.leads) return NextResponse.json({ error: WORDS.NOT_ALLOWED(), code: 'NOT_ALLOWED' }, { status: 403 });
     if (!isCaseOpen(pet.status) && action !== 'release') {
       return NextResponse.json({ error: 'This search has ended. Thank you for looking.', code: 'CLOSED' }, { status: 409 });
     }
     // Taking a street or marking it searched is going out to search, which
-    // takes the safety waiver. Giving one back does not.
-    if (action !== 'release' && !searcher.waiver) {
+    // takes the safety waiver. Giving one back does not, and neither does steering from a desk.
+    if (action !== 'release' && !steering && !searcher.waiver) {
       return NextResponse.json({ error: 'Accept the safety waiver before you search.', code: WAIVER_CODE }, { status: 403 });
     }
 
     const result = await actOnBoard({ caseId: pet.id, unit, id: String(id), action, searcher });
     if (result.error) {
-      const status = result.error === 'NOT_FOUND' ? 404 : 409;
+      const status = result.error === 'NOT_FOUND' ? 404 : result.error === 'NOT_ALLOWED' ? 403 : 409;
       return NextResponse.json({ error: WORDS[result.error](result.title || 'That street'), code: result.error }, { status });
     }
 

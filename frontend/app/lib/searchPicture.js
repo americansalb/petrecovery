@@ -23,6 +23,7 @@ import { zoneFor } from '@/app/lib/caseZone';
 import { placeOnly } from '@/app/lib/needOptions';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import { forcesOf } from '@/app/lib/forceFeed';
+import { isMark } from '@/app/lib/searchBoard';
 
 /** Someone who finished a street this recently still counts as out looking. */
 const LOOKING_WINDOW_MS = 2 * 60 * 60 * 1000;
@@ -48,6 +49,13 @@ const PICTURE_SELECT = {
   reporterId: true,
   ownerName: true,
   ownerPhone: true,
+  // What the owner told everyone helping ("Tell everyone helping" on the pet's page), which that page also shows.
+  updates: {
+    where: { isUpdate: true, NOT: { content: { startsWith: 'Status changed from' } } },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    select: { id: true, content: true, createdAt: true, author: { select: { firstName: true } } },
+  },
   sightings: {
     // A sighting its witness took back, while the screen still let them, stays off every screen.
     // Said as "no state, or a different one": a plain NOT drops every row whose state is empty, which is all the others.
@@ -115,7 +123,8 @@ async function peopleLooking(caseId, now) {
     if (row.status === 'IN_PROGRESS' && row.claimedById) people.add(row.claimedById);
     else if (row.searchedByKey || row.searchedById) people.add(row.searchedByKey || row.searchedById);
   }
-  return people;
+  // A street put down as walked from the desk is ground covered, not a person out looking.
+  return new Set([...people].filter((id) => !isMark(id)));
 }
 
 /**
@@ -160,7 +169,7 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
       }),
     ]);
     const blocks = grid?.cells || [];
-    const who = [...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter(Boolean);
+    const who = [...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter((id) => id && !isMark(id));
     searched = {
       streets: streets.length,
       blocks: blocks.length,
@@ -199,10 +208,17 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
     sightings,
     looking: { helpers: [...looking].filter((id) => id !== pet.reporterId).length },
     forces: forces.length,
+    // Newest first. Who wrote it goes where names go: to the owner and the forces looking for the pet.
+    updates: (pet.updates || []).map((u) => ({
+      id: u.id,
+      at: u.createdAt,
+      text: String(u.content || '').slice(0, 400),
+      ...(withNames && u.author?.firstName && u.author.firstName !== 'Deleted' ? { by: u.author.firstName } : {}),
+    })),
     neighbors,
     searched,
     viewer: searcher
-      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
+      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
       : null,
   };
 }
