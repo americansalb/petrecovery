@@ -544,6 +544,8 @@ export default function SuccessScreen({
         out.push(
           <>
             We emailed this link to <strong className="font-semibold text-white">{contactEmail}</strong>. Sightings land there too.
+            {/* A password chosen here signs in once the address is confirmed, like every new account. */}
+            {accountCreated ? ' Confirm your email from the message we sent, then sign in with your password.' : ''}
           </>
         );
       } else if (contactEmail) {

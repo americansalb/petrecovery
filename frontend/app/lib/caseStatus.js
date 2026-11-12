@@ -54,6 +54,9 @@ export function caseStatusColors(status) {
  * Still being searched for: the pet is not home and the case is not closed.
  * This is the group the public API calls LIVE.
  */
+/** The statuses of a case that is still being searched for: what a database filter for "open" lists. */
+export const OPEN_CASE_STATUSES = Object.freeze(['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED']);
+
 export function isCaseOpen(status) {
-  return status === 'ACTIVE' || status === 'IN_PROGRESS' || status === 'SIGHTING_REPORTED';
+  return OPEN_CASE_STATUSES.includes(status);
 }

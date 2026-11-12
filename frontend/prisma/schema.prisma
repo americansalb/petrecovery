@@ -789,6 +789,11 @@ model Case {
   updatedAt DateTime  @updatedAt
   expiresAt DateTime?
 
+  // The owner's key (app/lib/ownerKey.js): how someone who reported without signing in runs their own search.
+  // Only the hash is kept. Minted with the report, good for sixty days.
+  ownerKeyHash String?
+  ownerKeyAt   DateTime?
+
   // Relations
   assignments CaseAssignment[]
   sightings   CaseSighting[]

@@ -527,7 +527,12 @@ describe('a desk steers the search, and only for the owner', () => {
     expect(who).toMatch(/const admin = user\.role === 'ADMIN';/);
     expect(who).toMatch(/leads: isOwner \|\| admin,/);
     expect(who).not.toMatch(/FORCE_COMMAND_ROLES|leadsForce/);
-    expect(who).not.toMatch(/leads: seesNames|leads: true|leads: isOwner \|\| inForce/);
+    expect(who).not.toMatch(/leads: seesNames|leads: isOwner \|\| inForce/);
+    // The one place that says `leads: true` outright is the owner known by their key (app/lib/ownerKey.js): the
+    // browser the report was sent from, or the link in the owner's own email.
+    expect(who.match(/leads: true/g)).toHaveLength(1);
+    expect(who).toMatch(/function ownerWithKey\(pet\) \{[\s\S]*?isOwner: true,[\s\S]*?leads: true,[\s\S]*?viaKey: true,/);
+    expect(who.match(/holdsOwnerKey\(request, pet\)\) return ownerWithKey\(pet\);/g)).toHaveLength(2);
   });
 
   test('steering goes through the screen\'s one sender, and no button is left spinning', () => {
