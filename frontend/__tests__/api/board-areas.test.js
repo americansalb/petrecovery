@@ -24,6 +24,8 @@ jest.mock('@/app/lib/searchZones', () => ({
   ZONE_ACTIONS: ['claim', 'release', 'searched'],
   ZONE_STEER_ACTIONS: ['first', 'normal', 'walked', 'again', 'againAll', 'widen'],
   readZones: jest.fn(),
+  // Never answers either: what the map shows on the ground is read beside the board, not before it.
+  ensureHazards: jest.fn(() => new Promise(() => {})),
   actOnZone: jest.fn(),
   zoneForBoard: jest.fn((zone) => ({ id: zone.id, name: zone.name, reach: '150 m to 400 m west of where Max was lost', status: 'UNSEARCHED' })),
   askZone: jest.fn(),

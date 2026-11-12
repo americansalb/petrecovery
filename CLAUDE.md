@@ -93,6 +93,23 @@ search one area; the one exception is the circle round a sighting, which
 one person goes to. Full description: `docs/APP_MAP.md`, the
 `/mission-control` row and the board route.
 
+### The search never sends anyone into danger without saying so
+
+Founder rule, 2026-11-12: "Are we inadvertantly telling people to search in
+ponds, or dangerous neighborhoods, near the highway, distracting them from
+traffic? We need to be careful about that". An area is cut by distance and
+direction, so it can hold a highway, a rail line or a creek. The site reads
+main roads, rail lines and water from the map
+(`frontend/app/lib/searchHazards.js`) and the card that gives someone an
+area names them with what to do, beside one care line that goes with every
+area. Words that say where to look send people to public ground: the
+sidewalk, a path, and a yard, shed or garage only after asking at the door.
+Never write copy that sends a stranger onto private property, into water,
+onto a road or a rail line, or that asks them to look at the phone while
+moving. Never say or imply that ground is safe: the map can be wrong. Do
+not rate neighbourhoods. Enforced by
+`frontend/__tests__/lib/searchHazards.test.js`.
+
 ### The site's address is built in, never configured
 
 Every absolute URL the pet site produces (email and SMS links, flyer QR

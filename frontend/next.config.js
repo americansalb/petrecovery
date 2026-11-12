@@ -132,6 +132,18 @@ const nextConfig = {
         ],
       },
       {
+        // The owner's link answers with the cookie that runs a search. Nothing keeps that answer. It is listed
+        // after the rule above because the last rule to name a header is the one sent, and a route's own
+        // Cache-Control does not survive that rule.
+        source: '/api/mission/:missionId/own',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store',
+          },
+        ],
+      },
+      {
         // Security headers for all routes
         source: '/:path*',
         headers: [

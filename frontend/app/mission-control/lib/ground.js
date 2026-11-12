@@ -57,6 +57,39 @@ export function whereWords(area) {
   return `${area.reach}${marks.length ? `, around ${listWords(marks)}` : ''}.`;
 }
 
+/**
+ * Said on every card that gives someone ground, whatever the map shows:
+ * the two things that get people hurt or into trouble on a search. Never
+ * a claim that the ground is safe (founder, 2026-11-12: "We need to be
+ * careful about that").
+ */
+export const CARE_LINE = 'Look at your phone only when you are standing still. Ask before you go into a yard, garage or shed.';
+
+const WATER_WORDS = { river: 'a river', canal: 'a canal', stream: 'a stream', pond: 'a pond or lake' };
+
+/**
+ * What the map shows in an area that someone on foot should know of, in
+ * sentences: its main roads, a rail line, its water (app/lib/searchHazards.js).
+ * With `advice`, each says what to do about it, for the person going. The
+ * list is the map's, so an empty one means the map shows none, not that
+ * there is none.
+ */
+export function hazardLines(area, { advice = true } = {}) {
+  const held = Array.isArray(area?.hazards) ? area.hazards : [];
+  const lines = [];
+  const say = (fact, what) => lines.push(advice ? `${fact} ${what}` : fact);
+  const roads = held.filter((h) => h.kind === 'road');
+  if (roads.length) {
+    const named = roads.map((h) => h.name).filter(Boolean);
+    const fact = named.length > 1 ? `${listWords(named)} are main roads in this area.` : named.length ? `${named[0]} is a main road in this area.` : 'A main road runs through this area.';
+    say(fact, 'Stay off the roadway and cross only at a crossing.');
+  }
+  if (held.some((h) => h.kind === 'rail')) say('A rail line runs through this area.', 'Stay off the tracks and outside any fence.');
+  const water = held.filter((h) => h.kind === 'water').map((h) => h.name || WATER_WORDS[h.what] || WATER_WORDS.pond);
+  if (water.length) say(`${capital(listWords(water))} ${water.length > 1 ? 'are' : 'is'} in this area.`, 'Look from the bank or a path, and stay out of the water.');
+  return lines;
+}
+
 /** An area's state in two or three words, for the map's label and a row's edge. */
 export function areaState(area) {
   if (!area) return '';
@@ -119,6 +152,8 @@ export function areaFacts(area, { picture = null, circle = null, now = Date.now(
       .sort((a, b) => new Date(b.at) - new Date(a.at))[0];
     if (seen) facts.push(`${name} was seen in it ${whenWords(seen.at, zone, now)}.`);
   }
+  // What the map shows in it that someone on foot should know of, so the person asking knows before they ask.
+  facts.push(...hazardLines(area, { advice: false }));
   facts.push(areaLine(area, { timeZone: zone, now, owner: picture?.owner?.firstName || null, isOwner: Boolean(picture?.viewer?.isOwner) }));
   for (const ask of area.asked || []) {
     facts.push(`${ask.name} was asked to ${isSeenCircle(area) ? 'go' : 'search it'} at ${clockTime(ask.at, zone)}${ask.seenAt ? ' and has seen that' : ''}.`);

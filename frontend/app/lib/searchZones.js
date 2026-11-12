@@ -32,6 +32,7 @@ import { RING, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, rea
 
 export { rankAreas };
 import { ensureGrid } from '@/app/lib/searchBoard';
+import { fetchHazards, hazardsIn, parseHazards, HAZARD_MARGIN_METERS } from '@/app/lib/searchHazards';
 import { handleFor, askHolds } from '@/app/lib/searchTeam';
 import { cleanWord } from '@/app/lib/searchTalk';
 import { cut } from '@/app/lib/searchText';
@@ -171,6 +172,66 @@ async function nameLandmarks(caseId, streetsStatus) {
   );
 }
 
+/** Give each area that has none the main roads, rail lines and water the map shows in it, once those are known. */
+async function nameHazards(caseId) {
+  const bare = await prisma.searchZone.findMany({
+    where: { caseId, hazards: null },
+    select: { id: true, key: true, name: true, ring: true, centerLatitude: true, centerLongitude: true, fromMeters: true, toMeters: true, bearingFrom: true, bearingTo: true },
+  });
+  if (!bare.length) return;
+  const grid = await prisma.searchGrid.findUnique({ where: { caseId }, select: { hazards: true } });
+  const known = parseHazards(grid?.hazards);
+  // A circle round a sighting past where the list was read gets an empty list: nothing is known there, and the
+  // card's care line is the same either way.
+  await Promise.all(bare.map((row) => prisma.searchZone.updateMany({ where: { id: row.id, hazards: null }, data: { hazards: JSON.stringify(hazardsIn(areaOf(row), centerOf(row), known)) } })));
+}
+
+const HAZARDS_RETRY_MS = 5 * 60 * 1000;
+const HAZARDS_PENDING_MS = 90 * 1000;
+
+/**
+ * Read what the map shows on a search's ground, once: main roads, rail
+ * lines and water (app/lib/searchHazards.js). Started by a read of the
+ * board and never waited for: the areas need no map server, and a server
+ * that does not answer is asked again in a few minutes. Resolves to the
+ * state it leaves: READY, PENDING, FAILED, or null where there is no
+ * search.
+ */
+export async function ensureHazards(caseId, { fetchList = fetchHazards, now = Date.now() } = {}) {
+  const pet = await prisma.case.findUnique({ where: { id: caseId }, select: CASE_FOR_ZONES });
+  if (!pet || pet.reportType === 'FOUND' || pet.lastSeenLatitude == null || pet.lastSeenLongitude == null) return null;
+  const grid = await ensureGrid(caseId);
+  if (!grid) return null;
+  const state = await prisma.searchGrid.findUnique({ where: { id: grid.id }, select: { hazardsStatus: true } });
+  if (state?.hazardsStatus === 'READY') return 'READY';
+  // One request asks the map, however many read the board at once.
+  const mine = await prisma.searchGrid.updateMany({
+    where: {
+      id: grid.id,
+      OR: [
+        { hazardsStatus: null },
+        { hazardsStatus: 'FAILED', hazardsAt: { lt: new Date(now - HAZARDS_RETRY_MS) } },
+        { hazardsStatus: 'PENDING', hazardsAt: { lt: new Date(now - HAZARDS_PENDING_MS) } },
+      ],
+    },
+    data: { hazardsStatus: 'PENDING', hazardsAt: new Date(now) },
+  });
+  if (!mine.count) return state?.hazardsStatus || 'PENDING';
+  // Measured from where the circle was first drawn, like the areas themselves, and as far as it can be widened.
+  const first = await prisma.searchZone.findFirst({ where: { caseId, ring: { not: RING.SEEN } }, select: { centerLatitude: true, centerLongitude: true } });
+  const center = first ? centerOf(first) : { lat: pet.lastSeenLatitude, lng: pet.lastSeenLongitude };
+  const reach = circleFor(pet.petSpecies).wide + HAZARD_MARGIN_METERS;
+  try {
+    const known = await fetchList({ lat: center.lat, lng: center.lng, radiusMeters: reach });
+    await prisma.searchGrid.update({ where: { id: grid.id }, data: { hazardsStatus: 'READY', hazardsAt: new Date(), hazardsReach: reach, hazards: JSON.stringify(known) } });
+    await nameHazards(caseId);
+    return 'READY';
+  } catch {
+    await prisma.searchGrid.update({ where: { id: grid.id }, data: { hazardsStatus: 'FAILED', hazardsAt: new Date() } }).catch(() => {});
+    return 'FAILED';
+  }
+}
+
 /**
  * The areas of a case's search, made on first use and added to as the
  * search changes: the outer ring once it is widened, and a circle round
@@ -182,8 +243,8 @@ export async function ensureZones(caseId, { now = Date.now() } = {}) {
   const pet = await prisma.case.findUnique({ where: { id: caseId }, select: CASE_FOR_ZONES });
   if (!pet || pet.reportType === 'FOUND' || pet.lastSeenLatitude == null || pet.lastSeenLongitude == null) return null;
   const [grid, rows, sightings] = await Promise.all([
-    prisma.searchGrid.findUnique({ where: { caseId }, select: { widenedAt: true, streetsStatus: true } }),
-    prisma.searchZone.findMany({ where: { caseId }, select: { key: true, ring: true, centerLatitude: true, centerLongitude: true, landmarks: true } }),
+    prisma.searchGrid.findUnique({ where: { caseId }, select: { widenedAt: true, streetsStatus: true, hazardsStatus: true } }),
+    prisma.searchZone.findMany({ where: { caseId }, select: { key: true, ring: true, centerLatitude: true, centerLongitude: true, landmarks: true, hazards: true } }),
     freshSightings(caseId, now),
   ]);
   const circle = circleFor(pet.petSpecies);
@@ -208,7 +269,12 @@ export async function ensureZones(caseId, { now = Date.now() } = {}) {
   if ((missing.length || rows.some((r) => r.landmarks == null)) && (streetsStatus === 'READY' || streetsStatus === 'NONE')) {
     await nameLandmarks(caseId, streetsStatus).catch(() => {});
   }
-  return { pet, circle, center, widened, name, sightings, streetsStatus };
+  // The same for what the map shows in each area: an area made after the list was read (the outer ring, the
+  // circle round a sighting) is checked against it here.
+  if (grid?.hazardsStatus === 'READY' && (missing.length || rows.some((r) => r.hazards == null))) {
+    await nameHazards(caseId).catch(() => {});
+  }
+  return { pet, circle, center, widened, name, sightings, streetsStatus, hazardsStatus: grid?.hazardsStatus || null };
 }
 
 /**
@@ -314,6 +380,7 @@ export function zoneForBoard(row, ctx = {}) {
     title: row.name,
     reach: reachOf(area, name),
     landmarks: parseList(row.landmarks),
+    hazards: parseHazards(row.hazards).map(({ kind, name, what }) => ({ kind, name: name || '', what })),
     outline: outlineOf(area, center),
     center: { lat: row.heartLatitude, lng: row.heartLongitude },
     from: row.fromMeters,
@@ -433,6 +500,7 @@ export async function readZones(caseId, { viewer = null, withNames = false, owne
     circle: { center, inner: circle.inner, edge: circle.edge, wide: circle.wide, radius: widened ? circle.wide : circle.edge, widened },
     areas,
     streetsStatus: made.streetsStatus,
+    hazardsStatus: made.hazardsStatus,
   };
 }
 
@@ -463,6 +531,7 @@ export async function openAreas(caseId, { take = 12, viewer = null, now = Date.n
       minutes: a.minutes,
       reach: a.reach,
       landmarks: a.landmarks,
+      hazards: a.hazards,
       on: a.on,
       coming: a.coming,
       searchCount: a.searchCount,
