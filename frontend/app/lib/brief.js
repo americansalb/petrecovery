@@ -4,6 +4,13 @@
  * car, from home, with gear). Pure, so the pet's share link can show it
  * to a witness in the browser as well as the job API on the server.
  *
+ * Where it says to look is where a stranger may look: from the sidewalk
+ * or a path, and in a yard, shed or garage only after asking at the door.
+ * Until 2026-11-12 it sent people "under decks, in open garages and sheds,
+ * along creeks", which is other people's property and the water's edge
+ * (founder: "Are we inadvertantly telling people to search in ponds ...
+ * We need to be careful about that").
+ *
  * The button it names is the one the site has: "I've seen Max", on the
  * pet's page, the search screen and a force's post. (It said "I saw Max"
  * until 2026-11-12, a button that was nowhere.)
@@ -29,8 +36,8 @@ export function briefFor({ way, pet }) {
   const dog = isDog(pet);
   const cat = String(pet?.petSpecies || '').toUpperCase() === 'CAT';
   const look = cat
-    ? 'Look low and close: under decks and cars, in sheds and garages, behind bins. A scared cat hides within a few houses and goes quiet.'
-    : 'Look low: under decks, in open garages and sheds, along creeks and fences. A scared pet hides and goes quiet.';
+    ? 'Look low and close from the sidewalk: under parked cars, under porches and decks, behind bins. Ask at the door before you look in a yard, shed or garage. A scared cat hides within a few houses and goes quiet.'
+    : 'Look low from the sidewalk or a path: under parked cars, under porches and decks, along fences and hedges. Ask at the door before you look in a yard, shed or garage. A scared pet hides and goes quiet.';
   const call = dog
     ? `Call "${name}" once a minute in a calm voice, then listen.`
     : cat
@@ -49,7 +56,7 @@ export function briefFor({ way, pet }) {
   }
   if (way === 'car') {
     return [
-      'Drive slowly with the windows down. Pets move along edges: creeks, fence lines, the backs of lots.',
+      'Drive slowly with the windows down, and pull over before you look at your phone. Pets move along edges: fence lines, hedges, the backs of lots.',
       call,
       never,
       'Your drive records as you go, so the team sees what you covered.',

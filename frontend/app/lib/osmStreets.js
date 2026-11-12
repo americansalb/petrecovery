@@ -225,3 +225,49 @@ export async function fetchNamedWays({
   failure.note = tried.join('; ').slice(0, 300);
   throw failure;
 }
+
+/**
+ * Any question put to OpenStreetMap, the same two ways: the Overpass
+ * servers at once with `query`, and the map call for `box` when none of
+ * them gives an answer `good` accepts. Resolves to the raw elements and
+ * which source sent them ('overpass' sends ways with their `geometry`,
+ * 'map' sends nodes and ways apart). Rejects with a `note` as above.
+ */
+export async function askOsm({ query, box, good = () => true, timeoutMs = 6000, mapTimeoutMs = 25000, fetchImpl = fetch, endpoints = OVERPASS, mapEndpoint = OSM_MAP }) {
+  const tried = [];
+  const ask = async (endpoint, options) => {
+    const data = await getJson(
+      endpoint,
+      { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT }, body: `data=${encodeURIComponent(query)}` },
+      options
+    );
+    if (!data || !Array.isArray(data.elements)) throw new Error('no elements in the answer');
+    if (data.remark) throw new Error(String(data.remark).replace(/^runtime error:\s*/i, ''));
+    if (!good(data.elements)) throw new Error('an answer that cannot be trusted');
+    return data.elements;
+  };
+  if (endpoints.length) {
+    const done = new AbortController();
+    try {
+      return { from: 'overpass', elements: await firstGood(endpoints.map((endpoint) => ask(endpoint, { timeoutMs, fetchImpl, signal: done.signal }))) };
+    } catch (errors) {
+      endpoints.forEach((endpoint, i) => tried.push(`${hostOf(endpoint)}: ${short(errors[i])}`));
+    } finally {
+      done.abort();
+    }
+  }
+  if (mapEndpoint) {
+    const deadline = new AbortController();
+    const timer = setTimeout(() => deadline.abort(), mapTimeoutMs);
+    try {
+      return { from: 'map', elements: await askMap(mapEndpoint, box, { timeoutMs: mapTimeoutMs, fetchImpl, signal: deadline.signal }) };
+    } catch (error) {
+      tried.push(`${hostOf(mapEndpoint)}: ${short(error)}`);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  const failure = new Error('Map data is not available right now');
+  failure.note = tried.join('; ').slice(0, 300);
+  throw failure;
+}

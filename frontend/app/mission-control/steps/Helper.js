@@ -30,13 +30,13 @@
  * that is what the desk reads as "seen".
  */
 import { useEffect, useRef, useState } from 'react';
-import { Share2 } from 'lucide-react';
+import { Share2, TriangleAlert } from 'lucide-react';
 import { SAFETY_RULES, SAFETY_AGREEMENT } from '@/app/lib/safetyRules';
 import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Pinned, Stamp } from '../components/kit';
 import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
-import { areaName, isSeenCircle, whereWords } from '../lib/ground';
+import { areaName, isSeenCircle, whereWords, hazardLines, CARE_LINE } from '../lib/ground';
 import { whenWords } from '../lib/insight';
 
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '';
@@ -117,6 +117,37 @@ function ShareLink({ onShare }) {
 }
 
 /**
+ * Said with every area someone is given: what the map shows in it that a
+ * person on foot should know of (a main road, a rail line, water), and
+ * the care line that goes with any ground. Founder, 2026-11-12: "Are we
+ * inadvertantly telling people to search in ponds, or dangerous
+ * neighborhoods, near the highway, distracting them from traffic? We need
+ * to be careful about that". It names what is there and how to be near
+ * it. It does not tell anyone to stop searching.
+ */
+function Care({ area, className = '' }) {
+  const lines = hazardLines(area);
+  return (
+    <div className={className}>
+      {lines.length > 0 && (
+        <div role="note" aria-label="Take care in this area" className="mb-2 rounded-2xl border-2 border-[var(--mc-line-strong)] bg-[var(--mc-raised)] px-3.5 py-3">
+          <p className="flex items-center gap-1.5 text-[13px] font-extrabold leading-[18px] text-[var(--mc-ink)]">
+            <TriangleAlert size={15} aria-hidden="true" />
+            Take care in this area
+          </p>
+          {lines.map((line) => (
+            <p key={line} className="mt-1.5 text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
+      <Note>{CARE_LINE}</Note>
+    </div>
+  );
+}
+
+/**
  * What anyone with the link sees: the streets, and two buttons. For
  * someone the person running the search has asked to walk a street
  * (`asked`), the same card says which street and whose ask it is, and its
@@ -149,6 +180,8 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
               <p className="mt-0.5 whitespace-pre-line break-words text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">{ask.askedNote}</p>
             </div>
           )}
+          {/* Before they say yes: what the map shows there. */}
+          {ground && <Care area={ask} className="mt-3" />}
         </>
       ) : done && ground ? (
         <Lead className="mt-1.5">
@@ -346,6 +379,7 @@ export function Area({ picture, name, mine, instrument, gps, onSearched, onOther
           </p>
         </div>
       )}
+      <Care area={mine} className="mt-3" />
       <Said said={said} line={saidLine} picture={picture} now={now} onSay={onSay} onShown={onShown} onPutAway={onPutAway} also={asked?.id || null} />
       <AdviceBlock source="The searcher's brief" lines={advice} className="mt-3" />
       {/* On a phone the buttons stay on the screen, whatever was said above them. */}

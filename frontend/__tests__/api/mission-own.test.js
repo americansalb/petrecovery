@@ -109,3 +109,13 @@ describe('what the owner does from the search screen, with the key and no sessio
     expect(source).not.toMatch(/owner\.userId, role: '(ADMIN|MODERATOR)'/);
   });
 });
+
+test('the site config sends no-store for the link, after the rule for every other API answer', () => {
+  const config = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'next.config.js'), 'utf8');
+  const every = config.indexOf("source: '/api/:path*'");
+  const own = config.indexOf("source: '/api/mission/:missionId/own'");
+  expect(every).toBeGreaterThan(-1);
+  expect(own).toBeGreaterThan(every);
+  expect(config.slice(own, own + 260)).toMatch(/key: 'Cache-Control',\s+value: 'no-store'/);
+});
+

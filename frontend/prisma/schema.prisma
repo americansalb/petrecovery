@@ -3413,6 +3413,18 @@ model SearchGrid {
   // Why the last fetch failed, as each map server answered it. Cleared by a fetch that works.
   streetsNote   String?
 
+  // What the map shows on this ground that someone searching should know
+  // of: main roads, rail lines and water (app/lib/searchHazards.js). Read
+  // from OpenStreetMap once per search. `hazards` is the JSON list of
+  // { kind, name, what, path }, kept so areas made later (the outer ring,
+  // the circle round a sighting) can be checked without asking again.
+  // hazardsStatus: PENDING, READY, FAILED. hazardsReach: how far from the
+  // centre the list was read for, in metres.
+  hazardsStatus String?
+  hazardsAt     DateTime?
+  hazardsReach  Int?
+  hazards       String?
+
   // When the person running the search widened its circle to the outer ring
   // (SearchZone, app/lib/searchZones.js), and who did. Null: not widened.
   widenedAt   DateTime?
@@ -3574,6 +3586,8 @@ model SearchZone {
   minutes    Int
   // JSON list of the street names that run through it, for finding it. Null until the streets are known.
   landmarks  String?
+  // JSON list of { kind, name, what }: the main roads, rail lines and water the map shows in this area. Null until known.
+  hazards    String?
   // The sighting a ring-3 circle is drawn round.
   sightingId String?
 

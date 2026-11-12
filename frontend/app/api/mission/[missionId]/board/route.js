@@ -66,7 +66,7 @@ import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/l
 import { searcherFor } from '@/app/lib/searcher';
 import { ensureStreets, actOnBoard, BOARD_ACTIONS, STEER_ACTIONS } from '@/app/lib/searchBoard';
 import { RING } from '@/app/lib/searchCircle';
-import { readZones, actOnZone, zoneForBoard, askZone, unaskZonePerson, cannotSearch, streetNames, ZONE_ACTIONS, ZONE_STEER_ACTIONS } from '@/app/lib/searchZones';
+import { readZones, ensureHazards, actOnZone, zoneForBoard, askZone, unaskZonePerson, cannotSearch, streetNames, ZONE_ACTIONS, ZONE_STEER_ACTIONS } from '@/app/lib/searchZones';
 import { teamOf, personByHandle, forDesk } from '@/app/lib/searchTeam';
 import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
 import { WAIVER_CODE } from '@/app/lib/waiver';
@@ -136,6 +136,9 @@ export async function GET(request, { params }) {
     const read = await readZones(pet.id, who);
     if (!read) return NextResponse.json(none);
     const { areas, circle, streetsStatus } = read;
+    // What the map shows on the ground that someone on foot should know of (main roads, rail lines, water) is
+    // read once per search too, and each area's card names what it holds once that has answered.
+    if (read.hazardsStatus !== 'READY') ensureHazards(pet.id).catch(() => 'FAILED');
     const holding = areas.find((a) => a.mine) || null;
     return NextResponse.json({
       caseId: pet.id,

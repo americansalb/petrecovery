@@ -11,6 +11,9 @@ export const SAFETY_RULES = [
   'Do not approach animals that may attack humans or harbor disease.',
   'Contact animal control or owners when appropriate. Never take direct action with aggressive animals.',
   'Never enter private property without permission.',
+  'Stay out of the road. Cross at a crossing, and never follow an animal into traffic.',
+  'Stay out of water and drains, off rail lines, and outside anything fenced or signed.',
+  'Look at your phone only when you are standing still. Pull over first if you are driving.',
   'Report sightings only. You are not expected to capture or chase animals.',
   'Your safety comes first. If you feel unsafe, do not engage.',
 ];
