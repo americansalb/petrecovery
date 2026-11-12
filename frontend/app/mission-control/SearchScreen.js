@@ -60,7 +60,7 @@ import MarkReunitedModal from './components/overlays/MarkReunitedModal';
 import { readNote, saveNote } from './lib/identity';
 import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SIGHTING_MS } from './lib/words';
 import { searcherBrief } from './lib/briefLines';
-import { wordsForCard } from './lib/team';
+import { wordsForCard, wordsForOwner } from './lib/team';
 
 const SearchMap = dynamic(() => import('./components/SearchMap'), {
   ssr: false,
@@ -316,6 +316,21 @@ function Screen({ mission }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isOwner, picture?.updates, search.words, owner?.firstName, Math.floor(now / 60000)]
   );
+  // On a phone the owner reads what a helper said, and answers it, on their own card. (On a desk it is in "Needs
+  // you" and in Messages.) One at a time: answering it brings up the next.
+  const heard = useMemo(
+    () => (isOwner && !desk ? wordsForOwner({ talk: search.talk, now }) : NO_WORDS),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isOwner, desk, search.talk, Math.floor(now / 60000)]
+  );
+  const answerHelper = async (text) => {
+    const to = heard[0];
+    if (!to) return { error: '' };
+    const result = await search.say(text, to.handle);
+    // Answered, so the word leaves the card: said here, where it can still be read.
+    if (!result.error) say(`Sent to ${to.from}.`);
+    return result;
+  };
   // Answering takes someone on the search, as the server also checks. Someone leading answers what was written to them.
   const canSay = Boolean(viewer && !isOwner && (viewer.leads ? search.words.some((w) => !w.mine) : viewer.seesNames || search.volunteer || mineRaw || askedRaw || search.words.length > 0));
   const counts = useMemo(
@@ -634,9 +649,9 @@ function Screen({ mission }) {
     full = true;
     step = <Sent picture={picture} name={name} owner={owner} mine={mySeen} signedIn={Boolean(viewer?.signedIn)} onAgain={openSeen} onDone={() => go('main')} />;
   } else if (isOwner && hot) {
-    step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} />;
+    step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} />;
   } else if (isOwner) {
-    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} />;
+    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} />;
   } else if (mine) {
     step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} said={said} onSay={canSay ? search.say : null} now={now} />;
   } else if (view === 'join' && !desk) {

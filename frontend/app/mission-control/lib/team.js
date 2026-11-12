@@ -75,6 +75,24 @@ export function wordsForCard({ words = [], updates = [], ownerName = null, now =
   ].filter(Boolean);
 }
 
+/**
+ * What the owner's phone card shows of what helpers said: the newest word
+ * nobody running the search has answered, while it is fresh, with whose it
+ * is and the handle to answer them by. On a computer the same words are in
+ * "Needs you" and in Messages. A phone has one card, so this is where an
+ * owner who is out searching reads a helper's word and answers it; without
+ * it a helper's answer would reach nobody who is not at a desk.
+ * `talk` is every message of the search, as the picture sends it to whoever
+ * runs it. One at a time: answering it brings up the next.
+ */
+export function wordsForOwner({ talk = [], now = Date.now() } = {}) {
+  const fresh = (at) => at && now - new Date(at).getTime() < WORD_FRESH_MS;
+  return unanswered(talk)
+    .filter((w) => fresh(w.at) && w.fromHandle)
+    .slice(0, 1)
+    .map((w) => ({ id: w.id, kind: 'yours', text: w.text, at: w.at, from: w.from || 'A helper', handle: w.fromHandle }));
+}
+
 /** Whose a word on a helper's card is, as its label says it. */
 export function wordFrom(word, { timeZone, now = Date.now() } = {}) {
   if (!word) return '';

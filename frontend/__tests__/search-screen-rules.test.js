@@ -431,7 +431,7 @@ describe('a desk steering the search is kept current, and nobody else pays for i
     expect(Number(hook.match(/const CLOSED_POLL_MS = (\d+);/)[1])).toBeGreaterThanOrEqual(120000);
     // Someone on the search reads the small picture at the pace already kept for a fresh sighting, and the board
     // only when the picture says they were asked to walk a street.
-    expect(hook).toMatch(/const onSearch = Boolean\(picture\?\.viewer && !picture\.viewer\.isOwner && \(volunteer \|\| everMine\.current \|\| picture\.asked \|\| picture\.words\?\.length\)\);/);
+    expect(hook).toMatch(/const onSearch = Boolean\(picture\?\.viewer && \(picture\.viewer\.isOwner \|\| volunteer \|\| everMine\.current \|\| picture\.asked \|\| picture\.words\?\.length\)\);/);
     expect(hook).toMatch(/if \(read && 'asked' in read && \(read\.asked \|\| null\) !== askedOnBoard\.current\) loadBoard\(\)\.catch\(\(\) => null\);/);
     expect(Number(hook.match(/const POLL_HOT_MS = (\d+);/)[1])).toBeGreaterThanOrEqual(10000);
     expect(Number(hook.match(/const STEER_POLL_MS = (\d+);/)[1])).toBeGreaterThanOrEqual(5000);

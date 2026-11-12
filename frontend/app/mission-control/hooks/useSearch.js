@@ -24,8 +24,8 @@
  * has been shown is dropped.
  *
  * Someone on the search (holding a street, joined from the link, asked to
- * walk one or written to) reads the picture every ten seconds, the pace
- * already kept while a sighting is fresh. The picture is the small read,
+ * walk one or written to), and the owner on a phone, read the picture
+ * every ten seconds, the pace already kept while a sighting is fresh. The picture is the small read,
  * and it says when this person was asked to walk a street, which is when
  * the board is read again: so an ask or a word from the desk is on their
  * card within seconds, and the board itself is still read only twice a
@@ -198,8 +198,9 @@ export default function useSearch(missionParam, { desk = false } = {}) {
   // A desk steering the search watches all of it, so it reads both often (see the note at the top).
   const closed = picture ? !picture.open : false;
   const steers = Boolean(desk && picture?.viewer?.leads && !closed);
-  // Someone on the search hears from the desk within seconds (see the note at the top).
-  const onSearch = Boolean(picture?.viewer && !picture.viewer.isOwner && (volunteer || everMine.current || picture.asked || picture.words?.length));
+  // Someone on the search hears from the desk within seconds (see the note at the top), and so does the owner
+  // on a phone, where a helper's word is on their own card.
+  const onSearch = Boolean(picture?.viewer && (picture.viewer.isOwner || volunteer || everMine.current || picture.asked || picture.words?.length));
   const interval = closed ? CLOSED_POLL_MS : steers ? STEER_POLL_MS : hot || mySightings.length || onSearch ? POLL_HOT_MS : POLL_MS;
   const boardEvery = closed ? CLOSED_POLL_MS : steers ? STEER_POLL_MS : BOARD_POLL_MS;
   useEffect(() => {

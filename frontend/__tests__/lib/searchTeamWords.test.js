@@ -3,7 +3,7 @@
  * card shows of what was said to them (app/mission-control/lib/team.js).
  */
 
-import { personLine, shortTitle, outLong, grouped, wordsForCard, wordFrom, stream, unanswered, WORD_FRESH_MS } from '@/app/mission-control/lib/team';
+import { personLine, shortTitle, outLong, grouped, wordsForCard, wordsForOwner, wordFrom, stream, unanswered, WORD_FRESH_MS } from '@/app/mission-control/lib/team';
 
 const ZONE = 'America/Chicago';
 const NOW = new Date('2026-11-13T04:00:00Z').getTime(); // 10 pm Thursday in Austin
@@ -154,6 +154,28 @@ describe('the desk\'s messages: everything said and everything that happened, in
     expect(lines.find((l) => l.id === 'walk-a')).toMatchObject({ streetId: 'a', sightingId: null });
     expect(lines.find((l) => l.id === 'seen-s1')).toMatchObject({ sightingId: 's1', kind: 'seen' });
     expect(stream()).toEqual([]);
+  });
+});
+
+describe('what the owner\'s phone card shows of what helpers said', () => {
+  const w = (id, minutes, fromDesk, who, over = {}) => ({ id, at: ago(minutes), text: `${id} text`, fromDesk, mine: fromDesk, from: fromDesk ? 'Avery' : who, fromHandle: fromDesk ? 'h-avery' : `h-${who.toLowerCase()}`, to: fromDesk ? who : null, toHandle: fromDesk ? `h-${who.toLowerCase()}` : null, ...over });
+
+  test('the newest word nobody has answered, with whose it is and the handle to answer them by', () => {
+    const talk = [w('a', 30, false, 'Dana'), w('b', 20, false, 'Jo'), w('c', 10, false, 'Dana')];
+    expect(wordsForOwner({ talk, now: NOW })).toEqual([{ id: 'c', kind: 'yours', text: 'c text', at: ago(10), from: 'Dana', handle: 'h-dana' }]);
+  });
+
+  test('one at a time: answering it brings up the next, and nothing answered is shown', () => {
+    const talk = [w('a', 30, false, 'Dana'), w('b', 20, false, 'Jo'), w('c', 5, true, 'Dana')];
+    expect(wordsForOwner({ talk, now: NOW }).map((x) => [x.id, x.from])).toEqual([['b', 'Jo']]);
+    expect(wordsForOwner({ talk: [...talk, w('d', 1, true, 'Jo')], now: NOW })).toEqual([]);
+  });
+
+  test('an old word is not put on the card, and no id of anyone is', () => {
+    expect(wordsForOwner({ talk: [w('a', 13 * 60, false, 'Dana')], now: NOW })).toEqual([]);
+    expect(wordsForOwner({ now: NOW })).toEqual([]);
+    const [card] = wordsForOwner({ talk: [w('a', 3, false, 'Dana')], now: NOW });
+    expect(Object.keys(card).sort()).toEqual(['at', 'from', 'handle', 'id', 'kind', 'text']);
   });
 });
 

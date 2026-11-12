@@ -11,6 +11,11 @@
  * tells the person who saw the pet that the owner is coming, so the owner
  * has one button and not two.
  *
+ * On a phone both cards also carry what a helper said to the people
+ * running the search, with a line to answer in (`heard`: lib/team.js,
+ * wordsForOwner). It is the helper's own words, shown as theirs. On a desk
+ * the same words are in "Needs you" and in Messages, so the card has none.
+ *
  * Every line of advice here is the advice engine's (app/lib/adviceFor.js
  * reads app/lib/petAdvice.js), under a line that says so. Nothing is
  * written for this screen.
@@ -19,6 +24,7 @@ import { useMemo, useState } from 'react';
 import { Navigation, Share2 } from 'lucide-react';
 import { adviceFor } from '@/app/lib/adviceFor';
 import { Eyebrow, Heading, Lead, Note, Primary, QuietLink, AdviceBlock, Problem } from '../components/kit';
+import Word from '../components/Word';
 import { clockTime, dayAndTime, placeWords, agoWords, lookingLine } from '../lib/words';
 
 function useAdvice(picture, now) {
@@ -31,7 +37,7 @@ function useAdvice(picture, now) {
 }
 
 /** Who is looking, and the one thing that brings more people. */
-export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, problem }) {
+export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, problem, heard = [], onReply = null }) {
   const advice = useAdvice(picture, now);
   const [open, setOpen] = useState(false);
   const thing = unit === 'block' ? 'block' : 'street';
@@ -44,6 +50,9 @@ export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, pr
           {counts.searched} of {counts.total} {thing}s {counts.searched === 1 ? 'is' : 'are'} searched.
         </Lead>
       )}
+      {heard.map((word) => (
+        <Word key={word.id} word={word} timeZone={picture.timeZone} now={now} onSay={onReply} />
+      ))}
       <Problem className="mt-2">{problem}</Problem>
       <Primary onClick={onShare} icon={Share2} className="mt-4">
         Text the link to neighbors
@@ -76,7 +85,7 @@ export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, pr
 }
 
 /** The pet was seen: where, the engine's first line, and one button to get there. */
-export function OwnerSighting({ picture, name, hot, now, onGoing, onHome, problem }) {
+export function OwnerSighting({ picture, name, hot, now, onGoing, onHome, problem, heard = [], onReply = null }) {
   const zone = picture.timeZone;
   const advice = adviceFor({ petSpecies: picture.pet?.species, escapeScenario: picture.pet?.howOut, petDescription: picture.pet?.description, lastSeenAt: picture.lastSeen?.at });
   const where = placeWords(hot.place);
@@ -100,6 +109,10 @@ export function OwnerSighting({ picture, name, hot, now, onGoing, onHome, proble
       <Note className="mt-2 text-center">
         {hot.ownerGoingAt ? `The person who saw ${name} was told you are coming, at ${clockTime(hot.ownerGoingAt, zone)}.` : `The person who saw ${name} is told you are coming.`}
       </Note>
+      {/* Under the way there, which comes first on this card. */}
+      {heard.map((word) => (
+        <Word key={word.id} word={word} timeZone={picture.timeZone} now={now} onSay={onReply} />
+      ))}
       <div className="mt-1 flex items-center justify-between gap-3">
         <QuietLink onClick={onHome}>{name} is back with me</QuietLink>
       </div>
