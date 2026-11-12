@@ -11,14 +11,14 @@ jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
   default: {
     searchMessage: { count: jest.fn(async () => 0), create: jest.fn(async ({ data }) => ({ id: 'msg-1', createdAt: new Date('2026-11-12T22:00:00Z'), seenAt: null, ...data })), findMany: jest.fn(async () => []), updateMany: jest.fn(async () => ({ count: 0 })) },
-    notification: { create: jest.fn(async () => ({})) },
+    notification: { create: jest.fn(async () => ({})), count: jest.fn(async () => 0) },
   },
 }));
 jest.mock('@/app/lib/push', () => ({ __esModule: true, isPushConfigured: jest.fn(() => true), sendPushToUser: jest.fn(async () => ({ sent: 1 })) }));
 
 import prisma from '@/app/lib/prisma';
 import { sendPushToUser } from '@/app/lib/push';
-import { sendWord, wordsForDesk, wordsForPerson, cleanWord, WordError, WORD_MAX, WORDS_PER_HOUR, WORD_NOTICE } from '@/app/lib/searchTalk';
+import { sendWord, wordsForDesk, wordsForPerson, cleanWord, WordError, WORD_MAX, WORDS_PER_HOUR, DESK_WORDS_PER_HOUR, OWNER_BELLS_PER_HOUR, WORD_NOTICE } from '@/app/lib/searchTalk';
 import { handleFor } from '@/app/lib/searchTeam';
 
 const CASE = 'case-max';
@@ -33,7 +33,9 @@ const NOW = new Date('2026-11-12T22:00:00Z');
 
 beforeEach(() => {
   jest.clearAllMocks();
+  prisma.searchMessage.count.mockReset();
   prisma.searchMessage.count.mockResolvedValue(0);
+  prisma.notification.count.mockResolvedValue(0);
 });
 
 describe('cleanWord', () => {
@@ -97,6 +99,29 @@ describe('sendWord: who may write to whom', () => {
     expect(prisma.notification.create.mock.calls[0][0].data).toMatchObject({ userId: 'u-avery', title: 'Sarah, searching for Max' });
     // The owner is never written to here, so there is nothing for the owner to answer this way.
     await expect(sendWord({ caseId: CASE, pet: PET, searcher: OWNER, text: 'hello all', now: NOW })).rejects.toMatchObject({ code: 'NO_ONE' });
+  });
+
+  test('joining takes no account, so a search\'s desk is also limited as a whole, and the owner\'s phone rings only so often', async () => {
+    // One person under their own limit, on a search whose helpers have together sent the desk too much this hour.
+    prisma.searchMessage.count.mockImplementation(async ({ where }) => (where.fromId ? 2 : where.fromDesk === false ? DESK_WORDS_PER_HOUR : 0));
+    await expect(sendWord({ caseId: CASE, pet: PET, searcher: HELPER, text: 'one more', now: NOW })).rejects.toMatchObject({ status: 429, code: 'TOO_MANY', message: 'A lot of messages have been sent on this search in the last hour. Call the owner if it is urgent.' });
+    expect(prisma.searchMessage.create).not.toHaveBeenCalled();
+    expect(prisma.searchMessage.count).toHaveBeenCalledWith({ where: { caseId: CASE, fromDesk: false, createdAt: { gte: new Date(NOW.getTime() - 3600000) } } });
+    // The owner writing to a helper is not counted against the helpers' limit.
+    await expect(sendWord({ caseId: CASE, pet: PET, searcher: OWNER, to: DANA, text: 'Thanks.', now: NOW })).resolves.toMatchObject({ fromDesk: true });
+
+    // Under both limits, but the owner's bell has rung its share this hour: the word is kept and shown, quietly.
+    jest.clearAllMocks();
+    prisma.searchMessage.count.mockReset();
+    prisma.searchMessage.count.mockResolvedValue(0);
+    prisma.notification.count.mockResolvedValue(OWNER_BELLS_PER_HOUR);
+    const row = await sendWord({ caseId: CASE, pet: PET, searcher: HELPER, text: 'Gate open.', now: NOW });
+    expect(row).toMatchObject({ text: 'Gate open.', fromDesk: false });
+    expect(prisma.notification.count).toHaveBeenCalledWith({ where: { userId: 'u-avery', type: WORD_NOTICE, createdAt: { gte: new Date(NOW.getTime() - 3600000) } } });
+    expect(prisma.notification.create).not.toHaveBeenCalled();
+    expect(sendPushToUser).not.toHaveBeenCalled();
+    expect(DESK_WORDS_PER_HOUR).toBeGreaterThan(WORDS_PER_HOUR);
+    expect(OWNER_BELLS_PER_HOUR).toBeLessThan(WORDS_PER_HOUR);
   });
 
   test('nothing to say is refused, and so is a flood', async () => {

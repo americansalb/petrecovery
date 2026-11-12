@@ -34,6 +34,18 @@ import { handleFor } from '@/app/lib/searchTeam';
 export const WORD_MAX = 400;
 /** How many messages one person may send on one search in an hour. */
 export const WORDS_PER_HOUR = 30;
+/**
+ * How many messages all the helpers of one search may send its desk in an
+ * hour. Joining takes no account, so the limit on one person is not a
+ * limit on someone who joins many times.
+ */
+export const DESK_WORDS_PER_HOUR = 120;
+/**
+ * How many of those ring the owner's bell and phone in an hour. Past it a
+ * message is still kept and shown on the search screen; it only stops
+ * making a noise.
+ */
+export const OWNER_BELLS_PER_HOUR = 12;
 export const WORD_NOTICE = 'SEARCH_WORD';
 
 /** A message as it is stored: one line breaks kept, everything else that is not text removed, cut to length. */
@@ -71,8 +83,13 @@ export async function sendWord({ caseId, pet, searcher, to = null, text, now = n
     const writtenTo = searcher.isOwner ? 0 : await prisma.searchMessage.count({ where: { caseId, toId: searcher.id } });
     if (!writtenTo) throw new WordError('Pick who it is for.', 400, 'NO_ONE');
   }
-  const recent = await prisma.searchMessage.count({ where: { caseId, fromId: searcher.id, createdAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) } } });
+  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const recent = await prisma.searchMessage.count({ where: { caseId, fromId: searcher.id, createdAt: { gte: hourAgo } } });
   if (recent >= WORDS_PER_HOUR) throw new WordError('That is a lot of messages in an hour. Call the owner if it is urgent.', 429, 'TOO_MANY');
+  if (!to) {
+    const toDesk = await prisma.searchMessage.count({ where: { caseId, fromDesk: false, createdAt: { gte: hourAgo } } });
+    if (toDesk >= DESK_WORDS_PER_HOUR) throw new WordError('A lot of messages have been sent on this search in the last hour. Call the owner if it is urgent.', 429, 'TOO_MANY');
+  }
 
   const row = await prisma.searchMessage.create({
     data: { caseId, fromId: searcher.id, fromName: searcher.firstName, fromDesk: Boolean(to), toId: to?.id || null, toName: to?.name || null, text: words },
@@ -94,7 +111,9 @@ export async function sendWord({ caseId, pet, searcher, to = null, text, now = n
     // The owner by name; anyone else who came to run a search as the people running it.
     if (!String(to.id).startsWith('v:')) await tell(to.id, searcher.isOwner ? `${searcher.firstName}, about the search for ${name}` : `About the search for ${name}`);
   } else if (pet?.reporterId) {
-    await tell(pet.reporterId, `${searcher.firstName}, searching for ${name}`);
+    // Kept and shown either way; it rings the owner's bell and phone only so many times an hour.
+    const bells = await prisma.notification.count({ where: { userId: pet.reporterId, type: WORD_NOTICE, createdAt: { gte: hourAgo } } }).catch(() => 0);
+    if (bells < OWNER_BELLS_PER_HOUR) await tell(pet.reporterId, `${searcher.firstName}, searching for ${name}`);
   }
   return row;
 }
