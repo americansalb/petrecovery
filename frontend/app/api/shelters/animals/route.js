@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { searchPetfinder, searchRescueGroups, getConfiguredSources } from '@/app/lib/shelterApi';
+import { withRateLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
+
+const LIMIT = { windowMs: 60 * 1000, maxRequests: 10, blockDurationMs: 2 * 60 * 1000 };
 
 /**
  * GET /api/shelters/animals
@@ -8,6 +11,11 @@ import { searchPetfinder, searchRescueGroups, getConfiguredSources } from '@/app
  */
 export async function GET(request) {
   try {
+    // Each request here asks up to three outside services, on this site's keys. It took no sign-in and had no
+    // limit of its own, so anyone could spend the whole of their allowance.
+    const limited = await withRateLimitAsync(request, LIMIT, 'shelters:animals');
+    if (!limited.success) return rateLimitResponse(limited);
+
     const { searchParams } = new URL(request.url);
 
     const params = {
@@ -18,10 +26,10 @@ export async function GET(request) {
       age: searchParams.get('age'),
       color: searchParams.get('color'),
       location: searchParams.get('location'),
-      distance: parseInt(searchParams.get('distance') || '50'),
+      distance: Math.min(Math.max(parseInt(searchParams.get('distance') || '50', 10) || 50, 1), 500),
       status: searchParams.get('status') || 'adoptable',
-      page: parseInt(searchParams.get('page') || '1'),
-      limit: parseInt(searchParams.get('limit') || '20'),
+      page: Math.min(Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1), 100),
+      limit: Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10) || 20, 1), 50),
     };
 
     const source = searchParams.get('source'); // 'petfinder', 'rescuegroups', 'all'

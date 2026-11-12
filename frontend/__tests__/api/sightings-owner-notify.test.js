@@ -3,12 +3,22 @@
  * when it actually delivered (no false hope), and must actually deliver when the
  * case has an owner. EA found /api/sightings returned "the owner has been
  * notified" while the send was a TODO (a false confirmation on a sighting of a
- * missing pet - the worst cruelty-class failure). Fixed: real in-app + email
- * delivery, honest copy gated on ownerNotified.
+ * missing pet - the worst cruelty-class failure).
  *
- * Completes the cruelty-gate family lock: found-match (CRIT-A), sightings
- * (CRIT-C). Asserts behavior, not just status.
+ * That was fixed in this route, and this file tested the fix against a
+ * database stand-in that accepts any field. The real database did not: the
+ * route's first write named a field the Sighting table does not have, so on
+ * the site every report failed, the person was told so, and the owner heard
+ * nothing. The first test below reads the schema to show it.
+ *
+ * So the route is switched off, and the page that sent to it opens the
+ * working form (__tests__/api/witness-sighting.test.js covers that path: it
+ * tells the owner, and says who was told only when they were). What is
+ * asserted here is that the old route claims nothing and writes nothing.
  */
+
+import fs from 'fs';
+import path from 'path';
 
 import { NextRequest } from 'next/server';
 
@@ -47,46 +57,90 @@ function report() {
   }));
 }
 
-describe('CRIT-C: sighting owner-notify is honest', () => {
+describe('the older sighting route', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getServerSession.mockResolvedValue({ user: { id: 'reporter-u', email: 'r@x.com', name: 'R' } });
     prisma.sighting.create.mockResolvedValue({ id: 'sight-1' });
     prisma.caseSighting.create.mockResolvedValue({});
+    prisma.case.findUnique.mockResolvedValue({ caseNumber: 'CASE-2026-000001', petName: 'Rex', reporterId: 'owner-1', reporter: { email: 'owner@example.com' } });
     createInAppNotification.mockResolvedValue(undefined);
     sendEmail.mockResolvedValue(undefined);
   });
 
-  test('case WITH an owner: actually notifies + copy says "owner has been notified"', async () => {
-    prisma.case.findUnique.mockResolvedValue({
-      caseNumber: 'CASE-2026-000001', petName: 'Rex', reporterId: 'owner-1', reporter: { email: 'owner@example.com' },
-    });
-    const res = await report();
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.message).toContain('owner has been notified');
-    expect(createInAppNotification).toHaveBeenCalledTimes(1);
-    expect(createInAppNotification.mock.calls[0][0].userId).toBe('owner-1');
-    expect(sendEmail.mock.calls[0][0].to).toBe('owner@example.com');
+  test('why it never worked: it wrote a field the Sighting table does not have', () => {
+    const schema = fs.readFileSync(path.join(__dirname, '../../prisma/schema.prisma'), 'utf8');
+    const model = schema.match(/model Sighting \{([\s\S]*?)\n\}/)[1];
+    const fields = model.split('\n').map((line) => line.trim().split(/\s+/)[0]).filter(Boolean);
+    expect(fields).toContain('caseId');
+    expect(fields).not.toContain('missionId');
+    const route = fs.readFileSync(path.join(__dirname, '../../app/api/sightings/route.js'), 'utf8');
+    expect(route).toMatch(/prisma\.sighting\.create\(\{\s*data: \{\s*missionId:/);
   });
 
-  test('case with NO owner: does NOT claim notified (honest copy), no notify sent', async () => {
-    prisma.case.findUnique.mockResolvedValue({ caseNumber: 'CASE-2', petName: 'Rex', reporterId: null, reporter: null });
+  test('it is switched off: 410, with where a sighting is sent from', async () => {
     const res = await report();
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.message).not.toContain('owner has been notified');
+    expect(res.status).toBe(410);
+    expect(await res.json()).toEqual({ error: "Send a sighting from the pet's own page.", code: 'NOT_AVAILABLE' });
+  });
+
+  test('it claims nothing: no "owner has been notified", and nobody is told', async () => {
+    const res = await report();
+    expect(JSON.stringify(await res.json())).not.toContain('notified');
     expect(createInAppNotification).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
-  test('owner-notify failure is isolated: sighting still succeeds, copy stays honest', async () => {
-    prisma.case.findUnique.mockResolvedValue({
-      caseNumber: 'CASE-3', petName: 'Rex', reporterId: 'owner-2', reporter: { email: 'o2@example.com' },
-    });
-    createInAppNotification.mockRejectedValue(new Error('notify down'));
-    const res = await report();
-    expect(res.status).toBe(200); // sighting not failed by the notify error
-    const body = await res.json();
-    expect(body.message).not.toContain('owner has been notified'); // didn't deliver -> don't claim it
+  test('and writes nothing, signed in or not', async () => {
+    await report();
+    getServerSession.mockResolvedValue(null);
+    expect((await report()).status).toBe(410);
+    expect(prisma.sighting.create).not.toHaveBeenCalled();
+    expect(prisma.caseSighting.create).not.toHaveBeenCalled();
+    expect(prisma.case.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe('the page that sent to it', () => {
+  const open = async (query, findFirst = jest.fn(async () => ({ caseNumber: 'AUS-2026-0001' }))) => {
+    jest.resetModules();
+    jest.doMock('@/app/lib/prisma', () => ({ __esModule: true, default: { case: { findFirst } } }));
+    jest.doMock('@/app/lib/config', () => ({ __esModule: true, getBaseUrl: () => 'https://www.reunitepets.org' }));
+    const { GET } = await import('@/app/sightings/report/route');
+    const res = await GET(new Request(`http://internal-host:10000/sightings/report${query}`));
+    return { res, findFirst };
+  };
+
+  test('opens the working form for the pet it names, on the site\'s own address', async () => {
+    const { res, findFirst } = await open('?alertId=cmw6n56y5005jf3ibf6fr90j2');
+    expect(res.status).toBe(302);
+    // The site's address, never the host the request happened to arrive on.
+    expect(res.headers.get('location')).toBe('https://www.reunitepets.org/mission-control?mission=AUS-2026-0001&action=sighting');
+    expect(findFirst.mock.calls[0][0]).toEqual({ where: { id: 'cmw6n56y5005jf3ibf6fr90j2' }, select: { caseNumber: true } });
+  });
+
+  test('a pet named by its number is found by its number', async () => {
+    const { res, findFirst } = await open('?alertId=AUS-2026-0001');
+    expect(res.headers.get('location')).toContain('/mission-control?mission=AUS-2026-0001&action=sighting');
+    expect(findFirst.mock.calls[0][0].where).toEqual({ caseNumber: 'AUS-2026-0001' });
+  });
+
+  test('with no pet named, or one that does not exist, it goes to the board', async () => {
+    const none = await open('', jest.fn(async () => null));
+    expect(none.res.headers.get('location')).toBe('https://www.reunitepets.org/lost-and-found');
+    expect(none.findFirst).not.toHaveBeenCalled();
+    const gone = await open('?alertId=nope', jest.fn(async () => null));
+    expect(gone.res.headers.get('location')).toBe('https://www.reunitepets.org/lost-and-found');
+    const long = await open(`?alertId=${'x'.repeat(500)}`);
+    expect(long.res.headers.get('location')).toBe('https://www.reunitepets.org/lost-and-found');
+    expect(long.findFirst).not.toHaveBeenCalled();
+  });
+
+  test('a lookup that fails still sends the person somewhere', async () => {
+    const quiet = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { res } = await open('?alertId=AUS-2026-0001', jest.fn(async () => { throw new Error('db down'); }));
+    quiet.mockRestore();
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe('https://www.reunitepets.org/lost-and-found');
   });
 });

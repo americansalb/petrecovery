@@ -1,14 +1,22 @@
 /**
  * Sightings API Tests
- * Tests for POST /api/sightings
+ * Tests for POST /api/sightings (the older route)
+ *
+ * This file used to test what the route did with a stand-in for the
+ * database that accepts any field: who could send, what was required, what
+ * was written. On the real database none of it happened. The route's first
+ * write named a field the Sighting table does not have, so every report
+ * failed, the person was told so, and the owner heard nothing.
+ *
+ * The route is switched off. A sighting is sent from the pet's own page or
+ * the search screen (/api/public/missions/[caseNumber]/sighting; its tests
+ * are __tests__/api/witness-sighting.test.js), and /sightings/report opens
+ * that form. What is tested here is that the older route does nothing at
+ * all, whatever it is sent and whoever sends it.
  */
 
 import { NextRequest } from 'next/server';
 
-// Mock prisma with the mock object defined INSIDE the factory, so the factory
-// does not close over a const that is still in the TDZ when the route's hoisted
-// `import prisma` fires the factory ("Cannot access 'mockPrisma' before
-// initialization"). We alias the imported mocked default as `mockPrisma` below.
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
   default: {
@@ -17,453 +25,93 @@ jest.mock('@/app/lib/prisma', () => ({
     case: { findUnique: jest.fn() },
   },
 }));
-
-// Mock session
-const mockSession = {
-  user: {
-    id: 'user-123',
-    email: 'test@example.com',
-    name: 'Test User',
-  },
-};
-
-jest.mock('next-auth', () => ({
-  getServerSession: jest.fn().mockResolvedValue(null),
-}));
-
-jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
-  authOptions: {},
-}));
-
-// The route imports authOptions from '@/app/lib/auth'; mock it so auth.js
-// (which imports prisma at module load) never evaluates during the route import.
-jest.mock('@/app/lib/auth', () => ({
-  __esModule: true,
-  authOptions: {},
-}));
-
-// Mock rate limiting (always allow)
+jest.mock('next-auth', () => ({ getServerSession: jest.fn().mockResolvedValue(null) }));
+jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('@/app/lib/rateLimit', () => ({
   withRateLimit: jest.fn().mockReturnValue({ success: true }),
   RateLimitPresets: { PUBLIC_WRITE: {} },
   rateLimitResponse: jest.fn(),
 }));
+jest.mock('@/lib/logging', () => ({ logEvent: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@/app/lib/notifications-inapp', () => ({ __esModule: true, createInAppNotification: jest.fn() }));
+jest.mock('@/app/lib/email', () => ({ __esModule: true, sendEmail: jest.fn() }));
 
-// Mock logging
-jest.mock('@/lib/logging', () => ({
-  logEvent: jest.fn().mockResolvedValue(undefined),
-}));
-
-// Import the route handler and session mock after mocks
 import { POST } from '@/app/api/sightings/route';
+import * as route from '@/app/api/sightings/route';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
+import { logEvent } from '@/lib/logging';
+import { withRateLimit } from '@/app/lib/rateLimit';
+import { createInAppNotification } from '@/app/lib/notifications-inapp';
+import { sendEmail } from '@/app/lib/email';
 
-// Alias the imported mocked default so existing `mockPrisma.*` refs work unchanged.
-const mockPrisma = prisma;
+const SESSION = { user: { id: 'user-123', email: 'test@example.com', name: 'Test User' } };
+const VALID = { alertId: 'case-1', location: 'Central Park', details: 'Saw a golden retriever', timeOfSighting: 'just_now', behavior: 'running', direction: 'north', latitude: 40.78, longitude: -73.96 };
+
+function createRequest(body) {
+  return new NextRequest('http://localhost:3000/api/sightings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: typeof body === 'string' ? body : JSON.stringify(body),
+  });
+}
 
 describe('POST /api/sightings', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default to authenticated user
-    getServerSession.mockResolvedValue(mockSession);
+    getServerSession.mockResolvedValue(SESSION);
+    prisma.sighting.create.mockResolvedValue({ id: 'sighting-1' });
+    prisma.case.findUnique.mockResolvedValue({ id: 'case-1', caseNumber: 'CASE-1', petName: 'Rex', reporterId: 'owner-1', reporter: { email: 'owner@example.com' } });
   });
 
-  // Helper to create mock request
-  function createRequest(body) {
-    return new NextRequest('http://localhost:3000/api/sightings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  }
+  const nothingHappened = () => {
+    expect(prisma.sighting.create).not.toHaveBeenCalled();
+    expect(prisma.caseSighting.create).not.toHaveBeenCalled();
+    expect(prisma.case.findUnique).not.toHaveBeenCalled();
+    expect(createInAppNotification).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(logEvent).not.toHaveBeenCalled();
+  };
 
-  describe('Authentication', () => {
-    it('should return 401 when not authenticated', async () => {
-      getServerSession.mockResolvedValue(null);
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(401);
-      expect(data.error).toContain('log in');
-    });
+  test('a complete report from someone signed in: 410, with where a sighting is sent from', async () => {
+    const res = await POST(createRequest(VALID));
+    expect(res.status).toBe(410);
+    expect(await res.json()).toEqual({ error: "Send a sighting from the pet's own page.", code: 'NOT_AVAILABLE' });
+    nothingHappened();
   });
 
-  describe('Validation', () => {
-    it('should return 400 when location is missing', async () => {
-      const request = createRequest({
-        alertId: 'case-123',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toContain('Location');
-    });
-
-    it('should return 400 when details are missing', async () => {
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        timeOfSighting: 'just_now',
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toContain('details');
-    });
-
-    it('should return 400 when timeOfSighting is missing', async () => {
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toContain('time');
-    });
-
-    it('should return 400 when neither alertId nor missionId is provided', async () => {
-      const request = createRequest({
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toContain('specify which pet');
-    });
+  test('nobody signed in: the same answer, and the session is not even read', async () => {
+    getServerSession.mockResolvedValue(null);
+    expect((await POST(createRequest(VALID))).status).toBe(410);
+    expect(getServerSession).not.toHaveBeenCalled();
+    nothingHappened();
   });
 
-  describe('Sighting Creation', () => {
-    it('should create sighting with valid data', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-123',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue(null);
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog near the park',
-        timeOfSighting: 'just_now',
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.sighting.id).toBe('sighting-123');
-    });
-
-    it('should use missionId when alertId is not provided', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-456',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue(null);
-
-      const request = createRequest({
-        missionId: 'case-456',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      await POST(request);
-
-      expect(mockPrisma.sighting.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            missionId: 'case-456',
-          }),
-        })
-      );
-    });
-
-    it('should include behavior in description', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-123',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue(null);
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-        behavior: 'friendly',
-      });
-
-      await POST(request);
-
-      expect(mockPrisma.sighting.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            description: expect.stringContaining('Behavior: friendly'),
-          }),
-        })
-      );
-    });
-
-    it('should include direction in description', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-123',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue(null);
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-        direction: 'heading north',
-      });
-
-      await POST(request);
-
-      expect(mockPrisma.sighting.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            description: expect.stringContaining('Direction: heading north'),
-          }),
-        })
-      );
-    });
-
-    it('should set latitude and longitude when provided', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-123',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue(null);
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-        latitude: 30.2672,
-        longitude: -97.7431,
-      });
-
-      await POST(request);
-
-      expect(mockPrisma.sighting.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            latitude: 30.2672,
-            longitude: -97.7431,
-          }),
-        })
-      );
-    });
-
-    it('should default coordinates to 0 when not provided', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-123',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue(null);
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      await POST(request);
-
-      expect(mockPrisma.sighting.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            latitude: 0,
-            longitude: 0,
-          }),
-        })
-      );
-    });
+  test.each([
+    ['no location', { ...VALID, location: undefined }],
+    ['no details', { ...VALID, details: undefined }],
+    ['no time', { ...VALID, timeOfSighting: undefined }],
+    ['no pet named', { ...VALID, alertId: undefined }],
+    ['a pet named by missionId', { ...VALID, alertId: undefined, missionId: 'case-2' }],
+    ['no coordinates', { ...VALID, latitude: undefined, longitude: undefined }],
+    ['an empty body', {}],
+    ['a body that is not an object', 'junk'],
+  ])('%s: the same answer, and nothing is written', async (_what, body) => {
+    expect((await POST(createRequest(body))).status).toBe(410);
+    nothingHappened();
   });
 
-  describe('CaseSighting Creation', () => {
-    it('should create CaseSighting when case exists', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-123',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue({
-        id: 'case-123',
-        lastSeenLatitude: 30.2672,
-        lastSeenLongitude: -97.7431,
-      });
-      mockPrisma.caseSighting.create.mockResolvedValue({
-        id: 'case-sighting-123',
-      });
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      await POST(request);
-
-      expect(mockPrisma.caseSighting.create).toHaveBeenCalled();
-    });
-
-    it('should not fail if CaseSighting creation fails', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-123',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue({
-        id: 'case-123',
-      });
-      mockPrisma.caseSighting.create.mockRejectedValue(new Error('DB error'));
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      // Should still succeed even if CaseSighting fails
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-    });
-
-    it('should map behavior to certainty level', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-123',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue({
-        id: 'case-123',
-        lastSeenLatitude: 30.2672,
-        lastSeenLongitude: -97.7431,
-      });
-      mockPrisma.caseSighting.create.mockResolvedValue({});
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-        behavior: 'injured', // Should map to certainty 5
-      });
-
-      await POST(request);
-
-      expect(mockPrisma.caseSighting.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            certaintyLevel: 5,
-          }),
-        })
-      );
-    });
+  test('it never says the owner was told', async () => {
+    const body = JSON.stringify(await (await POST(createRequest(VALID))).json());
+    expect(body).not.toMatch(/notified|success/i);
   });
 
-  describe('Time Mapping', () => {
-    it('should map "just_now" to about 15 minutes ago', async () => {
-      mockPrisma.sighting.create.mockResolvedValue({ id: 'sighting-123', missionId: 'case-123' });
-      mockPrisma.case.findUnique.mockResolvedValue({ id: 'case-123' });
-      mockPrisma.caseSighting.create.mockResolvedValue({});
-
-      const beforeTest = Date.now();
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      await POST(request);
-
-      const call = mockPrisma.caseSighting.create.mock.calls[0][0];
-      const sightedAt = new Date(call.data.sightedAt).getTime();
-      const expectedMin = beforeTest - 16 * 60 * 1000; // Allow 1 min variance
-      const expectedMax = beforeTest - 14 * 60 * 1000;
-
-      expect(sightedAt).toBeGreaterThanOrEqual(expectedMin);
-      expect(sightedAt).toBeLessThanOrEqual(expectedMax);
-    });
+  test('it does not count against anyone\'s limit: there is nothing to limit', async () => {
+    await POST(createRequest(VALID));
+    expect(withRateLimit).not.toHaveBeenCalled();
   });
 
-  describe('Logging', () => {
-    it('should log successful sighting', async () => {
-      const { logEvent } = require('@/lib/logging');
-      mockPrisma.sighting.create.mockResolvedValue({
-        id: 'sighting-123',
-        missionId: 'case-123',
-      });
-      mockPrisma.case.findUnique.mockResolvedValue(null);
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      await POST(request);
-
-      expect(logEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event_type: 'sighting.reported',
-          result: 'success',
-        })
-      );
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should return 500 on database error', async () => {
-      mockPrisma.sighting.create.mockRejectedValue(new Error('DB error'));
-
-      const request = createRequest({
-        alertId: 'case-123',
-        location: '123 Main St',
-        details: 'Saw the dog',
-        timeOfSighting: 'just_now',
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(500);
-      expect(data.error).toContain('Failed');
-    });
+  test('the route still has one way in, and it is this one', () => {
+    expect(Object.keys(route).filter((name) => /^(GET|POST|PUT|PATCH|DELETE)$/.test(name))).toEqual(['POST']);
   });
 });

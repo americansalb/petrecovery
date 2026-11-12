@@ -1,6 +1,19 @@
 /**
- * Sightings API - Public pet sighting reports
- * POST /api/sightings - Report a pet sighting
+ * Sightings API (the older one)
+ * POST /api/sightings - switched off
+ *
+ * A sighting is sent from the pet's own page or the search screen
+ * (/api/public/missions/[caseNumber]/sighting, app/lib/witness.js): a place
+ * on the map and a time, with no account, told to the owner and the forces
+ * looking.
+ *
+ * This older route never worked on the site: its first write named a field
+ * the schema does not have, so every report failed and the person was told
+ * so, while the owner heard nothing. It also took the place as free text
+ * and put it, as typed, into the owner's email, and pinned a sighting with
+ * no coordinates on the spot where the pet was lost. The page that sent to
+ * it (/sightings/report) now opens the working form instead. The code
+ * below stays for reference and is not reached.
  */
 
 import { NextResponse } from 'next/server';
@@ -21,7 +34,12 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/sightings - Report a pet sighting
  */
+const OLD_SIGHTING_OPEN = false;
+
 export async function POST(request) {
+  if (!OLD_SIGHTING_OPEN) {
+    return NextResponse.json({ error: 'Send a sighting from the pet\'s own page.', code: 'NOT_AVAILABLE' }, { status: 410 });
+  }
   const correlationId = crypto.randomUUID();
 
   // Apply rate limiting

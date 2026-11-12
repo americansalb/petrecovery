@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
+import { withRateLimitAsync, rateLimitResponse, RateLimitPresets } from '@/app/lib/rateLimit';
 import {
   generateSightingsHeatmap,
   generateSearchCoverageHeatmap,
@@ -13,6 +14,9 @@ import {
  */
 export async function GET(request) {
   try {
+    const limited = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_READ, 'mapping:heatmap');
+    if (!limited.success) return rateLimitResponse(limited);
+
     const { searchParams } = new URL(request.url);
     const missionId = searchParams.get('missionId');
     const type = searchParams.get('type') || 'all'; // sightings, coverage, probability, all
@@ -58,6 +62,8 @@ export async function GET(request) {
           certaintyLevel: true,
           isVerified: true,
         },
+        orderBy: { sightedAt: 'desc' },
+        take: 500,
       });
 
       result.sightings = generateSightingsHeatmap(sightings);

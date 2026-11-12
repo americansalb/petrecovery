@@ -311,7 +311,7 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 | `mobile/auth/login/route.js` | POST | **Capacitor mobile login bridge**: validates credentials like the credentials provider, then mints a real NextAuth JWT with `next-auth/jwt.encode` so the native app sends it as the session cookie. Mirrors SEC-18 block ("keep in lockstep" comment) | public; middleware 10/min | user |
 | `profile/route.js` | GET, PATCH | Own profile read/update | session | user, rescueForceMember |
 | `user/linked-accounts/route.js` | GET, DELETE | OAuth linked accounts | session | account, user |
-| `users/[id]/profile/route.js` | GET | Public user profile + stats | **public** | user, case, caseSighting |
+| `users/[id]/profile/route.js` | GET | Public user profile + stats (first name and last initial); 60 a minute per connection | **public**, rate-limited | user, case, caseSighting |
 | `legal/accept/route.js`, `legal/accept-waiver/route.js` | POST | Record ToS/waiver acceptance | session | legalDocument, user |
 | `legal/documents/route.js`, `legal/documents/[slug]/route.js` | GET | Serve legal docs | public | legalDocument |
 
@@ -391,11 +391,11 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 
 | Route | Methods | Purpose | Auth | Models |
 |---|---|---|---|---|
-| `assignments/[id]/messages/route.js` | GET, POST | Assignment chat | session | caseAssignment, squadMessage |
-| `assignments/[id]/participants/route.js` | GET, POST, DELETE | Assignment participants | session | caseAssignment, caseParticipant, rescueForceMember, user |
-| `assignments/[id]/search-areas/route.js` | GET, POST | Search areas per assignment | session | searchArea, rescueForce(+Member), caseParticipant |
-| `assignments/[id]/sessions/route.js`, `.../[sessionId]/route.js` | GET, POST; GET, PATCH | Search-session tracking | session | searchSession, caseParticipant, caseUpdate |
-| `assignments/[id]/sightings/route.js` | GET, POST | Sightings within an assignment | session | petSpotting, squadMessage, case, caseAssignment |
+| `assignments/[id]/messages/route.js` | GET, POST | Assignment chat. GET: owner, an active member of a force looking for the pet, or staff (`assignmentDoor`, `app/lib/missionControl/guard.js`); a writer is a first name and `mine`; 200 a page at most (it took no sign-in until 2026-11-12). POST: participant or force leader; text of 1,000 at most, kind CHAT or (leaders) ANNOUNCEMENT only, https pictures, 12 a minute | GET owner/force/staff; POST session | caseAssignment, squadMessage |
+| `assignments/[id]/participants/route.js` | GET, POST, DELETE | Assignment participants. GET: owner, an active member of a force looking for the pet, or staff (`assignmentDoor`, `app/lib/missionControl/guard.js`); first names; where a helper is goes to the owner and staff only (it took no sign-in until 2026-11-12) | GET owner/force/staff; POST/DELETE session | caseAssignment, caseParticipant, rescueForceMember, user |
+| `assignments/[id]/search-areas/route.js` | GET, POST | Search areas per assignment. GET: owner, an active member of a force looking for the pet, or staff (`assignmentDoor`, `app/lib/missionControl/guard.js`); first names. POST: participant; a shape of 20,000 characters at most, an acreage above 0 and up to 500, a note of 600, 10 a minute | GET owner/force/staff; POST session | searchArea, rescueForce(+Member), caseParticipant |
+| `assignments/[id]/sessions/route.js`, `.../[sessionId]/route.js` | GET, POST; GET, PATCH | Search-session tracking. GETs: owner, an active member of a force looking for the pet, or staff (`assignmentDoor`, `app/lib/missionControl/guard.js`); a walker is a first name; where a walker is goes to the walker, the owner and staff. One walk is found on the assignment the address names, never by its id alone | GETs owner/force/staff; POST/PATCH session | searchSession, caseParticipant, caseUpdate |
+| `assignments/[id]/sightings/route.js` | GET, POST | Sightings within an assignment. GET: owner, an active member of a force looking for the pet, or staff (`assignmentDoor`, `app/lib/missionControl/guard.js`); first names. POST: participant; a place on the globe, a time not in the future, a whole number 1 to 10, an address of 200 and a note of 600, https pictures; 40 an hour per assignment and the owner emailed about the first 8 (`app/lib/sightingLimits.js`); what was typed is escaped in the email; only an open search is marked and announced | GET owner/force/staff; POST session | petSpotting, squadMessage, case, caseAssignment |
 | `search/[caseId]/field/route.js` | GET, POST | Field-ops (lib/volunteer) | session | (lib) |
 | `search/[caseId]/grid/route.js` | GET, POST | Grid search assignments | session | (lib) |
 | `search/[caseId]/live/route.js` | GET | Live-ops dashboard poll (positions/stats). Owner or staff (`userHasCaseAuthority`). Its library asks for a field the schema does not have, so it answers 500 for those let in; nothing calls it | session + owner/staff | `app/lib/volunteer/liveOps` |
@@ -423,7 +423,7 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 
 | Route | Methods | Purpose | Auth | Models |
 |---|---|---|---|---|
-| `sightings/route.js` | POST | Report a pet sighting (notifies owner); also posted in the Discussion of every force looking for the pet (`app/lib/forceFeed.js`) | session, lib rate-limited | case, caseSighting, sighting, caseAssignment, squadPost |
+| `sightings/route.js` | POST | The older sighting route, switched off (410). Its first write named a field the Sighting table does not have, so it failed every time. `/sightings/report` now opens the working form (`/mission-control?mission=...&action=sighting`) | - | - |
 | `relay/[token]/route.js` | POST, GET | **Anonymous finder↔owner relay thread**; hard privacy contract — no phone/email/exact coords below MUTUAL_OPTIN | capability token, rate-limited | matchConnection |
 | `relay/[token]/messages/route.js` | POST | Send relay message | token, rate-limited | matchConnection, relayMessage |
 | `location/nearby-cases/route.js` | GET | Nearby cases (geofence lib) | session | (lib) |
@@ -560,7 +560,7 @@ All under middleware `ADMIN_ROUTES` gate (`/api/admin` requires ADMIN JWT via `g
 |---|---|---|---|---|
 | `shelter/request/route.js` | POST, GET | Shelter claim/verification request | session | shelter, shelterClaim, shelterProfile, user |
 | `shelters/search/route.js` | GET | DB shelter search. A website is sent as an http(s) address or null (`safeWebUrl`) | public | shelter |
-| `shelters/animals/route.js` | GET | Proxy search of **Petfinder / RescueGroups** animals | **public** | (external via `app/lib/shelterApi`) |
+| `shelters/animals/route.js` | GET | Proxy search of **Petfinder / RescueGroups** animals; 10 a minute per connection, page and limit clamped (each request asks up to three outside services on this site's keys) | **public**, rate-limited | (external via `app/lib/shelterApi`) |
 | `shelters/fetch/route.js` | POST, GET | Import shelters from **Apple MapKit / Petfinder** into DB | ADMIN (in-handler check) | shelter |
 | `shelters/enrich/route.js` | POST | Save a shelter's phone, website and hours. Staff only, by the role the database has (it took no sign-in until 2026-11-12, and one request could change every shelter). Ids are text; only a number a phone can dial, an http(s) address (`app/lib/safeUrl.js`) and hours of 2,000 at most are kept; 100 shelters a call, 5 calls a minute. Nothing calls it | session + staff | shelter |
 | `shelters/match/route.js` | GET | Match a case against shelter intakes | session | case |
@@ -608,7 +608,7 @@ All under middleware `ADMIN_ROUTES` gate (`/api/admin` requires ADMIN JWT via `g
 
 | Route | Methods | Purpose | Auth | Models |
 |---|---|---|---|---|
-| `volunteer/join/route.js` | POST, GET | **One-tap quick join, "no signup wall"** (deviceId-based) | session-optional | (lib quickJoin) |
+| `volunteer/join/route.js` | POST, GET | One-tap join for someone signed in, as themselves; a device id, name or phone in the request is not used (it took no sign-in and made guest accounts until 2026-11-12); 6 a minute. Nothing calls it | session | (lib quickJoin) |
 | `volunteer/engagement/route.js`, `volunteer/impact/route.js` | GET, POST | Engagement / impact stats | session | (lib) |
 | `volunteers/certifications/route.js` | GET, POST, PUT | Certifications | session | volunteerCertification, user |
 | `volunteers/schedule/route.js` | GET, POST, PUT | Shift scheduling | session | volunteerShift, shiftSignup, volunteerCertification, rescueForceMember |
@@ -656,7 +656,7 @@ All under middleware `ADMIN_ROUTES` gate (`/api/admin` requires ADMIN JWT via `g
 | `geo/leaderboard/route.js` | GET | Ladder table (min 3 rated games) plus the asker's row | public; middleware 30/min | `GeoRating` |
 | `geocode/zip/[zipCode]/route.js` | GET | ZIP lookup | public | none |
 | `mapping/grid/route.js` | GET, POST | Search grid generation/claim | session | case, caseAssignment, searchArea, user |
-| `mapping/heatmap/route.js` | GET | Sightings/coverage/probability heatmaps | **no auth** | case, caseSighting, caseAssignment, searchArea |
+| `mapping/heatmap/route.js` | GET | Sightings/coverage/probability heatmaps (places and times, no people); 60 a minute per connection, 500 sightings at most | **no auth**, rate-limited | case, caseSighting, caseAssignment, searchArea |
 | `mapping/track/route.js` | POST, GET, DELETE | GPS breadcrumb tracking | session | gpsBreadcrumb, caseAssignment, user |
 
 ### Simulator (research/dev — all **unauthenticated**)

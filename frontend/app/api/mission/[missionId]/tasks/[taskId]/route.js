@@ -9,6 +9,13 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
+import { onlyText, cut, firstWord } from '@/app/lib/searchText';
+import { withRateLimitAsync, rateLimitResponse, RateLimitPresets } from '@/app/lib/rateLimit';
+
+const REFUSAL = { error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' };
+const WRITE_LIMIT = { windowMs: 60 * 1000, maxRequests: 20, blockDurationMs: 60 * 1000 };
+const MESSAGE_MAX = 500;
 
 // =============================================================================
 // ROUTE HANDLERS
@@ -24,6 +31,9 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const limited = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'case:task-read');
+    if (!limited.success) return rateLimitResponse(limited);
+
     const { missionId, taskId } = await params;
 
     // Get current user
@@ -36,6 +46,15 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Who is on one task of one pet's search, and what the owner asked: for the owner, an active member of a
+    // force looking for the pet, and staff. It answered any account, with each person's account id and full
+    // name. A person is a first name here.
+    if (typeof missionId !== 'string' || !missionId || typeof taskId !== 'string' || !taskId) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
+    }
+    const who = await mayKnowThePeople(request, missionId);
+    if (!who.allowed) return NextResponse.json(REFUSAL, { status: who.status });
+
     // Get squad task if exists
     const squadTask = await prisma.squadTask.findFirst({
       where: { caseId: missionId, taskType: taskId },
@@ -43,15 +62,15 @@ export async function GET(request, { params }) {
         participants: {
           include: {
             user: {
-              select: { id: true, firstName: true, lastName: true },
+              select: { id: true, firstName: true },
             },
           },
         },
         completedBy: {
-          select: { id: true, firstName: true, lastName: true },
+          select: { firstName: true },
         },
         createdBy: {
-          select: { id: true, firstName: true, lastName: true },
+          select: { firstName: true },
         },
       },
     });
@@ -68,14 +87,15 @@ export async function GET(request, { params }) {
         ownerRequestedHelp: squadTask.ownerRequestedHelp,
         ownerRequestedAt: squadTask.ownerRequestedAt,
         ownerRequestedMessage: squadTask.ownerRequestedMessage,
+        // A first name, and whether it is the reader. The account id is read to say that and is not sent.
         participants: squadTask.participants.map((p) => ({
-          userId: p.user.id,
-          name: `${p.user.firstName} ${p.user.lastName || ''}`.trim(),
+          name: firstWord(p.user?.firstName) || 'A helper',
+          mine: p.user?.id === user.id,
           joinedAt: p.joinedAt,
         })),
         completedAt: squadTask.completedAt,
-        completedBy: squadTask.completedBy,
-        createdBy: squadTask.createdBy,
+        completedBy: squadTask.completedBy ? { firstName: firstWord(squadTask.completedBy.firstName) || 'A helper' } : null,
+        createdBy: squadTask.createdBy ? { firstName: firstWord(squadTask.createdBy.firstName) || 'A helper' } : null,
       } : null,
       isParticipant,
     });
@@ -98,8 +118,15 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const limited = await withRateLimitAsync(request, WRITE_LIMIT, 'case:task-write');
+    if (!limited.success) return rateLimitResponse(limited);
+
     const { missionId, taskId } = await params;
-    const body = await request.json();
+    const sent = await request.json().catch(() => null);
+    const body = sent && typeof sent === 'object' && !Array.isArray(sent) ? sent : {};
+    // What the owner writes when asking for help is text, held to a length.
+    if (typeof body.message === 'string') body.message = cut(onlyText(body.message).trim(), MESSAGE_MAX);
+    else delete body.message;
 
     // Get current user
     const user = await prisma.user.findUnique({
@@ -112,14 +139,21 @@ export async function POST(request, { params }) {
     }
 
     // Get case
-    const missionRecord = await prisma.case.findUnique({
-      where: { id: missionId },
-      select: { id: true, reporterId: true },
-    });
+    const missionRecord = typeof missionId === 'string' && missionId && typeof taskId === 'string' && taskId
+      ? await prisma.case.findUnique({
+          where: { id: missionId },
+          select: { id: true, reporterId: true },
+        })
+      : null;
 
     if (!missionRecord) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
+
+    // Joining, leaving and finishing a task on a pet's search is for the people on it: the owner, an active
+    // member of a force looking for the pet, and staff. Any account could put itself on any pet's tasks.
+    const who = await mayKnowThePeople(request, missionRecord.id);
+    if (!who.allowed) return NextResponse.json(REFUSAL, { status: who.status });
 
     const isOwner = missionRecord.reporterId === user.id;
 

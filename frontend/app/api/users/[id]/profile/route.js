@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
+import { withRateLimitAsync, rateLimitResponse, RateLimitPresets } from '@/app/lib/rateLimit';
 
 /**
  * GET /api/users/[id]/profile
@@ -7,8 +8,15 @@ import prisma from '@/app/lib/prisma';
  */
 export async function GET(request, { params }) {
   try {
+    const limited = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_READ, 'users:profile');
+    if (!limited.success) return rateLimitResponse(limited);
+    const { id } = await params;
+    if (typeof id !== 'string' || !id) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         firstName: true,
@@ -43,7 +51,7 @@ export async function GET(request, { params }) {
     // Get recent activity
     const [recentMissions, recentSightings, badges] = await Promise.all([
       prisma.case.findMany({
-        where: { reporterId: params.id, status: 'REUNITED' },
+        where: { reporterId: id, status: 'REUNITED' },
         take: 5,
         orderBy: { resolvedAt: 'desc' },
         select: {
@@ -55,7 +63,7 @@ export async function GET(request, { params }) {
         },
       }),
       prisma.caseSighting.findMany({
-        where: { reportedById: params.id, isVerified: true },
+        where: { reportedById: id, isVerified: true },
         take: 5,
         orderBy: { createdAt: 'desc' },
         select: {
@@ -66,7 +74,7 @@ export async function GET(request, { params }) {
           },
         },
       }),
-      getUserBadges(params.id, user),
+      getUserBadges(id, user),
     ]);
 
     return NextResponse.json({

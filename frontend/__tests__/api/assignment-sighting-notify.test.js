@@ -11,7 +11,7 @@ jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
   default: {
     caseParticipant: { findUnique: jest.fn(), update: jest.fn() },
-    petSpotting: { create: jest.fn() },
+    petSpotting: { create: jest.fn(), count: jest.fn(async () => 0) },
     caseAssignment: { findUnique: jest.fn() },
     case: { update: jest.fn() },
     squadMessage: { create: jest.fn() },
@@ -20,7 +20,9 @@ jest.mock('@/app/lib/prisma', () => ({
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
 jest.mock('@/app/lib/notifications-inapp', () => ({ __esModule: true, createInAppNotification: jest.fn() }));
-jest.mock('@/app/lib/email', () => ({ __esModule: true, sendEmail: jest.fn() }));
+jest.mock('@/app/lib/email', () => ({ __esModule: true, sendEmail: jest.fn(), escapeHtml: jest.requireActual('@/app/lib/email').escapeHtml }));
+jest.mock('@/app/lib/searcher', () => ({ __esModule: true, searcherFor: jest.fn(async () => null) }));
+jest.mock('@/app/lib/rateLimit', () => ({ __esModule: true, withRateLimitAsync: jest.fn(async () => ({ success: true })), rateLimitResponse: () => new Response('{}', { status: 429 }) }));
 jest.mock('@/app/lib/config', () => ({ __esModule: true, getEmailBaseUrl: () => 'http://localhost:5757' }));
 
 import { POST } from '@/app/api/assignments/[id]/sightings/route';
@@ -45,7 +47,8 @@ describe('CRIT-E: confident assignment sighting notifies the owner', () => {
     prisma.caseParticipant.findUnique.mockResolvedValue({ id: 'p1', isActive: true });
     prisma.petSpotting.create.mockResolvedValue({ id: 'spot-1', reportedBy: { id: 'searcher-1', firstName: 'S', lastName: 'R' } });
     prisma.caseParticipant.update.mockResolvedValue({});
-    prisma.caseAssignment.findUnique.mockResolvedValue({ missionId: 'case-1' });
+    prisma.petSpotting.count.mockResolvedValue(0);
+    prisma.caseAssignment.findUnique.mockResolvedValue({ missionId: 'case-1', case: { status: 'ACTIVE' } });
     prisma.case.update.mockResolvedValue({ caseNumber: 'CASE-1', petName: 'Rex', reporterId: 'owner-1', reporter: { email: 'owner@example.com' } });
     prisma.squadMessage.create.mockResolvedValue({});
     createInAppNotification.mockResolvedValue(undefined);

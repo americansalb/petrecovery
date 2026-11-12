@@ -49,7 +49,9 @@ describe('every way into the search screen asks it for something it does', () =>
     const asked = links.flatMap(({ file, line, text }) => [...text.matchAll(/[?&]action=([a-zA-Z$({}]+)/g)].map((m) => ({ file, line, action: m[1] })));
     // JoinRedirect passes on whatever the share link carried; the screen ignores anything it does not know.
     const literal = asked.filter((a) => !a.action.startsWith('$'));
-    expect(literal.map((a) => a.action).sort()).toEqual(['sighting', 'sighting', 'walk']);
+    // The third "sighting" is the older report page (/sightings/report), which now opens the screen's form.
+    expect(literal.map((a) => a.action).sort()).toEqual(['sighting', 'sighting', 'sighting', 'walk']);
+    expect(literal.map((a) => a.file)).toContain('app/sightings/report/route.js');
     expect(read('app/mission-control/SearchScreen.js')).toMatch(/if \(action === 'sighting'\) openSeen\(\);\s*else if \(action === 'walk' && /);
   });
 

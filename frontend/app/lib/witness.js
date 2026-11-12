@@ -26,6 +26,7 @@ import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
 import { sendEmail, escapeHtml } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { onSeeing } from '@/app/lib/brief';
+import { SIGHTINGS_PER_HOUR, OWNER_EMAILS_PER_HOUR } from '@/app/lib/sightingLimits';
 
 /** How sure the witness is, as the 1 to 5 certainty the sighting stores. */
 export const SURE = { SURE: 5, LIKELY: 3, UNSURE: 1 };
@@ -35,15 +36,8 @@ const DIRECTIONS = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'NORTHEAST', 'NORTHWEST', 
 const MAX_MINUTES_AGO = 7 * 24 * 60;
 const NAME_MAX = 60;
 const NOTE_MAX = 600;
-/**
- * How many sightings one pet takes in an hour, from everyone together. The route counts each connection
- * (ten a minute), which still let one sender put six hundred on a pet's map in an hour, each one an email
- * and a push to the owner; and a sender can come from many connections. A real search does not come near
- * this number: the same place a few minutes later is the same sighting and is not counted again.
- */
-export const SIGHTINGS_PER_HOUR = 40;
-/** How many of those are also emailed to the owner. Every one still rings the bell and is pushed. */
-export const OWNER_EMAILS_PER_HOUR = 8;
+// How many sightings one pet takes in an hour, and how many of them are emailed: app/lib/sightingLimits.js.
+export { SIGHTINGS_PER_HOUR, OWNER_EMAILS_PER_HOUR };
 const HOUR_MS = 60 * 60 * 1000;
 
 const clean = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max);

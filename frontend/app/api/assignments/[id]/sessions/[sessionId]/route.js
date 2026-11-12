@@ -9,35 +9,61 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { assignmentDoor } from '@/app/lib/missionControl/guard';
+import { firstWord } from '@/app/lib/searchText';
 
 export const dynamic = 'force-dynamic';
 
 // GET session details
 export async function GET(request, { params }) {
   try {
-    const { sessionId } = params;
+    // One walk on one force's search for a pet. It took no sign-in and found the walk by its id alone, whatever
+    // assignment the address named: any walk's id gave where that helper was. The walk has to be on the
+    // assignment the address names, the reader has to be the owner, in a force looking for the pet, or staff,
+    // and where the walker is goes to the walker, the owner and staff.
+    const { id: assignmentId, sessionId } = await params;
+    const door = await assignmentDoor(request, assignmentId);
+    if (door.status !== 200) {
+      return NextResponse.json({ error: door.status === 404 ? 'Assignment not found' : 'Only the owner and the forces looking for this pet can see this.', code: door.status === 404 ? 'NOT_FOUND' : 'NOT_ALLOWED' }, { status: door.status });
+    }
+    const viewerId = door.who.searcher?.userId || null;
 
-    const searchSession = await prisma.searchSession.findUnique({
-      where: { id: sessionId },
-      include: {
-        participant: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
+    const row = typeof sessionId === 'string' && sessionId
+      ? await prisma.searchSession.findFirst({
+          where: { id: sessionId, participant: { assignmentId: door.assignment.id } },
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+            endedAt: true,
+            pausedAt: true,
+            totalMinutes: true,
+            distanceMiles: true,
+            gridCellId: true,
+            divisionId: true,
+            lastLocationUpdate: true,
+            startLocation: true,
+            currentLocation: true,
+            userId: true,
+            participant: { select: { userId: true, user: { select: { firstName: true } } } },
+            gridCell: true,
           },
-        },
-        gridCell: true,
-      },
-    });
+        })
+      : null;
 
-    if (!searchSession) {
+    if (!row) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
+
+    const { userId, participant, startLocation, currentLocation, ...walk } = row;
+    const mine = Boolean(viewerId && (userId === viewerId || participant?.userId === viewerId));
+    const seesPlaces = Boolean(mine || door.who.searcher?.isOwner || door.who.staff);
+    const searchSession = {
+      ...walk,
+      mine,
+      walker: firstWord(participant?.user?.firstName) || 'A helper',
+      ...(seesPlaces ? { startLocation, currentLocation } : {}),
+    };
 
     return NextResponse.json({ session: searchSession });
   } catch (error) {
