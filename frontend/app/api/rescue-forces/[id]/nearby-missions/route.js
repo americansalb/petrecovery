@@ -71,7 +71,8 @@ export async function GET(request, { params }) {
         status: true,
         priority: true,
         createdAt: true,
-        ownerName: true,
+        // The owner as a first name, like the pet's own page: not the full name typed on the report.
+        reporter: { select: { firstName: true } },
         _count: {
           select: {
             sightings: true,

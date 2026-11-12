@@ -19,6 +19,7 @@ jest.mock('@/app/lib/prisma', () => ({
     caseSighting: {
       create: jest.fn(async ({ data }) => ({ id: 'sight-1', ...data })),
       findFirst: jest.fn(),
+      count: jest.fn(async () => 0),
       update: jest.fn(async ({ where, data }) => ({ id: where.id, ...data })),
     },
     searchStreet: { findMany: jest.fn(async () => []) },
@@ -86,6 +87,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   prisma.case.findFirst.mockResolvedValue(MAX);
   prisma.caseSighting.findFirst.mockResolvedValue(null);
+  prisma.caseSighting.count.mockResolvedValue(0);
   prisma.searchStreet.findMany.mockResolvedValue([]);
 });
 
@@ -310,6 +312,73 @@ describe('the same place sent again is the same sighting', () => {
   });
 });
 
+describe('one pet takes only so many sightings in an hour, from everyone together', () => {
+  const at = { lat: 30.3105, lng: -97.747, sure: 'SURE', direction: '', minutesAgo: 0, name: '', note: '', address: '' };
+
+  test('the hour is counted for the pet, whoever sent them', async () => {
+    await recordWitnessSighting('AUS-2026-0001', at, { now: NOW });
+    const { where } = prisma.caseSighting.count.mock.calls[0][0];
+    expect(where.missionId).toBe('case-max');
+    expect(NOW.getTime() - where.createdAt.gte.getTime()).toBe(60 * 60 * 1000);
+  });
+
+  test('past the number, nothing is kept and nobody is told', async () => {
+    prisma.caseSighting.count.mockResolvedValue(witness.SIGHTINGS_PER_HOUR);
+    const out = await recordWitnessSighting('AUS-2026-0001', at, { now: NOW });
+    expect(out).toEqual({ error: 'TOO_MANY', caseNumber: 'AUS-2026-0001' });
+    expect(prisma.caseSighting.create).not.toHaveBeenCalled();
+    expect(prisma.case.update).not.toHaveBeenCalled();
+    for (const told of everyoneTold) expect(told).not.toHaveBeenCalled();
+  });
+
+  test('one under the number is still taken', async () => {
+    prisma.caseSighting.count.mockResolvedValue(witness.SIGHTINGS_PER_HOUR - 1);
+    const out = await recordWitnessSighting('AUS-2026-0001', at, { now: NOW });
+    expect(out.error).toBeUndefined();
+    expect(prisma.caseSighting.create).toHaveBeenCalledTimes(1);
+  });
+
+  test('the same sighting sent again is not counted against the hour', async () => {
+    prisma.caseSighting.count.mockResolvedValue(witness.SIGHTINGS_PER_HOUR);
+    prisma.caseSighting.findFirst.mockResolvedValue({ id: 'sight-0', latitude: at.lat, longitude: at.lng, sightedAt: new Date(NOW.getTime() - 60000), createdAt: new Date(NOW.getTime() - 60000) });
+    const out = await recordWitnessSighting('AUS-2026-0001', at, { now: NOW });
+    expect(out.again).toBe(true);
+    expect(out.error).toBeUndefined();
+  });
+
+  test('the owner is emailed about the first few in an hour; the bell and the push go out for every one', async () => {
+    prisma.caseSighting.count.mockResolvedValue(witness.OWNER_EMAILS_PER_HOUR - 1);
+    await recordWitnessSighting('AUS-2026-0001', at, { now: NOW });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    jest.clearAllMocks();
+    prisma.case.findFirst.mockResolvedValue(MAX);
+    prisma.caseSighting.findFirst.mockResolvedValue(null);
+    prisma.caseSighting.count.mockResolvedValue(witness.OWNER_EMAILS_PER_HOUR);
+    const out = await recordWitnessSighting('AUS-2026-0001', at, { now: NOW });
+    expect(out.told.owner).toBe(true);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(prisma.notification.create).toHaveBeenCalledTimes(1);
+    expect(sendPushToUser).toHaveBeenCalledTimes(1);
+  });
+
+  test('the numbers are what they are meant to be', () => {
+    expect(witness.SIGHTINGS_PER_HOUR).toBe(40);
+    expect(witness.OWNER_EMAILS_PER_HOUR).toBe(8);
+  });
+
+  test('the route says so in a sentence, with when to try again, and keeps a record', async () => {
+    prisma.caseSighting.count.mockResolvedValue(witness.SIGHTINGS_PER_HOUR);
+    const res = await POST(
+      new Request('http://localhost/api/public/missions/AUS-2026-0001/sighting', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lat: 30.3105, lng: -97.747 }) }),
+      { params: { caseNumber: 'AUS-2026-0001' } }
+    );
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('600');
+    expect(await res.json()).toEqual({ error: 'Too many sightings came in this hour to take another. Try again in a few minutes.', code: 'TOO_MANY' });
+    expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: 'case.sighting_refused', error_code: 'TOO_MANY' }));
+  });
+});
+
 describe('POST /api/public/missions/[caseNumber]/sighting', () => {
   const call = (body) => POST(new Request('http://localhost/api/public/missions/AUS-2026-0001/sighting', { method: 'POST', body: JSON.stringify(body) }), { params: { caseNumber: 'AUS-2026-0001' } });
 
@@ -351,7 +420,9 @@ describe('POST /api/public/missions/[caseNumber]/sighting', () => {
 
   test('a sighting is sent, and that is all: nothing changes one afterwards', () => {
     expect(Object.keys(route).filter((name) => /^(GET|POST|PUT|PATCH|DELETE)$/.test(name))).toEqual(['POST']);
-    expect(Object.keys(witness).sort()).toEqual(['SURE', 'agoPhrase', 'checkWitnessSighting', 'recordWitnessSighting']);
+    // Two numbers (how many an hour) and the same four as before: still nothing that changes a sighting once sent.
+    expect(Object.keys(witness).sort()).toEqual(['OWNER_EMAILS_PER_HOUR', 'SIGHTINGS_PER_HOUR', 'SURE', 'agoPhrase', 'checkWitnessSighting', 'recordWitnessSighting']);
+    expect(Object.keys(witness).filter((name) => typeof witness[name] === 'function').sort()).toEqual(['agoPhrase', 'checkWitnessSighting', 'recordWitnessSighting']);
   });
 });
 

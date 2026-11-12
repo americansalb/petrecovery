@@ -59,7 +59,8 @@ export async function GET(request, { params }) {
       orderBy: { acceptedAt: 'asc' },
     });
 
-    return NextResponse.json({ assignments });
+    // Which forces, and who is on it. Not the account that accepted the pet for the force.
+    return NextResponse.json({ assignments: assignments.map(({ acceptedById, ...assignment }) => assignment) });
   } catch (error) {
     console.error('Error fetching assignments:', error);
     return NextResponse.json(

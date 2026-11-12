@@ -23,6 +23,14 @@ jest.mock('@/app/lib/prisma', () => ({
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn(async () => ({ user: { id: 'u-x', email: 'x@example.com' } })) }));
 jest.mock('@/lib/actions', () => ({ __esModule: true, getEmailService: () => ({ sendShelterEmail }), getVerificationService: () => ({ logShelterCall }) }));
+// Who is asking: the owner (the route is for the owner, the forces looking and staff; search-lists-second.test.js).
+jest.mock('@/app/lib/searcher', () => ({ __esModule: true, searcherFor: jest.fn(async () => ({ userId: 'u-x', seesNames: true, isOwner: true })) }));
+jest.mock('@/app/lib/rateLimit', () => ({
+  __esModule: true,
+  withRateLimitAsync: jest.fn(async () => ({ success: true })),
+  rateLimitResponse: () => new Response('{}', { status: 429 }),
+  RateLimitPresets: { SEARCH_READ: {} },
+}));
 
 import { POST } from '@/app/api/mission/[missionId]/shelters/[shelterId]/route';
 
@@ -38,7 +46,7 @@ test('asking the site to email a shelter sends nothing', async () => {
 });
 
 test('logging a call still works', async () => {
-  const res = await post({ action: 'call', outcome: 'ANSWERED', staffResponse: 'NO_MATCH', notes: 'They took the number.' });
+  const res = await post({ action: 'call', outcome: 'SPOKE_WITH_STAFF', staffResponse: 'NO_MATCHING_ANIMALS', notes: 'They took the number.' });
   expect(res.status).toBe(200);
   expect(logShelterCall).toHaveBeenCalledTimes(1);
   expect(sendShelterEmail).not.toHaveBeenCalled();

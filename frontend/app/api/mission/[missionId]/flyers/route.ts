@@ -5,6 +5,13 @@
  * POST /api/mission/[missionId]/flyers - Mark a GPS-verified flyer location
  *
  * See docs/Actions_Guide.md for full specification.
+ *
+ * For the people a search's own lists are for (`mayKnowThePeople`,
+ * app/lib/missionControl/guard.js): the owner, an active member of a force
+ * looking for the pet, and staff. It used to answer any account, for any
+ * pet: read where every flyer went up with its poster's account id and full
+ * name, and add a marker with a note of any length and any address for a
+ * picture. A poster is a first name here, and what is added is checked.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,6 +19,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getVerificationService, getCellId } from '@/lib/actions';
+import { mayKnowThePeople, cleanPlace } from '@/app/lib/missionControl/guard';
+import { onlyText, cut, firstWord } from '@/app/lib/searchText';
+import { withRateLimitAsync, rateLimitResponse, RateLimitPresets } from '@/app/lib/rateLimit';
 
 // =============================================================================
 // CONSTANTS
@@ -24,6 +34,22 @@ const LNG_CELL_SIZE = 0.0012;
 
 // Radius for cold spot detection (miles)
 const COLD_SPOT_RADIUS_MILES = 0.5;
+
+const NOTE_MAX = 300;
+const PHOTO_URL_MAX = 500;
+const WRITE_LIMIT = { windowMs: 60 * 1000, maxRequests: 10, blockDurationMs: 60 * 1000 };
+const REFUSAL = { error: 'Only the owner and the forces looking for this pet can see this.', code: 'NOT_ALLOWED' };
+
+/** An https address of a picture, or null. Anything else is not kept. */
+function pictureAddress(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > PHOTO_URL_MAX) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
 
 // =============================================================================
 // ROUTE HANDLERS
@@ -44,6 +70,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const limited = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'case:flyers-read');
+    if (!limited.success) return rateLimitResponse(limited) as NextResponse;
+
     const { missionId } = await params;
 
     // Verify case exists and get last seen location
@@ -60,15 +89,19 @@ export async function GET(
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    // Get all flyer postings
+    const who = await mayKnowThePeople(request, missionRecord.id);
+    if (!who.allowed) return NextResponse.json(REFUSAL, { status: who.status });
+
+    // Get all flyer postings. A poster is a first name.
     const flyers = await prisma.flyerPosting.findMany({
       where: { missionId },
       include: {
         user: {
-          select: { id: true, firstName: true, lastName: true },
+          select: { firstName: true },
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
 
     // Format flyer data
@@ -82,7 +115,7 @@ export async function GET(
       notes: flyer.notes,
       pointsEarned: flyer.pointsEarned,
       createdAt: flyer.createdAt,
-      postedBy: flyer.user,
+      postedBy: { firstName: firstWord(flyer.user?.firstName) || 'A helper' },
     }));
 
     // Calculate cold spots (areas without flyers)
@@ -137,18 +170,25 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const limited = await withRateLimitAsync(request, WRITE_LIMIT, 'case:flyers-write');
+    if (!limited.success) return rateLimitResponse(limited) as NextResponse;
+
     const { missionId } = await params;
-    const body = await request.json();
+    const sent = await request.json().catch(() => null);
+    const body = sent && typeof sent === 'object' && !Array.isArray(sent) ? sent : {};
 
-    const { latitude, longitude, photoUrl, notes } = body;
-
-    // Validate required fields
-    if (latitude === undefined || longitude === undefined) {
+    // Where the flyer went up: two real numbers on the globe. A note is text held to a length, and a picture
+    // is an https address or nothing.
+    const place = cleanPlace({ lat: body.latitude, lng: body.longitude });
+    if (!place) {
       return NextResponse.json(
         { error: 'Missing required fields: latitude, longitude' },
         { status: 400 }
       );
     }
+    const { lat: latitude, lng: longitude } = place;
+    const photoUrl = pictureAddress(body.photoUrl) || undefined;
+    const notes = typeof body.notes === 'string' ? cut(onlyText(body.notes).replace(/\s+/g, ' ').trim(), NOTE_MAX) || undefined : undefined;
 
     // Get user
     const user = await prisma.user.findUnique({
@@ -169,6 +209,9 @@ export async function POST(
     if (!missionRecord) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
+
+    const who = await mayKnowThePeople(request, missionRecord.id);
+    if (!who.allowed) return NextResponse.json(REFUSAL, { status: who.status });
 
     // Use verification service to create flyer posting
     const verificationService = getVerificationService(prisma);

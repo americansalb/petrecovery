@@ -8,6 +8,7 @@
  */
 
 import prisma from '@/app/lib/prisma';
+import { safeWebUrl } from '@/app/lib/safeUrl';
 
 export async function getPublicShelter(id) {
   if (!id) return null;
@@ -69,5 +70,15 @@ export async function getPublicShelter(id) {
   });
 
   const { claimedById, ...publicProfile } = profile;
-  return { shelter, profile: publicProfile, animals };
+  // What the page turns into links is an http(s) address or nothing (app/lib/safeUrl.js).
+  return {
+    shelter: { ...shelter, website: safeWebUrl(shelter.website) },
+    profile: {
+      ...publicProfile,
+      facebookUrl: safeWebUrl(publicProfile.facebookUrl),
+      instagramUrl: safeWebUrl(publicProfile.instagramUrl),
+      twitterUrl: safeWebUrl(publicProfile.twitterUrl),
+    },
+    animals,
+  };
 }

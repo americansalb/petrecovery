@@ -12,6 +12,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getTipService } from '@/lib/actions';
+import { mayKnowThePeople } from '@/app/lib/missionControl/guard';
+import { withRateLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
+
+const GENERATE_LIMIT = { windowMs: 60 * 1000, maxRequests: 6, blockDurationMs: 60 * 1000 };
 
 // =============================================================================
 // ROUTE HANDLERS
@@ -113,9 +117,14 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const limited = await withRateLimitAsync(request, GENERATE_LIMIT, 'case:tips-generate');
+    if (!limited.success) return rateLimitResponse(limited) as NextResponse;
+
     const { missionId } = await params;
-    const body = await request.json().catch(() => ({}));
-    const { coldSpotsCount = 0 } = body;
+    const sent = await request.json().catch(() => null);
+    // A count, and nothing else: it goes into the tips' own arithmetic.
+    const asked = sent && typeof sent === 'object' && !Array.isArray(sent) ? Number((sent as any).coldSpotsCount) : 0;
+    const coldSpotsCount = Number.isFinite(asked) ? Math.min(Math.max(Math.trunc(asked), 0), 1000) : 0;
 
     // Verify case exists
     const missionRecord = await prisma.case.findUnique({
@@ -125,6 +134,12 @@ export async function POST(
 
     if (!missionRecord) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
+    }
+
+    // Making a search's tips again writes to that search: for the owner, the forces looking and staff.
+    const who = await mayKnowThePeople(request, missionRecord.id);
+    if (!who.allowed) {
+      return NextResponse.json({ error: 'Only the owner and the forces looking for this pet can do that.', code: 'NOT_ALLOWED' }, { status: who.status });
     }
 
     // Generate tips

@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import nextDynamic from 'next/dynamic';
+import { safeWebUrl } from '@/app/lib/safeUrl';
 import {
   Search,
   LocateFixed,
@@ -51,7 +52,7 @@ function normalizeRemote(s) {
     state: s.state,
     zipCode: s.zipCode,
     phone: s.phone,
-    website: s.website,
+    website: safeWebUrl(s.website),
     latitude: s.latitude,
     longitude: s.longitude,
     isVerified: !!s.isVerified,
@@ -338,7 +339,7 @@ function ShelterCard({ shelter: s, selected, onSelect, itemRef }) {
               external
             />
           )}
-          {s.website && <ActionLink href={s.website} icon={Globe} label="Website" external />}
+          {safeWebUrl(s.website) && <ActionLink href={safeWebUrl(s.website)} icon={Globe} label="Website" external />}
           <span className="flex-1" />
           {s.hasPage ? (
             <Link

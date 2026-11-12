@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { PUBLIC_CASE_FIELDS } from '@/app/lib/casePublicFields';
 
 // GET /api/rescue-forces/[id]/available-missions - Get available cases for squad leaders to accept
 export async function GET(request, { params }) {
@@ -60,16 +61,15 @@ export async function GET(request, { params }) {
         status: { in: ['ACTIVE', 'IN_PROGRESS'] },
         id: { notIn: acceptedCaseIds },
       },
-      include: {
-        reporter: {
+      // What a pet's own page tells anyone, and which forces are on it. This asked for each report whole:
+      // the owner's email, phone, full name and account id went to any member of any force, for pets the
+      // force is not even looking for.
+      select: {
+        ...PUBLIC_CASE_FIELDS,
+        assignments: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        assignments: {
-          include: {
+            status: true,
             rescueSquad: {
               select: {
                 id: true,

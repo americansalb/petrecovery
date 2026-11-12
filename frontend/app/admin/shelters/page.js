@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/components/ui/Toast';
 import Link from 'next/link';
+import { safeWebUrl } from '@/app/lib/safeUrl';
 import {
   Building2,
   MapPin,
@@ -558,9 +559,9 @@ export default function AdminSheltersPage() {
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      {shelter.website ? (
+                      {safeWebUrl(shelter.website) ? (
                         <a
-                          href={shelter.website}
+                          href={safeWebUrl(shelter.website)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-blue-600 hover:underline flex items-center gap-1"

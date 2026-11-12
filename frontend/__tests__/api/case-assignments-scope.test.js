@@ -83,3 +83,11 @@ test('the guard: who may know the people on a search', async () => {
   prisma.user.findUnique.mockResolvedValue({ role: 'ADMIN' });
   expect(await mayKnowThePeople({}, 'case-max')).toMatchObject({ allowed: true, staff: true });
 });
+
+test('the account that accepted the pet for a force is not in the answer', async () => {
+  searcherFor.mockResolvedValue(OWNER);
+  prisma.caseAssignment.findMany.mockResolvedValueOnce([{ id: 'a-1', missionId: 'case-max', rescueSquadId: 'force-1', status: 'ACCEPTED', acceptedById: 'u-sarah', rescueSquad: { id: 'force-1', name: 'Austin' }, participants: [] }]);
+  const body = await (await get()).json();
+  expect(body.assignments).toHaveLength(1);
+  expect(JSON.stringify(body)).not.toMatch(/acceptedById|u-sarah/);
+});

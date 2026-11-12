@@ -146,6 +146,16 @@ describe('SEC-3: GET /api/reports/[id] PII brokering', () => {
     expect(body.reporter.email).toBeUndefined();
     expect(body.reporter.phone).toBeUndefined();
   });
+
+  test('a non-owner is told a first name, not the full name typed on the report', async () => {
+    getServerSession.mockResolvedValue(null);
+    prisma.case.findUnique.mockResolvedValue({ ...FOUND_REPORT, ownerName: 'Finder Person' });
+    prisma.case.findMany.mockResolvedValue([]);
+    const res = await GET(new NextRequest('http://localhost/api/reports/found-1'), { params: { id: 'found-1' } });
+    const body = await res.json();
+    expect(body.reporter).toEqual({ firstName: 'Finder' });
+    expect(JSON.stringify(body.reporter)).not.toContain('Person');
+  });
 });
 
 /**

@@ -395,7 +395,12 @@ export async function middleware(request) {
     // which keeps a ceiling on the address itself.
     // An unverified profile/seat header must not multiply mail/SMS attempts.
     // Multiplayer polling can still split its allowance between housemates.
-    const actor = pathname.startsWith('/api/geo/auth/') ? '' : playerKey(request);
+    //
+    // Only the game sends this header, so only the game's routes read it.
+    // It used to be read on every /api route: on the pet site's own routes
+    // (sign-in, reports, sightings) a made-up header bought sixteen times
+    // the address's allowance and paid for nothing.
+    const actor = pathname.startsWith('/api/geo/') && !pathname.startsWith('/api/geo/auth/') ? playerKey(request) : '';
     const rateLimitKey = `${clientIp}:${actor}:${configKey || pathname}`;
 
     const rateLimit = checkRateLimit(rateLimitKey, config);

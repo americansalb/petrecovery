@@ -16,6 +16,7 @@ import { shelterShareMetadata, genericShareMetadata } from '@/app/lib/shareMetad
 import { SHELTER_STATUS_LABELS } from '@/app/lib/shelterStatuses';
 import InquirySection from './InquirySection';
 import { SPECIES_LABELS } from '@/app/lib/species';
+import { safeWebUrl } from '@/app/lib/safeUrl';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,20 +116,20 @@ export default async function PublicShelterPage({ params }) {
                 <a href={`mailto:${shelter.email}`} className="font-medium hover:underline">{shelter.email}</a>
               </p>
             )}
-            {shelter.website && (
+            {safeWebUrl(shelter.website) && (
               <p className="inline-flex items-center gap-2">
                 <Globe className="w-4 h-4 shrink-0 text-midnight-400" />
-                <a href={shelter.website} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">
+                <a href={safeWebUrl(shelter.website)} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">
                   Website
                 </a>
               </p>
             )}
           </div>
-          {(profile.facebookUrl || profile.instagramUrl || profile.twitterUrl) && (
+          {(safeWebUrl(profile.facebookUrl) || safeWebUrl(profile.instagramUrl) || safeWebUrl(profile.twitterUrl)) && (
             <div className="flex gap-4 mt-4 text-sm font-semibold text-midnight-600">
-              {profile.facebookUrl && <a href={profile.facebookUrl} target="_blank" rel="noopener noreferrer" className="hover:text-midnight-900 underline">Facebook</a>}
-              {profile.instagramUrl && <a href={profile.instagramUrl} target="_blank" rel="noopener noreferrer" className="hover:text-midnight-900 underline">Instagram</a>}
-              {profile.twitterUrl && <a href={profile.twitterUrl} target="_blank" rel="noopener noreferrer" className="hover:text-midnight-900 underline">X</a>}
+              {safeWebUrl(profile.facebookUrl) && <a href={safeWebUrl(profile.facebookUrl)} target="_blank" rel="noopener noreferrer" className="hover:text-midnight-900 underline">Facebook</a>}
+              {safeWebUrl(profile.instagramUrl) && <a href={safeWebUrl(profile.instagramUrl)} target="_blank" rel="noopener noreferrer" className="hover:text-midnight-900 underline">Instagram</a>}
+              {safeWebUrl(profile.twitterUrl) && <a href={safeWebUrl(profile.twitterUrl)} target="_blank" rel="noopener noreferrer" className="hover:text-midnight-900 underline">X</a>}
             </div>
           )}
         </div>

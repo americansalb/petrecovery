@@ -30,7 +30,12 @@ export async function GET(request, { params }) {
 
     const missionId = params.missionId;
 
-    const assignments = await prisma.caseAssignment.findMany({
+    // A pet with no id in the address is no pet: an undefined filter would list every assignment there is.
+    if (typeof missionId !== 'string' || !missionId) {
+      return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
+    }
+
+    const rows = await prisma.caseAssignment.findMany({
       where: { missionId },
       include: {
         rescueSquad: {
@@ -46,6 +51,8 @@ export async function GET(request, { params }) {
       },
       orderBy: { acceptedAt: 'desc' },
     });
+    // Which forces are on the pet. Not the account that accepted it for the force.
+    const assignments = rows.map(({ acceptedById, ...assignment }) => assignment);
 
     return NextResponse.json({
       assignments,

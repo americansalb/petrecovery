@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { searchSheltersWithCache } from '@/app/lib/maps/shelterCacheService';
 import { geocode } from '@/app/lib/maps/appleMapServer';
+import { safeWebUrl } from '@/app/lib/safeUrl';
 
 /**
  * GET /api/shelters/search
@@ -161,11 +162,15 @@ export async function GET(request) {
       }
     }
 
+    // The directory turns a website into a link: an http(s) address or nothing (app/lib/safeUrl.js).
+    results.shelters = results.shelters.map((s) => ({ ...s, website: safeWebUrl(s.website) }));
+
     return NextResponse.json(results);
   } catch (error) {
     console.error('Shelter search error:', error);
+    // What went wrong is in the log above, and is not sent to whoever asked.
     return NextResponse.json(
-      { error: 'Failed to search shelters', details: error.message },
+      { error: 'Failed to search shelters' },
       { status: 500 }
     );
   }
