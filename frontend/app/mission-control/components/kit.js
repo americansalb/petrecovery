@@ -154,6 +154,34 @@ export function AdviceBlock({ source, lines = [], className = '' }) {
 }
 
 /** Words that something went wrong, where the person is looking. */
+/**
+ * The card's buttons, kept on the screen.
+ *
+ * A phone's card is a sheet over the map, and it scrolls once it is taller
+ * than it may be. What the owner writes to a helper makes it so: on a
+ * small phone one message was enough to push "I walked it" below the edge
+ * of the sheet. The one main button, and "I've seen {pet}" under it, do
+ * not scroll away with what was said: they stay at the bottom of the
+ * sheet and the words pass under them.
+ *
+ * `on` false leaves the buttons where they are written: a desk's card is
+ * one of several in a column, and nothing there is kept in place.
+ *
+ * The strip under the buttons is the sheet's own bottom padding, and what
+ * scrolls would show in it: the shadow, in the sheet's colour, covers it.
+ */
+export function Pinned({ on = true, children }) {
+  if (!on) return <>{children}</>;
+  return (
+    <div
+      data-pinned=""
+      className="sticky bottom-[calc(10px+env(safe-area-inset-bottom))] z-10 -mx-4 mt-4 bg-[var(--mc-surface)] px-4 shadow-[0_48px_0_0_var(--mc-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:-top-4 before:h-4 before:bg-gradient-to-t before:from-[var(--mc-surface)] before:to-transparent before:content-['']"
+    >
+      {children}
+    </div>
+  );
+}
+
 export function Problem({ children, className = '' }) {
   if (!children) return null;
   return (

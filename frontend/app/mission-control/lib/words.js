@@ -148,11 +148,16 @@ export function lookingLine(helpers = 0) {
   return helpers === 1 ? '1 neighbor is out looking' : `${helpers} neighbors are out looking`;
 }
 
-/** The owner's line: who was told. '' when nobody was alerted. */
-export function neighborsLine(neighbors, name = 'the pet') {
+/**
+ * The owner's line: who was told. '' when nobody was alerted. `helpers` is
+ * how many people are out looking: with someone out, the line does not say
+ * that none of the alerted neighbors has answered. That counts answers to
+ * the alert, and above "3 neighbors are out looking" it reads as untrue.
+ */
+export function neighborsLine(neighbors, name = 'the pet', helpers = 0) {
   if (!neighbors || !neighbors.told) return '';
   const told = neighbors.told === 1 ? '1 neighbor was alerted' : `${neighbors.told} neighbors were alerted`;
-  const answered = neighbors.answered > 0 ? ` ${neighbors.answered} answered.` : ' None has answered yet.';
+  const answered = neighbors.answered > 0 ? ` ${neighbors.answered} answered.` : helpers > 0 ? '' : ' None has answered yet.';
   return `${told}.${answered} You are told the moment someone sees ${name}.`;
 }
 

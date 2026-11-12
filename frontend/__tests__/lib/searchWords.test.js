@@ -195,6 +195,13 @@ describe('counts', () => {
     expect(neighborsLine({ told: 0, answered: 0 }, 'Max')).toBe('');
     expect(neighborsLine(null, 'Max')).toBe('');
   });
+
+  test('with people out looking, the owner is not told that nobody answered', () => {
+    // "Answered" counts answers to the alert. Above "3 neighbors are out looking" a line saying none has reads as untrue.
+    expect(neighborsLine({ told: 7, answered: 0 }, 'Max', 3)).toBe('7 neighbors were alerted. You are told the moment someone sees Max.');
+    expect(neighborsLine({ told: 7, answered: 2 }, 'Max', 3)).toBe('7 neighbors were alerted. 2 answered. You are told the moment someone sees Max.');
+    expect(neighborsLine({ told: 7, answered: 0 }, 'Max', 0)).toBe('7 neighbors were alerted. None has answered yet. You are told the moment someone sees Max.');
+  });
 });
 
 describe('the searcher\'s brief on the screen is the site\'s brief, word for word', () => {

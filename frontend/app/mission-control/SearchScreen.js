@@ -63,6 +63,9 @@ import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SI
 import { searcherBrief } from './lib/briefLines';
 import { wordsForCard, wordsForOwner } from './lib/team';
 
+/** The space between the sheet and the map's key above it, and between the sheet and the map's credit when there is no key. */
+const KEY_GAP = 8;
+
 const SearchMap = dynamic(() => import('./components/SearchMap'), {
   ssr: false,
   loading: () => <div className="h-full w-full bg-[var(--mc-ground)]" />,
@@ -158,6 +161,8 @@ function Screen({ mission }) {
   const [qr, setQr] = useState(null);
   const [sheetHeight, setSheetHeight] = useState(280);
   const sheetWatch = useRef(null);
+  const [keyHeight, setKeyHeight] = useState(0);
+  const keyWatch = useRef(null);
 
   const desk = instrument === INSTRUMENTS.COMMAND;
   const app = instrument === INSTRUMENTS.FIELD;
@@ -582,6 +587,19 @@ function Screen({ mission }) {
     sheetWatch.current.observe(el);
     setSheetHeight(el.offsetHeight);
   }, []);
+  // The height of the map's key, so the map's credit sits above it and the two never share a line.
+  const keyRef = useCallback((el) => {
+    if (keyWatch.current) keyWatch.current.disconnect();
+    keyWatch.current = null;
+    if (!el) {
+      setKeyHeight(0);
+      return;
+    }
+    setKeyHeight(el.offsetHeight);
+    if (typeof ResizeObserver === 'undefined') return;
+    keyWatch.current = new ResizeObserver(() => setKeyHeight(el.offsetHeight));
+    keyWatch.current.observe(el);
+  }, []);
 
   // ----- Gates -----
   if (!missionParam) {
@@ -645,7 +663,7 @@ function Screen({ mission }) {
 
   // The owner reads who was alerted only while nobody has seen the pet: that line ends "you are told the moment
   // someone sees Max", which is not a thing to say above a sighting.
-  const line = isOwner && !hot && !picture.sightings.length && picture.neighbors?.told ? { text: neighborsLine(picture.neighbors, name), tone: 'lost' } : situationLine(picture, now);
+  const line = isOwner && !hot && !picture.sightings.length && picture.neighbors?.told ? { text: neighborsLine(picture.neighbors, name, picture.looking?.helpers || 0), tone: 'lost' } : situationLine(picture, now);
 
   // ----- The card: one for each person at any moment -----
   let step;
@@ -733,6 +751,7 @@ function Screen({ mission }) {
       fit={fit}
       fitKey={fitKey}
       padding={{ top: showChip ? 60 : sheetHeight > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: sheetHeight + (sheetHeight > 460 ? 30 : 44), left: 64 }}
+      creditBottom={sheetHeight + KEY_GAP + (keyHeight ? keyHeight + 6 : 0)}
       label={`Map of the search for ${name}`}
     />
   );
@@ -785,7 +804,7 @@ function Screen({ mission }) {
           </p>
         )}
         {mapKey && (
-          <div className="absolute left-3 z-[400]" style={{ bottom: sheetHeight + 8 }}>
+          <div ref={keyRef} className="pointer-events-none absolute left-3 right-3 z-[400]" style={{ bottom: sheetHeight + KEY_GAP }}>
             {mapKey}
           </div>
         )}
