@@ -15,8 +15,9 @@
  */
 
 import prisma from '@/app/lib/prisma';
-import { generateGrid, cellLabel, CLAIM_TTL_MS } from '@/app/lib/searchGrid';
-import { buildWalks, walkTitle, walkMinutes } from '@/app/lib/streetWalks';
+import { generateGrid, cellLabel, cellPriority, sightingPull, CLAIM_TTL_MS, SIGHTING_PRIORITY_WINDOW_MS, FIRST_PRIORITY } from '@/app/lib/searchGrid';
+import { buildWalks, walkTitle, walkMinutes, nearestOnPath, SIGHTING_REACH_METERS } from '@/app/lib/streetWalks';
+import { askOnStreet, claimableBy, clearAsk, keptFromOthers } from '@/app/lib/searchAsk';
 import { fetchNamedWays, STREET_FETCH_MARGIN_METERS } from '@/app/lib/osmStreets';
 import { logEvent } from '@/lib/logging';
 
@@ -105,12 +106,26 @@ export async function ensureGrid(caseId, correlationId = null) {
   return grid;
 }
 
+/**
+ * Give back what someone held and did not finish. It goes back to what it
+ * was before it was taken: never walked, walked, or walked and put up for
+ * another look (`againAt`). Giving up a second pass erases neither the
+ * first pass nor the owner's request for another. Returns how many rows
+ * were given back.
+ */
+async function giveBack(model, where, free) {
+  const fresh = await model.updateMany({ where: { ...where, searchCount: 0 }, data: { ...free, status: 'UNSEARCHED' } });
+  const again = await model.updateMany({ where: { ...where, searchCount: { gt: 0 }, againAt: { not: null } }, data: { ...free, status: 'NEEDS_REVISIT' } });
+  const walked = await model.updateMany({ where: { ...where, searchCount: { gt: 0 }, againAt: null }, data: { ...free, status: 'SEARCHED' } });
+  return fresh.count + again.count + walked.count;
+}
+
 /** Someone claims a block and goes home for dinner: it must not stay theirs all night. */
 export async function sweepStaleClaims(gridId, now = Date.now()) {
-  await prisma.gridCell.updateMany({
-    where: { gridId, status: 'IN_PROGRESS', claimedAt: { lt: new Date(now - CLAIM_TTL_MS) } },
-    data: { status: 'UNSEARCHED', claimedById: null, claimedAt: null },
-  });
+  const stale = { gridId, status: 'IN_PROGRESS', claimedAt: { lt: new Date(now - CLAIM_TTL_MS) } };
+  // Looked for before anything is written: this runs on every read of the board, and almost every time there is none.
+  if (!(await prisma.gridCell.findFirst({ where: stale, select: { id: true } }))) return;
+  await giveBack(prisma.gridCell, stale, { claimedById: null, claimedAt: null });
 }
 
 /**
@@ -121,7 +136,7 @@ export async function sweepStaleClaims(gridId, now = Date.now()) {
  * `unit: 'block'`. The job picker hands these out, so a job on the pet's
  * page is the same street the search map shows.
  */
-export async function openBlocks(caseId, { take = 12 } = {}) {
+export async function openBlocks(caseId, { take = 12, viewer = null, now = Date.now() } = {}) {
   const grid = await ensureGrid(caseId);
   if (!grid) return [];
   const board = await prisma.searchGrid.findUnique({ where: { id: grid.id }, select: { streetsStatus: true } });
@@ -130,18 +145,22 @@ export async function openBlocks(caseId, { take = 12 } = {}) {
     const streets = await prisma.searchStreet.findMany({
       where: { caseId, context: false, status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } },
       orderBy: [{ priority: 'desc' }, { name: 'asc' }, { id: 'asc' }],
-      take,
     });
-    return streets.map((s) => ({
-      id: s.id,
-      unit: 'street',
-      label: walkTitle(s),
-      status: s.status,
-      priority: s.priority,
-      centerLatitude: s.centerLatitude,
-      centerLongitude: s.centerLongitude,
-      minutes: walkMinutes(s.meters),
-    }));
+    // The same order the search screen hands streets out in: next to a fresh sighting comes up.
+    const seen = await recentSightings(caseId);
+    // A street kept for someone who was asked to walk it is not offered to anyone else: taking it would be refused.
+    return byUrgency(streets.filter((s) => !keptFromOthers(s, viewer, now)).map((s) => ({ ...s, priority: livePriority(s, seen) })))
+      .slice(0, take)
+      .map((s) => ({
+        id: s.id,
+        unit: 'street',
+        label: walkTitle(s),
+        status: s.status,
+        priority: s.priority,
+        centerLatitude: s.centerLatitude,
+        centerLongitude: s.centerLongitude,
+        minutes: walkMinutes(s.meters),
+      }));
   }
   // Not fetched yet: start, and hand out squares meanwhile.
   if (!board?.streetsStatus) ensureStreets(caseId).catch(() => {});
@@ -149,7 +168,6 @@ export async function openBlocks(caseId, { take = 12 } = {}) {
   const cells = await prisma.gridCell.findMany({
     where: { gridId: grid.id, status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } },
     orderBy: [{ priority: 'desc' }, { row: 'asc' }, { col: 'asc' }],
-    take,
     select: {
       id: true,
       row: true,
@@ -160,7 +178,13 @@ export async function openBlocks(caseId, { take = 12 } = {}) {
       centerLongitude: true,
     },
   });
-  return cells.map((c) => ({ ...c, unit: 'block', label: cellLabel(c.row, c.col) }));
+  // Squares follow a fresh sighting too, as the streets do.
+  const seen = await recentSightings(caseId);
+  return cells
+    .map((c) => ({ ...c, priority: livePriority(c, seen) }))
+    .sort((a, b) => b.priority - a.priority || a.row - b.row || a.col - b.col)
+    .slice(0, take)
+    .map((c) => ({ ...c, unit: 'block', label: cellLabel(c.row, c.col) }));
 }
 
 // ---------------------------------------------------------------------------
@@ -282,14 +306,14 @@ export async function ensureStreets(caseId, { correlationId = null, fetchWays = 
 
 /**
  * A street nobody has reported back on in an hour and a half is free
- * again. One that had been walked before goes back to searched, not to
- * never searched: giving up a second pass does not erase the first.
+ * again, and goes back to what it was before it was taken (`giveBack`).
  */
 export async function sweepStaleStreetClaims(caseId, now = Date.now()) {
   const stale = { caseId, context: false, status: 'IN_PROGRESS', claimedAt: { lt: new Date(now - CLAIM_TTL_MS) } };
-  const free = { claimedById: null, claimedByName: null, claimedAt: null };
-  await prisma.searchStreet.updateMany({ where: { ...stale, searchCount: 0 }, data: { ...free, status: 'UNSEARCHED' } });
-  await prisma.searchStreet.updateMany({ where: { ...stale, searchCount: { gt: 0 } }, data: { ...free, status: 'SEARCHED' } });
+  // Looked for before anything is written: this runs on every read of the board, and almost every time there is none.
+  if (!(await prisma.searchStreet.findFirst({ where: stale, select: { id: true } }))) return;
+  // A street someone was asked to walk, started and then left for hours is nobody's ask any more.
+  await giveBack(prisma.searchStreet, stale, { claimedById: null, claimedByName: null, claimedAt: null, ...clearAsk() });
 }
 
 /**
@@ -298,7 +322,7 @@ export async function sweepStaleStreetClaims(caseId, now = Date.now()) {
  * the people holding streets go only to those the caller says may see
  * them: anyone with the link sees streets, not people.
  */
-export function streetForBoard(row, { viewer = null, withNames = false } = {}) {
+export function streetForBoard(row, { viewer = null, withNames = false, ownerId = null, ownerName = null } = {}) {
   let path = [];
   try {
     path = JSON.parse(row.path);
@@ -316,21 +340,75 @@ export function streetForBoard(row, { viewer = null, withNames = false } = {}) {
     minutes: walkMinutes(row.meters),
     center: { lat: row.centerLatitude, lng: row.centerLongitude },
     priority: row.priority,
+    // The owner asked for it first: the next people are sent here before anywhere else.
+    first: row.priority >= FIRST_PRIORITY,
     status: row.status,
     claimedAt: row.claimedAt,
     searchedAt: row.searchedAt,
     searchCount: row.searchCount,
+    // Put down as walked from the desk, for someone who walked it without the site.
+    marked: isMark(row.searchedById),
     mine: Boolean(viewer && row.claimedById === viewer),
     ...(withNames ? { claimedByName: row.claimedById ? row.claimedByName || 'A helper' : null, searchedByName: row.searchedByName || null } : {}),
+    // Whether it is kept for someone the person running the search asked (app/lib/searchAsk.js): everyone
+    // learns only that it is kept, the person asked that it is theirs, and who was asked goes where names go.
+    ...askOnStreet(row, { viewer, withNames, ownerId, ownerName }),
   };
 }
+
+// The priority a street or a square is asked for first with (app/lib/searchGrid.js).
+export { FIRST_PRIORITY };
+
+/** "m:" and a user id: walked by someone off the site, and put down by that user. Not a person out searching. */
+const MARK = 'm:';
+export const isMark = (id) => typeof id === 'string' && id.startsWith(MARK);
+
+/** The sightings of the last three days, as the priority rule reads them. One a witness took back does not count. */
+export async function recentSightings(caseId, now = Date.now()) {
+  const rows = await prisma.caseSighting
+    .findMany({
+      where: { missionId: caseId, sightedAt: { gte: new Date(now - SIGHTING_PRIORITY_WINDOW_MS) }, OR: [{ witnessState: null }, { witnessState: { not: 'NOT_THE_PET' } }] },
+      select: { latitude: true, longitude: true, sightedAt: true },
+    })
+    .catch(() => []);
+  return (rows || []).map((r) => ({ lat: r.latitude, lng: r.longitude, at: r.sightedAt }));
+}
+
+/**
+ * A street's priority as it stands now: what the board stored, pulled up
+ * by any fresh sighting next to it. "Next to" is measured from the street's
+ * own line where the row carries one, so the street the pet was seen on
+ * comes first however long it is; a square is measured from its middle.
+ */
+export function livePriority(row, sightings, now = Date.now()) {
+  if (!sightings?.length) return row.priority;
+  let path = null;
+  if (typeof row.path === 'string') {
+    try {
+      path = JSON.parse(row.path);
+    } catch {
+      path = null;
+    }
+  }
+  const middle = { lat: row.centerLatitude, lng: row.centerLongitude };
+  let pull = 0;
+  for (const s of sightings) {
+    if (typeof s?.lat !== 'number' || typeof s?.lng !== 'number') continue;
+    const on = path && path.length > 1 ? nearestOnPath(s, path) : null;
+    const center = on && on.lat != null ? { lat: on.lat, lng: on.lng } : middle;
+    pull = Math.max(pull, sightingPull({ center, sightings: [s], cellSizeMeters: SIGHTING_REACH_METERS, now }));
+  }
+  return Math.max(row.priority, pull);
+}
+
+const byUrgency = (rows) => [...rows].sort((a, b) => b.priority - a.priority || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0) || (a.id < b.id ? -1 : 1));
 
 /**
  * The streets of a case's board, most urgent first, or null when the
  * board is not on streets (not fetched yet, none on the map, or no
  * last-seen point). Sweeps stale claims on the way, like the squares do.
  */
-export async function readStreets(caseId, { viewer = null, withNames = false } = {}) {
+export async function readStreets(caseId, { viewer = null, withNames = false, ownerId = null, ownerName = null } = {}) {
   const grid = await prisma.searchGrid.findUnique({ where: { caseId }, select: { streetsStatus: true } });
   if (grid?.streetsStatus !== 'READY') return null;
   await sweepStaleStreetClaims(caseId);
@@ -339,7 +417,10 @@ export async function readStreets(caseId, { viewer = null, withNames = false } =
     orderBy: [{ priority: 'desc' }, { name: 'asc' }, { id: 'asc' }],
   });
   if (!rows.length) return null;
-  return rows.map((row) => streetForBoard(row, { viewer, withNames }));
+  // A board's priorities are worked out when it is made. Sightings come later, so they are applied here, on
+  // every read: the streets next to a fresh sighting move up the order with nothing rewritten.
+  const seen = await recentSightings(caseId);
+  return byUrgency(rows.map((row) => ({ ...row, priority: livePriority(row, seen) }))).map((row) => streetForBoard(row, { viewer, withNames, ownerId, ownerName }));
 }
 
 /**
@@ -378,28 +459,54 @@ export async function readCells(caseId, { viewer = null, withNames = false } = {
     select: {
       id: true, row: true, col: true, centerLatitude: true, centerLongitude: true,
       northLat: true, southLat: true, eastLng: true, westLng: true,
-      status: true, priority: true, claimedById: true, claimedAt: true, searchedAt: true, searchCount: true,
+      status: true, priority: true, claimedById: true, claimedAt: true, searchedAt: true, searchCount: true, searchedByKey: true,
     },
   });
-  let nameById = {};
+  // Who holds a square, and who walked it or put it down as walked: first names, and only for those who may see
+  // them. A helper with no account is known by the name they joined with.
+  let nameOf = () => null;
   if (withNames) {
-    const ids = [...new Set(cells.map((c) => c.claimedById).filter((id) => id && !id.startsWith('v:')))];
-    const holders = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true } }) : [];
-    nameById = Object.fromEntries(holders.map((u) => [u.id, u.firstName || 'A helper']));
+    const who = (key) => (key ? (isMark(key) ? key.slice(MARK.length) : key) : null);
+    const keys = [...new Set(cells.flatMap((c) => [c.claimedById, who(c.searchedByKey)]).filter(Boolean))];
+    const userIds = keys.filter((id) => !id.startsWith('v:'));
+    const helperIds = keys.filter((id) => id.startsWith('v:')).map((id) => id.slice(2));
+    const [users, helpers] = await Promise.all([
+      userIds.length ? prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, firstName: true } }) : [],
+      helperIds.length ? prisma.missionVolunteer.findMany({ where: { id: { in: helperIds } }, select: { id: true, displayName: true } }) : [],
+    ]);
+    const names = Object.fromEntries([...(users || []).map((u) => [u.id, u.firstName]), ...(helpers || []).map((h) => [`v:${h.id}`, h.displayName])]);
+    nameOf = (key) => (key ? String(names[who(key)] || '').trim().split(/\s+/)[0] || 'A helper' : null);
   }
-  return cells.map(({ claimedById, ...c }) => ({
+  // Squares follow a fresh sighting too, as the streets do: applied on every read, with nothing rewritten.
+  const seen = await recentSightings(caseId);
+  return cells.map(({ claimedById, searchedByKey, ...c }) => ({
     ...c,
+    priority: livePriority(c, seen),
+    first: c.priority >= FIRST_PRIORITY,
+    marked: isMark(searchedByKey),
     label: cellLabel(c.row, c.col),
     title: `Block ${cellLabel(c.row, c.col)}`,
     center: { lat: c.centerLatitude, lng: c.centerLongitude },
     minutes: 20,
     mine: Boolean(viewer && claimedById === viewer),
-    ...(withNames ? { claimedByName: claimedById ? nameById[claimedById] || 'A helper' : null } : {}),
+    ...(withNames ? { claimedByName: nameOf(claimedById), searchedByName: nameOf(searchedByKey) } : {}),
   }));
 }
 
 const CLAIMABLE = ['UNSEARCHED', 'IN_PROGRESS', 'NEEDS_REVISIT', 'SEARCHED'];
 export const BOARD_ACTIONS = ['claim', 'release', 'searched'];
+/**
+ * Steering, from the desk: the person running the search (the owner:
+ * app/lib/searcher.js, `leads`) decides where the next helpers go and
+ * records ground covered off the site. None of these is going out to
+ * search, so none needs the waiver, and none is open to anyone else.
+ *
+ *   first   send the next people here before anywhere else
+ *   normal  take that back: the street returns to its place in the order
+ *   walked  put it down as walked, for someone who walked it without the site
+ *   again   a walked street needs another look, and is handed out again
+ */
+export const STEER_ACTIONS = ['first', 'normal', 'walked', 'again'];
 
 /**
  * The three verbs of the board: claim, release, searched, on a street or
@@ -413,9 +520,11 @@ export const BOARD_ACTIONS = ['claim', 'release', 'searched'];
  * back whatever they held.
  *
  * Returns { item } (the row as the board sends it, for this searcher) or
- * { error: 'NOT_FOUND' | 'TAKEN' | 'NOT_YOURS' | 'NOT_CLAIMED', title }.
+ * { error: 'NOT_FOUND' | 'TAKEN' | 'ASKED' | 'NOT_YOURS' | 'NOT_CLAIMED', title }.
+ * ASKED: the street is being kept for someone the person running the
+ * search asked to walk it (app/lib/searchAsk.js).
  */
-export async function actOnBoard({ caseId, unit, id, action, searcher, now = Date.now() }) {
+export async function actOnBoard({ caseId, unit, id, action, searcher, ownerId = null, ownerName = null, now = Date.now() }) {
   const streets = unit === 'street';
   const grid = await prisma.searchGrid.findUnique({ where: { caseId }, select: { id: true } });
   if (!grid) return { error: 'NOT_FOUND', title: null };
@@ -426,13 +535,78 @@ export async function actOnBoard({ caseId, unit, id, action, searcher, now = Dat
   if (!before) return { error: 'NOT_FOUND', title: null };
   const title = streets ? walkTitle(before) : `Block ${cellLabel(before.row, before.col)}`;
   const me = searcher.id;
-  const free = { claimedById: null, claimedAt: null, ...(streets ? { claimedByName: null } : {}) };
+  // A street given back or walked is nobody's ask any more (app/lib/searchAsk.js).
+  const free = { claimedById: null, claimedAt: null, ...(streets ? { claimedByName: null, ...clearAsk() } : {}) };
 
-  if (action === 'claim') {
-    const held = { claimedById: me, status: 'IN_PROGRESS' };
-    await prisma.searchStreet.updateMany({ where: { caseId, ...held, searchCount: 0, NOT: { id } }, data: { claimedById: null, claimedByName: null, claimedAt: null, status: 'UNSEARCHED' } });
-    await prisma.searchStreet.updateMany({ where: { caseId, ...held, searchCount: { gt: 0 }, NOT: { id } }, data: { claimedById: null, claimedByName: null, claimedAt: null, status: 'SEARCHED' } });
-    await prisma.gridCell.updateMany({ where: { gridId: grid.id, ...held, NOT: { id } }, data: { claimedById: null, claimedAt: null, status: 'UNSEARCHED' } });
+  // The place the search itself gives this street or square: by how far it is from where the pet was lost.
+  // (A board's stored priorities can hold the sightings known when it was made. Those are applied again on
+  // every read while they are fresh, so the place a street goes back to is the one distance alone gives it.)
+  // `onlyIfFirst` writes only where the row is asked for first at that moment.
+  const backToItsPlace = async ({ onlyIfFirst = false } = {}) => {
+    const board = await prisma.searchGrid.findUnique({ where: { id: grid.id }, select: { centerLatitude: true, centerLongitude: true, radiusMiles: true, cellSizeMeters: true } });
+    const natural = cellPriority({
+      center: { lat: before.centerLatitude, lng: before.centerLongitude },
+      lastSeen: { lat: board.centerLatitude, lng: board.centerLongitude },
+      radiusMeters: board.radiusMiles * 1609.344,
+      cellSizeMeters: streets ? SIGHTING_REACH_METERS : board.cellSizeMeters,
+      now,
+    });
+    await model.updateMany({ where: { id, ...scope, ...(onlyIfFirst ? { priority: { gte: FIRST_PRIORITY } } : {}) }, data: { priority: natural } });
+  };
+  // Asked for first, and now walked: the ask is met, so the next people are not sent to it ahead of everything
+  // again. Decided by what the row holds when this is written, not by `before`: it may have been asked for first
+  // while it was being walked. The walk is recorded either way.
+  const askMet = () => backToItsPlace({ onlyIfFirst: true }).catch(() => {});
+
+  if (STEER_ACTIONS.includes(action)) {
+    if (!searcher.leads) return { error: 'NOT_ALLOWED', title };
+    if (action === 'first') {
+      // Each write is on what the row is at that moment, never on what was read a moment ago: someone may have
+      // taken the street in between, and a street somebody is on must stay theirs.
+      await model.updateMany({ where: { id, ...scope }, data: { priority: FIRST_PRIORITY } });
+      // A street that has been walked and is asked for first is, by that, due another look: marked so wherever
+      // it is now (someone may be on a second pass), so that if it is given back it is still to walk, and first.
+      await model.updateMany({ where: { id, ...scope, searchCount: { gt: 0 } }, data: { againAt: new Date(now) } });
+      await model.updateMany({ where: { id, ...scope, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT' } });
+    } else if (action === 'normal') {
+      await backToItsPlace();
+    } else if (action === 'walked') {
+      // Someone holding it marks it themselves. This is for a street nobody on the site is on.
+      const marked = await model.updateMany({
+        where: { id, ...scope, status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } },
+        data: {
+          status: 'SEARCHED',
+          searchedAt: new Date(now),
+          searchCount: { increment: 1 },
+          againAt: null,
+          ...(streets ? { searchedById: `${MARK}${searcher.userId}`, searchedByName: searcher.firstName, ...clearAsk() } : { searchedById: null, searchedByKey: `${MARK}${searcher.userId}` }),
+        },
+      });
+      if (marked.count === 0) {
+        // Said from what the row is now: someone may have taken it since it was read.
+        const current = await model.findFirst({ where: { id, ...scope }, select: { status: true } });
+        return { error: current?.status === 'IN_PROGRESS' ? 'SOMEONE_ON_IT' : 'ALREADY_WALKED', title };
+      }
+      await askMet();
+      await prisma.searchGrid.update({ where: { id: grid.id }, data: { lastActivityAt: new Date(now), ...(streets ? {} : { cellsSearched: { increment: 1 } }) } }).catch(() => {});
+    } else {
+      const again = await model.updateMany({ where: { id, ...scope, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT', againAt: new Date(now) } });
+      if (again.count === 0) {
+        // Said from what the row is now: someone may be on it, or it may already be down for another look.
+        const current = await model.findFirst({ where: { id, ...scope }, select: { status: true } });
+        return { error: current?.status === 'IN_PROGRESS' ? 'SOMEONE_ON_IT' : current?.status === 'NEEDS_REVISIT' ? 'ALREADY_AGAIN' : 'NOT_WALKED', title };
+      }
+    }
+  } else if (action === 'claim') {
+    // A street someone was asked to walk is kept for them for a while: anyone else is told to pick another,
+    // before anything they hold is given up for it.
+    if (streets && keptFromOthers(before, me, now)) return { error: 'ASKED', title };
+    // One job per person: whatever else they held goes back to what it was.
+    const held = { claimedById: me, status: 'IN_PROGRESS', NOT: { id } };
+    await giveBack(prisma.searchStreet, { caseId, ...held }, { claimedById: null, claimedByName: null, claimedAt: null, ...clearAsk() });
+    await giveBack(prisma.gridCell, { gridId: grid.id, ...held }, { claimedById: null, claimedAt: null });
+    // What taking it does to its ask: the person asked has now seen it; an ask of someone else that has lapsed is over.
+    const askNow = !streets || !before.askedOfId ? {} : before.askedOfId === me ? (before.askedSeenAt ? {} : { askedSeenAt: new Date(now) }) : clearAsk();
     const won = await model.updateMany({
       where: {
         id,
@@ -441,15 +615,15 @@ export async function actOnBoard({ caseId, unit, id, action, searcher, now = Dat
         // Searched is claimable too: a pet moves, and a street walked three
         // hours ago is worth walking again.
         status: { in: CLAIMABLE },
+        // And not asked of someone else in the moment since it was read.
+        ...(streets ? { AND: [claimableBy(me, now)] } : {}),
       },
-      data: { status: 'IN_PROGRESS', claimedById: me, claimedAt: new Date(now), ...(streets ? { claimedByName: searcher.firstName } : {}) },
+      data: { status: 'IN_PROGRESS', claimedById: me, claimedAt: new Date(now), ...(streets ? { claimedByName: searcher.firstName } : {}), ...askNow },
     });
     if (won.count === 0) return { error: 'TAKEN', title };
   } else if (action === 'release') {
-    const mine = { id, ...scope, claimedById: me };
-    const fresh = await model.updateMany({ where: { ...mine, searchCount: 0 }, data: { ...free, status: 'UNSEARCHED' } });
-    const again = await model.updateMany({ where: { ...mine, searchCount: { gt: 0 } }, data: { ...free, status: 'SEARCHED' } });
-    if (fresh.count + again.count === 0) return { error: 'NOT_YOURS', title };
+    const given = await giveBack(model, { id, ...scope, claimedById: me }, free);
+    if (given === 0) return { error: 'NOT_YOURS', title };
   } else if (action === 'searched') {
     // Only the holder can mark it: "searched" means someone walked it.
     const marked = await model.updateMany({
@@ -459,11 +633,14 @@ export async function actOnBoard({ caseId, unit, id, action, searcher, now = Dat
         status: 'SEARCHED',
         searchedAt: new Date(now),
         searchCount: { increment: 1 },
+        // Walked, so any request for another look is met.
+        againAt: null,
         // A square's searchedById points at an account, so a helper without one is kept in searchedByKey.
         ...(streets ? { searchedById: me, searchedByName: searcher.firstName } : { searchedById: searcher.userId, searchedByKey: me }),
       },
     });
     if (marked.count === 0) return { error: 'NOT_CLAIMED', title };
+    await askMet();
     await prisma.searchGrid
       .update({ where: { id: grid.id }, data: { lastActivityAt: new Date(now), ...(streets ? {} : { cellsSearched: { increment: 1 } }) } })
       .catch(() => {});
@@ -472,16 +649,19 @@ export async function actOnBoard({ caseId, unit, id, action, searcher, now = Dat
   }
 
   const after = await model.findFirst({ where: { id, ...scope } });
-  if (streets) return { item: streetForBoard(after, { viewer: me, withNames: searcher.seesNames }), title };
+  if (streets) return { item: streetForBoard(after, { viewer: me, withNames: searcher.seesNames, ownerId, ownerName }), title };
   return {
     item: {
       id: after.id,
       label: cellLabel(after.row, after.col),
       title,
       status: after.status,
+      priority: after.priority,
+      first: after.priority >= FIRST_PRIORITY,
       claimedAt: after.claimedAt,
       searchedAt: after.searchedAt,
       searchCount: after.searchCount,
+      marked: isMark(after.searchedByKey),
       mine: after.claimedById === me,
     },
     title,

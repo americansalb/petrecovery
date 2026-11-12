@@ -20,7 +20,7 @@ import {
   phoneTel,
 } from '@/app/mission-control/lib/words';
 import { searcherBrief } from '@/app/mission-control/lib/briefLines';
-import { briefFor } from '@/app/lib/brief';
+import { briefFor, onSeeing } from '@/app/lib/brief';
 
 const ZONE = 'America/Chicago';
 const NOW = new Date('2026-11-11T04:10:00Z').getTime(); // 10:10 pm in Austin, Tuesday
@@ -209,6 +209,24 @@ describe('the searcher\'s brief on the screen is the site\'s brief, word for wor
     expect(JSON.stringify(['foot', 'car', 'home', 'gear'].map((way) => briefFor({ way, pet: { petName: 'Max', petSpecies: 'DOG' } })))).not.toMatch(/I saw/);
     expect(brief.never).toBe('If you see Max, don\'t chase or call out. Sit down, look away, tap "I\'ve seen Max". The owner\'s voice is what Max comes to.');
     expect(brief.neverFirst).toBe("If you see Max, don't chase or call out.");
+  });
+
+  test('the one sentence on the map is whole whatever the pet is called', () => {
+    // It was cut at the first full stop, which a name can hold: "If you see Mr." and, for a pet named "..", "If you see .".
+    for (const [name, species, first] of [
+      ['Mr. Whiskers', 'CAT', "If you see Mr. Whiskers, don't chase."],
+      ['..', 'DOG', "If you see .., don't chase or call out."],
+      ['St. Bernard Jr.', 'DOG', "If you see St. Bernard Jr., don't chase or call out."],
+      ['', 'CAT', "If you see the cat, don't chase."],
+    ]) {
+      const pet = { petName: name, petSpecies: species };
+      expect(onSeeing(pet)).toBe(first);
+      const brief = searcherBrief({ pet: { name, species } });
+      expect(brief.neverFirst).toBe(first);
+      // And it is the start of the brief's own last line, not a second wording of it.
+      expect(brief.never.startsWith(`${first} `)).toBe(true);
+      expect(briefFor({ way: 'car', pet })[2].startsWith(first)).toBe(true);
+    }
   });
 
   test('"Your path records as you go" is the brief\'s own sentence', () => {

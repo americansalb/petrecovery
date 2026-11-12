@@ -29,7 +29,8 @@ const SLIVER_METERS = 40;
 /** A board with hundreds of streets reads as despair, the same as the squares did. */
 export const MAX_WALKS = 120;
 /** How far a sighting reaches when it raises a street's priority. */
-const SIGHTING_REACH_METERS = 150;
+export const SIGHTING_REACH_METERS = 150;
+
 
 /** Ways a person on foot can search along. Motorways and trunk roads are not. */
 const WALKABLE = new Set([

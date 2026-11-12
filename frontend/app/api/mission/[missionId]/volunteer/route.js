@@ -18,12 +18,29 @@ import {
 } from '@/app/lib/missionControl/volunteerOps';
 import { ensureMissionControl } from '@/app/lib/missionControl/ensure';
 import { missionWhere } from '@/app/lib/shareMetadata';
+import { withRateLimitAsync } from '@/app/lib/rateLimit';
+
+/**
+ * Joining a search takes no account, so each join makes a new helper for
+ * nothing. Everyone a search has joined is listed on its owner's desk and
+ * can write to them (app/lib/searchTeam.js, app/lib/searchTalk.js), so one
+ * connection may not make helpers without end. Thirty in ten minutes is
+ * more than a whole search party joining from one house.
+ */
+const JOIN_LIMIT = { windowMs: 10 * 60 * 1000, maxRequests: 30, blockDurationMs: 10 * 60 * 1000 };
 
 export async function POST(request, { params }) {
   try {
     const { missionId } = params;
     const body = await request.json();
     const { action, deviceId, location, name, ...data } = body;
+
+    if (action === 'JOIN') {
+      const limit = await withRateLimitAsync(request, JOIN_LIMIT, 'search:join');
+      if (!limit.success) {
+        return NextResponse.json({ error: 'A lot of people have joined from this connection in the last few minutes. Try again in a little while.' }, { status: 429 });
+      }
+    }
 
     // Share links carry either the case id or the case number; resolve
     // first, then find-or-create the MissionControl row - an open case is

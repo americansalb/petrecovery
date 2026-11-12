@@ -16,6 +16,28 @@
  *   without an account (app/lib/searcher.js). Claiming and marking
  *   searched take the safety waiver; giving a street back does not.
  *
+ *   { unit, id, action: "first" | "normal" | "walked" | "again" }
+ *   Steering, from Mission Control on a desk: send the next helpers to a
+ *   street first, take that back, put a street down as walked for someone
+ *   who walked it without the site, or ask for another look. For whoever
+ *   runs the search (`searcher.leads`: the owner, and app/lib/searcher.js
+ *   says why nobody else); 403 for anyone else. No waiver, since none of
+ *   it is going out to search.
+ *
+ *   { unit: "street", id, action: "ask", person, note? }
+ *   { action: "unask", person }
+ *   The same person asks one named helper to walk a street, or takes that
+ *   back (app/lib/searchAsk.js). `person` is a handle from the roster
+ *   this route sends them (`people`), never an id.
+ *
+ *   { action: "cannot" }
+ *   The person asked says they cannot. The street goes back to the search.
+ *
+ * GET also carries `people`, the roster of the search, for the owner and
+ * the forces looking for the pet (app/lib/searchTeam.js), and nobody else.
+ * Reading the board marks nothing as seen: a phone says when it has shown
+ * an ask or a word (PATCH .../message).
+ *
  * [missionId] is the case id or the case number, as on a share link.
  */
 import { NextResponse } from 'next/server';
@@ -25,7 +47,10 @@ import { missionWhere } from '@/app/lib/shareMetadata';
 import { isCaseOpen } from '@/app/lib/caseStatus';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { searcherFor } from '@/app/lib/searcher';
-import { ensureGrid, ensureStreets, readStreets, readStreetsAround, readCells, actOnBoard, BOARD_ACTIONS } from '@/app/lib/searchBoard';
+import { ensureGrid, ensureStreets, readStreets, readStreetsAround, readCells, actOnBoard, streetForBoard, BOARD_ACTIONS, STEER_ACTIONS } from '@/app/lib/searchBoard';
+import { askStreet, unaskPerson, cannotWalk } from '@/app/lib/searchAsk';
+import { teamOf, personByHandle, forDesk } from '@/app/lib/searchTeam';
+import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
 import { WAIVER_CODE } from '@/app/lib/waiver';
 import { broadcast } from '@/app/lib/sse/missionStream';
 import { forcesOf } from '@/app/lib/forceFeed';
@@ -44,9 +69,25 @@ const CASE_SELECT = {
   status: true,
   reportType: true,
   petName: true,
+  ownerName: true,
+  reporterId: true,
   lastSeenLatitude: true,
   lastSeenLongitude: true,
 };
+
+/** What is said to the people the desk's own actions concern. */
+const ASK_ACTIONS = ['ask', 'unask', 'cannot'];
+const ASK_NOTICE = 'SEARCH_ASK';
+
+/** The owner's first name as the report gives it, which is what the rest of the screen calls them. */
+const ownerFirst = (pet) => String(pet.ownerName || '').trim().split(/\s+/)[0] || null;
+
+/** A request's body as an object, whatever was sent: nothing, a list or a bare value is an empty one. */
+async function bodyOf(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === 'object' && !Array.isArray(body) ? body : {};
+}
+const isText = (value) => typeof value === 'string' && value.length > 0 && value.length <= 200;
 
 function countsOf(items) {
   return {
@@ -61,14 +102,15 @@ export async function GET(request, { params }) {
   if (!limit.success) return rateLimitResponse(limit);
   const correlationId = crypto.randomUUID();
   try {
-    const pet = await prisma.case.findFirst({ where: missionWhere(params.missionId), select: CASE_SELECT });
+    const { missionId } = await params;
+    const pet = await prisma.case.findFirst({ where: missionWhere(missionId), select: CASE_SELECT });
     if (!pet) return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     const open = isCaseOpen(pet.status);
     if (pet.reportType === 'FOUND' || pet.lastSeenLatitude == null || pet.lastSeenLongitude == null) {
       return NextResponse.json({ caseId: pet.id, open, unit: 'none', streets: [], around: [], cells: [], counts: countsOf([]), streetsStatus: null, viewer: null });
     }
     const searcher = await searcherFor(request, pet.id);
-    const who = { viewer: searcher?.id || null, withNames: Boolean(searcher?.seesNames) };
+    const who = { viewer: searcher?.id || null, withNames: Boolean(searcher?.seesNames), ownerId: pet.reporterId, ownerName: ownerFirst(pet) };
 
     // The streets are fetched once per search. The first reader waits a
     // few seconds for them and otherwise gets the squares now; the fetch
@@ -109,6 +151,9 @@ export async function GET(request, { params }) {
       counts: countsOf(items),
       streetsStatus,
       streetsNote,
+      // Who is on the search and what each is doing: for the owner and the forces looking, and nobody else. The
+      // note on an ask is the owner's word to one person, so it goes with the roster only to whoever runs the search.
+      ...(searcher?.seesNames ? { people: (await teamOf(pet.id, { ownerId: pet.reporterId })).map((p) => forDesk(p, { notes: Boolean(searcher.leads) })) } : {}),
       viewer: searcher
         ? { kind: searcher.kind, firstName: searcher.firstName, isOwner: searcher.isOwner, waiver: searcher.waiver, seesNames: searcher.seesNames, holding: holding?.id || null }
         : null,
@@ -125,10 +170,21 @@ const WORDS = {
   TAKEN: (title) => `Someone just took ${title}. Pick another nearby.`,
   NOT_YOURS: (title) => `${title} is not yours to give back.`,
   NOT_CLAIMED: (title) => `Take ${title} first, then mark it searched.`,
+  NOT_ALLOWED: () => 'Only the owner can do that.',
+  SOMEONE_ON_IT: (title) => `Someone is on ${title} right now. They mark it when they have walked it.`,
+  ALREADY_WALKED: (title) => `${title} is already down as walked.`,
+  NOT_WALKED: (title) => `${title} has not been walked yet.`,
+  ALREADY_AGAIN: (title) => `${title} is already down for another look.`,
+  ASKED: (title) => `${title} is being kept for someone who was asked to walk it. Pick another.`,
+  NOT_OPEN: (title) => `${title} has someone on it or has been walked. Pick one that is still to walk.`,
+  ASKED_ALREADY: (title) => `Someone else was just asked to walk ${title}.`,
+  NO_PERSON: () => 'That person is not on this search.',
+  NO_ASK: () => 'Nothing was asked of you.',
 };
+const STEERED = { street: 'STREET_UPDATED', block: 'CELL_UPDATED' };
 const EVENT = {
-  street: { claim: 'STREET_CLAIMED', release: 'STREET_RELEASED', searched: 'STREET_SEARCHED' },
-  block: { claim: 'CELL_CLAIMED', release: 'CELL_RELEASED', searched: 'CELL_SEARCHED' },
+  street: { claim: 'STREET_CLAIMED', release: 'STREET_RELEASED', searched: 'STREET_SEARCHED', first: STEERED.street, normal: STEERED.street, walked: 'STREET_SEARCHED', again: STEERED.street },
+  block: { claim: 'CELL_CLAIMED', release: 'CELL_RELEASED', searched: 'CELL_SEARCHED', first: STEERED.block, normal: STEERED.block, walked: 'CELL_SEARCHED', again: STEERED.block },
 };
 
 export async function PATCH(request, { params }) {
@@ -136,29 +192,38 @@ export async function PATCH(request, { params }) {
   if (!limit.success) return rateLimitResponse(limit);
   const correlationId = crypto.randomUUID();
   try {
-    const body = await request.json().catch(() => ({}));
+    const body = await bodyOf(request);
     const unit = body.unit === 'block' ? 'block' : 'street';
     const { id, action } = body;
-    if (!id || !BOARD_ACTIONS.includes(action)) {
-      return NextResponse.json({ error: `Send an id and one of: ${BOARD_ACTIONS.join(', ')}.` }, { status: 400 });
+    const steering = STEER_ACTIONS.includes(action);
+    const asking = ASK_ACTIONS.includes(action);
+    // An id is a short piece of text: anything else is refused here, before it is read as one.
+    if (!(asking || (isText(id) && (BOARD_ACTIONS.includes(action) || steering)))) {
+      return NextResponse.json({ error: `Send an id and one of: ${[...BOARD_ACTIONS, ...STEER_ACTIONS].join(', ')}.` }, { status: 400 });
     }
-    const pet = await prisma.case.findFirst({ where: missionWhere(params.missionId), select: CASE_SELECT });
+    const { missionId } = await params;
+    const pet = await prisma.case.findFirst({ where: missionWhere(missionId), select: CASE_SELECT });
     if (!pet) return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     const searcher = await searcherFor(request, pet.id);
     if (!searcher) return NextResponse.json({ error: 'Join the search first.', code: 'NOT_JOINED' }, { status: 401 });
+    if (asking) return askOrAnswer({ pet, searcher, body, correlationId });
+    // Steering is for whoever runs the search, which is the owner: where the next helpers go, and ground
+    // covered off the site. A role in a Rescue Force is not enough to redirect a search (app/lib/searcher.js).
+    if (steering && !searcher.leads) return NextResponse.json({ error: WORDS.NOT_ALLOWED(), code: 'NOT_ALLOWED' }, { status: 403 });
     if (!isCaseOpen(pet.status) && action !== 'release') {
       return NextResponse.json({ error: 'This search has ended. Thank you for looking.', code: 'CLOSED' }, { status: 409 });
     }
     // Taking a street or marking it searched is going out to search, which
-    // takes the safety waiver. Giving one back does not.
-    if (action !== 'release' && !searcher.waiver) {
+    // takes the safety waiver. Giving one back does not, and neither does steering from a desk.
+    if (action !== 'release' && !steering && !searcher.waiver) {
       return NextResponse.json({ error: 'Accept the safety waiver before you search.', code: WAIVER_CODE }, { status: 403 });
     }
 
-    const result = await actOnBoard({ caseId: pet.id, unit, id: String(id), action, searcher });
+    const result = await actOnBoard({ caseId: pet.id, unit, id, action, searcher, ownerId: pet.reporterId, ownerName: ownerFirst(pet) });
     if (result.error) {
-      const status = result.error === 'NOT_FOUND' ? 404 : 409;
-      return NextResponse.json({ error: WORDS[result.error](result.title || 'That street'), code: result.error }, { status });
+      const status = result.error === 'NOT_FOUND' ? 404 : result.error === 'NOT_ALLOWED' ? 403 : 409;
+      // A street kept for someone else is, to the person asking for one, a street that is taken: their screen tries the next.
+      return NextResponse.json({ error: WORDS[result.error](result.title || 'That street'), code: result.error === 'ASKED' ? 'TAKEN' : result.error, kept: result.error === 'ASKED' || undefined }, { status });
     }
 
     // Everyone with the board open sees it change. Ids and states only:
@@ -203,4 +268,68 @@ export async function PATCH(request, { params }) {
     console.error('Board action failed:', error);
     return NextResponse.json({ error: 'That did not go through. Try again in a moment.' }, { status: 500 });
   }
+}
+
+/**
+ * The desk asks a named person to walk a street, or takes that back; or
+ * the person asked says they cannot. Not a walk, so no waiver; an ask is
+ * for whoever runs the search to make (the owner), and the server checks
+ * that before it looks for the person, so nobody learns from the answer
+ * who is on the search.
+ */
+async function askOrAnswer({ pet, searcher, body, correlationId }) {
+  const { action } = body;
+  if (!isCaseOpen(pet.status)) return NextResponse.json({ error: 'This search has ended. Thank you for looking.', code: 'CLOSED' }, { status: 409 });
+  const say = (code, title, status) => NextResponse.json({ error: WORDS[code](title || 'That street'), code }, { status });
+  const done = async (title, extra = {}) => {
+    try {
+      broadcast(pet.id, { type: 'STREET_UPDATED', unit: 'street' });
+    } catch (error) {
+      console.warn('Board broadcast failed:', error?.message);
+    }
+    await logEvent({
+      event_type: `board.street_${action}`,
+      correlation_id: correlationId,
+      actor_user_id: searcher.userId,
+      resource_type: 'search_street',
+      resource_id: extra.item?.id || null,
+      action: 'update',
+      result: 'success',
+      metadata: { title, volunteer: searcher.kind === 'volunteer' },
+    }).catch(() => {});
+    return NextResponse.json({ success: true, unit: 'street', ...extra });
+  };
+
+  if (action === 'cannot') {
+    const result = await cannotWalk({ caseId: pet.id, searcher });
+    if (result.error) return say(result.error, null, 409);
+    return done(result.title);
+  }
+
+  if (!searcher.leads) return say('NOT_ALLOWED', null, 403);
+  const person = isText(body.person) ? await personByHandle(pet.id, body.person, { ownerId: pet.reporterId }) : null;
+  if (!person) return say('NO_PERSON', null, 404);
+
+  if (action === 'unask') {
+    await unaskPerson({ caseId: pet.id, person, searcher });
+    return done(null);
+  }
+
+  if (!isText(body.id)) return NextResponse.json({ error: 'Send the street to ask for.' }, { status: 400 });
+  const result = await askStreet({ caseId: pet.id, streetId: body.id, person, searcher, note: typeof body.note === 'string' ? body.note : '' });
+  if (result.error) return say(result.error, result.title, result.error === 'NOT_FOUND' ? 404 : result.error === 'NOT_ALLOWED' ? 403 : 409);
+  // Someone with an account also hears it in their bell and, where they allowed it, on their phone. A helper
+  // without one has it on the search screen. The owner is named; anyone else who came to run a search is not.
+  if (!String(person.id).startsWith('v:') && person.id !== searcher.userId) {
+    const title = `${searcher.isOwner ? `${ownerFirst(pet) || searcher.firstName} asked you` : 'You were asked'} to walk ${result.street.name}`;
+    const message = `For ${pet.petName || 'the pet'}. ${result.title}.`;
+    const url = `/mission-control?mission=${encodeURIComponent(pet.caseNumber || pet.id)}`;
+    try {
+      await prisma.notification.create({ data: { userId: person.id, type: ASK_NOTICE, title, message, actionUrl: url, data: JSON.stringify({ caseId: pet.id, streetId: result.street.id }) } });
+      if (isPushConfigured()) await sendPushToUser(prisma, person.id, { title, body: message, url }).catch(() => null);
+    } catch (error) {
+      console.warn('Ask notice failed:', error?.message);
+    }
+  }
+  return done(result.title, { item: streetForBoard(result.street, { viewer: searcher.id, withNames: searcher.seesNames, ownerId: pet.reporterId, ownerName: ownerFirst(pet) }) });
 }

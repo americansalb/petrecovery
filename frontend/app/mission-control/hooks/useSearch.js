@@ -13,6 +13,24 @@
  * polls are kept few and stop for half a minute when the server says to
  * slow down. No account is needed to read either.
  *
+ * One exception: a desk steering the search (`steers`: the person running
+ * it, at a computer, while it is open) reads both every five seconds.
+ * That is one desk per search, it is where the whole search is watched
+ * from, and a board half a minute old is not a view of it. A read that
+ * comes back the same as the last one changes nothing on the screen, so
+ * the map is redrawn only when the search really changed. A search that
+ * has ended is read every two minutes by everyone, a read that fails
+ * holds the next ones back, and an answer that arrives after a newer one
+ * has been shown is dropped.
+ *
+ * Someone on the search (holding a street, joined from the link, asked to
+ * walk one or written to), and the owner on a phone, read the picture
+ * every ten seconds, the pace already kept while a sighting is fresh. The picture is the small read,
+ * and it says when this person was asked to walk a street, which is when
+ * the board is read again: so an ask or a word from the desk is on their
+ * card within seconds, and the board itself is still read only twice a
+ * minute.
+ *
  * Who this person is comes from the session, or from the volunteer this
  * browser joined as (lib/identity.js). The position is one reading of
  * the phone's location, taken when the person asks for a street or sends
@@ -28,8 +46,16 @@ import { hotSighting } from '../lib/words';
 const POLL_MS = 30000;
 const POLL_HOT_MS = 10000;
 const BOARD_POLL_MS = 30000;
+/** How often a desk steering the search reads the picture and the board. */
+const STEER_POLL_MS = 5000;
+/** A search that has ended changes only if it is opened again: it is read this often. */
+const CLOSED_POLL_MS = 120000;
 /** After a "too many requests" answer, nothing is asked for this long. */
 const SLOW_DOWN_MS = 30000;
+/** After a read the server could not answer, nothing is asked for this long. */
+const ERROR_PAUSE_MS = 20000;
+/** After a link that matches no pet, for this long: it will not start matching one. */
+const GONE_PAUSE_MS = 5 * 60 * 1000;
 
 async function readJson(res) {
   return res.json().catch(() => ({}));
@@ -50,8 +76,12 @@ function send(url, init) {
 }
 const SEND_TIMEOUT_MS = 20000;
 const NO_SIGNAL = 'No connection just now. Check your signal and try again.';
+// One empty list each, so a screen that has none does not see a new one on every read.
+const NO_PEOPLE = [];
+const NO_WORDS = [];
+const NO_ITEMS = [];
 
-export default function useSearch(missionParam) {
+export default function useSearch(missionParam, { desk = false } = {}) {
   const { status: authStatus } = useSession();
   const [picture, setPicture] = useState(null);
   const [board, setBoard] = useState(null);
@@ -66,32 +96,68 @@ export default function useSearch(missionParam) {
   const caseIdRef = useRef(null);
   const boardAt = useRef(0);
   const pausedUntil = useRef(0);
+  // The last answer of each read, as text: one that comes back the same is not set again.
+  const lastText = useRef({ picture: '', board: '' });
+  // The street the board says this person was asked to walk, so the picture can tell when that has changed.
+  const askedOnBoard = useRef(null);
+  const everMine = useRef(false);
+  // What this screen has already said it showed (a word, the ask), so each is said once.
+  const told = useRef(new Set());
+  // Reads are numbered as they are sent. One that answers after a later one has been shown is out of date and is dropped.
+  const sent = useRef({ picture: 0, board: 0 });
+  const shown = useRef({ picture: 0, board: 0 });
 
   const headers = useCallback((extra = {}) => ({ ...volunteerHeaders(volunteerRef.current), ...extra }), []);
 
   const loadPicture = useCallback(async () => {
     if (!missionParam) return null;
+    sent.current.picture += 1;
+    const turn = sent.current.picture;
     const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/picture`, { headers: headers(), cache: 'no-store' });
     if (res.status === 404) {
+      pausedUntil.current = Date.now() + GONE_PAUSE_MS;
       setFailure('gone');
       return null;
     }
-    if (res.status === 429) pausedUntil.current = Date.now() + SLOW_DOWN_MS;
+    if (!res.ok) pausedUntil.current = Date.now() + (res.status === 429 ? SLOW_DOWN_MS : ERROR_PAUSE_MS);
     if (!res.ok) throw new Error('picture');
     const data = await res.json();
-    setPicture(data);
+    if (turn < shown.current.picture) return data;
+    shown.current.picture = turn;
+    const text = JSON.stringify(data);
+    if (text !== lastText.current.picture) {
+      lastText.current.picture = text;
+      setPicture(data);
+    }
     setFailure(null);
     return data;
   }, [missionParam, headers]);
 
   const loadBoard = useCallback(async () => {
     if (!missionParam) return null;
+    sent.current.board += 1;
+    const turn = sent.current.board;
     const res = await fetch(`/api/mission/${encodeURIComponent(missionParam)}/board`, { headers: headers(), cache: 'no-store' });
-    if (res.status === 429) pausedUntil.current = Date.now() + SLOW_DOWN_MS;
-    if (!res.ok) return null;
+    if (!res.ok) {
+      pausedUntil.current = Date.now() + (res.status === 429 ? SLOW_DOWN_MS : ERROR_PAUSE_MS);
+      return null;
+    }
     const data = await res.json();
+    if (turn < shown.current.board) return data;
+    shown.current.board = turn;
     boardAt.current = Date.now();
-    setBoard(data);
+    const askedOfMe = (data.streets || []).find((s) => s.askedOfMe) || null;
+    const askedNow = askedOfMe?.id || null;
+    // A new ask is a new thing to show, and to say it was shown. So is one the search has not heard was shown:
+    // taken back and made again for the same street between two reads, it is the same street and a new ask.
+    if (askedNow !== askedOnBoard.current || askedOfMe?.askedSeen === false) told.current.delete('ask');
+    askedOnBoard.current = askedNow;
+    if ((data.streets || data.cells || []).some((i) => i.mine)) everMine.current = true;
+    const text = JSON.stringify(data);
+    if (text !== lastText.current.board) {
+      lastText.current.board = text;
+      setBoard(data);
+    }
     return data;
   }, [missionParam, headers]);
 
@@ -136,16 +202,28 @@ export default function useSearch(missionParam) {
 
   // Keep it current: sooner while a sighting is fresh or this phone sent one.
   const hot = useMemo(() => hotSighting(picture?.sightings, now), [picture, now]);
-  const interval = hot || mySightings.length ? POLL_HOT_MS : POLL_MS;
+  // A desk steering the search watches all of it, so it reads both often (see the note at the top).
+  const closed = picture ? !picture.open : false;
+  const steers = Boolean(desk && picture?.viewer?.leads && !closed);
+  // Someone on the search hears from the desk within seconds (see the note at the top), and so does the owner
+  // on a phone, where a helper's word is on their own card.
+  const onSearch = Boolean(picture?.viewer && (picture.viewer.isOwner || volunteer || everMine.current || picture.asked || picture.words?.length));
+  const interval = closed ? CLOSED_POLL_MS : steers ? STEER_POLL_MS : hot || mySightings.length || onSearch ? POLL_HOT_MS : POLL_MS;
+  const boardEvery = closed ? CLOSED_POLL_MS : steers ? STEER_POLL_MS : BOARD_POLL_MS;
   useEffect(() => {
     if (!picture?.id) return undefined;
     const tick = setInterval(() => {
       setNow(Date.now());
       if (document.visibilityState !== 'visible' || Date.now() < pausedUntil.current) return;
       // The sightings are what changes fast. The streets change slowly, and this person's own tap reloads them at once.
-      loadPicture().catch(() => null);
-      // A little slack, so a tick that lands a moment short of the half minute still reads the board.
-      if (Date.now() - boardAt.current >= BOARD_POLL_MS - 2000) loadBoard().catch(() => null);
+      loadPicture()
+        .then((read) => {
+          // Asked to walk a street, or an ask taken back, since the board was last read: read it now.
+          if (read && 'asked' in read && (read.asked || null) !== askedOnBoard.current) loadBoard().catch(() => null);
+        })
+        .catch(() => null);
+      // A little slack, so a tick that lands a moment short of its turn still reads the board.
+      if (Date.now() - boardAt.current >= boardEvery - 2000) loadBoard().catch(() => null);
     }, interval);
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -158,7 +236,7 @@ export default function useSearch(missionParam) {
       clearInterval(tick);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [picture?.id, interval, reload, loadPicture, loadBoard]);
+  }, [picture?.id, interval, boardEvery, reload, loadPicture, loadBoard]);
 
   /**
    * One reading of where the phone is. Resolves to the position, or null
@@ -227,13 +305,13 @@ export default function useSearch(missionParam) {
     return { ok: true };
   }, [reload]);
 
-  /** Take a street, give it back, or mark it searched. */
-  const act = useCallback(
-    async (unit, id, action) => {
+  /** One change to the board, and the board read again after it. */
+  const change = useCallback(
+    async (body) => {
       const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/board`, {
         method: 'PATCH',
         headers: headers({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ unit, id, action }),
+        body: JSON.stringify(body),
       });
       if (!res) return { error: NO_SIGNAL, code: 'NO_SIGNAL' };
       const data = await readJson(res);
@@ -243,6 +321,36 @@ export default function useSearch(missionParam) {
       return { ok: true, item: data.item };
     },
     [missionParam, headers, loadBoard, loadPicture]
+  );
+
+  /** Take a street, give it back, or mark it searched. From the desk of whoever runs the search, also the steering actions. */
+  const act = useCallback((unit, id, action) => change({ unit, id, action }), [change]);
+  /** Whoever runs the search asks one person (a handle from `people`) to walk a street, with a note if they have one. */
+  const ask = useCallback((person, streetId, note = '') => change({ unit: 'street', id: streetId, action: 'ask', person, note }), [change]);
+  /** Take back what a person was asked to walk. */
+  const unask = useCallback((person) => change({ action: 'unask', person }), [change]);
+  /** The person asked says they cannot. */
+  const cannot = useCallback(() => change({ action: 'cannot' }), [change]);
+
+  /**
+   * A word through the search screen. With `to` (a handle from `people`)
+   * whoever runs the search writes to that person; without it, someone on
+   * the search writes back to the people running it.
+   */
+  const say = useCallback(
+    async (text, to = null) => {
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/message`, {
+        method: 'POST',
+        headers: headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ text: String(text || '').trim(), ...(to ? { to } : {}) }),
+      });
+      if (!res) return { error: NO_SIGNAL };
+      const data = await readJson(res);
+      if (!res.ok) return { error: data.error || 'That did not send. Try again in a moment.' };
+      await loadPicture().catch(() => null);
+      return { ok: true };
+    },
+    [missionParam, headers, loadPicture]
   );
 
   /** Send a sighting: a place and a time. This phone remembers which one it sent, so coming back shows what the owner did about it. */
@@ -286,7 +394,55 @@ export default function useSearch(missionParam) {
     [missionParam, loadPicture]
   );
 
-  const items = board ? (board.unit === 'street' ? board.streets : board.cells) : [];
+  /** The owner tells everyone helping something. It goes on the pet's page and in the desk's log. */
+  const tell = useCallback(
+    async (text) => {
+      const res = await send(`/api/missions/${encodeURIComponent(caseIdRef.current || missionParam)}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: String(text || '').trim() }),
+      });
+      if (!res) return { error: NO_SIGNAL };
+      if (!res.ok) {
+        const data = await readJson(res);
+        return { error: data.message || data.error || 'That did not post. Try again in a moment.' };
+      }
+      await loadPicture().catch(() => null);
+      return { ok: true };
+    },
+    [missionParam, loadPicture]
+  );
+
+  // One empty list while there is no board, so what is drawn from it is not drawn again on every render.
+  /**
+   * This person's screen has shown a word written to them, or the street they were asked to walk. It is what
+   * the desk reads as "seen", so it is said once per thing, when the card that shows it is in front of them.
+   */
+  const saw = useCallback(
+    async ({ words = [], ask = false } = {}) => {
+      const fresh = words.filter((id) => id && !told.current.has(`w:${id}`));
+      const askNew = ask && !told.current.has('ask');
+      if (!fresh.length && !askNew) return { ok: true };
+      fresh.forEach((id) => told.current.add(`w:${id}`));
+      if (askNew) told.current.add('ask');
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/message`, {
+        method: 'PATCH',
+        headers: headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ ...(fresh.length ? { words: fresh } : {}), ...(askNew ? { ask: true } : {}) }),
+      });
+      if (!res || !res.ok) {
+        // Not heard: it is said again the next time the card shows it.
+        fresh.forEach((id) => told.current.delete(`w:${id}`));
+        if (askNew) told.current.delete('ask');
+        if (!res) return { error: NO_SIGNAL };
+        return { error: 'not recorded' };
+      }
+      return { ok: true };
+    },
+    [missionParam, headers]
+  );
+
+  const items = board ? (board.unit === 'street' ? board.streets : board.cells) : NO_ITEMS;
   const mine = items.find((i) => i.mine) || null;
 
   return {
@@ -299,6 +455,11 @@ export default function useSearch(missionParam) {
     // Named streets just past the board's edge, for naming a place or a direction.
     around: board?.around || [],
     mine,
+    // Everyone on the search and what each is doing: sent only to the owner and the forces looking.
+    people: board?.people || NO_PEOPLE,
+    // Every message of the search, for the people running it; and the ones between this person and them.
+    talk: picture?.talk || NO_WORDS,
+    words: picture?.words || NO_WORDS,
     viewer: picture?.viewer || null,
     volunteer,
     position,
@@ -312,5 +473,11 @@ export default function useSearch(missionParam) {
     act,
     sendSighting,
     answer,
+    tell,
+    ask,
+    unask,
+    cannot,
+    say,
+    saw,
   };
 }

@@ -36,6 +36,14 @@ export const CELL_SIZE_CHOICES = [100, 125, 150, 175, 200, 250, 300];
 /** Sightings older than this stop bending priority. */
 export const SIGHTING_PRIORITY_WINDOW_MS = 72 * 60 * 60 * 1000;
 
+/**
+ * The priority a street or a square is asked for first with. The search
+ * itself ranks from 1 to 10 (cellPriority, sightingPull), so anything
+ * above is a person's doing: the owner sending the next helpers there
+ * before anywhere else (app/lib/searchBoard.js, "first").
+ */
+export const FIRST_PRIORITY = 11;
+
 export function milesToMeters(miles) {
   return miles * 1609.344;
 }
@@ -106,7 +114,22 @@ export function cellPriority({ center, lastSeen, sightings = [], radiusMeters, c
     const d = distanceMeters(center, lastSeen);
     priority = Math.round(10 - Math.min(d / radiusMeters, 1) * 7);
   }
+  priority = Math.max(priority, sightingPull({ center, sightings, cellSizeMeters, now }));
+  return Math.max(1, Math.min(10, priority));
+}
 
+/**
+ * How far up a recent sighting pulls a place next to it: 7 to 10 within
+ * two cell-widths of a sighting from the last three days, more the newer
+ * and the nearer, and 0 where no sighting is near enough or new enough.
+ *
+ * A board's stored priorities are worked out once, when it is made. The
+ * board applies this again each time it is read (app/lib/searchBoard.js),
+ * so the order streets are handed out in follows the sightings as they
+ * come in, with nothing to rewrite.
+ */
+export function sightingPull({ center, sightings = [], cellSizeMeters, now = Date.now() }) {
+  let pull = 0;
   for (const s of sightings) {
     if (!s || typeof s.lat !== 'number' || typeof s.lng !== 'number') continue;
     const age = s.at ? now - new Date(s.at).getTime() : 0;
@@ -115,11 +138,9 @@ export function cellPriority({ center, lastSeen, sightings = [], radiusMeters, c
     if (d > cellSizeMeters * 2) continue;
     const freshness = 1 - Math.max(age, 0) / SIGHTING_PRIORITY_WINDOW_MS;
     const proximity = 1 - d / (cellSizeMeters * 2);
-    const boosted = Math.round(7 + 3 * freshness * proximity);
-    priority = Math.max(priority, boosted);
+    pull = Math.max(pull, Math.round(7 + 3 * freshness * proximity));
   }
-
-  return Math.max(1, Math.min(10, priority));
+  return pull;
 }
 
 /**

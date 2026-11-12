@@ -11,9 +11,22 @@
 
 import { speciesLabel } from '@/app/lib/species';
 
+const nameOf = (pet) => pet?.petName || `the ${speciesLabel(pet?.petSpecies).toLowerCase()}`;
+const isDog = (pet) => String(pet?.petSpecies || '').toUpperCase() === 'DOG';
+
+/**
+ * What to do on seeing the pet, in one sentence: the first sentence of the
+ * brief's last line, for the places that have room for one. Written here
+ * rather than cut out of the line at its first full stop, because a pet's
+ * name can hold one ("Mr. Whiskers"), and the cut then ended mid-name.
+ */
+export function onSeeing(pet) {
+  return isDog(pet) ? `If you see ${nameOf(pet)}, don't chase or call out.` : `If you see ${nameOf(pet)}, don't chase.`;
+}
+
 export function briefFor({ way, pet }) {
-  const name = pet?.petName || `the ${speciesLabel(pet?.petSpecies).toLowerCase()}`;
-  const dog = String(pet?.petSpecies || '').toUpperCase() === 'DOG';
+  const name = nameOf(pet);
+  const dog = isDog(pet);
   const cat = String(pet?.petSpecies || '').toUpperCase() === 'CAT';
   const look = cat
     ? 'Look low and close: under decks and cars, in sheds and garages, behind bins. A scared cat hides within a few houses and goes quiet.'
@@ -24,8 +37,8 @@ export function briefFor({ way, pet }) {
       ? `Say ${name}'s name softly now and then, and shake a treat bag. Listen more than you call.`
       : `Say ${name}'s name now and then, then listen.`;
   const never = dog
-    ? `If you see ${name}, don't chase or call out. Sit down, look away, tap "I've seen ${name}". The owner's voice is what ${name} comes to.`
-    : `If you see ${name}, don't chase. Note where and which way, tap "I've seen ${name}", and keep your distance.`;
+    ? `${onSeeing(pet)} Sit down, look away, tap "I've seen ${name}". The owner's voice is what ${name} comes to.`
+    : `${onSeeing(pet)} Note where and which way, tap "I've seen ${name}", and keep your distance.`;
   if (way === 'home') {
     return [
       `Say you are calling about a lost ${speciesLabel(pet?.petSpecies).toLowerCase()} named ${name}${pet?.petColor ? `, ${String(pet.petColor).toLowerCase()}` : ''}${pet?.petBreed ? `, ${pet.petBreed}` : ''}.`,

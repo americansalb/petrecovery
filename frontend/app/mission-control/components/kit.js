@@ -18,9 +18,9 @@ import { phoneTel, phoneWords } from '../lib/words';
 
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mc-surface)]';
 
-/** Small capitals: a label, never a fact someone has to read. */
+/** The small line over a title. Bold and in ordinary letters at 13px: small capitals at 11px were hard to read. */
 export function Eyebrow({ children, className = '' }) {
-  return <p className={`text-[11px] font-bold uppercase leading-[15px] tracking-[0.14em] text-[var(--mc-muted)] ${className}`}>{children}</p>;
+  return <p className={`text-[13px] font-bold leading-[18px] text-[var(--mc-muted)] ${className}`}>{children}</p>;
 }
 
 export function Heading({ children, as: Tag = 'h1', className = '' }) {
@@ -157,7 +157,7 @@ export function AdviceBlock({ source, lines = [], className = '' }) {
 export function Problem({ children, className = '' }) {
   if (!children) return null;
   return (
-    <p role="alert" className={`text-sm font-semibold leading-5 text-red-400 ${className}`}>
+    <p role="alert" className={`text-sm font-semibold leading-5 text-[var(--mc-danger)] ${className}`}>
       {children}
     </p>
   );
@@ -168,7 +168,7 @@ export function Stamp({ kind = 'lost' }) {
   const look = kind === 'home' ? 'bg-emerald-400 text-emerald-950' : kind === 'closed' ? 'bg-slate-500 text-white' : 'bg-red-600 text-white';
   const word = kind === 'home' ? 'Home' : kind === 'closed' ? 'Closed' : 'Lost';
   return (
-    <span className={`inline-flex -rotate-2 items-center gap-1 rounded px-1.5 font-stamp text-[11px] font-extrabold uppercase leading-[18px] tracking-[0.2em] ${look}`}>
+    <span className={`inline-flex -rotate-2 items-center gap-1 rounded px-1.5 font-stamp text-[13px] font-extrabold uppercase leading-[18px] tracking-[0.16em] ${look}`}>
       {kind === 'home' && <span aria-hidden="true">✓</span>}
       {word}
     </span>

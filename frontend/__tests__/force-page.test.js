@@ -94,7 +94,10 @@ function answer({ userId = null, platformRole = 'USER' } = {}) {
       : [
           { case: kase({ id: 'case-old', caseNumber: 'AUS-2026-0002', petName: 'Luna', lastSeenAt: new Date(Date.now() - 72 * HOUR), lastSeenAddress: 'Hyde Park, Austin, TX' }) },
           { case: kase({}) },
-          { case: kase({ id: 'case-found', caseNumber: 'AUS-2026-0003', reportType: 'FOUND', petName: 'Unknown', lastSeenAddress: '30.26, -97.77' }) },
+          // Found an hour before Max was last seen. (It used to share Max's "18 hours ago", each read from the clock
+          // for itself: whenever the clock ticked between the two reads the found dog was a millisecond newer and
+          // sorted first, and the order below failed for no reason in the code.)
+          { case: kase({ id: 'case-found', caseNumber: 'AUS-2026-0003', reportType: 'FOUND', petName: 'Unknown', lastSeenAddress: '30.26, -97.77', lastSeenAt: new Date(Date.now() - 19 * HOUR) }) },
         ]
   );
   prisma.squadTask.groupBy.mockResolvedValue([

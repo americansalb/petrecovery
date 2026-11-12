@@ -11,6 +11,12 @@
  * number or position. What only the owner should see (how many neighbors
  * were alerted, who reported a sighting) is added for the owner alone.
  *
+ * What was said through the search screen (app/lib/searchTalk.js) goes
+ * only to the people it is for: `words` is what was written to this
+ * person and what they wrote back, and `asked` the street they were asked
+ * to walk (the board has the street itself); `talk` is every message, for
+ * whoever runs the search. Reading the picture marks nothing as seen.
+ *
  * The streets and who is on them are the board's (app/lib/searchBoard.js,
  * GET /api/mission/[id]/board); this is everything else.
  */
@@ -23,9 +29,16 @@ import { zoneFor } from '@/app/lib/caseZone';
 import { placeOnly } from '@/app/lib/needOptions';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import { forcesOf } from '@/app/lib/forceFeed';
+import { isMark } from '@/app/lib/searchBoard';
+import { wordsForDesk, wordsForPerson } from '@/app/lib/searchTalk';
+import { askWaitingFor } from '@/app/lib/searchAsk';
 
-/** Someone who finished a street this recently still counts as out looking. */
-const LOOKING_WINDOW_MS = 2 * 60 * 60 * 1000;
+/**
+ * Someone who finished a street this recently still counts as out looking:
+ * they are most likely between streets. Half an hour, not longer, so the
+ * screen does not go on saying people are out after they have gone home.
+ */
+const LOOKING_WINDOW_MS = 30 * 60 * 1000;
 
 const PICTURE_SELECT = {
   id: true,
@@ -48,6 +61,14 @@ const PICTURE_SELECT = {
   reporterId: true,
   ownerName: true,
   ownerPhone: true,
+  // What the owner told everyone helping ("Tell everyone helping" on the pet's page), which that page also
+  // shows. Read wider than it is sent: the lines other code writes into the same table are dropped below.
+  updates: {
+    where: { isUpdate: true },
+    orderBy: { createdAt: 'desc' },
+    take: 40,
+    select: { id: true, content: true, createdAt: true, authorId: true },
+  },
   sightings: {
     // A sighting its witness took back, while the screen still let them, stays off every screen.
     // Said as "no state, or a different one": a plain NOT drops every row whose state is empty, which is all the others.
@@ -92,7 +113,36 @@ function sightingOut(s, { withNames, isOwner }) {
   };
 }
 
-/** How many people are out, from the board: holding a street now, or finished one in the last two hours. */
+/**
+ * Lines other code writes into the updates table in a person's name: a
+ * status change, a logged task, a search session, a sighting sent from an
+ * older screen (which carries the address as typed). None is something a
+ * person told everyone, and the search screen shows an update as the
+ * owner's own words, so none of them is sent.
+ * (__tests__/api/search-picture.test.js lists every route that writes an
+ * update, so a new one cannot be added without being looked at here.)
+ */
+const WRITTEN_BY_CODE = [
+  /^Status changed from /,
+  /^Logged action: /,
+  /^New sighting reported/,
+  /^Task (created: )?"/,
+  /^(✅|🗺️)/u,
+  // "{first name} started searching": one name and the phrase, which is how the session routes write it. A
+  // sentence of the owner's own that happens to end the same way ("Two neighbors started searching") is kept.
+  /^(A volunteer|\S+) (started searching|paused their search|resumed searching)$/,
+  /^(A volunteer|\S+) ended their search \(\d+ min\)$/,
+];
+
+/** What the owner told everyone helping: written by the owner, and by hand. Newest first. */
+function ownerUpdates(rows = [], ownerId = null, take = 10) {
+  return rows
+    .filter((u) => ownerId && u.authorId === ownerId && typeof u.content === 'string' && !WRITTEN_BY_CODE.some((made) => made.test(u.content.trim())))
+    .slice(0, take)
+    .map((u) => ({ id: u.id, at: u.createdAt, text: u.content.trim().slice(0, 400) }));
+}
+
+/** How many people are out, from the board: holding a street now, or finished one in the last half hour. */
 async function peopleLooking(caseId, now) {
   const since = new Date(now - LOOKING_WINDOW_MS);
   const [streets, grid] = await Promise.all([
@@ -115,7 +165,8 @@ async function peopleLooking(caseId, now) {
     if (row.status === 'IN_PROGRESS' && row.claimedById) people.add(row.claimedById);
     else if (row.searchedByKey || row.searchedById) people.add(row.searchedByKey || row.searchedById);
   }
-  return people;
+  // A street put down as walked from the desk is ground covered, not a person out looking.
+  return new Set([...people].filter((id) => !isMark(id)));
 }
 
 /**
@@ -160,7 +211,7 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
       }),
     ]);
     const blocks = grid?.cells || [];
-    const who = [...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter(Boolean);
+    const who = [...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter((id) => id && !isMark(id));
     searched = {
       streets: streets.length,
       blocks: blocks.length,
@@ -168,6 +219,18 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
       mine: Boolean(searcher && who.includes(searcher.id)),
     };
   }
+
+  // What was said to this person and what was asked of them. The owner is never written to here: what helpers
+  // say reaches the owner in `talk`.
+  let mineToRead = null;
+  if (searcher && open && !isOwner && pet.reportType !== 'FOUND') {
+    const [words, asked] = await Promise.all([
+      wordsForPerson(pet.id, searcher.id, { ownerId: pet.reporterId, ownerName: ownerFirst }),
+      askWaitingFor(pet.id, searcher.id),
+    ]);
+    mineToRead = { words, asked };
+  }
+  const talk = searcher?.leads && open && pet.reportType !== 'FOUND' ? await wordsForDesk(pet.id, { viewerId: searcher.id }) : null;
 
   return {
     id: pet.id,
@@ -199,10 +262,14 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
     sightings,
     looking: { helpers: [...looking].filter((id) => id !== pet.reporterId).length },
     forces: forces.length,
+    // Newest first, and the owner's own: the screen shows each as what the owner told everyone.
+    updates: ownerUpdates(pet.updates, pet.reporterId),
     neighbors,
     searched,
+    ...(mineToRead || {}),
+    ...(talk ? { talk } : {}),
     viewer: searcher
-      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
+      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
       : null,
   };
 }

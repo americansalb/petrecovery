@@ -22,7 +22,8 @@ export async function GET(request, { params }) {
   const limit = await withRateLimitAsync(request, RateLimitPresets.SEARCH_READ, 'picture');
   if (!limit.success) return rateLimitResponse(limit);
   try {
-    const found = await prisma.case.findFirst({ where: missionWhere(params.missionId), select: { id: true } });
+    const { missionId } = await params;
+    const found = await prisma.case.findFirst({ where: missionWhere(missionId), select: { id: true } });
     if (!found) return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     const searcher = await searcherFor(request, found.id);
     const picture = await searchPicture(found.id, { searcher });

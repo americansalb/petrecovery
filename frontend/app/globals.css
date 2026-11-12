@@ -1109,36 +1109,66 @@ img {
 
 /* The search screen (Mission Control): one set of components, two
    palettes. A phone in the field is dark, so the few lit things on the
-   map are the loudest; the desktop is light, a desk for planning. The
-   components read these variables and never a colour of their own, so
-   the two cannot drift apart (app/mission-control/components/kit.js). */
+   map are the loudest. A desk is light by day, like an ordinary map, and
+   dark at night by its own switch (desktop/Command.js). The components
+   read these variables and never a colour of their own, so the two
+   cannot drift apart (app/mission-control/components/kit.js).
+
+   Readability is a rule here, not a taste: every text colour below is at
+   least 4.5 to 1 on every surface it is set on (WCAG AA), most are over
+   7 to 1, and __tests__/search-colors.test.js holds them there. Each
+   colour means one thing: red where the pet was lost, orange where it was
+   seen, teal for someone at work, green for done, yellow for the next
+   step. */
 .mc-dark {
   --mc-ground: #0b1220;
   --mc-surface: #0f172a;
   --mc-raised: #1e293b;
   --mc-ink: #f8fafc;
   --mc-soft: #cbd5e1;
-  --mc-muted: #94a3b8;
+  --mc-muted: #a3b1c6;
   --mc-line: rgba(148, 163, 184, 0.22);
   --mc-line-strong: rgba(148, 163, 184, 0.5);
   --mc-seen: #fb923c;
+  --mc-seen-ink: #fdba74;
   --mc-seen-bg: #3a2a1f;
   --mc-home: #34d399;
   --mc-check: #f8fafc;
   --mc-check-ink: #0f172a;
+  --mc-on-seen: #0f172a;
+  --mc-on-flash: #0f172a;
+  --mc-teal: #2dd4bf;
+  --mc-teal-ink: #5eead4;
+  --mc-on-teal: #0f172a;
+  --mc-done: #34916d;
+  --mc-done-ink: #6ee7b7;
+  --mc-danger: #fca5a5;
+  --mc-pick: #323227;
+  --mc-shadow: 0 12px 40px rgba(2, 6, 23, 0.55);
 }
 .mc-light {
   --mc-ground: #f1f5f9;
   --mc-surface: #ffffff;
-  --mc-raised: #f1f5f9;
+  --mc-raised: #eef2f7;
   --mc-ink: #0f172a;
   --mc-soft: #334155;
-  --mc-muted: #64748b;
-  --mc-line: #e2e8f0;
-  --mc-line-strong: #94a3b8;
+  --mc-muted: #475569;
+  --mc-line: #dbe2ea;
+  --mc-line-strong: #64748b;
   --mc-seen: #c2410c;
-  --mc-seen-bg: #fff7ed;
+  --mc-seen-ink: #9a3412;
+  --mc-seen-bg: #fff4e8;
   --mc-home: #059669;
   --mc-check: #0f172a;
   --mc-check-ink: #ffffff;
+  --mc-on-seen: #ffffff;
+  --mc-on-flash: #0f172a;
+  --mc-teal: #0f766e;
+  --mc-teal-ink: #115e59;
+  --mc-on-teal: #ffffff;
+  --mc-done: #3f9f79;
+  --mc-done-ink: #065f46;
+  --mc-danger: #b91c1c;
+  --mc-pick: #fef9c3;
+  --mc-shadow: 0 12px 40px rgba(15, 23, 42, 0.2);
 }

@@ -425,7 +425,7 @@ export default function LocationPicker({
                 className="w-full px-4 py-3 text-left hover:bg-midnight-50 border-b border-midnight-100 last:border-0 transition-colors"
               >
                 <p className="font-semibold text-sm text-midnight-900 truncate">{result.name}</p>
-                <p className="text-xs text-midnight-400 truncate">{result.address}</p>
+                <p className="text-[13px] text-midnight-400 truncate">{result.address}</p>
               </button>
             ))}
           </div>
@@ -484,7 +484,7 @@ export default function LocationPicker({
         )}
         {value && (
           <>
-            <div className="absolute top-3 left-3 z-[500] px-3 py-1.5 rounded-full bg-midnight-900/85 text-white text-xs font-medium backdrop-blur pointer-events-none">
+            <div className="absolute top-3 left-3 z-[500] px-3 py-1.5 rounded-full bg-midnight-900/85 text-white text-[13px] font-medium backdrop-blur pointer-events-none">
               Not the exact spot? Drag the pin.
             </div>
             {canLocate && (

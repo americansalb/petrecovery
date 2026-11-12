@@ -40,10 +40,25 @@ describe('rankJobs', () => {
     const jobs = rankJobs({ blocks: [block('A1', 3), block('C4', 9), block('D4', 8)], way: 'foot', when: 'now30' });
     expect(jobs[0].kind).toBe('block');
     expect(jobs[0].title).toBe('Walk C4');
-    expect(jobs[0].why).toMatch(/warmest/);
+    expect(jobs[0].why).toBe('Close to where the pet was lost or seen. Nobody has walked it.');
     const hour = rankJobs({ blocks: [block('A1', 3), block('C4', 9), block('D4', 8)], way: 'foot', when: 'now60' });
     expect(hour[0].title).toBe('Walk C4, D4 and A1');
     expect(hour[0].cellIds).toEqual(['cell-C4', 'cell-D4', 'cell-A1']);
+  });
+
+  test('the reason given for a street is the reason: asked for first by the owner, or walked and down for another look', () => {
+    // The desk sets both (app/lib/searchBoard.js). Neither is "near the trail", and a street put up for another
+    // look has been walked, so it never reads "nobody has walked it".
+    const first = rankJobs({ blocks: [block('A1', 11), block('C4', 9)], way: 'foot', when: 'now30', petName: 'Max' });
+    expect(first[0].title).toBe('Walk A1');
+    expect(first[0].why).toBe("Max's owner asked for it to be walked first. Nobody has walked it.");
+    const again = rankJobs({ blocks: [{ ...block('B2', 9), status: 'NEEDS_REVISIT' }], way: 'foot', when: 'now30', petName: 'Max' });
+    expect(again[0].why).toBe('Close to where Max was lost or seen. It has been walked and is down for another look.');
+    const far = rankJobs({ blocks: [{ ...block('B2', 4), status: 'NEEDS_REVISIT' }], way: 'foot', when: 'now30', petName: 'Max' });
+    expect(far[0].why).toBe('It has been walked and is down for another look.');
+    const plain = rankJobs({ blocks: [block('B2', 4)], way: 'foot', when: 'now30' });
+    expect(plain[0].why).toBe('Nobody has walked it.');
+    for (const job of [...first, ...again, ...far, ...plain]) expect(job.why).not.toMatch(/trail|warmest|poor light/);
   });
 
   test('from home: needs that fit, and never a block', () => {

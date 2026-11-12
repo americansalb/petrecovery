@@ -14,6 +14,8 @@ const {
   columnLetter,
   cellLabel,
   cellPriority,
+  sightingPull,
+  SIGHTING_PRIORITY_WINDOW_MS,
   generateGrid,
   claimIsStale,
   CLAIM_TTL_MS,
@@ -114,6 +116,32 @@ describe('priority - why the map can say "start here"', () => {
       radiusMeters: 1600, cellSizeMeters: 150, now,
     });
     expect(fresh).toBeGreaterThan(old);
+  });
+
+  it('the pull of a sighting, by itself: 7 to 10 inside two cell-widths and three days, nothing outside', () => {
+    // What the board applies on every read, on top of the priority it stored (app/lib/searchBoard.js, livePriority).
+    const now = Date.now();
+    const at = (minutes) => new Date(now - minutes * 60000).toISOString();
+    const north = (meters) => ({ lat: AUSTIN.lat + meters / 111320, lng: AUSTIN.lng });
+    const pull = (sightings) => sightingPull({ center: AUSTIN, sightings, cellSizeMeters: 150, now });
+    expect(pull([])).toBe(0);
+    expect(pull([{ ...AUSTIN, at: at(0) }])).toBe(10);
+    // Farther off it is weaker, and past two cell-widths (300 m) it is nothing.
+    expect(pull([{ ...north(150), at: at(0) }])).toBe(9);
+    expect(pull([{ ...north(290), at: at(0) }])).toBe(7);
+    expect(pull([{ ...north(310), at: at(0) }])).toBe(0);
+    // Older it is weaker, and past three days it is nothing.
+    expect(pull([{ ...AUSTIN, at: at(36 * 60) }])).toBe(9);
+    expect(pull([{ ...AUSTIN, at: at(71 * 60) }])).toBe(7);
+    expect(pull([{ ...AUSTIN, at: at(73 * 60) }])).toBe(0);
+    expect(SIGHTING_PRIORITY_WINDOW_MS).toBe(72 * 3600 * 1000);
+    // The strongest of several counts, and a row with no place is passed over.
+    expect(pull([{ ...north(290), at: at(0) }, { ...AUSTIN, at: at(0) }, { lat: null, lng: null, at: at(0) }])).toBe(10);
+    // It is what cellPriority uses, so a board made after a sighting and one read after it agree.
+    const far = north(1500);
+    expect(cellPriority({ center: far, lastSeen: AUSTIN, sightings: [{ ...far, at: at(0) }], radiusMeters: 1600, cellSizeMeters: 150, now })).toBe(
+      Math.max(cellPriority({ center: far, lastSeen: AUSTIN, sightings: [], radiusMeters: 1600, cellSizeMeters: 150, now }), sightingPull({ center: far, sightings: [{ ...far, at: at(0) }], cellSizeMeters: 150, now }))
+    );
   });
 });
 

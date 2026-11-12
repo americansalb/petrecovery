@@ -20,8 +20,13 @@
  * One mission, three instruments (app/hooks/useInstrument.js), and they
  * do different jobs:
  *
- *   desk (desktop)        see and plan. Nobody walks from a desk, so
- *                         there is no street to take here and no GPS.
+ *   desk (desktop)        see the whole search and run it: every street
+ *                         on the map, the people on it, what the numbers
+ *                         show, everything said and done, and for the
+ *                         owner, giving a person a street, writing to
+ *                         them and where helpers go first. Nobody walks
+ *                         from a desk, so there is no street to take
+ *                         here and no GPS.
  *   phone (mobile web)    see, join, take a street, mark it by tapping,
  *                         report a sighting with one location reading.
  *                         No GPS walk: a browser cannot record with the
@@ -43,6 +48,7 @@ import { distanceMeters } from '@/app/lib/searchGrid';
 import { getBaseUrl } from '@/app/lib/config';
 import { orientWalk, walkTitle, placeFromStreets } from '@/app/lib/streetWalks';
 import useSearch from './hooks/useSearch';
+import usePutAway from './hooks/usePutAway';
 import TopBar from './components/TopBar';
 import PhotoView from './components/PhotoView';
 import FieldGps from './components/FieldGps';
@@ -50,11 +56,12 @@ import { Stamp } from './components/kit';
 import { Main, Join, Street, Home } from './steps/Helper';
 import { Seen, Sent } from './steps/Witness';
 import { OwnerNow, OwnerSighting } from './steps/Owner';
-import Rail from './desktop/Rail';
+import Command from './desktop/Command';
 import MarkReunitedModal from './components/overlays/MarkReunitedModal';
 import { readNote, saveNote } from './lib/identity';
 import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SIGHTING_MS } from './lib/words';
 import { searcherBrief } from './lib/briefLines';
+import { wordsForCard, wordsForOwner } from './lib/team';
 
 const SearchMap = dynamic(() => import('./components/SearchMap'), {
   ssr: false,
@@ -73,6 +80,7 @@ const SIGHTING_IN_VIEW_METERS = 1200;
 /** One reading says where the phone was, not where it is: the "You" dot is dropped after this long. */
 const POSITION_FRESH_MS = 2 * 60 * 1000;
 const NO_TRACK = [];
+const NO_WORDS = [];
 
 function Centered({ children }) {
   return (
@@ -114,7 +122,11 @@ function around(lat, lng, meters) {
  */
 function rank(items, here) {
   const away = (i) => (here ? distanceMeters(here, i.center) : 0);
-  const free = items.filter((i) => !i.mine && (i.status === 'UNSEARCHED' || i.status === 'NEEDS_REVISIT')).sort((a, b) => b.priority - a.priority || away(a) - away(b));
+  // A street kept for someone the person running the search asked is not offered to anyone else, and the one
+  // this person was asked to walk comes before every other (app/lib/searchAsk.js).
+  const free = items
+    .filter((i) => !i.mine && !i.reserved && (i.status === 'UNSEARCHED' || i.status === 'NEEDS_REVISIT'))
+    .sort((a, b) => Number(Boolean(b.askedOfMe)) - Number(Boolean(a.askedOfMe)) || b.priority - a.priority || away(a) - away(b));
   const again = items.filter((i) => !i.mine && i.status === 'SEARCHED').sort((a, b) => new Date(a.searchedAt) - new Date(b.searchedAt));
   return [...free, ...again];
 }
@@ -123,7 +135,8 @@ function Screen({ mission }) {
   const params = useSearchParams();
   const missionParam = mission || params.get('mission') || params.get('caseId');
   const { instrument, resolving } = useInstrument();
-  const search = useSearch(missionParam);
+  // A desk steering the search is kept current to the few seconds (hooks/useSearch.js).
+  const search = useSearch(missionParam, { desk: instrument === INSTRUMENTS.COMMAND });
   const { picture, items, unit, mine: mineRaw, viewer, now, hot: seenLately, position, mySightings } = search;
 
   const [view, setView] = useState('main'); // main | join | seen | sent
@@ -295,6 +308,36 @@ function Screen({ mission }) {
     return low === high ? `${low}` : `${low} to ${high}`;
   }, [candidates]);
   const mine = useMemo(() => (mineRaw && unit === 'street' ? orientWalk(mineRaw, walkFrom || position) : mineRaw), [mineRaw, unit, walkFrom, position]);
+  // The street the person running the search asked this person to walk, until they start it.
+  const askedRaw = useMemo(() => (unit === 'street' ? items.find((i) => i.askedOfMe && !i.mine) || null : null), [items, unit]);
+  const asked = useMemo(() => (askedRaw ? orientWalk(askedRaw, position) : null), [askedRaw, position]);
+  // What was said to this person: the newest word written to them, and what the owner last told everyone, while each is fresh.
+  const said = useMemo(
+    () => (isOwner || !picture ? NO_WORDS : wordsForCard({ words: search.words, updates: picture.updates || [], ownerName: owner?.firstName || null, now })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isOwner, picture?.updates, search.words, owner?.firstName, Math.floor(now / 60000)]
+  );
+  // On a phone the owner reads what a helper said, and answers it, on their own card. (On a desk it is in "Needs
+  // you" and in Messages.) One at a time: answering it brings up the next.
+  const [put, putAway] = usePutAway(caseId || 'none');
+  const heard = useMemo(
+    () => (isOwner && !desk ? wordsForOwner({ talk: search.talk, put, now }) : NO_WORDS),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isOwner, desk, search.talk, put, Math.floor(now / 60000)]
+  );
+  const answerHelper = async (to, text) => {
+    const result = await search.say(text, to.handle);
+    // Answered, so the word leaves the card: said here, where it can still be read.
+    if (!result.error) say(`Sent to ${to.from}.`);
+    return result;
+  };
+  // "Got it": read, and nothing to write back. The same list the desk's "Needs you" keeps.
+  const gotIt = (word) => putAway(`word-${word.id}`);
+  // The card says when it has shown a word written to this person, or the street they were asked to walk.
+  const sawWord = (id) => search.saw({ words: [id] });
+  const sawAsk = () => search.saw({ ask: true });
+  // Answering takes someone on the search, as the server also checks. Someone leading answers what was written to them.
+  const canSay = Boolean(viewer && !isOwner && (viewer.leads ? search.words.some((w) => !w.mine) : viewer.seesNames || search.volunteer || mineRaw || askedRaw || search.words.length > 0));
   const counts = useMemo(
     () => ({ total: items.length, searched: items.filter((i) => i.status === 'SEARCHED').length, inProgress: items.filter((i) => i.status === 'IN_PROGRESS').length }),
     [items]
@@ -306,7 +349,8 @@ function Screen({ mission }) {
   // A street is theirs as soon as they are given it. Taking a new one hands back the old (the server does both).
   // Answers { ok } or { error }, and never leaves the button spinning: a dropped signal is words on the card.
   async function takeStreet(exceptId = null) {
-    if (busy) return { error: '' };
+    // A desk is never handed a street: a tablet turned on its side while on the join card is a desk from then on.
+    if (busy || desk) return { error: '' };
     setBusy('walk');
     setProblem('');
     setDone(null);
@@ -384,6 +428,19 @@ function Screen({ mission }) {
       if (result.error) return setProblem(result.error);
       if (gps?.recording) gps.stop().catch(() => {});
       return go('main');
+    } finally {
+      setBusy(null);
+    }
+  }
+  // Asked to walk a street, and cannot: it goes back to the search, and the people running it are told.
+  async function cannot() {
+    if (busy) return undefined;
+    setBusy('cannot');
+    setProblem('');
+    try {
+      const result = await search.cannot();
+      if (result.error) return setProblem(result.error);
+      return undefined;
     } finally {
       setBusy(null);
     }
@@ -489,9 +546,14 @@ function Screen({ mission }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [picture?.sightings, zone, hot?.id, Math.floor(now / 60000)]
   );
-  const mapStreets = useMemo(() => (unit === 'street' ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: i.mine, who: i.claimedByName || null })) : []), [unit, items]);
+  // The street that is lit on this person's map: the one they hold, or else the one they were asked to walk.
+  const litId = mineRaw?.id || askedRaw?.id || null;
+  const mapStreets = useMemo(() => (unit === 'street' ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: i.id === litId, who: i.claimedByName || null })) : []), [unit, items, litId]);
   const mapCells = useMemo(() => (unit === 'block' ? items : []), [unit, items]);
-  const lit = mine && !sending && !isOwner ? mine : null;
+  const lit = !sending && !isOwner ? mine || asked : null;
+  // With a street lit, where the pet was lost keeps its mark and loses its words, which would sit on the street.
+  // One object while nothing changes: the map is drawn again when this is a new one.
+  const mapLastSeen = useMemo(() => (lit && lastSeenTag ? { ...lastSeenTag, label: '' } : lastSeenTag), [Boolean(lit), lastSeenTag]); // eslint-disable-line react-hooks/exhaustive-deps
   const mapTags = useMemo(() => {
     if (!lit || unit !== 'street' || !lit.path?.length) return [];
     const first = lit.path[0];
@@ -502,14 +564,14 @@ function Screen({ mission }) {
   const hotNear = Boolean(hot && lit?.center && distanceMeters(lit.center, hot) <= SIGHTING_IN_VIEW_METERS);
   const fit = useMemo(() => {
     const self = me ? [[me.lat, me.lng]] : [];
-    if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, desk ? 420 : 180), ...self];
+    if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 180), ...self];
     // A helper keeps their street in view, with a fresh sighting beside it when it is near enough to share a map.
     if (lit) return [...pointsOf(lit, unit), ...self, ...(hotNear ? [[hot.lat, hot.lng]] : [])];
     if (hot) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 220), ...(lastSeenTag ? [[lastSeenTag.lat, lastSeenTag.lng]] : [])];
     if (lastSeenTag) return [...around(lastSeenTag.lat, lastSeenTag.lng, 330), ...mapSightings.slice(0, 3).map((s) => [s.lat, s.lng])];
     return [];
-  }, [hot, hotNear, isOwner, lit, unit, me, lastSeenTag, mapSightings, desk]);
-  const fitKey = `${lit ? `lit:${lit.id}:${hotNear ? hot.id : ''}` : hot ? `seen:${hot.id}` : 'home'}|${lastSeenTag ? 1 : 0}|${desk}|${Math.round(sheetHeight / 40)}`;
+  }, [hot, hotNear, isOwner, lit, unit, me, lastSeenTag, mapSightings]);
+  const fitKey = `${lit ? `lit:${lit.id}:${hotNear ? hot.id : ''}` : hot ? `seen:${hot.id}` : 'home'}|${lastSeenTag ? 1 : 0}|${Math.round(sheetHeight / 40)}`;
 
   // The sheet's height, so the map keeps what matters above it.
   const sheetRef = useCallback((el) => {
@@ -595,15 +657,15 @@ function Screen({ mission }) {
     full = true;
     step = <Sent picture={picture} name={name} owner={owner} mine={mySeen} signedIn={Boolean(viewer?.signedIn)} onAgain={openSeen} onDone={() => go('main')} />;
   } else if (isOwner && hot) {
-    step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} />;
+    step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (isOwner) {
-    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} />;
+    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (mine) {
-    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} />;
-  } else if (view === 'join') {
+    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+  } else if (view === 'join' && !desk) {
     step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} />;
+    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   }
 
   const overlays = (
@@ -617,12 +679,40 @@ function Screen({ mission }) {
       )}
       {endOpen && (
         <div className="relative z-[850]">
-          <MarkReunitedModal mission={{ petName: name }} onClose={() => setEndOpen(false)} onConfirm={confirmHome} isSaving={saving} error={modalError} />
+          {/* Inside this screen's own palette, day or night, so it brings none of its own. */}
+          <MarkReunitedModal mission={{ petName: name }} onClose={() => setEndOpen(false)} onConfirm={confirmHome} isSaving={saving} error={modalError} palette="" />
         </div>
       )}
     </>
   );
 
+  // ----- A desk -----
+  // The whole search on one screen, and the controls to steer it (desktop/Command.js). It takes this person's
+  // card as it is, so a desk and a phone never say different things about the same step. A desk has no position
+  // of its own and records no walk, so it is handed neither.
+  if (desk) {
+    return (
+      <Command
+        picture={picture}
+        items={items}
+        unit={unit}
+        now={now}
+        line={line}
+        petHref={petHref}
+        onPhoto={() => setPhoto(true)}
+        step={step}
+        full={full}
+        onBack={() => go('main')}
+        onSeen={openSeen}
+        onShare={share}
+        search={search}
+        mapLabel={`Map of the search for ${name}`}
+        overlays={overlays}
+      />
+    );
+  }
+
+  // ----- A phone, in a browser or in the app -----
   const brief = searcherBrief(picture);
   const showChip = !isOwner && view === 'main' && !mine;
   const keyBits = [
@@ -632,8 +722,8 @@ function Screen({ mission }) {
   ].filter(Boolean);
   const map = (
     <SearchMap
-      theme={desk ? 'light' : 'dark'}
-      lastSeen={lit && lastSeenTag ? { ...lastSeenTag, label: '' } : lastSeenTag}
+      theme="dark"
+      lastSeen={mapLastSeen}
       sightings={mapSightings}
       streets={mapStreets}
       cells={mapCells}
@@ -642,13 +732,12 @@ function Screen({ mission }) {
       tags={mapTags}
       fit={fit}
       fitKey={fitKey}
-      padding={desk ? { top: 60, right: 80, bottom: 60, left: 80 } : { top: showChip ? 60 : sheetHeight > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: sheetHeight + (sheetHeight > 460 ? 30 : 44), left: 64 }}
-      zoomControl={desk}
+      padding={{ top: showChip ? 60 : sheetHeight > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: sheetHeight + (sheetHeight > 460 ? 30 : 44), left: 64 }}
       label={`Map of the search for ${name}`}
     />
   );
   const mapKey = keyBits.length > 0 && (
-    <div className="pointer-events-none flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-[var(--mc-soft)]">
+    <div className="pointer-events-none flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-semibold text-[var(--mc-soft)]">
       {keyBits.map(([kind, words]) => (
         <span key={words} className="flex items-center gap-1.5 rounded-md bg-[var(--mc-surface)]/85 px-1.5 py-0.5">
           {kind === 'bar' ? (
@@ -664,41 +753,6 @@ function Screen({ mission }) {
     </div>
   );
 
-  // ----- A desk -----
-  if (desk) {
-    const seesNames = Boolean(viewer?.seesNames);
-    return (
-      <div className="mc-light flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]">
-        <TopBar picture={picture} line={line} backHref={petHref} onPhoto={() => setPhoto(true)} wide />
-        <div className="flex min-h-0 flex-1">
-          <aside className="w-[400px] shrink-0 overflow-y-auto p-5" aria-label="Your step">
-            {/* The sighting cards carry their own padding (they fill a phone's screen), so the frame adds none. */}
-            <div className={`rounded-2xl border border-[var(--mc-line)] bg-[var(--mc-surface)] ${full ? 'overflow-hidden pb-2' : 'p-5'}`}>
-              {full && (
-                <button type="button" onClick={() => go('main')} className="ml-4 mt-3 inline-flex min-h-[36px] items-center gap-1.5 text-[15px] font-semibold text-[var(--mc-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
-                  <ArrowLeft size={18} aria-hidden="true" /> Back to the map
-                </button>
-              )}
-              {step}
-            </div>
-          </aside>
-          <div className="relative min-w-0 flex-1 border-x border-[var(--mc-line)]">
-            <div className="absolute inset-0 z-0">{map}</div>
-            {showChip && <p className="absolute left-4 top-4 z-[400] rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3.5 py-2 text-[13px] font-bold text-[var(--mc-ink)] shadow">{brief.neverFirst}</p>}
-            {mapKey && <div className="absolute bottom-4 left-4 z-[400]">{mapKey}</div>}
-          </div>
-          {seesNames && (
-            <aside className="w-[340px] shrink-0 overflow-y-auto p-5" aria-label="The search so far">
-              <Rail picture={picture} items={items} unit={unit} now={now} />
-            </aside>
-          )}
-        </div>
-        {overlays}
-      </div>
-    );
-  }
-
-  // ----- A phone, in a browser or in the app -----
   if (full) {
     return (
       <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-surface)]">

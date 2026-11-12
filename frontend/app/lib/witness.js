@@ -25,7 +25,7 @@ import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
 import { sendEmail, escapeHtml } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
-import { briefFor } from '@/app/lib/brief';
+import { onSeeing } from '@/app/lib/brief';
 
 /** How sure the witness is, as the 1 to 5 certainty the sighting stores. */
 export const SURE = { SURE: 5, LIKELY: 3, UNSURE: 1 };
@@ -188,8 +188,7 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   const near = place ? `Near ${place}.` : 'Marked on the map.';
   const title = live ? `${name} was just seen` : `${name} was seen ${agoPhrase(minutes)}`;
   // What to do on seeing the pet is the searcher's brief's own first sentence, and only while the sighting is live.
-  const never = briefFor({ way: 'foot', pet })[3] || '';
-  const onSeeing = live ? never.slice(0, never.indexOf('.') + 1) : '';
+  const seeing = live ? onSeeing(pet) : '';
   const sureWords =
     value.sure === 'SURE'
       ? `${who || 'Someone'} is sure it was ${name}.`
@@ -211,7 +210,7 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
         exceptUserId: userId,
         kind: WAKE_KINDS.SIGHTING,
         title,
-        body: [near, heading, sureWords, onSeeing].filter(Boolean).join(' '),
+        body: [near, heading, sureWords, seeing].filter(Boolean).join(' '),
         url,
         data: { caseId: pet.id, sightingId: sighting.id },
         now,
