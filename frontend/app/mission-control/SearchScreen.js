@@ -253,6 +253,12 @@ function Screen({ mission }) {
     setWhere(value);
     setWhereFrom(value ? 'hand' : null);
   }
+  // A click on the desk's map while the form is open is where the pet was seen. It is named by the streets it is
+  // on, where the search knows them; the place itself is what is sent.
+  function placeOnMap(point) {
+    setProblem('');
+    placeByHand({ lat: point.lat, lng: point.lng, address: placeFromStreets(naming.current, point) || '', city: '' });
+  }
 
   useEffect(() => {
     if (caseId) setWalkFrom(readNote(caseId, 'walk_from'));
@@ -706,7 +712,7 @@ function Screen({ mission }) {
   let full = false; // a card that takes the whole phone screen, with no map behind it
   if (view === 'seen') {
     full = true;
-    step = <Seen name={name} owner={owner} signedIn={Boolean(viewer?.signedIn)} where={where} onWhere={placeByHand} near={hot || picture.lastSeen} locating={locating} canLocate={!desk} minutes={minutes} onMinutes={chooseWhen} onSend={sendSeen} busy={busy === 'send'} problem={problem} />;
+    step = <Seen name={name} owner={owner} signedIn={Boolean(viewer?.signedIn)} where={where} onWhere={placeByHand} near={hot || picture.lastSeen} locating={locating} canLocate={!desk} mapPick={desk} minutes={minutes} onMinutes={chooseWhen} onSend={sendSeen} busy={busy === 'send'} problem={problem} />;
   } else if (view === 'sent' && mySeen) {
     full = true;
     step = <Sent picture={picture} name={name} owner={owner} mine={mySeen} signedIn={Boolean(viewer?.signedIn)} onAgain={openSeen} onDone={() => go('main')} />;
@@ -762,6 +768,9 @@ function Screen({ mission }) {
         onBack={() => go('main')}
         onSeen={openSeen}
         onShare={share}
+        picking={view === 'seen'}
+        pin={view === 'seen' && where && Number.isFinite(Number(where.lat ?? where.latitude)) ? { lat: Number(where.lat ?? where.latitude), lng: Number(where.lng ?? where.longitude) } : null}
+        onPick={placeOnMap}
         search={search}
         mapLabel={`Map of the search for ${name}`}
         overlays={overlays}

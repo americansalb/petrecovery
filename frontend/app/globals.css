@@ -1120,6 +1120,21 @@ img {
    colour means one thing: red where the pet was lost, orange where it was
    seen, teal for someone at work, green for done, yellow for the next
    step. */
+/* The search map while a place is being chosen: the pointer is a cross over everything on it. */
+.mc-picking,
+.mc-picking .leaflet-grab,
+.mc-picking .leaflet-interactive {
+  cursor: crosshair !important;
+}
+/* A clicked shape on the search map is not boxed by the browser: what is picked is drawn by the map itself. */
+.mc-light path.leaflet-interactive:focus,
+.mc-dark path.leaflet-interactive:focus {
+  outline: none;
+}
+/* Zoomed far out, the names of the areas would lie on top of each other, so they are left off. */
+.mc-far .mc-area-name {
+  display: none;
+}
 .mc-dark {
   --mc-ground: #0b1220;
   --mc-surface: #0f172a;

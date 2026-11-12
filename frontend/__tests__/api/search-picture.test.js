@@ -176,7 +176,7 @@ describe('searchPicture: what anyone with the link sees', () => {
     // Nor to a helper who joined from the link.
     const helper = await searchPicture('case-max', { searcher: HELPER, now: NOW });
     expect(JSON.stringify(helper)).not.toContain('Dana');
-    expect(helper.viewer).toEqual({ kind: 'volunteer', firstName: 'Jo', isOwner: false, seesNames: false, leads: false, waiver: true, signedIn: false });
+    expect(helper.viewer).toEqual({ kind: 'volunteer', firstName: 'Jo', isOwner: false, seesNames: false, leads: false, admin: false, waiver: true, signedIn: false });
     expect(text).not.toMatch(/witnessKey/);
     expect(helper.neighbors).toBeNull();
   });

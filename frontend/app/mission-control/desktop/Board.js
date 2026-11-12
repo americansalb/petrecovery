@@ -200,7 +200,7 @@ function Sightings({ picture, now, focused, onFocus, onAdd }) {
   );
 }
 
-export default function Board({ picture, items, unit, circle = null, onWiden = null, widening = false, areaCard = null, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null, people = [], talk = [], waiting = 0, person = null, onPerson, to = null, onTo, onAsk, onUnask, onWord, onPick, onShare }) {
+export default function Board({ picture, items, unit, circle = null, onWiden = null, widening = false, onSteer = null, areaCard = null, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null, people = [], talk = [], waiting = 0, person = null, onPerson, to = null, onTo, onAsk, onUnask, onWord, onPick, onShare }) {
   const names = Boolean(picture.viewer?.seesNames);
   const ground = unit === 'area';
   // How many are on the search where this person may know; otherwise how many are out, which anyone may. Ground
@@ -241,7 +241,7 @@ export default function Board({ picture, items, unit, circle = null, onWiden = n
       <div className="flex min-h-0 flex-1 flex-col" role="tabpanel">
         {tab === 'overview' && overview}
         {tab === 'people' && <People picture={picture} people={people} items={items} unit={unit} now={now} selected={selected} words={talk} open={person} onOpen={onPerson} onAsk={onAsk} onUnask={onUnask} onWord={onWord} onPick={onPick} onShare={onShare} />}
-        {tab === 'streets' && ground && (areaCard || <Ground picture={picture} items={items} circle={circle} next={next} now={now} leads={Boolean(picture.viewer?.leads)} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} onWiden={onWiden} widening={widening} />)}
+        {tab === 'streets' && ground && (areaCard || <Ground picture={picture} items={items} circle={circle} next={next} now={now} leads={Boolean(picture.viewer?.leads)} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} onWiden={onWiden} widening={widening} onSteer={onSteer} />)}
         {tab === 'streets' && !ground && <Streets picture={picture} items={items} unit={unit} next={next} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} />}
         {tab === 'sightings' && <Sightings picture={picture} now={now} focused={focused} onFocus={onFocus} onAdd={onAdd} />}
         {tab === 'messages' && <Messages picture={picture} items={items} unit={unit} now={now} people={people} words={talk} to={to} onTo={onTo} onSelect={onSelect} onFocus={onFocus} onTell={onTell} onWord={onWord} onAdd={onAdd} />}
