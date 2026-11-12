@@ -172,6 +172,10 @@ describe('one street', () => {
     expect(facts({}, { sightings: [{ id: 's', at: ago(30), ...south(410) }] }).join(' ')).toMatch(/290 m from where Max was seen/);
     const far = [{ id: 's', at: ago(30), ...south(900) }];
     expect(facts({}, { sightings: far }).join(' ')).not.toMatch(/was seen/);
+    // A street with a line of its own is measured from the line: seen at its far end is seen on it, however long it is.
+    const long = { path: [[LOST.lat - 0.001, LOST.lng], [LOST.lat - 0.009, LOST.lng]], center: south(560) };
+    expect(facts(long, { sightings: [{ id: 's', at: ago(30), ...south(990) }] })).toContain('Max was seen on it at 9:30 pm.');
+    expect(facts(long, { sightings: [{ id: 's', at: ago(30), lat: LOST.lat - 0.008, lng: LOST.lng + 0.0012 }] }).join(' ')).toMatch(/1[12]0 m from where Max was seen at 9:30 pm\./);
     expect(facts({}, { sightings: [{ id: 's', at: ago(30), ...south(440) }] }).join(' ')).not.toMatch(/was seen/);
   });
 

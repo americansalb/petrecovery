@@ -62,7 +62,7 @@ export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, pr
           <ol className="mt-2 flex flex-col gap-2">
             {steps.map((item, i) => (
               <li key={item.full} className="flex gap-3">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--mc-line-strong)] text-xs font-extrabold text-[var(--mc-soft)]" aria-hidden="true">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--mc-line-strong)] text-[13px] font-extrabold text-[var(--mc-soft)]" aria-hidden="true">
                   {i + 1}
                 </span>
                 <span className="min-w-0 text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">{item.lead}</span>

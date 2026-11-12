@@ -25,7 +25,7 @@ export function Card({ title, right = null, children, className = '' }) {
     <section className={`rounded-2xl border border-[var(--mc-line)] bg-[var(--mc-surface)] px-4 pb-4 pt-3.5 ${className}`}>
       {title && (
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[13px] font-bold uppercase leading-5 tracking-[0.1em] text-[var(--mc-muted)]">{title}</h2>
+          <h2 className="text-[13px] font-bold leading-5 text-[var(--mc-muted)]">{title}</h2>
           {right}
         </div>
       )}
@@ -36,9 +36,9 @@ export function Card({ title, right = null, children, className = '' }) {
 
 function Stat({ value, label, tone = 'plain' }) {
   return (
-    <div className="min-w-0 basis-[calc(50%-4px)] rounded-xl bg-[var(--mc-raised)] px-3 py-2">
-      <p className={`truncate text-[22px] font-extrabold leading-7 tabular-nums ${tone === 'seen' ? 'text-[var(--mc-seen)]' : 'text-[var(--mc-ink)]'}`}>{value}</p>
-      <p className="truncate text-[12px] font-semibold leading-4 text-[var(--mc-muted)]">{label}</p>
+    <div className="min-w-0 basis-[calc(50%-4px)] rounded-xl border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3 py-2">
+      <p className={`truncate text-[22px] font-extrabold leading-7 tabular-nums ${tone === 'seen' ? 'text-[var(--mc-seen-ink)]' : 'text-[var(--mc-ink)]'}`}>{value}</p>
+      <p className="truncate text-[13px] font-semibold leading-[18px] text-[var(--mc-muted)]">{label}</p>
     </div>
   );
 }
@@ -59,9 +59,9 @@ export function Numbers({ picture, items, unit, now }) {
         <Stat value={seen} label={seen === 1 ? 'sighting' : 'sightings'} tone={seen ? 'seen' : 'plain'} />
       </div>
       {c.total > 0 && (
-        <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-[var(--mc-raised)]" role="img" aria-label={`${c.searched} of ${c.total} ${thing} walked, ${c.walking} being walked now`}>
-          <span className="h-full bg-slate-300" style={{ width: `${(c.searched / c.total) * 100}%` }} />
-          <span className="h-full bg-teal-400" style={{ width: `${(c.walking / c.total) * 100}%` }} />
+        <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-[var(--mc-line)]" role="img" aria-label={`${c.searched} of ${c.total} ${thing} walked, ${c.walking} being walked now`}>
+          <span className="h-full bg-[var(--mc-done)]" style={{ width: `${(c.searched / c.total) * 100}%` }} />
+          <span className="h-full bg-[var(--mc-teal)]" style={{ width: `${(c.walking / c.total) * 100}%` }} />
         </div>
       )}
     </div>
@@ -95,7 +95,7 @@ export function Know({ picture, items, unit, now, rings, onRings }) {
             <a href={study.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[var(--mc-ink)]">
               {study.source}
             </a>
-            <button type="button" onClick={onRings} aria-pressed={rings} className="font-bold text-[var(--mc-ink)] underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
+            <button type="button" onClick={onRings} aria-pressed={rings} className="text-left font-bold text-[var(--mc-ink)] underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
               {rings ? 'Hide the rings' : `Show those distances around where ${name} was lost`}
             </button>
           </p>
@@ -128,7 +128,7 @@ export function Advice({ picture, now }) {
       <ol className="mt-2 flex flex-col gap-2">
         {shown.filter(Boolean).map((line, i) => (
           <li key={line} className="flex gap-2.5">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--mc-line-strong)] text-[11px] font-extrabold text-[var(--mc-soft)]" aria-hidden="true">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--mc-line-strong)] text-[13px] font-extrabold text-[var(--mc-soft)]" aria-hidden="true">
               {i + 1}
             </span>
             <span className="min-w-0 text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">{line}</span>

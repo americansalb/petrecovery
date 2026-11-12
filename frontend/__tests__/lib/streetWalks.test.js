@@ -9,7 +9,7 @@
  * into several ways, divided roads, courts and dead ends.
  */
 
-import { buildWalks, shortStreet, walkTitle, walkMinutes, orientWalk, MAX_WALKS, WALK_TARGET_METERS } from '@/app/lib/streetWalks';
+import { buildWalks, shortStreet, walkTitle, walkMinutes, orientWalk, nearestOnPath, MAX_WALKS, WALK_TARGET_METERS } from '@/app/lib/streetWalks';
 import { distanceMeters } from '@/app/lib/searchGrid';
 
 const rosedale = require('../fixtures/rosedale-streets.json');
@@ -283,5 +283,38 @@ describe('naming a place and a direction from the streets', () => {
   test('off every street there are no ways to offer', () => {
     expect(waysFrom(all, { lat: center.lat + 0.05, lng: center.lng })).toEqual([]);
     expect(waysFrom(all, null)).toEqual([]);
+  });
+});
+
+describe('nearestOnPath: how near a place is to a street, measured from the street itself', () => {
+  // A street running north for about 555 m, and a dog-leg east at its top.
+  const street = [[30.31, -97.74], [30.315, -97.74], [30.315, -97.735]];
+
+  test('a place beside the middle of the street is as far as it is from the line, not from an end or the middle', () => {
+    const beside = { lat: 30.3112, lng: -97.7395 };
+    const on = nearestOnPath(beside, street);
+    expect(on.lat).toBeCloseTo(30.3112, 5);
+    expect(on.lng).toBeCloseTo(-97.74, 5);
+    expect(on.meters).toBeGreaterThan(40);
+    expect(on.meters).toBeLessThan(55);
+    // Its middle, where the board keeps one point for it, is hundreds of metres from the same place.
+    expect(distanceMeters({ lat: 30.315, lng: -97.74 }, beside)).toBeGreaterThan(400);
+  });
+
+  test('a place on the street is nowhere from it, and one past its end is measured from the end', () => {
+    expect(nearestOnPath({ lat: 30.3133, lng: -97.74 }, street).meters).toBeLessThan(1);
+    const past = nearestOnPath({ lat: 30.309, lng: -97.74 }, street);
+    expect(past.lat).toBeCloseTo(30.31, 6);
+    expect(past.meters).toBeGreaterThan(100);
+    // The second leg counts too.
+    const east = nearestOnPath({ lat: 30.3154, lng: -97.737 }, street);
+    expect(east.lat).toBeCloseTo(30.315, 5);
+    expect(east.lng).toBeCloseTo(-97.737, 5);
+    expect(east.index).toBe(1);
+  });
+
+  test('a line with fewer than two points has nothing to measure from', () => {
+    expect(nearestOnPath({ lat: 1, lng: 1 }, []).meters).toBe(Infinity);
+    expect(nearestOnPath({ lat: 1, lng: 1 }, [[30.31, -97.74]]).lat).toBeNull();
   });
 });

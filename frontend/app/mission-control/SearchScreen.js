@@ -677,7 +677,7 @@ function Screen({ mission }) {
     />
   );
   const mapKey = keyBits.length > 0 && (
-    <div className="pointer-events-none flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-[var(--mc-soft)]">
+    <div className="pointer-events-none flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-semibold text-[var(--mc-soft)]">
       {keyBits.map(([kind, words]) => (
         <span key={words} className="flex items-center gap-1.5 rounded-md bg-[var(--mc-surface)]/85 px-1.5 py-0.5">
           {kind === 'bar' ? (

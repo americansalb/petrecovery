@@ -16,7 +16,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { generateGrid, cellLabel, cellPriority, sightingPull, CLAIM_TTL_MS, SIGHTING_PRIORITY_WINDOW_MS } from '@/app/lib/searchGrid';
-import { buildWalks, walkTitle, walkMinutes, SIGHTING_REACH_METERS } from '@/app/lib/streetWalks';
+import { buildWalks, walkTitle, walkMinutes, nearestOnPath, SIGHTING_REACH_METERS } from '@/app/lib/streetWalks';
 import { fetchNamedWays, STREET_FETCH_MARGIN_METERS } from '@/app/lib/osmStreets';
 import { logEvent } from '@/lib/logging';
 
@@ -355,9 +355,30 @@ export async function recentSightings(caseId, now = Date.now()) {
   return (rows || []).map((r) => ({ lat: r.latitude, lng: r.longitude, at: r.sightedAt }));
 }
 
-/** A street's priority as it stands now: what the board stored, pulled up by any fresh sighting next to it. */
+/**
+ * A street's priority as it stands now: what the board stored, pulled up
+ * by any fresh sighting next to it. "Next to" is measured from the street's
+ * own line where the row carries one, so the street the pet was seen on
+ * comes first however long it is; a square is measured from its middle.
+ */
 export function livePriority(row, sightings, now = Date.now()) {
-  const pull = sightingPull({ center: { lat: row.centerLatitude, lng: row.centerLongitude }, sightings, cellSizeMeters: SIGHTING_REACH_METERS, now });
+  if (!sightings?.length) return row.priority;
+  let path = null;
+  if (typeof row.path === 'string') {
+    try {
+      path = JSON.parse(row.path);
+    } catch {
+      path = null;
+    }
+  }
+  const middle = { lat: row.centerLatitude, lng: row.centerLongitude };
+  let pull = 0;
+  for (const s of sightings) {
+    if (typeof s?.lat !== 'number' || typeof s?.lng !== 'number') continue;
+    const on = path && path.length > 1 ? nearestOnPath(s, path) : null;
+    const center = on && on.lat != null ? { lat: on.lat, lng: on.lng } : middle;
+    pull = Math.max(pull, sightingPull({ center, sightings: [s], cellSizeMeters: SIGHTING_REACH_METERS, now }));
+  }
   return Math.max(row.priority, pull);
 }
 
@@ -422,11 +443,20 @@ export async function readCells(caseId, { viewer = null, withNames = false } = {
       status: true, priority: true, claimedById: true, claimedAt: true, searchedAt: true, searchCount: true, searchedByKey: true,
     },
   });
-  let nameById = {};
+  // Who holds a square, and who walked it or put it down as walked: first names, and only for those who may see
+  // them. A helper with no account is known by the name they joined with.
+  let nameOf = () => null;
   if (withNames) {
-    const ids = [...new Set(cells.map((c) => c.claimedById).filter((id) => id && !id.startsWith('v:')))];
-    const holders = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true } }) : [];
-    nameById = Object.fromEntries(holders.map((u) => [u.id, u.firstName || 'A helper']));
+    const who = (key) => (key ? (isMark(key) ? key.slice(MARK.length) : key) : null);
+    const keys = [...new Set(cells.flatMap((c) => [c.claimedById, who(c.searchedByKey)]).filter(Boolean))];
+    const userIds = keys.filter((id) => !id.startsWith('v:'));
+    const helperIds = keys.filter((id) => id.startsWith('v:')).map((id) => id.slice(2));
+    const [users, helpers] = await Promise.all([
+      userIds.length ? prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, firstName: true } }) : [],
+      helperIds.length ? prisma.missionVolunteer.findMany({ where: { id: { in: helperIds } }, select: { id: true, displayName: true } }) : [],
+    ]);
+    const names = Object.fromEntries([...(users || []).map((u) => [u.id, u.firstName]), ...(helpers || []).map((h) => [`v:${h.id}`, h.displayName])]);
+    nameOf = (key) => (key ? String(names[who(key)] || '').trim().split(/\s+/)[0] || 'A helper' : null);
   }
   return cells.map(({ claimedById, searchedByKey, ...c }) => ({
     ...c,
@@ -437,7 +467,7 @@ export async function readCells(caseId, { viewer = null, withNames = false } = {
     center: { lat: c.centerLatitude, lng: c.centerLongitude },
     minutes: 20,
     mine: Boolean(viewer && claimedById === viewer),
-    ...(withNames ? { claimedByName: claimedById ? nameById[claimedById] || 'A helper' : null } : {}),
+    ...(withNames ? { claimedByName: nameOf(claimedById), searchedByName: nameOf(searchedByKey) } : {}),
   }));
 }
 

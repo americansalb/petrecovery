@@ -79,7 +79,7 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     expect(bar).toMatch(/href=\{backHref\}/);
     expect(bar).toMatch(/aria-label=\{`Back to \$\{name\}'s page`\}/);
     expect(screen).toMatch(/<TopBar picture=\{picture\} line=\{line\} backHref=\{petHref\}/);
-    expect(desk).toMatch(/<TopBar picture=\{picture\} line=\{line\} backHref=\{petHref\}/);
+    expect(desk).toMatch(/<TopBar\s+picture=\{picture\}\s+line=\{line\}\s+backHref=\{petHref\}/);
     expect(screen).toMatch(/<Command\b[\s\S]*?petHref=\{petHref\}/);
     // The two cards with no map (a sighting being sent, and sent) carry their own arrow back, on a phone and on a desk.
     expect(screen).toMatch(/aria-label="Back to the map"/);

@@ -8,8 +8,9 @@
  *
  *   left    the numbers, this person's own card, what the search shows,
  *           and the site's advice for this pet at this stage
- *   middle  the map: every street by its state, warmest where the search
- *           goes next. Pointing names a street, clicking picks it.
+ *   middle  the map: every street by its state. A street still to walk is
+ *           dark, the ones given out next are the thickest, a walked one
+ *           is green. Pointing names a street, clicking picks it.
  *   right   the streets in the order they are handed out, the sightings,
  *           who is out, and a log of what happened
  *
@@ -18,14 +19,19 @@
  * walked for someone who walked it without the site, or ask for another
  * look (app/lib/searchBoard.js, STEER_ACTIONS). Everyone else sees the
  * same search and can add a sighting.
+ *
+ * It is light by day, like an ordinary map, and dark at night by its own
+ * switch. Every colour comes from the screen's two palettes
+ * (app/globals.css, .mc-light and .mc-dark), which are held to a contrast
+ * of 4.5 to 1 or better, and no text here is smaller than 13px.
  */
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Check, ExternalLink, Flag, Maximize2, RotateCcw, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, ExternalLink, Flag, Maximize2, Moon, RotateCcw, Sun, X, Loader2 } from 'lucide-react';
 import TopBar from '../components/TopBar';
-import { HEAT } from '../components/SearchMap';
+import { DESK_MAP } from '../components/SearchMap';
 import { dayAndTime } from '../lib/words';
-import { researchFor, stateWords, streetFacts } from '../lib/insight';
+import { lookFirst, researchFor, stateWords, streetFacts } from '../lib/insight';
 import { Advice, Know, Numbers } from './Know';
 import Board from './Board';
 
@@ -35,7 +41,33 @@ const SearchMap = dynamic(() => import('../components/SearchMap'), {
 });
 
 const CONTROL =
-  'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] px-3 text-[13px] font-bold leading-5 text-[var(--mc-ink)] shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
+  'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] px-3 text-[13px] font-bold leading-5 text-[var(--mc-ink)] shadow-sm hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
+
+/** How many of the streets still to walk the map and the list mark as given out next. */
+const NEXT_SHOWN = 3;
+const NIGHT_KEY = 'rp_mc_night';
+
+/** Day or night for the desk. Day, unless this person chose night on this computer before. */
+function useNight() {
+  const [night, setNight] = useState(false);
+  useEffect(() => {
+    try {
+      setNight(window.localStorage.getItem(NIGHT_KEY) === '1');
+    } catch {
+      // A browser that keeps nothing still gets the day desk.
+    }
+  }, []);
+  const flip = () =>
+    setNight((was) => {
+      try {
+        window.localStorage.setItem(NIGHT_KEY, was ? '0' : '1');
+      } catch {
+        // Not kept: the switch still works until the page is closed.
+      }
+      return !was;
+    });
+  return [night, flip];
+}
 
 /** Four points round a centre, so a single mark is shown with its neighbourhood. */
 function around(lat, lng, meters) {
@@ -77,10 +109,10 @@ function StreetCard({ street, picture, unit, now, leads, busy, problem, onSteer,
     </button>
   );
   return (
-    <section aria-label={`${street.title}`} className="rounded-2xl border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] p-4 shadow-[0_12px_40px_rgba(2,6,23,0.55)]">
+    <section aria-label={`${street.title}`} className="rounded-2xl border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] p-4 shadow-[var(--mc-shadow)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[12px] font-bold uppercase leading-4 tracking-[0.1em] text-[var(--mc-muted)]">
+          <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">
             {stateWords(street)} · about {street.minutes} min{street.first ? ' · asked for first' : ''}
           </p>
           <h2 className="mt-0.5 text-[19px] font-bold leading-6 text-[var(--mc-ink)]">{street.title}</h2>
@@ -98,7 +130,7 @@ function StreetCard({ street, picture, unit, now, leads, busy, problem, onSteer,
         {street.first && <li className="text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">The next people who ask for a {thing} are sent here first.</li>}
       </ul>
       {problem && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-red-400">
+        <p role="alert" className="mt-2 text-sm font-semibold text-[var(--mc-danger)]">
           {problem}
         </p>
       )}
@@ -128,6 +160,8 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   const name = picture.pet?.name || 'the pet';
   const zone = picture.timeZone;
   const roomy = useRoomy();
+  const [night, flipNight] = useNight();
+  const look = DESK_MAP[night ? 'dark' : 'light'];
   const [tabPicked, setTab] = useState(null);
   // With three columns the list opens on the streets. With two, on the overview, which is where this person's own card is.
   const tab = tabPicked && (roomy ? tabPicked !== 'overview' : true) ? tabPicked : roomy ? 'streets' : 'overview';
@@ -142,6 +176,8 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   const study = researchFor(picture.pet?.species);
 
   const street = useMemo(() => items.find((i) => i.id === selected) || null, [items, selected]);
+  // The few streets a helper who asks now would be given: the map and the list both mark them.
+  const next = useMemo(() => new Set(lookFirst(items).slice(0, NEXT_SHOWN).map((i) => i.id)), [items]);
   // A street that is no longer on the board lets go of itself.
   useEffect(() => {
     if (selected && !street) setSelected(null);
@@ -186,11 +222,11 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   const mapStreets = useMemo(
     () =>
       unit === 'street'
-        ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: false, who: i.claimedByName || null, title: i.title, words: `${stateWords(i)} · about ${i.minutes} min`, priority: i.priority, first: i.first }))
+        ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: false, who: i.claimedByName || null, title: i.title, words: `${stateWords(i)} · about ${i.minutes} min`, next: next.has(i.id), first: i.first }))
         : [],
-    [unit, items]
+    [unit, items, next]
   );
-  const mapCells = useMemo(() => (unit === 'block' ? items.map((i) => ({ ...i, mine: false, words: `${stateWords(i)} · about ${i.minutes} min` })) : []), [unit, items]);
+  const mapCells = useMemo(() => (unit === 'block' ? items.map((i) => ({ ...i, mine: false, next: next.has(i.id), words: `${stateWords(i)} · about ${i.minutes} min` })) : []), [unit, items, next]);
   const lastSeenTag = useMemo(() => {
     const at = picture.lastSeen;
     if (!at || !Number.isFinite(at.lat) || !Number.isFinite(at.lng)) return null;
@@ -210,12 +246,12 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   }, [focused, street, items, numbered, lastSeenTag]);
   const fitKey = `${focused ? `seen:${focused}` : street ? `street:${street.id}` : `all:${items.length}:${numbered.length}`}|${refit}`;
 
+  // The map's key: what a line's weight and colour mean, in the map's own values.
   const key = [
-    ['line', HEAT.first, 'Given out first'],
-    ['line', HEAT.next, 'Next'],
-    ['line', HEAT.later, 'Later'],
-    ['dots', '#2dd4bf', 'Being walked'],
-    ['line', 'rgba(203,213,225,0.5)', 'Walked'],
+    ['thick', look.ink, 'Given out next'],
+    ['thin', look.later, 'Still to walk'],
+    ['dots', look.walking, 'Being walked'],
+    ['line', look.walked, 'Walked'],
   ];
 
   // The numbers, this person's own card, what the search shows, and the advice.
@@ -236,8 +272,19 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   );
 
   return (
-    <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]">
-      <TopBar picture={picture} line={line} backHref={petHref} onPhoto={onPhoto} wide />
+    <div className={`${night ? 'mc-dark' : 'mc-light'} flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]`}>
+      <TopBar
+        picture={picture}
+        line={line}
+        backHref={petHref}
+        onPhoto={onPhoto}
+        wide
+        right={
+          <button type="button" onClick={flipNight} aria-pressed={night} className={`${CONTROL} ml-2 shrink-0`}>
+            {night ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />} {night ? 'Day' : 'Night'}
+          </button>
+        }
+      />
       <div className="flex min-h-0 flex-1">
         {roomy && (
           <aside className="flex w-[380px] shrink-0 flex-col overflow-y-auto" aria-label="The search in numbers, and your step">
@@ -248,7 +295,7 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
         <div className="relative min-w-0 flex-1 border-x border-[var(--mc-line)]">
           <div className="absolute inset-0 z-0">
             <SearchMap
-              theme="dark"
+              theme={night ? 'dark' : 'light'}
               desk
               layer={layer}
               lastSeen={lastSeenTag}
@@ -272,8 +319,8 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
           <div className="absolute left-3 top-3 z-[400] flex flex-wrap items-center gap-2">
             <div className="flex overflow-hidden rounded-lg border border-[var(--mc-line-strong)] shadow" role="radiogroup" aria-label="What the map is drawn on">
               {[
-                ['map', 'Streets'],
-                ['satellite', 'From above'],
+                ['map', 'Map'],
+                ['satellite', 'Satellite'],
               ].map(([id, words]) => (
                 <button
                   key={id}
@@ -287,11 +334,6 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
                 </button>
               ))}
             </div>
-            {study && (
-              <button type="button" onClick={() => setRings((v) => !v)} aria-pressed={rings} className={`${CONTROL} ${rings ? '!border-flash-400' : ''}`}>
-                {rings ? 'Hide the study rings' : 'Study rings'}
-              </button>
-            )}
             <button
               type="button"
               onClick={() => {
@@ -304,10 +346,14 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
               <Maximize2 size={15} aria-hidden="true" /> The whole search
             </button>
           </div>
-          <div className={`pointer-events-none absolute bottom-3 left-3 z-[400] flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-[var(--mc-line)] bg-[var(--mc-surface)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--mc-soft)] ${street ? 'hidden' : 'flex'}`}>
+          <div className={`pointer-events-none absolute bottom-3 left-3 z-[400] flex-wrap items-center gap-x-3.5 gap-y-1 rounded-lg border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3 py-1.5 text-[13px] font-semibold text-[var(--mc-soft)] shadow-sm ${street ? 'hidden' : 'flex'}`}>
             {key.map(([kind, color, words]) => (
               <span key={words} className="flex items-center gap-1.5">
-                {kind === 'dots' ? <span className="w-5 border-t-4 border-dotted" style={{ borderColor: color }} aria-hidden="true" /> : <span className="h-1.5 w-5 rounded-full" style={{ background: color }} aria-hidden="true" />}
+                {kind === 'dots' ? (
+                  <span className="w-5 border-t-[5px] border-dotted" style={{ borderColor: color }} aria-hidden="true" />
+                ) : (
+                  <span className="w-5 rounded-full" style={{ background: color, height: kind === 'thick' ? 6 : kind === 'thin' ? 3 : 5 }} aria-hidden="true" />
+                )}
                 {words}
               </span>
             ))}
@@ -322,6 +368,7 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
 
         <aside className={`${roomy ? 'w-[380px]' : 'order-first w-[372px] border-r border-[var(--mc-line)]'} shrink-0 bg-[var(--mc-surface)]`} aria-label={`The search for ${name}`}>
           <Board
+            next={next}
             overview={roomy ? null : overview}
             picture={picture}
             items={items}

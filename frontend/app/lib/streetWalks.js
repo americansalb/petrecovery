@@ -31,6 +31,7 @@ export const MAX_WALKS = 120;
 /** How far a sighting reaches when it raises a street's priority. */
 export const SIGHTING_REACH_METERS = 150;
 
+
 /** Ways a person on foot can search along. Motorways and trunk roads are not. */
 const WALKABLE = new Set([
   'residential', 'living_street', 'unclassified', 'tertiary', 'tertiary_link', 'secondary', 'secondary_link',

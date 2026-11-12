@@ -34,10 +34,18 @@ import { PET_COLOR } from '@/app/lib/petColors';
 
 const FLASH = '#facc15';
 const TEAL = '#2dd4bf';
-/** A street nobody has walked, on the desk: the warmer, the sooner the search goes there. */
-export const HEAT = { first: '#fb923c', next: '#fbbf24', later: '#94a3b8' };
-/** Which of the three a street is. A street someone asked for first, or one the search ranks in its top band, is "first". */
-export const heatOf = (street) => (street.first || street.priority >= 8 ? 'first' : street.priority >= 5 ? 'next' : 'later');
+/**
+ * How the desk's map is drawn, by day and by night. Weight says what is
+ * left: a street still to walk is drawn in ink, the ones given out next
+ * are the thickest, and a walked street turns green. Colour is kept for
+ * meaning and never used for rank: red where the pet was lost, orange
+ * where it was seen, teal for someone at work, green for done, yellow for
+ * the street that is picked. The list beside the map uses the same values.
+ */
+export const DESK_MAP = {
+  light: { ink: '#0f172a', later: '#64748b', walked: '#3f9f79', walking: '#0d9488', casing: '#ffffff' },
+  dark: { ink: '#f8fafc', later: '#8493a8', walked: '#34916d', walking: '#2dd4bf', casing: '#020617' },
+};
 
 function node(tag, css, text) {
   const el = document.createElement(tag);
@@ -86,13 +94,14 @@ function disc(color, size, { ring = '#ffffff', pulse = false, text = null } = {}
   }
   wrap.appendChild(node('span', `position:absolute;inset:0;border-radius:9999px;background:${color};border:3px solid ${ring};box-shadow:0 1px 6px rgba(2,6,23,0.45)`));
   // A number inside it: the sightings in the order they happened.
-  if (text != null) wrap.appendChild(node('span', 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 12px/1 Inter,system-ui,sans-serif;color:#ffffff', String(text)));
+  if (text != null) wrap.appendChild(node('span', 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 13px/1 Inter,system-ui,sans-serif;color:#ffffff', String(text)));
   return wrap;
 }
 
 /** The words that follow the pointer over a street: its name, and its state. Text nodes only. */
 function tip(title, words) {
-  const box = node('div', 'font:600 13px/18px Inter,system-ui,sans-serif;color:#0f172a;max-width:260px;white-space:normal');
+  // As wide as its words up to a limit: inside Leaflet's own box, which does not wrap, a bare max-width collapses to one word a line.
+  const box = node('div', 'font:600 13px/18px Inter,system-ui,sans-serif;color:#0f172a;width:max-content;max-width:260px;white-space:normal');
   box.appendChild(node('div', 'font-weight:700', title));
   if (words) box.appendChild(node('div', 'color:#475569', words));
   return box;
@@ -102,7 +111,7 @@ export default function SearchMap({
   theme = 'dark',
   lastSeen = null, // { lat, lng, label }
   sightings = [], // [{ id, lat, lng, label, hot, n }]: `n` numbers them in the order they happened
-  streets = [], // [{ id, path, status, mine, who, title, words, priority, first }]
+  streets = [], // [{ id, path, status, mine, who, title, words, next, first }]: `next` is given out next, `first` was asked for first
   cells = [], // [{ id, northLat, southLat, eastLng, westLng, status, mine, title, words }]
   me = null, // { lat, lng }
   track = [], // [{ lat, lng }, ...] this person's own recorded path (the app only)
@@ -130,12 +139,22 @@ export default function SearchMap({
   hover.current = onHover;
   const layerNow = useRef(layer);
   layerNow.current = layer;
+  const themeNow = useRef(theme);
+  themeNow.current = theme;
 
   // The ground under everything: the street map, or the view from above with the roads named over it.
   const showLayer = () => {
     const { map, L, tiles } = state.current;
     if (!map || !L) return;
-    if (!tiles.streets) tiles.streets = L.tileLayer(TILE_URL, tileLayerOptions(theme === 'dark' ? { dark: true } : { calm: true }));
+    // The street map is drawn light or dark to match the screen: when the desk goes from day to night it is made again.
+    if (tiles.streets && tiles.drawnFor !== themeNow.current) {
+      map.removeLayer(tiles.streets);
+      tiles.streets = null;
+    }
+    if (!tiles.streets) {
+      tiles.streets = L.tileLayer(TILE_URL, tileLayerOptions(themeNow.current === 'dark' ? { dark: true } : { calm: true }));
+      tiles.drawnFor = themeNow.current;
+    }
     if (layerNow.current === 'satellite') {
       if (!tiles.photo) {
         tiles.photo = L.tileLayer(SATELLITE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION });
@@ -186,7 +205,7 @@ export default function SearchMap({
   useEffect(() => {
     showLayer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layer]);
+  }, [layer, theme]);
 
   // Everything drawn on it, redrawn when the search changes.
   useEffect(() => {
@@ -209,16 +228,24 @@ export default function SearchMap({
         });
       };
 
+      const look = DESK_MAP[dark ? 'dark' : 'light'];
       for (const cell of cells) {
         const bounds = [[cell.southLat, cell.westLng], [cell.northLat, cell.eastLng]];
         const lit = Boolean(cell.mine);
+        const soon = cell.next || cell.first;
         const style = lit
           ? { color: FLASH, weight: 3, fillColor: FLASH, fillOpacity: 0.22 }
-          : cell.status === 'SEARCHED'
-            ? { color: '#94a3b8', weight: 1, fillColor: '#94a3b8', fillOpacity: dark ? 0.28 : 0.3 }
-            : cell.status === 'IN_PROGRESS'
-              ? { color: TEAL, weight: 2, dashArray: '2 8', fillColor: TEAL, fillOpacity: 0.08 }
-              : { color: dark ? 'rgba(148,163,184,0.25)' : 'rgba(51,65,85,0.2)', weight: 1, fillOpacity: 0 };
+          : desk
+            ? cell.status === 'SEARCHED'
+              ? { color: look.walked, weight: 1.5, fillColor: look.walked, fillOpacity: 0.35 }
+              : cell.status === 'IN_PROGRESS'
+                ? { color: look.walking, weight: 3, dashArray: '2 8', fillColor: look.walking, fillOpacity: 0.12 }
+                : { color: soon ? look.ink : look.later, weight: soon ? 3.5 : 1, fillOpacity: 0 }
+            : cell.status === 'SEARCHED'
+              ? { color: '#94a3b8', weight: 1, fillColor: '#94a3b8', fillOpacity: dark ? 0.28 : 0.3 }
+              : cell.status === 'IN_PROGRESS'
+                ? { color: TEAL, weight: 2, dashArray: '2 8', fillColor: TEAL, fillOpacity: 0.08 }
+                : { color: dark ? 'rgba(148,163,184,0.25)' : 'rgba(51,65,85,0.2)', weight: 1, fillOpacity: 0 };
         // On a phone the map is looked at, not tapped: a street or a square is given by the card's one button.
         const rect = L.rectangle(bounds, { ...style, interactive: desk }).addTo(layers);
         if (desk) answer(rect, cell);
@@ -232,15 +259,28 @@ export default function SearchMap({
         if (lit) {
           L.polyline(street.path, { color: casing, weight: 13, opacity: 0.9, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
           L.polyline(street.path, { color: FLASH, weight: 8, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
+        } else if (desk) {
+          // The desk draws every street, each over a casing so it stands clear of the map under it.
+          const cased = (weight) => L.polyline(street.path, { color: look.casing, weight: weight + 4, opacity: 0.9, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
+          if (street.status === 'IN_PROGRESS') {
+            cased(5.5);
+            L.polyline(street.path, { color: look.walking, weight: 5.5, opacity: 1, dashArray: '1 10', lineCap: 'round', interactive: false }).addTo(layers);
+          } else if (street.status === 'SEARCHED') {
+            cased(5);
+            L.polyline(street.path, { color: look.walked, weight: 5, opacity: 0.85, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
+          } else if (street.next || street.first) {
+            // Given out next: the thickest line on the map. One the owner asked for first has yellow under it.
+            if (street.first) L.polyline(street.path, { color: FLASH, weight: 13, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
+            else cased(6);
+            L.polyline(street.path, { color: look.ink, weight: 6, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
+          } else {
+            cased(2.5);
+            L.polyline(street.path, { color: look.later, weight: 2.5, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(layers);
+          }
         } else if (street.status === 'IN_PROGRESS') {
           L.polyline(street.path, { color: TEAL, weight: 5, opacity: 0.95, dashArray: '1 10', lineCap: 'round', interactive: false }).addTo(layers);
         } else if (street.status === 'SEARCHED') {
           L.polyline(street.path, { color: dark ? '#cbd5e1' : '#1e293b', weight: 6, opacity: dark ? 0.42 : 0.34, lineCap: 'round', interactive: false }).addTo(layers);
-        } else if (desk) {
-          // Nobody has walked it. The warmer the line, the sooner the search goes there.
-          const heat = heatOf(street);
-          if (street.first) L.polyline(street.path, { color: casing, weight: 9, opacity: 0.9, lineCap: 'round', interactive: false }).addTo(layers);
-          L.polyline(street.path, { color: HEAT[heat], weight: street.first ? 6 : heat === 'first' ? 4.5 : 3.5, opacity: heat === 'later' ? 0.75 : 0.95, lineCap: 'round', interactive: false }).addTo(layers);
         }
         // On a phone a free street is the map's own street: nothing is drawn over it.
         if (desk) answer(L.polyline(street.path, { color: '#000000', weight: 20, opacity: 0, lineCap: 'round' }).addTo(layers), street);
@@ -265,7 +305,8 @@ export default function SearchMap({
       for (const s of [...sightings].reverse()) {
         if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng)) continue;
         const numbered = Number.isFinite(s.n);
-        const dot = disc(PET_COLOR.seen, numbered ? 24 : s.hot ? 22 : 14, { pulse: Boolean(s.hot), ring: dark ? '#0f172a' : '#ffffff', text: numbered ? s.n : null });
+        // A numbered mark carries a white figure, so its orange is the deeper one: 5.2 to 1, where the brighter gives 3.6.
+        const dot = disc(numbered ? '#c2410c' : PET_COLOR.seen, numbered ? 24 : s.hot ? 22 : 14, { pulse: Boolean(s.hot), ring: dark ? '#0f172a' : '#ffffff', text: numbered ? s.n : null });
         L.marker([s.lat, s.lng], { icon: tagged(L, { dot, text: s.label, tone: 'seen', theme, side: s.side || 'right' }), interactive: false, keyboard: false, zIndexOffset: s.hot ? 900 : 300 }).addTo(layers);
       }
 
@@ -316,13 +357,15 @@ export default function SearchMap({
       const casing = dark ? '#020617' : '#ffffff';
       const shape = (id) => streets.find((x) => x.id === id) || cells.find((x) => x.id === id) || null;
       const pointed = hovered && hovered !== selected ? shape(hovered) : null;
-      if (pointed?.path) L.polyline(pointed.path, { color: '#ffffff', weight: 11, opacity: 0.55, lineCap: 'round', interactive: false }).addTo(focus);
-      else if (pointed) L.rectangle([[pointed.southLat, pointed.westLng], [pointed.northLat, pointed.eastLng]], { color: '#ffffff', weight: 3, fillOpacity: 0.12, interactive: false }).addTo(focus);
+      // The street pointed at is ringed in the map's ink: white at night, dark by day.
+      const ring = dark ? '#ffffff' : '#0f172a';
+      if (pointed?.path) L.polyline(pointed.path, { color: ring, weight: 13, opacity: dark ? 0.55 : 0.28, lineCap: 'round', interactive: false }).addTo(focus);
+      else if (pointed) L.rectangle([[pointed.southLat, pointed.westLng], [pointed.northLat, pointed.eastLng]], { color: ring, weight: 3, fillOpacity: 0.12, interactive: false }).addTo(focus);
       const picked = selected ? shape(selected) : null;
       if (picked?.path) {
-        // White round yellow: it has to read apart from the orange of "look here first" beside it.
+        // Yellow inside a ring of ink: the one yellow line on the map is the street that is picked.
         L.polyline(picked.path, { color: casing, weight: 18, opacity: 0.9, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(focus);
-        L.polyline(picked.path, { color: '#ffffff', weight: 13, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(focus);
+        L.polyline(picked.path, { color: ring, weight: 13, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(focus);
         L.polyline(picked.path, { color: FLASH, weight: 7, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(focus);
       } else if (picked) {
         L.rectangle([[picked.southLat, picked.westLng], [picked.northLat, picked.eastLng]], { color: FLASH, weight: 4, fillColor: FLASH, fillOpacity: 0.25, interactive: false }).addTo(focus);

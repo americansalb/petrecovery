@@ -11,7 +11,7 @@
  * the pet is.
  */
 import { distanceMeters } from '@/app/lib/searchGrid';
-import { SIGHTING_REACH_METERS } from '@/app/lib/streetWalks';
+import { nearestOnPath, SIGHTING_REACH_METERS } from '@/app/lib/streetWalks';
 import { clockTime, dayAndTime, placeWords } from './words';
 
 const MINUTE = 60 * 1000;
@@ -201,11 +201,17 @@ export function streetFacts(street, { lastSeen = null, sightings = [], timeZone,
     const d = distanceMeters(origin, center);
     facts.push(d < 50 ? `Right where ${name} was lost.` : `${metersWords(d)} ${directionWord(origin, center)} of where ${name} was lost.`);
   }
+  // Measured from the street's own line, as the order of the streets is: a long street is next to a sighting anywhere along it.
+  const apart = (s) => {
+    const on = Array.isArray(street.path) && street.path.length > 1 ? nearestOnPath(s, street.path) : null;
+    if (on && Number.isFinite(on.meters)) return on.meters;
+    return center ? distanceMeters(center, s) : Infinity;
+  };
   const near = sightings
-    .filter((s) => Number.isFinite(s.lat) && center && distanceMeters(center, s) <= NEAR_SIGHTING_METERS)
+    .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng) && apart(s) <= NEAR_SIGHTING_METERS)
     .sort((a, b) => new Date(b.at) - new Date(a.at))[0];
   // The distance itself, so "near" is never left to mean more than it does.
-  if (near) facts.push(`${metersWords(distanceMeters(center, near))} from where ${name} was seen ${whenWords(near.at, timeZone, now)}.`);
+  if (near) facts.push(apart(near) < 30 ? `${name} was seen on it ${whenWords(near.at, timeZone, now)}.` : `${metersWords(apart(near))} from where ${name} was seen ${whenWords(near.at, timeZone, now)}.`);
   const who = (n) => n || 'Someone';
   if (street.status === 'IN_PROGRESS') facts.push(`${who(street.claimedByName)} has been on it since ${clockTime(street.claimedAt, timeZone)}.`);
   if (street.searchedAt) {
