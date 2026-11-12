@@ -9,7 +9,7 @@
  */
 import {
   isSeenCircle, circleAreas, areaName, AreaName, mapLabel, timesWords, listWords, whereWords, areaState, areaLine, areaFacts,
-  groundCoverage, groundLines, givenNextAreas, minutesRange, quietGround, coveredWords, needsForGround, groundActivity,
+  groundCoverage, groundLines, givenNextAreas, minutesRange, quietGround, coveredWords, needsForGround, groundActivity, forAnyoneElse, whyThisArea,
 } from '@/app/mission-control/lib/ground';
 
 const ZONE = 'America/Chicago';
@@ -246,6 +246,39 @@ describe('what is given out next', () => {
     expect(givenNextAreas(five({ middle: { mine: true } })).map((a) => a.key)).toEqual(['middle']);
   });
 
+  test('ground the owner asked for first stays next while someone is on it, as its card says', () => {
+    const first = { first: true, priority: 11, ...onIt(['Sarah'], ago(5)) };
+    expect(givenNextAreas(five({ north: first })).map((a) => a.key)).toEqual(['north']);
+    expect(quietGround({ areas: five({ north: first }), people: [person('Sarah', { state: 'walking' })] })).toBe('1 person is out searching. The next person who asks is given the north side.');
+    expect(areaFacts(area('north', first), { picture: picture(), circle: CIRCLE, now: NOW })).toContain('The next people who ask for ground are sent here first.');
+  });
+
+  test('ground up for another look stays ahead of searched ground while someone is on it', () => {
+    const all = { middle: searched(2, ago(10)), north: searched(1, ago(105)), east: searched(1, ago(50)), south: searched(1, ago(40)), west: searched(1, ago(75)) };
+    // The east side was put up for another look and Sarah started it. The board says "being searched", and `again` that it still needs it.
+    const areas = five({ ...all, east: { ...searched(1, ago(50)), ...onIt(['Sarah'], ago(5)), again: true } });
+    expect(givenNextAreas(areas).map((a) => a.key)).toEqual(['east']);
+  });
+
+  test('a sighting\'s circle the owner set off for, or the reader is at, is given to nobody else: it is never named as next', () => {
+    // The board sends `full` for the person reading it, and the owner's own setting off does not keep the owner out.
+    const going = seenCircle({ going: { at: ago(8) }, full: false });
+    expect(givenNextAreas([going, ...five()]).map((a) => a.key)).toEqual(['middle']);
+    expect(quietGround({ areas: [going, ...five()], people: [] })).toBe('Nobody is out right now. The next person who asks is given the middle.');
+    // The reader is the one there.
+    const mine = seenCircle({ mine: true, full: false, status: 'IN_PROGRESS', on: 1 });
+    expect(givenNextAreas([mine, ...five()]).map((a) => a.key)).toEqual(['middle']);
+    expect(forAnyoneElse([going, mine, area('west', { mine: true, askedOfMe: true })]).map((a) => [a.full, a.mine, Boolean(a.askedOfMe)])).toEqual([[true, false, false], [true, false, false], [false, false, false]]);
+  });
+
+  test('and no free person is offered it', () => {
+    const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(200), place: 'Ramsey Ave', ownerGoingAt: ago(8) };
+    // The sighting is too old for its own card, and its circle is still on the board with the owner on the way.
+    const cards = needsForGround({ picture: picture({ sightings: [seen] }), areas: [seenCircle({ going: { at: ago(8) }, full: false }), ...five()], circle: CIRCLE, people: [person('Jo', { joinedAt: ago(4) })], words: [], leads: true, now: NOW });
+    const free = cards.find((c) => c.kind === 'free');
+    expect(free.primary).toEqual({ words: 'Ask Jo to search the middle', do: { type: 'ask', handle: 'h-Jo', areaId: 'z-middle' } });
+  });
+
   test('how long the ground that could be given takes', () => {
     expect(minutesRange(five())).toBe('30 to 45');
     expect(minutesRange(five({ middle: searched(1, ago(10)) }))).toBe('45');
@@ -289,12 +322,33 @@ describe('"Needs you" on ground', () => {
     expect(needsForGround(base({ people: [person('Jo', { joinedAt: ago(200) })] }))).toEqual([]);
   });
 
-  test('the reason is the reason: another look, room for one more, or searched longest ago', () => {
+  test('the reason is the reason: another look, room for one more, or when it was last searched', () => {
     const body = (areas) => needsForGround(base({ areas, people: [person('Jo', { joinedAt: ago(4) })] }))[0].body;
     const all = { middle: searched(2, ago(10)), north: searched(1, ago(105)), east: searched(1, ago(50)), south: searched(1, ago(40)), west: searched(1, ago(75)) };
     expect(body(five({ ...all, east: { ...searched(1, ago(50)), status: 'NEEDS_REVISIT' } }))).toBe('The east side is down for another look.');
     expect(body(five({ ...all, north: { ...onIt(['Sarah'], ago(5)), searchCount: 0 } }))).toBe('The north side has 1 person on it, and room for more.');
-    expect(body(five(all))).toBe('Every area has been searched. The north side was searched longest ago.');
+    expect(body(five(all))).toBe('Every area has been searched. The north side was last searched at 8:15 pm.');
+  });
+
+  test('a reason is about the area offered, and never speaks for the areas it was not', () => {
+    // Five free people, the middle searched and the four sides not: the fifth is offered the middle.
+    const people = ['Jo', 'Priya', 'Sam', 'Lee', 'Kit'].map((name, i) => person(name, { joinedAt: ago(4 + i) }));
+    const cards = needsForGround(base({ areas: five({ middle: searched(1, ago(20)) }), people })).filter((c) => c.kind === 'free');
+    expect(cards.slice(0, 4).map((c) => c.body)).toEqual(['The north side has not been searched.', 'The east side has not been searched.', 'The south side has not been searched.', 'The west side has not been searched.']);
+    // Four areas have not been searched, so nothing says every area has.
+    expect(cards[4].body).toBe('The middle was last searched at 9:40 pm.');
+    expect(cards.map((c) => c.body).join(' ')).not.toMatch(/Every area/);
+  });
+
+  test('the circle round a sighting: nobody has gone, or it has been searched, said as what happened', () => {
+    const say = (ring, extra = {}) => whyThisArea(ring, { name: 'Max', timeZone: ZONE, now: NOW, ...extra });
+    expect(say(seenCircle())).toBe('Nobody has gone to where Max was seen.');
+    // Someone went and searched it: "nobody has gone" would be false.
+    expect(say(seenCircle(searched(1, ago(25))))).toBe('Where Max was seen was last searched at 9:35 pm.');
+    expect(say(seenCircle({ ...searched(1, ago(25)), status: 'NEEDS_REVISIT' }))).toBe('Where Max was seen is down for another look.');
+    expect(say(area('west', searched(2, null)))).toBe('The west side has been searched twice.');
+    expect(say(area('west'))).toBe('The west side has not been searched.');
+    expect(say(null)).toBe('');
   });
 
   test('a fresh sighting comes first: who is there, and that one person goes', () => {
@@ -323,6 +377,13 @@ describe('"Needs you" on ground', () => {
     const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(90), place: 'Ramsey Ave' };
     const [card] = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle({ sightingAt: ago(90) }), ...five()], people: [person('Jo', { joinedAt: ago(4) })] }));
     expect(card).toMatchObject({ kind: 'free', body: 'Nobody has gone to where Max was seen.', primary: { words: 'Ask Jo to go there', do: { type: 'ask', handle: 'h-Jo', areaId: 'z-seen' } } });
+  });
+
+  test('both: the owner set off and asked someone to go. The ask is the owner\'s own word, and both are said', () => {
+    const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(12), place: 'Ramsey Ave', ownerGoingAt: ago(8) };
+    const ring = seenCircle({ going: { at: ago(8) }, asked: [{ name: 'Jo', handle: 'h-Jo', at: ago(3), seenAt: ago(2), holds: true }], coming: 1, full: true });
+    const [card] = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [ring, ...five()] }));
+    expect(card.body).toBe('300 m south of where Max was lost. You set off for it at 9:52 pm. Jo was asked to go at 9:57 pm and has seen that. One person goes to a sighting, never a group.');
   });
 
   test('when the owner set off, or someone was asked, the card says so and asks nobody else', () => {

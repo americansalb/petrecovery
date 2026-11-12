@@ -264,7 +264,10 @@ export default function SearchMap({
       // search; what someone is on now has a dashed teal edge; what nobody has searched is left as the map, inside
       // an outline. The circle round a sighting is the orange of the sighting.
       const seenLine = dark ? '#fb923c' : '#c2410c';
-      for (const area of areas) {
+      // The circle round a sighting lies inside the circle's own areas, so it is drawn after them: on a desk
+      // the shape on top is the one the pointer finds, and drawn first it could never be pointed at or picked.
+      const drawn = [...areas].sort((a, b) => Number(a.ring === 3) - Number(b.ring === 3));
+      for (const area of drawn) {
         if (!Array.isArray(area.outline) || area.outline.length < 4) continue;
         const lit = Boolean(area.mine);
         const sightingCircle = area.ring === 3;

@@ -10,9 +10,8 @@
  * to the owner and the forces looking, and nobody is handed out by id.
  */
 
-jest.mock('@/app/lib/prisma', () => ({
-  __esModule: true,
-  default: {
+jest.mock('@/app/lib/prisma', () => {
+  const db = {
     case: { findUnique: jest.fn() },
     caseSighting: { findMany: jest.fn(async () => []) },
     searchGrid: { findUnique: jest.fn(async () => null), updateMany: jest.fn(async () => ({ count: 1 })) },
@@ -20,8 +19,13 @@ jest.mock('@/app/lib/prisma', () => ({
     searchZone: { findMany: jest.fn(async () => []), findFirst: jest.fn(async () => null), createMany: jest.fn(async () => ({ count: 0 })), updateMany: jest.fn(async () => ({ count: 1 })), update: jest.fn(async () => ({})), count: jest.fn(async () => 0) },
     searchZoneVisit: { findMany: jest.fn(async () => []), findFirst: jest.fn(async () => null), create: jest.fn(async () => ({ id: 'visit-new' })), updateMany: jest.fn(async () => ({ count: 1 })) },
     searchMessage: { create: jest.fn(async () => ({})) },
-  },
-}));
+    // The lock a sighting's circle is decided under.
+    $executeRaw: jest.fn(async () => 1),
+  };
+  // A transaction reads and writes through the same tables.
+  db.$transaction = jest.fn(async (work) => work(db));
+  return { __esModule: true, default: db };
+});
 jest.mock('@/app/lib/searchBoard', () => ({ __esModule: true, ensureGrid: jest.fn(async () => ({ id: 'grid-1' })) }));
 jest.mock('@/app/lib/push', () => ({ __esModule: true, isPushConfigured: jest.fn(() => false), sendPushToUser: jest.fn() }));
 
@@ -30,7 +34,7 @@ import { ensureGrid } from '@/app/lib/searchBoard';
 import {
   ensureZones, sweepStaleVisits, zoneForBoard, readZones, openAreas, actOnZone, widenCircle, askZone, unaskZonePerson, cannotSearch,
   zoneAskWaitingFor, markZoneAskSeen, zoneSearchersSince, zoneGroundCovered, freshSightings, streetNames,
-  ZONE_ACTIONS, ZONE_STEER_ACTIONS, SEEN_CIRCLES_MAX, ASK_STALE_MS, ASK_NOTE_MAX, CANNOT_WORDS,
+  ZONE_ACTIONS, ZONE_STEER_ACTIONS, SEEN_CIRCLES_MAX, ASK_STALE_MS, ASK_NOTE_MAX, CANNOT_WORDS, LATE_MS,
 } from '@/app/lib/searchZones';
 import { RING, CIRCLES, areasOf, seenArea, heartOf, minutesFor } from '@/app/lib/searchCircle';
 import { handleFor } from '@/app/lib/searchTeam';
@@ -137,6 +141,13 @@ describe('zoneForBoard: one area as the board sends it', () => {
     expect(other).toMatchObject({ full: false, reserved: false, coming: 1 });
     // Asked by someone other than the owner, a helper is not told who.
     expect(zoneForBoard(row('west', { visits: [asked({ askedById: 'u-lead' })] }), ctx({ viewer: 'v:vol-1', ownerId: 'u-avery', ownerName: 'Avery' })).askedBy).toBeNull();
+  });
+
+  test('up for another look stays so while someone is on it: the state says who is there, `again` says it still needs the search', () => {
+    expect(zoneForBoard(row('west', { searchCount: 1, searchedAt: ago(30), againAt: ago(5) }), ctx())).toMatchObject({ status: 'NEEDS_REVISIT', again: true });
+    expect(zoneForBoard(row('west', { searchCount: 1, searchedAt: ago(30), againAt: ago(5), visits: [on()] }), ctx())).toMatchObject({ status: 'IN_PROGRESS', again: true });
+    expect(zoneForBoard(row('west', { searchCount: 1, searchedAt: ago(30) }), ctx()).again).toBe(false);
+    expect(zoneForBoard(row('west'), ctx()).again).toBe(false);
   });
 
   test('an ask older than half an hour no longer counts as someone on the way', () => {
@@ -278,17 +289,23 @@ describe('ensureZones: the areas are made on first use, and need no map server',
 });
 
 describe('sweepStaleVisits', () => {
-  test('someone not heard from in an hour and a half, or twice what the area takes, is no longer on it', async () => {
+  test('someone not heard from in two hours, or half an hour past when the desk is told, is no longer counted as on it', async () => {
     prisma.searchZoneVisit.findMany.mockResolvedValue([
-      { id: 'gone', startedAt: ago(100), zone: { minutes: 45 } },
-      // 75 minutes of ground: 100 minutes in is not yet twice that.
-      { id: 'careful', startedAt: ago(100), zone: { minutes: 75 } },
+      // 45 minutes of ground: the desk is told at 105 minutes, and the site stops counting at 135.
+      { id: 'gone', startedAt: ago(140), zone: { minutes: 45 } },
+      // 75 minutes of ground is counted until 195.
+      { id: 'careful', startedAt: ago(140), zone: { minutes: 75 } },
+      // A small area: two hours, never less.
+      { id: 'short', startedAt: ago(125), zone: { minutes: 15 } },
+      { id: 'in-time', startedAt: ago(130), zone: { minutes: 45 } },
       { id: 'old-ask', startedAt: null, zone: { minutes: 45 } },
     ]);
     expect(await sweepStaleVisits(CASE, NOW)).toBe(1);
-    expect(prisma.searchZoneVisit.updateMany).toHaveBeenCalledWith({ where: { id: { in: ['gone', 'old-ask'] }, endedAt: null }, data: { endedAt: new Date(NOW), outcome: 'LAPSED' } });
-    // An ask nobody started in half a day is over.
+    expect(prisma.searchZoneVisit.updateMany).toHaveBeenCalledWith({ where: { id: { in: ['gone', 'short', 'old-ask'] }, endedAt: null }, data: { endedAt: new Date(NOW), outcome: 'LAPSED' } });
     const { where } = prisma.searchZoneVisit.findMany.mock.calls[0][0];
+    // Nothing started in the last two hours is looked at.
+    expect(where.OR[0]).toEqual({ startedAt: { lt: new Date(NOW - 120 * 60000) } });
+    // An ask nobody started in half a day is over.
     expect(where.OR[1]).toEqual({ startedAt: null, askedAt: { lt: new Date(NOW - ASK_STALE_MS) } });
   });
 
@@ -333,6 +350,53 @@ describe('readZones: the board', () => {
     expect((await readZones(CASE, { now: NOW })).areas.map((a) => a.key)).toContain('seen-s0');
   });
 
+  test('an ask to go to a circle that has left the board is over: the phone and the desk stop saying the person is asked', async () => {
+    const old = row('seen-s0', { center: LOST, visits: [asked({ id: 'v-ask', zoneId: 'z-seen-s0', searcherId: 'u-jo' })] });
+    prisma.searchZone.findMany.mockResolvedValue(stored([old]));
+    const out = await readZones(CASE, { viewer: 'u-jo', now: NOW });
+    expect(out.areas.map((a) => a.key)).not.toContain('seen-s0');
+    expect(out.areas.some((a) => a.askedOfMe)).toBe(false);
+    expect(prisma.searchZoneVisit.updateMany).toHaveBeenCalledWith({ where: { id: { in: ['v-ask'] }, endedAt: null, startedAt: null }, data: { endedAt: new Date(NOW), outcome: 'LAPSED' } });
+    // While the sighting is fresh the ask stands, and nothing is ended.
+    prisma.searchZoneVisit.updateMany.mockClear();
+    prisma.caseSighting.findMany.mockResolvedValue([sighting({ id: 's0' })]);
+    expect((await readZones(CASE, { viewer: 'u-jo', now: NOW })).areas.find((a) => a.key === 'seen-s0')).toMatchObject({ askedOfMe: true });
+    expect(prisma.searchZoneVisit.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('out longer than the site allowed for: to everyone else they are no longer on it, and their own card stays', async () => {
+    prisma.searchZone.findMany.mockResolvedValue(stored());
+    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'v-late', zoneId: 'z-west', outcome: 'LAPSED', endedAt: ago(30) });
+    const theirs = (await readZones(CASE, { viewer: 'v:vol-1', now: NOW })).areas.find((a) => a.key === 'west');
+    // Theirs to finish, and nobody is counted as on it.
+    expect(theirs).toMatchObject({ mine: true, on: 0, status: 'UNSEARCHED' });
+    expect(prisma.searchZoneVisit.findFirst).toHaveBeenCalledWith({ where: { caseId: CASE, searcherId: 'v:vol-1', startedAt: { not: null } }, orderBy: [{ startedAt: 'desc' }, { id: 'desc' }], select: { id: true, zoneId: true, outcome: true, endedAt: true } });
+    // Whatever they started last decides: an area they gave back, searched or are on is not this.
+    for (const outcome of ['GAVE_BACK', 'SEARCHED', null]) {
+      prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'v-late', zoneId: 'z-west', outcome, endedAt: outcome ? ago(30) : null });
+      expect((await readZones(CASE, { viewer: 'v:vol-1', now: NOW })).areas.some((a) => a.mine)).toBe(false);
+    }
+    // And only for half a day.
+    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'v-late', zoneId: 'z-west', outcome: 'LAPSED', endedAt: new Date(NOW - LATE_MS - 60000) });
+    expect((await readZones(CASE, { viewer: 'v:vol-1', now: NOW })).areas.some((a) => a.mine)).toBe(false);
+  });
+
+  test('that is asked only for the person reading, and not while they are on an area', async () => {
+    prisma.searchZone.findMany.mockResolvedValue(stored());
+    await readZones(CASE, { now: NOW });
+    expect(prisma.searchZoneVisit.findFirst).not.toHaveBeenCalled();
+    prisma.searchZone.findMany.mockResolvedValue(stored().map((z) => (z.key === 'north' ? { ...z, visits: [on({ zoneId: 'z-north' })] } : z)));
+    await readZones(CASE, { viewer: 'v:vol-1', now: NOW });
+    expect(prisma.searchZoneVisit.findFirst).not.toHaveBeenCalled();
+  });
+
+  test('a sighting\'s circle someone else has since gone to is theirs, not the person the site stopped counting', async () => {
+    prisma.caseSighting.findMany.mockResolvedValue([sighting()]);
+    prisma.searchZone.findMany.mockResolvedValue(stored([row('seen-s1', { center: { lat: sighting().latitude, lng: sighting().longitude }, visits: [on({ zoneId: 'z-seen-s1', searcherId: 'u-sarah' })] })]));
+    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'v-late', zoneId: 'z-seen-s1', outcome: 'LAPSED', endedAt: ago(30) });
+    expect((await readZones(CASE, { viewer: 'v:vol-1', now: NOW })).areas.find((a) => a.key === 'seen-s1')).toMatchObject({ mine: false, full: true });
+  });
+
   test('no search to draw is null', async () => {
     prisma.case.findUnique.mockResolvedValue({ ...PET, reportType: 'FOUND' });
     expect(await readZones(CASE, { now: NOW })).toBeNull();
@@ -343,7 +407,8 @@ describe('readZones: the board', () => {
     prisma.searchZone.findMany.mockResolvedValue(stored([row('seen-s1', { center: { lat: sighting().latitude, lng: sighting().longitude }, visits: [on({ zoneId: 'z-seen-s1' })] })]).map((z) => (z.key === 'middle' ? { ...z, visits: [on({ id: 'v9', searcherId: 'u-sarah', zoneId: 'z-middle' })] } : z)));
     const jobs = await openAreas(CASE, { viewer: 'u-mike', now: NOW });
     expect(jobs.map((j) => j.label)).toEqual(['South side', 'North side', 'East side', 'West side', 'The middle']);
-    expect(jobs[0]).toMatchObject({ id: 'z-south', unit: 'area', status: 'UNSEARCHED', priority: 10, minutes: 45, reach: '150 m to 400 m south of where Max was lost', on: 0, askedOfMe: false });
+    // With what the order is worked out from, so the page that ranks them again for the nearest gets the same order.
+    expect(jobs[0]).toMatchObject({ id: 'z-south', unit: 'area', ring: 1, status: 'UNSEARCHED', priority: 10, first: false, again: false, minutes: 45, reach: '150 m to 400 m south of where Max was lost', on: 0, askedOfMe: false });
     expect(jobs[0].centerLatitude).toBeLessThan(LOST.lat);
   });
 });
@@ -365,8 +430,11 @@ describe('actOnZone: the board\'s verbs on ground', () => {
     prisma.searchZone.findFirst.mockResolvedValueOnce(row('west')).mockResolvedValue(row('west', { visits: [on({ id: 'visit-new' })] }));
     const out = await act('claim', DANA);
     expect(prisma.searchZoneVisit.updateMany).toHaveBeenCalledWith({ where: { caseId: CASE, searcherId: 'v:vol-1', endedAt: null, startedAt: { not: null }, NOT: { zoneId: 'z-west' } }, data: { endedAt: new Date(NOW), outcome: 'GAVE_BACK' } });
-    expect(prisma.searchZoneVisit.create).toHaveBeenCalledWith({ data: { zoneId: 'z-west', caseId: CASE, searcherId: 'v:vol-1', searcherName: 'Dana', startedAt: new Date(NOW) }, select: { id: true } });
+    expect(prisma.searchZoneVisit.create).toHaveBeenCalledWith({ data: { zoneId: 'z-west', caseId: CASE, searcherId: 'v:vol-1', searcherName: 'Dana', startedAt: new Date(NOW) } });
     expect(out).toMatchObject({ title: 'the west side', item: { id: 'z-west', status: 'IN_PROGRESS', mine: true, on: 1 } });
+    // They have the new one before the old one is given back, and plain ground needs no lock.
+    expect(prisma.searchZoneVisit.create.mock.invocationCallOrder[0]).toBeLessThan(prisma.searchZoneVisit.updateMany.mock.invocationCallOrder[0]);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   test('someone else being on it refuses nobody: a second person is written on it too', async () => {
@@ -389,24 +457,73 @@ describe('actOnZone: the board\'s verbs on ground', () => {
     expect(prisma.searchZoneVisit.updateMany).toHaveBeenCalledWith({ where: { id: 'v-ask', endedAt: null }, data: { startedAt: new Date(NOW), searcherName: 'Dana', askedSeenAt: new Date(NOW) } });
   });
 
-  test('a sighting\'s circle with someone there answers TAKEN, before anything of theirs is given back', async () => {
+  test('an ask taken back in the same moment starts the area all the same: they pressed Start', async () => {
+    prisma.searchZone.findFirst.mockResolvedValue(row('west', { visits: [asked({ id: 'v-ask' })] }));
+    prisma.searchZoneVisit.updateMany.mockResolvedValueOnce({ count: 0 });
+    await act('claim', DANA);
+    expect(prisma.searchZoneVisit.create).toHaveBeenCalledTimes(1);
+  });
+
+  test('a sighting\'s circle with someone there answers TAKEN, and nothing of theirs is given back', async () => {
     prisma.caseSighting.findMany.mockResolvedValue([sighting()]);
-    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1', { visits: [on({ zoneId: 'z-seen-s1', searcherId: 'u-sarah' })] }));
+    const there = [on({ zoneId: 'z-seen-s1', searcherId: 'u-sarah' })];
+    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1', { visits: there }));
+    prisma.searchZoneVisit.findMany.mockResolvedValue(there);
     expect(await act('claim', DANA, 'z-seen-s1')).toEqual({ error: 'TAKEN', title: 'where Max was seen' });
     expect(prisma.searchZoneVisit.updateMany).not.toHaveBeenCalled();
     expect(prisma.searchZoneVisit.create).not.toHaveBeenCalled();
   });
 
-  test('two people ask for the same sighting in the same second: the first written is the one who goes', async () => {
+  test('two people ask for the same sighting in the same moment: who goes is decided one request at a time', async () => {
+    prisma.caseSighting.findMany.mockResolvedValue([sighting()]);
+    // Nobody was there when this request first looked.
+    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1'));
+    // By the time it holds the lock, the other request has written its person down.
+    prisma.searchZoneVisit.findMany.mockResolvedValue([on({ zoneId: 'z-seen-s1', searcherId: 'u-sarah' })]);
+    expect(await act('claim', DANA, 'z-seen-s1')).toEqual({ error: 'TAKEN', title: 'where Max was seen' });
+    expect(prisma.searchZoneVisit.create).not.toHaveBeenCalled();
+    expect(prisma.searchZoneVisit.updateMany).not.toHaveBeenCalled();
+    // The lock is taken first, then who is there is read, inside one transaction.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.$executeRaw.mock.calls[0][0].join('?')).toMatch(/pg_advisory_xact_lock\(7304, hashtext\(\?\)\)/);
+    expect(prisma.$executeRaw.mock.calls[0][1]).toBe('z-seen-s1');
+    expect(prisma.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.searchZoneVisit.findMany.mock.invocationCallOrder[0]);
+    expect(prisma.searchZoneVisit.findMany).toHaveBeenCalledWith({ where: { zoneId: 'z-seen-s1', endedAt: null }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
+  });
+
+  test('with nobody there, the one who holds the lock goes: written under it, and anyone asked long ago is no longer asked', async () => {
     prisma.caseSighting.findMany.mockResolvedValue([sighting()]);
     prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1'));
-    prisma.searchZoneVisit.create.mockResolvedValue({ id: 'visit-mine' });
-    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'visit-theirs' });
-    expect(await act('claim', DANA, 'z-seen-s1')).toEqual({ error: 'TAKEN', title: 'where Max was seen' });
-    expect(prisma.searchZoneVisit.updateMany).toHaveBeenLastCalledWith({ where: { id: 'visit-mine', endedAt: null }, data: { endedAt: new Date(NOW), outcome: 'GAVE_BACK' } });
-    // And the one who was first keeps it.
-    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'visit-mine' });
+    // Someone was asked 45 minutes ago, which no longer keeps it for them.
+    prisma.searchZoneVisit.findMany.mockResolvedValue([asked({ id: 'v-old-ask', zoneId: 'z-seen-s1', searcherId: 'u-jo', askedAt: ago(45) })]);
     expect((await act('claim', DANA, 'z-seen-s1')).error).toBeUndefined();
+    expect(prisma.searchZoneVisit.create).toHaveBeenCalledWith({ data: { zoneId: 'z-seen-s1', caseId: CASE, searcherId: 'v:vol-1', searcherName: 'Dana', startedAt: new Date(NOW) } });
+    expect(prisma.searchZoneVisit.updateMany).toHaveBeenCalledWith({ where: { zoneId: 'z-seen-s1', endedAt: null, startedAt: null, NOT: { searcherId: 'v:vol-1' } }, data: { endedAt: new Date(NOW), outcome: 'LAPSED' } });
+    expect(prisma.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.searchZoneVisit.create.mock.invocationCallOrder[0]);
+    // A fresh ask of someone else keeps it for them.
+    prisma.searchZoneVisit.create.mockClear();
+    prisma.searchZoneVisit.findMany.mockResolvedValue([asked({ id: 'v-ask', zoneId: 'z-seen-s1', searcherId: 'u-jo', askedAt: ago(5) })]);
+    expect((await act('claim', DANA, 'z-seen-s1')).error).toBe('TAKEN');
+    expect(prisma.searchZoneVisit.create).not.toHaveBeenCalled();
+  });
+
+  test('the owner having set off keeps it from everyone but the person the owner asked to go', async () => {
+    prisma.caseSighting.findMany.mockResolvedValue([sighting({ ownerGoingAt: ago(10) })]);
+    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1'));
+    prisma.searchZoneVisit.findMany.mockResolvedValue([]);
+    expect((await act('claim', MIKE, 'z-seen-s1')).error).toBe('TAKEN');
+    // Asked by the owner, after or before the owner set off: the ask is the owner's own word.
+    const mine = asked({ id: 'v-ask', zoneId: 'z-seen-s1', searcherId: 'u-mike', searcherName: 'Mike' });
+    prisma.searchZoneVisit.findMany.mockResolvedValue([mine]);
+    expect((await act('claim', MIKE, 'z-seen-s1')).error).toBeUndefined();
+    expect(prisma.searchZoneVisit.updateMany).toHaveBeenCalledWith({ where: { id: 'v-ask', endedAt: null }, data: { startedAt: new Date(NOW), searcherName: 'Mike', askedSeenAt: new Date(NOW) } });
+    // And the board says the same to each of them.
+    const ring = row('seen-s1', { visits: [mine] });
+    const going = [{ id: 's1', lat: LOST.lat, lng: LOST.lng, at: ago(12), ownerGoingAt: ago(10) }];
+    expect(zoneForBoard(ring, { viewer: 'u-mike', ownerId: 'u-avery', sightings: going, now: NOW })).toMatchObject({ askedOfMe: true, full: false });
+    expect(zoneForBoard(ring, { viewer: 'v:vol-1', ownerId: 'u-avery', sightings: going, now: NOW })).toMatchObject({ full: true });
+    expect(zoneForBoard(ring, { viewer: 'u-avery', ownerId: 'u-avery', sightings: going, now: NOW })).toMatchObject({ full: true, going: { at: ago(10) } });
   });
 
   test('"I searched it" is only for someone on it, and counts one more search of the area', async () => {
@@ -423,6 +540,42 @@ describe('actOnZone: the board\'s verbs on ground', () => {
     expect(out.item).toMatchObject({ status: 'SEARCHED', searchCount: 1, mine: false });
     // Asked for first and now searched: the ask is met.
     expect(prisma.searchZone.updateMany).toHaveBeenCalledWith({ where: { id: 'z-west', priority: { gte: FIRST_PRIORITY } }, data: { priority: 5 } });
+  });
+
+  test('out longer than the site allowed for, "I searched it" still counts, once', async () => {
+    prisma.searchZone.findFirst.mockResolvedValue(row('west'));
+    // No open visit of theirs: the site stopped counting them. The last area they started is this one.
+    prisma.searchZoneVisit.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
+    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'v-late', zoneId: 'z-west', outcome: 'LAPSED', endedAt: ago(40) });
+    expect((await act('searched', DANA)).error).toBeUndefined();
+    expect(prisma.searchZoneVisit.updateMany).toHaveBeenLastCalledWith({ where: { id: 'v-late', outcome: 'LAPSED' }, data: { endedAt: new Date(NOW), outcome: 'SEARCHED' } });
+    expect(prisma.searchZone.update).toHaveBeenCalledWith({ where: { id: 'z-west' }, data: { searchCount: { increment: 1 }, searchedAt: new Date(NOW), searchedById: 'v:vol-1', searchedByName: 'Dana', againAt: null } });
+
+    // Pressed twice: the second request finds the visit already counted, and counts nothing.
+    prisma.searchZone.update.mockClear();
+    prisma.searchZoneVisit.updateMany.mockReset();
+    prisma.searchZoneVisit.updateMany.mockResolvedValue({ count: 0 });
+    expect(await act('searched', DANA)).toEqual({ error: 'NOT_CLAIMED', title: 'the west side' });
+    expect(prisma.searchZone.update).not.toHaveBeenCalled();
+
+    // The last area they started was another one, or they gave it back: this is not theirs to count.
+    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'v-late', zoneId: 'z-north', outcome: 'LAPSED', endedAt: ago(40) });
+    expect(await act('searched', DANA)).toEqual({ error: 'NOT_CLAIMED', title: 'the west side' });
+    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'v-late', zoneId: 'z-west', outcome: 'GAVE_BACK', endedAt: ago(40) });
+    expect(await act('searched', DANA)).toEqual({ error: 'NOT_CLAIMED', title: 'the west side' });
+    // And after half a day it is not.
+    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'v-late', zoneId: 'z-west', outcome: 'LAPSED', endedAt: new Date(NOW - LATE_MS - 60000) });
+    expect(await act('searched', DANA)).toEqual({ error: 'NOT_CLAIMED', title: 'the west side' });
+    expect(prisma.searchZone.update).not.toHaveBeenCalled();
+  });
+
+  test('and "I am stopping" takes the card off their screen without counting a search', async () => {
+    prisma.searchZone.findFirst.mockResolvedValue(row('west'));
+    prisma.searchZoneVisit.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
+    prisma.searchZoneVisit.findFirst.mockResolvedValue({ id: 'v-late', zoneId: 'z-west', outcome: 'LAPSED', endedAt: ago(40) });
+    expect((await act('release', DANA)).error).toBeUndefined();
+    expect(prisma.searchZoneVisit.updateMany).toHaveBeenLastCalledWith({ where: { id: 'v-late', outcome: 'LAPSED' }, data: { outcome: 'GAVE_BACK' } });
+    expect(prisma.searchZone.update).not.toHaveBeenCalled();
   });
 
   test('stopping is giving it back, and only your own', async () => {
@@ -547,13 +700,46 @@ describe('asking one named person to search one area', () => {
   });
 
   test('one person goes to a sighting: with someone there or freshly asked, nobody else is asked', async () => {
-    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1', { visits: [on({ zoneId: 'z-seen-s1', searcherId: 'u-sarah' })] }));
+    const there = [on({ zoneId: 'z-seen-s1', searcherId: 'u-sarah' })];
+    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1', { visits: there }));
+    prisma.searchZoneVisit.findMany.mockResolvedValue(there);
     expect(await ask({ zoneId: 'z-seen-s1' })).toEqual({ error: 'ASKED_ALREADY', title: 'where Max was seen' });
-    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1', { visits: [asked({ zoneId: 'z-seen-s1', searcherId: 'u-sarah' })] }));
+    const freshAsk = [asked({ zoneId: 'z-seen-s1', searcherId: 'u-sarah' })];
+    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1', { visits: freshAsk }));
+    prisma.searchZoneVisit.findMany.mockResolvedValue(freshAsk);
     expect(await ask({ zoneId: 'z-seen-s1' })).toEqual({ error: 'ASKED_ALREADY', title: 'where Max was seen' });
-    // The same person can be asked again, and a lapsed ask of someone else does not hold it.
-    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1', { visits: [asked({ zoneId: 'z-seen-s1', searcherId: 'u-sarah', askedAt: ago(45) })] }));
+    expect(prisma.searchZoneVisit.create).not.toHaveBeenCalled();
+  });
+
+  test('once the first ask no longer keeps it, asking someone else takes the first one back: one person is asked to go', async () => {
+    const oldAsk = [asked({ zoneId: 'z-seen-s1', searcherId: 'u-sarah', askedAt: ago(45) })];
+    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1', { visits: oldAsk }));
+    prisma.searchZoneVisit.findMany.mockResolvedValue(oldAsk);
     expect((await ask({ zoneId: 'z-seen-s1' })).error).toBeUndefined();
+    expect(prisma.searchZoneVisit.updateMany).toHaveBeenCalledWith({ where: { zoneId: 'z-seen-s1', endedAt: null, startedAt: null, NOT: { searcherId: 'u-jo' } }, data: { endedAt: new Date(NOW), outcome: 'TAKEN_BACK' } });
+    expect(prisma.searchZoneVisit.create).toHaveBeenCalledTimes(1);
+    // On plain ground an ask keeps nothing from anyone, so nobody else's ask is touched.
+    prisma.searchZoneVisit.updateMany.mockClear();
+    prisma.searchZone.findFirst.mockResolvedValue(row('west', { visits: [asked({ searcherId: 'u-sarah', askedAt: ago(45) })] }));
+    await ask();
+    expect(prisma.searchZoneVisit.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.searchZoneVisit.updateMany.mock.calls[0][0].where).toMatchObject({ searcherId: 'u-jo' });
+  });
+
+  test('an ask to go to a sighting and someone setting off for it cannot both stand: they are decided under the same lock', async () => {
+    // Nobody was there when the ask first looked.
+    prisma.searchZone.findFirst.mockResolvedValue(row('seen-s1'));
+    // By the time it holds the lock, someone has set off.
+    prisma.searchZoneVisit.findMany.mockResolvedValue([on({ zoneId: 'z-seen-s1', searcherId: 'u-sarah' })]);
+    expect(await ask({ zoneId: 'z-seen-s1' })).toEqual({ error: 'ASKED_ALREADY', title: 'where Max was seen' });
+    expect(prisma.searchZoneVisit.create).not.toHaveBeenCalled();
+    expect(prisma.$executeRaw.mock.calls[0][1]).toBe('z-seen-s1');
+    expect(prisma.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.searchZoneVisit.findMany.mock.invocationCallOrder[0]);
+    // Plain ground takes no lock.
+    prisma.$transaction.mockClear();
+    prisma.searchZone.findFirst.mockResolvedValue(row('west'));
+    await ask();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   test('an area that is not on the search is not found', async () => {

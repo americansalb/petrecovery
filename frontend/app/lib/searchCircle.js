@@ -256,29 +256,64 @@ export function planCircle({ center, species, name = 'the pet', streets = [], si
 }
 
 /**
+ * Whether an area still needs a search: never searched, put up for another
+ * look, or asked for first by the person running the search. Someone
+ * being on it changes none of those: it needs a search until one of them
+ * says it is searched.
+ */
+export function needsSearch(area) {
+  if (!area) return false;
+  return Boolean(area.first || area.again) || area.status === 'UNSEARCHED' || area.status === 'NEEDS_REVISIT' || !(area.searchCount > 0);
+}
+
+/**
+ * How long someone can be on an area before the desk is told they have
+ * been out a long time, in minutes: twice what the area takes and a
+ * quarter of an hour, so a careful search is never flagged.
+ */
+export function outLongAfter(minutes) {
+  return 2 * (Number(minutes) || 20) + 15;
+}
+
+/**
+ * How long someone is taken to be on an area with no word from them, in
+ * minutes: half an hour past the moment the desk is told they have been
+ * out a long time, and never under two hours. The desk always hears first,
+ * so whoever runs the search can write to them before the site stops
+ * counting them as there.
+ */
+export function heldFor(minutes) {
+  return Math.max(120, outLongAfter(minutes) + 30);
+}
+
+/**
  * The order ground is given out in, for someone who asks for some: the
- * area they were asked to search; then ground that still needs a search
- * with nobody on it and nobody on the way, most urgent first and the
- * nearest on a tie; then such ground with someone already there (a second
- * person in ten hectares is a help), fewest people first; then ground
- * searched longest ago. Never the circle round a sighting that has its
- * one person; and where that circle is as urgent as the side the pet was
- * seen in, the circle comes first however near the side is: one person
- * goes to where the pet was seen before anyone is given the ground round
- * it. `areas` are as the board sends them (app/lib/searchZones.js), `away`
- * gives metres from the person asking to one of them.
+ * area they were asked to search; then ground the person running the
+ * search asked for first, whoever is already on it; then ground that
+ * still needs a search with nobody on it and nobody on the way, most
+ * urgent first and the nearest on a tie; then such ground with someone
+ * already there (a second person in ten hectares is a help), fewest people
+ * first; then ground searched longest ago. Never the circle round a
+ * sighting that has its one person; and where that circle is as urgent as
+ * the side the pet was seen in, the circle comes first however near the
+ * side is: one person goes to where the pet was seen before anyone is
+ * given the ground round it. `areas` are as the board sends them
+ * (app/lib/searchZones.js), `away` gives metres from the person asking to
+ * one of them.
  */
 export function rankAreas(areas = [], away = () => 0) {
   const can = areas.filter((a) => !a.mine && !a.full);
   const people = (a) => (a.on || 0) + (a.coming || 0);
   const seen = (a) => Number(a.ring === RING.SEEN);
   const urgent = (a, b) => b.priority - a.priority || seen(b) - seen(a) || away(a) - away(b);
-  // Never searched, or searched and put up for another look.
-  const needs = (a) => a.status === 'UNSEARCHED' || a.status === 'NEEDS_REVISIT' || !(a.searchCount > 0);
+  const fewest = (a, b) => people(a) - people(b) || urgent(a, b);
   const asked = can.filter((a) => a.askedOfMe);
   const rest = can.filter((a) => !a.askedOfMe);
-  const empty = rest.filter((a) => needs(a) && people(a) === 0).sort(urgent);
-  const shared = rest.filter((a) => needs(a) && people(a) > 0).sort((a, b) => people(a) - people(b) || urgent(a, b));
-  const again = rest.filter((a) => !needs(a)).sort((a, b) => people(a) - people(b) || new Date(a.searchedAt || 0) - new Date(b.searchedAt || 0));
-  return [...asked, ...empty, ...shared, ...again];
+  // "Send people here first" holds until the area is searched or the ask is taken back: one person starting it does not end it.
+  const first = rest.filter((a) => a.first).sort(fewest);
+  const others = rest.filter((a) => !a.first);
+  const empty = others.filter((a) => needsSearch(a) && people(a) === 0).sort(urgent);
+  const shared = others.filter((a) => needsSearch(a) && people(a) > 0).sort(fewest);
+  const again = others.filter((a) => !needsSearch(a)).sort((a, b) => people(a) - people(b) || new Date(a.searchedAt || 0) - new Date(b.searchedAt || 0));
+  return [...asked, ...first, ...empty, ...shared, ...again];
 }

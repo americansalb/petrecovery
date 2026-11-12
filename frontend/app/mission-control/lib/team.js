@@ -7,7 +7,7 @@
  * times from the search itself. A message is always shown as someone's
  * own words, with whose they are; the screen adds none.
  */
-import { inWords } from '@/app/lib/searchCircle';
+import { inWords, outLongAfter } from '@/app/lib/searchCircle';
 import { clockTime, dayAndTime } from './words';
 
 const MINUTE = 60 * 1000;
@@ -47,15 +47,16 @@ export function shortTitle(title) {
 }
 
 /**
- * Someone out much longer than their street takes: how many minutes, or
- * null. Twice the street's time and a quarter of an hour, so a careful
- * walk is never flagged. `minutes` is how long the street takes.
+ * Someone out much longer than their area takes: how many minutes, or
+ * null. Twice the area's time and a quarter of an hour, so a careful
+ * search is never flagged (app/lib/searchCircle.js, outLongAfter: the site
+ * goes on counting them as there for half an hour after that, so this is
+ * always said first). `minutes` is how long the area takes.
  */
 export function outLong(person, minutes, now = Date.now()) {
   if (!person || person.state !== 'walking' || !person.since) return null;
   const out = Math.round((now - new Date(person.since).getTime()) / MINUTE);
-  const allowed = 2 * (Number(minutes) || 20) + 15;
-  return out > allowed ? out : null;
+  return out > outLongAfter(minutes) ? out : null;
 }
 
 /** People in the order the desk lists them, in three groups. */

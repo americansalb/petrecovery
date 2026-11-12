@@ -165,14 +165,40 @@ export function groundLines({ areas = [], circle = null, name = 'the pet' } = {}
 }
 
 /**
+ * The areas as the next person to ask would find them, whoever is reading:
+ * the reader may be on an area themselves, or asked to search one, and a
+ * circle round a sighting that the reader is at, or the owner has set off
+ * for, is given to nobody else. (The board says `full` for the person it
+ * is sent to, and the owner's own setting off does not keep the owner out.)
+ */
+export function forAnyoneElse(areas = []) {
+  return areas.map((a) => ({ ...a, mine: false, askedOfMe: false, full: Boolean(a.full || (isSeenCircle(a) && (a.going || a.on > 0))) }));
+}
+
+/**
+ * Why an area is the one offered to a free person, as a fact about that
+ * area: nothing here speaks for the areas it was not. `everySearched` is
+ * whether every area of the circle has been searched at least once.
+ */
+export function whyThisArea(area, { name = 'the pet', timeZone, now = Date.now(), everySearched = false } = {}) {
+  if (!area) return '';
+  if (area.status === 'IN_PROGRESS') return `${AreaName(area)} has ${area.on === 1 ? '1 person' : `${area.on} people`} on it, and room for more.`;
+  if (area.status === 'NEEDS_REVISIT') return `${AreaName(area)} is down for another look.`;
+  if (area.searchCount > 0) {
+    const last = area.searchedAt ? `${AreaName(area)} was last searched ${whenWords(area.searchedAt, timeZone, now)}.` : `${AreaName(area)} has been searched ${timesWords(area.searchCount)}.`;
+    return everySearched ? `Every area has been searched. ${last}` : last;
+  }
+  return isSeenCircle(area) ? `Nobody has gone to where ${name} was seen.` : `${AreaName(area)} has not been searched.`;
+}
+
+/**
  * The areas a helper who asks now is given one of: the first in the order
  * ground is given out in (app/lib/searchCircle.js, rankAreas), and all of
  * them where several are as urgent as each other and nobody is on any (a
  * phone then gives the one nearest its helper, which a desk cannot know).
  */
 export function givenNextAreas(areas = []) {
-  // As anyone else would be given it: whoever is reading may be on an area themselves.
-  const order = rankAreas(areas.map((a) => ({ ...a, mine: false, askedOfMe: false })));
+  const order = rankAreas(forAnyoneElse(areas));
   if (!order.length) return [];
   const [top] = order;
   const open = (a) => (a.status === 'UNSEARCHED' || a.status === 'NEEDS_REVISIT') && !a.on && !a.coming;
@@ -238,11 +264,13 @@ function sightingCard({ picture, areas, people, name, now }) {
     facts.push(`${there.name} is there. ${one}`);
     primary = { words: `Write to ${there.name}`, do: { type: 'write', handle: there.handle } };
     more.push(show);
-  } else if (ring?.going || seen.ownerGoingAt) {
-    const at = clockTime(ring?.going?.at || seen.ownerGoingAt, zone);
-    facts.push(`${picture.viewer?.isOwner ? 'You' : picture.owner?.firstName || 'The owner'} set off for it at ${at}. ${one}`);
-  } else if (asked) {
-    facts.push(`${asked.name} was asked to go at ${clockTime(asked.at, zone)}${asked.seenAt ? ' and has seen that' : ''}. ${one}`);
+  } else if (ring?.going || seen.ownerGoingAt || asked) {
+    // The owner set off, someone was asked to go, or both: an ask is the owner's own word, and stands beside their setting off.
+    const went = ring?.going?.at || seen.ownerGoingAt;
+    const said = [];
+    if (went) said.push(`${picture.viewer?.isOwner ? 'You' : picture.owner?.firstName || 'The owner'} set off for it at ${clockTime(went, zone)}.`);
+    if (asked) said.push(`${asked.name} was asked to go at ${clockTime(asked.at, zone)}${asked.seenAt ? ' and has seen that' : ''}.`);
+    facts.push(`${said.join(' ')} ${one}`);
   } else if (ring) {
     // Someone free who joined or finished lately: a person who was here two days ago is not someone to send.
     const lately = (p) => {
@@ -312,7 +340,9 @@ export function needsForGround({ picture, areas = [], circle = null, people = []
   // Each free person is offered different ground: the areas in the order they are given out, one each. The
   // circle round a sighting that has its own card above is that card's to deal with: one person is asked to go
   // there, once, and the others are offered the ground round it.
-  const order = rankAreas(areas.map((a) => ({ ...a, mine: false, askedOfMe: false }))).filter((a) => !(seen && isSeenCircle(a) && `seen-${a.sightingId}` === seen.id));
+  const order = rankAreas(forAnyoneElse(areas)).filter((a) => !(seen && isSeenCircle(a) && `seen-${a.sightingId}` === seen.id));
+  const circleOwn = circleAreas(areas);
+  const everySearched = circleOwn.length > 0 && circleOwn.every((a) => a.searchCount > 0);
   let turn = 0;
   // The person the sighting's card offers to send is that card's too: one card about them, not two.
   const sent = seen?.primary.do.type === 'ask' ? seen.primary.do.handle : null;
@@ -325,17 +355,7 @@ export function needsForGround({ picture, areas = [], circle = null, people = []
     const ranked = order[turn] || order[0] || null;
     const area = ranked ? areas.find((a) => a.id === ranked.id) : null;
     turn += 1;
-    const why = !area
-      ? ''
-      : isSeenCircle(area)
-        ? `Nobody has gone to where ${name} was seen.`
-        : area.status === 'NEEDS_REVISIT'
-          ? `${AreaName(area)} is down for another look.`
-          : area.status === 'IN_PROGRESS'
-            ? `${AreaName(area)} has ${area.on === 1 ? '1 person' : `${area.on} people`} on it, and room for more.`
-            : area.searchCount > 0
-              ? `Every area has been searched. ${AreaName(area)} was searched longest ago.`
-              : `${AreaName(area)} has not been searched.`;
+    const why = whyThisArea(area, { name, timeZone: zone, now, everySearched });
     cards.push({
       id: `free-${p.handle}`,
       kind: 'free',

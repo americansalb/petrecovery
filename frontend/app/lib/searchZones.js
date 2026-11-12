@@ -28,7 +28,7 @@
  */
 import prisma from '@/app/lib/prisma';
 import { CLAIM_TTL_MS, FIRST_PRIORITY, SIGHTING_PRIORITY_WINDOW_MS } from '@/app/lib/searchGrid';
-import { RING, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, reachOf, landmarksIn, urgencyOf, inWords, rankAreas } from '@/app/lib/searchCircle';
+import { RING, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, reachOf, landmarksIn, urgencyOf, inWords, rankAreas, heldFor } from '@/app/lib/searchCircle';
 
 export { rankAreas };
 import { ensureGrid } from '@/app/lib/searchBoard';
@@ -40,6 +40,12 @@ import { cut } from '@/app/lib/searchText';
 export const SEEN_CIRCLES_MAX = 3;
 /** An ask nobody started in this long is over: the person is no longer shown as asked. */
 export const ASK_STALE_MS = 12 * 60 * 60 * 1000;
+/**
+ * How long after the site stops counting someone as on an area they can
+ * still say what happened there. The site's count is a guess from the
+ * clock; the person who went over the ground is the one who knows.
+ */
+export const LATE_MS = 12 * 60 * 60 * 1000;
 export const ASK_NOTE_MAX = 140;
 /** What the asked person's button says, and so what the desk is told in their name when they press it. */
 export const CANNOT_WORDS = "I can't right now.";
@@ -65,8 +71,14 @@ export const ZONE_STEER_ACTIONS = ['first', 'normal', 'walked', 'again', 'againA
 
 const CASE_FOR_ZONES = { id: true, reportType: true, petName: true, petSpecies: true, lastSeenLatitude: true, lastSeenLongitude: true };
 
-/** How long someone is taken to be on an area with no word from them: an hour and a half, or twice what it takes. */
-const holdFor = (minutes) => Math.max(CLAIM_TTL_MS, (Number(minutes) || 0) * 2 * 60 * 1000);
+/**
+ * How long someone is taken to be on an area with no word from them
+ * (app/lib/searchCircle.js, heldFor): half an hour past the moment the desk
+ * is told they have been out a long time, and never under two hours.
+ */
+const holdFor = (minutes) => heldFor(minutes) * 60 * 1000;
+/** The shortest hold there is: the sweep looks at nothing started more recently. */
+const MIN_HOLD_MS = heldFor(0) * 60 * 1000;
 
 /** "north" from "north", "north-east" from "outer-north-east": the way an area lies, or null for a whole circle. */
 function wayOf(key) {
@@ -200,16 +212,17 @@ export async function ensureZones(caseId, { now = Date.now() } = {}) {
 }
 
 /**
- * Someone who started an area and has not been heard from in an hour and
- * a half (or twice what the area takes) is no longer on it, and an ask
- * nobody started in half a day is over. Returns how many were closed.
+ * Someone who started an area and has not been heard from in two hours
+ * (longer for a large area: holdFor) is no longer counted as on it, and an
+ * ask nobody started in half a day is over. Returns how many were closed.
+ * The person keeps their own card for it (lapsedVisitOf).
  */
 export async function sweepStaleVisits(caseId, now = Date.now()) {
   const old = await prisma.searchZoneVisit.findMany({
     where: {
       caseId,
       endedAt: null,
-      OR: [{ startedAt: { lt: new Date(now - CLAIM_TTL_MS) } }, { startedAt: null, askedAt: { lt: new Date(now - ASK_STALE_MS) } }],
+      OR: [{ startedAt: { lt: new Date(now - MIN_HOLD_MS) } }, { startedAt: null, askedAt: { lt: new Date(now - ASK_STALE_MS) } }],
     },
     select: { id: true, startedAt: true, zone: { select: { minutes: true } } },
   });
@@ -237,14 +250,33 @@ const OWNER_GOING_MS = CLAIM_TTL_MS;
 /**
  * Whether the circle round a sighting has its one person, as far as
  * someone else is concerned: somebody is there, somebody was asked to go
- * (while the ask is fresh), or the owner set off for it.
+ * (while the ask is fresh), or the owner set off for it. Someone the
+ * person running the search asked to go is not kept out by the owner
+ * having set off: the ask is the owner's own word, and it stands until it
+ * is taken back.
  */
 function seenCircleFull(row, { except = null, sighting = null, ownerId = null, now = Date.now() } = {}) {
   if (row.ring !== RING.SEEN) return false;
-  const others = (row.visits || []).filter((v) => v.searcherId !== except);
+  const visits = row.visits || [];
+  const others = visits.filter((v) => v.searcherId !== except);
   if (others.some((v) => onIt(v) || (askedOnly(v) && askHolds(v.askedAt, now)))) return true;
   const going = sighting?.ownerGoingAt ? now - new Date(sighting.ownerGoingAt).getTime() < OWNER_GOING_MS : false;
-  return going && except !== ownerId;
+  const askedToGo = Boolean(except) && visits.some((v) => v.searcherId === except && askedOnly(v));
+  return going && except !== ownerId && !askedToGo;
+}
+
+/**
+ * One at a time through the circle round a sighting. Who goes there is
+ * decided by a read and then a write, and two people can ask in the same
+ * moment, so both are done under a lock the database holds until the
+ * transaction ends (it works across server instances and lets go on a
+ * crash). `work` is given the transaction to read and write through.
+ */
+function oneAtATime(zoneId, work) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(7304, hashtext(${String(zoneId)}))`;
+    return work(tx);
+  });
 }
 
 /**
@@ -288,6 +320,8 @@ export function zoneForBoard(row, ctx = {}) {
     // The owner asked for it first: the next people are sent here before anywhere else.
     first,
     status,
+    // Searched, and put up for another look. It stays so while someone is on it, until one of them says it is searched.
+    again: Boolean(row.againAt),
     // How many people are on it now. Everyone may know how many; who they are goes where names go.
     on: on.length,
     // How many others were asked to search it and have not started, while the ask is fresh: ground with someone
@@ -333,6 +367,23 @@ const midBearing = (row) => {
 const byUrgency = (a, b) => b.priority - a.priority || Number(b.ring === RING.SEEN) - Number(a.ring === RING.SEEN) || a.ring - b.ring || a.bearing - b.bearing;
 
 /**
+ * The last area this person started, where the site stopped counting them
+ * as there before they said what happened (sweepStaleVisits): { id,
+ * zoneId }, or null. An hour-long search can take three; the clock is a
+ * guess, and the person who went over the ground is the one who knows. So
+ * for half a day they can still say it is searched, or that they stopped.
+ * Starting anything since makes that the last thing they started.
+ */
+async function lapsedVisitOf(caseId, searcherId, now = Date.now()) {
+  if (!searcherId) return null;
+  const last = await prisma.searchZoneVisit
+    .findFirst({ where: { caseId, searcherId, startedAt: { not: null } }, orderBy: [{ startedAt: 'desc' }, { id: 'desc' }], select: { id: true, zoneId: true, outcome: true, endedAt: true } })
+    .catch(() => null);
+  if (!last || last.outcome !== 'LAPSED' || !last.endedAt) return null;
+  return now - new Date(last.endedAt).getTime() < LATE_MS ? { id: last.id, zoneId: last.zoneId } : null;
+}
+
+/**
  * The areas of a case's search, most urgent first, with the circle they
  * are cut from, or null when there is no search to draw. Makes the areas
  * on first use and sweeps stale visits on the way.
@@ -346,14 +397,29 @@ export async function readZones(caseId, { viewer = null, withNames = false, owne
   const rows = await prisma.searchZone.findMany({ where: { caseId }, include: { visits: OPEN_VISITS } });
   const ctx = { viewer, withNames, ownerId, ownerName, caseId, name: made.name, sightings: made.sightings, now };
   const fresh = new Set(made.sightings.slice(0, SEEN_CIRCLES_MAX).map((s) => s.id));
+  // A sighting's circle is on the board while the sighting is fresh, or while someone is still there.
+  const shown = (row) => row.ring !== RING.SEEN || fresh.has(row.sightingId) || row.visits.some(onIt);
+  // An ask to go to a circle that has left the board is over: the sighting was taken back, or newer ones took its
+  // place. Ended here, so the person's phone and the desk's list stop saying they are asked.
+  const over = rows.filter((row) => !shown(row)).flatMap((row) => row.visits.filter(askedOnly).map((v) => v.id));
+  if (over.length) {
+    await prisma.searchZoneVisit.updateMany({ where: { id: { in: over }, endedAt: null, startedAt: null }, data: { endedAt: new Date(now), outcome: 'LAPSED' } }).catch(() => {});
+  }
   const areas = rows
     // The outer ring is part of the search once it is widened, and not before.
     .filter((row) => row.ring !== RING.OUTER || made.widened)
-    // A sighting's circle is on the board while the sighting is fresh, or while someone is still there.
-    .filter((row) => row.ring !== RING.SEEN || fresh.has(row.sightingId) || row.visits.some(onIt))
+    .filter(shown)
     .map((row) => ({ ...zoneForBoard(row, ctx), bearing: midBearing(row) }))
     .sort(byUrgency)
     .map(({ bearing, ...area }) => area);
+  if (viewer && !areas.some((a) => a.mine)) {
+    // The site stopped counting this person as on an area, and they have not said what happened there. To
+    // everyone else they are no longer on it. Their own card stays, so they can still say it is searched. A
+    // sighting's circle that someone else has since gone to is that person's.
+    const late = await lapsedVisitOf(caseId, viewer, now);
+    const theirs = late ? areas.find((a) => a.id === late.zoneId && !a.full) : null;
+    if (theirs) theirs.mine = true;
+  }
   const { circle, center, widened } = made;
   return {
     circle: { center, inner: circle.inner, edge: circle.edge, wide: circle.wide, radius: widened ? circle.wide : circle.edge, widened },
@@ -365,9 +431,10 @@ export async function readZones(caseId, { viewer = null, withNames = false, owne
 /**
  * Ground for the job picker on a pet's page (app/lib/jobs.js), in the
  * order the search screen gives it out, each as that picker reads a job:
- * { id, unit: 'area', label, status, priority, centerLatitude,
- * centerLongitude, minutes, reach, landmarks, on, coming, searchCount,
- * searchedAt, askedOfMe }. Empty when there is no search to draw.
+ * { id, unit: 'area', label, ring, status, priority, first, again,
+ * centerLatitude, centerLongitude, minutes, reach, landmarks, on, coming,
+ * searchCount, searchedAt, askedOfMe }. Empty when there is no search to
+ * draw.
  */
 export async function openAreas(caseId, { take = 12, viewer = null, now = Date.now() } = {}) {
   const read = await readZones(caseId, { viewer, now });
@@ -378,8 +445,11 @@ export async function openAreas(caseId, { take = 12, viewer = null, now = Date.n
       id: a.id,
       unit: 'area',
       label: a.name,
+      ring: a.ring,
       status: a.status,
       priority: a.priority,
+      first: a.first,
+      again: a.again,
       centerLatitude: a.center.lat,
       centerLongitude: a.center.lng,
       minutes: a.minutes,
@@ -455,38 +525,55 @@ export async function actOnZone({ caseId, id, action, searcher, ownerId = null, 
     const again = await prisma.searchZone.updateMany({ where: { id: before.id, searchCount: { gt: 0 }, againAt: null }, data: { againAt: when } });
     if (again.count === 0) return { error: 'ALREADY_AGAIN', title };
   } else if (action === 'claim') {
-    const sighting = before.ring === RING.SEEN ? (await freshSightings(caseId, now)).find((s) => s.id === before.sightingId) || null : null;
-    // One person goes to a sighting, never a group: with someone there, the person asking is given other ground.
-    if (seenCircleFull(before, { except: me, sighting, ownerId, now })) return { error: 'TAKEN', title };
-    // One area per person at a time: whatever else they were on is given back.
-    await prisma.searchZoneVisit.updateMany({ where: { caseId, searcherId: me, endedAt: null, startedAt: { not: null }, NOT: { zoneId: before.id } }, data: { endedAt: when, outcome: 'GAVE_BACK' } });
-    const mineHere = before.visits.filter((v) => v.searcherId === me);
-    const going = mineHere.find(onIt);
-    const asked = mineHere.find(askedOnly);
-    let visitId = going?.id || null;
-    if (!going && asked) {
-      // The area they were asked for: the ask becomes the search, and starting it is seeing it.
-      await prisma.searchZoneVisit.updateMany({ where: { id: asked.id, endedAt: null }, data: { startedAt: when, searcherName: searcher.firstName, ...(asked.askedSeenAt ? {} : { askedSeenAt: when }) } });
-      visitId = asked.id;
-    } else if (!going) {
-      const made = await prisma.searchZoneVisit.create({ data: { zoneId: before.id, caseId, searcherId: me, searcherName: searcher.firstName, startedAt: when }, select: { id: true } });
-      visitId = made.id;
-    }
-    if (before.ring === RING.SEEN) {
-      // Two people ask for the same sighting in the same second: the first to be written down is the one who goes.
-      const firstThere = await prisma.searchZoneVisit.findFirst({ where: { zoneId: before.id, endedAt: null, startedAt: { not: null } }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }], select: { id: true } });
-      if (firstThere && firstThere.id !== visitId) {
-        await prisma.searchZoneVisit.updateMany({ where: { id: visitId, endedAt: null }, data: { endedAt: when, outcome: 'GAVE_BACK' } });
-        return { error: 'TAKEN', title };
+    // The person is on it afterwards: the ask becomes the search, or a new visit starts.
+    const start = async (db, visits) => {
+      const mineHere = visits.filter((v) => v.searcherId === me);
+      if (mineHere.some(onIt)) return;
+      const asked = mineHere.find(askedOnly);
+      if (asked) {
+        // The area they were asked for: the ask becomes the search, and starting it is seeing it.
+        const started = await db.searchZoneVisit.updateMany({ where: { id: asked.id, endedAt: null }, data: { startedAt: when, searcherName: searcher.firstName, ...(asked.askedSeenAt ? {} : { askedSeenAt: when }) } });
+        if (started.count > 0) return;
       }
+      await db.searchZoneVisit.create({ data: { zoneId: before.id, caseId, searcherId: me, searcherName: searcher.firstName, startedAt: when } });
+    };
+    if (before.ring === RING.SEEN) {
+      const sighting = (await freshSightings(caseId, now)).find((s) => s.id === before.sightingId) || null;
+      // One person goes to a sighting, never a group. Two can ask in the same moment, so looking who is there
+      // and starting are one step: the second to arrive finds the first there, and is given other ground.
+      const taken = await oneAtATime(before.id, async (tx) => {
+        const visits = await tx.searchZoneVisit.findMany({ where: { zoneId: before.id, endedAt: null }, orderBy: OPEN_VISITS.orderBy });
+        if (seenCircleFull({ ring: before.ring, visits }, { except: me, sighting, ownerId, now })) return true;
+        await start(tx, visits);
+        // It has its one person. Anyone else asked to go, so long ago that the ask no longer kept it for them, is no longer asked.
+        await tx.searchZoneVisit.updateMany({ where: { zoneId: before.id, endedAt: null, startedAt: null, NOT: { searcherId: me } }, data: { endedAt: when, outcome: 'LAPSED' } });
+        return false;
+      });
+      if (taken) return { error: 'TAKEN', title };
+    } else {
+      await start(prisma, before.visits);
     }
+    // One area per person at a time: whatever else they were on is given back, once they have the new one.
+    await prisma.searchZoneVisit.updateMany({ where: { caseId, searcherId: me, endedAt: null, startedAt: { not: null }, NOT: { zoneId: before.id } }, data: { endedAt: when, outcome: 'GAVE_BACK' } });
   } else if (action === 'release') {
     const given = await prisma.searchZoneVisit.updateMany({ where: { zoneId: before.id, searcherId: me, endedAt: null, startedAt: { not: null } }, data: { endedAt: when, outcome: 'GAVE_BACK' } });
-    if (given.count === 0) return { error: 'NOT_YOURS', title };
+    if (given.count === 0) {
+      // The site had stopped counting them as there. Stopping is still theirs to say, and it takes the card off their screen.
+      const late = await lapsedVisitOf(caseId, me, now);
+      if (!late || late.zoneId !== before.id) return { error: 'NOT_YOURS', title };
+      await prisma.searchZoneVisit.updateMany({ where: { id: late.id, outcome: 'LAPSED' }, data: { outcome: 'GAVE_BACK' } });
+    }
   } else if (action === 'searched') {
     // Only someone on it can say so: "searched" means a person went over the ground.
     const done = await prisma.searchZoneVisit.updateMany({ where: { zoneId: before.id, searcherId: me, endedAt: null, startedAt: { not: null } }, data: { endedAt: when, outcome: 'SEARCHED' } });
-    if (done.count === 0) return { error: 'NOT_CLAIMED', title };
+    if (done.count === 0) {
+      // Out longer than the site allowed for, so it had stopped counting them as there. They went over the
+      // ground all the same, and saying so counts. Once: only the request that changes the visit counts it.
+      const late = await lapsedVisitOf(caseId, me, now);
+      if (!late || late.zoneId !== before.id) return { error: 'NOT_CLAIMED', title };
+      const counted = await prisma.searchZoneVisit.updateMany({ where: { id: late.id, outcome: 'LAPSED' }, data: { endedAt: when, outcome: 'SEARCHED' } });
+      if (counted.count === 0) return { error: 'NOT_CLAIMED', title };
+    }
     await prisma.searchZone.update({ where: { id: before.id }, data: { searchCount: { increment: 1 }, searchedAt: when, searchedById: me, searchedByName: searcher.firstName, againAt: null } });
     await askMet();
   } else {
@@ -541,23 +628,35 @@ export async function askZone({ caseId, zoneId, person, searcher, note = '', now
   const zone = await prisma.searchZone.findFirst({ where: { id: String(zoneId), caseId }, include: { visits: OPEN_VISITS } });
   if (!zone) return { error: 'NOT_FOUND', title: null };
   const title = inWords(zone.name);
-  if (zone.visits.some((v) => v.searcherId === person.id && onIt(v))) return { error: 'ON_IT', title };
-  if (zone.ring === RING.SEEN && zone.visits.some((v) => v.searcherId !== person.id && (onIt(v) || (askedOnly(v) && askHolds(v.askedAt, now))))) return { error: 'ASKED_ALREADY', title };
   const when = new Date(now);
-  // One ask to a person at a time. Only the ones before this moment: two asks made at once must not each take the other back.
-  await prisma.searchZoneVisit.updateMany({ where: { caseId, searcherId: person.id, endedAt: null, startedAt: null, askedAt: { lt: when } }, data: { endedAt: when, outcome: 'TAKEN_BACK' } });
-  await prisma.searchZoneVisit.create({
-    data: {
-      zoneId: zone.id,
-      caseId,
-      searcherId: person.id,
-      searcherName: person.name,
-      askedById: searcher.userId,
-      askedByName: searcher.firstName,
-      askedAt: when,
-      askedNote: cut(cleanWord(note).replace(/\n+/g, ' '), ASK_NOTE_MAX) || null,
-    },
-  });
+  const seen = zone.ring === RING.SEEN;
+  // Answers the error, or null once the ask is made. `visits` are the area's open ones, as `db` reads them.
+  const ask = async (db, visits) => {
+    if (visits.some((v) => v.searcherId === person.id && onIt(v))) return 'ON_IT';
+    if (seen && visits.some((v) => v.searcherId !== person.id && (onIt(v) || (askedOnly(v) && askHolds(v.askedAt, now))))) return 'ASKED_ALREADY';
+    // One ask to a person at a time. Only the ones before this moment: two asks made at once must not each take the other back.
+    await db.searchZoneVisit.updateMany({ where: { caseId, searcherId: person.id, endedAt: null, startedAt: null, askedAt: { lt: when } }, data: { endedAt: when, outcome: 'TAKEN_BACK' } });
+    // And one person asked to go to a sighting: asking someone else, once the first ask no longer keeps it, takes the first back.
+    if (seen) await db.searchZoneVisit.updateMany({ where: { zoneId: zone.id, endedAt: null, startedAt: null, NOT: { searcherId: person.id } }, data: { endedAt: when, outcome: 'TAKEN_BACK' } });
+    await db.searchZoneVisit.create({
+      data: {
+        zoneId: zone.id,
+        caseId,
+        searcherId: person.id,
+        searcherName: person.name,
+        askedById: searcher.userId,
+        askedByName: searcher.firstName,
+        askedAt: when,
+        askedNote: cut(cleanWord(note).replace(/\n+/g, ' '), ASK_NOTE_MAX) || null,
+      },
+    });
+    return null;
+  };
+  // Who goes to a sighting is decided one request at a time (oneAtATime), so an ask and someone setting off in the same moment cannot both stand.
+  const error = seen
+    ? await oneAtATime(zone.id, async (tx) => ask(tx, await tx.searchZoneVisit.findMany({ where: { zoneId: zone.id, endedAt: null }, orderBy: OPEN_VISITS.orderBy })))
+    : await ask(prisma, zone.visits);
+  if (error) return { error, title };
   return { zone: await prisma.searchZone.findFirst({ where: { id: zone.id }, include: { visits: OPEN_VISITS } }), title };
 }
 

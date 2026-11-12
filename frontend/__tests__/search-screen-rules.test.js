@@ -234,12 +234,63 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     expect(code(shell)).toMatch(/if \(exceptId\) passed\.current\.add\(exceptId\);\s*else passed\.current = new Set\(\);/);
     expect(code(shell)).toMatch(/let list = ranked\.filter\(\(i\) => !passed\.current\.has\(i\.id\)\);/);
     // A street nobody has walked comes before a second pass of one that has been: the round restarts rather than skip it.
-    expect(code(shell)).toMatch(/if \(!list\.some\(unwalked\) && ranked\.some\(unwalked\)\) \{\s*passed\.current = new Set\(exceptId \? \[exceptId\] : \[\]\);\s*list = ranked;/);
+    // And with everything passed on (every area searched, and each one passed in turn) it restarts too: pressing
+    // "Different area" with an empty list sent nothing, and answered "That did not go through" for good.
+    expect(code(shell)).toMatch(/if \(!list\.length \|\| \(!list\.some\(unwalked\) && ranked\.some\(unwalked\)\)\) \{\s*passed\.current = new Set\(exceptId \? \[exceptId\] : \[\]\);\s*list = ranked;/);
     // A desk holds a street only if a phone took it: it cannot be handed another.
     expect(shell).toMatch(/<Street\b.*canOther=\{!desk && candidates\.length > 0\}/);
     // The same for an area of ground, where "nobody has searched it" is what comes before a second search.
     expect(shell).toMatch(/<Area\b.*canOther=\{!desk && candidates\.length > 0\}/);
-    expect(code(shell)).toMatch(/const unwalked = \(i\) => \(unit === 'area' \? !\(i\.searchCount > 0\) : i\.status !== 'SEARCHED'\);/);
+    // Ground that needs a search is what the order itself calls that: never searched, or up for another look.
+    expect(code(shell)).toMatch(/const unwalked = \(i\) => \(unit === 'area' \? needsSearch\(i\) : i\.status !== 'SEARCHED'\);/);
+    expect(shell).toMatch(/import \{ rankAreas, needsSearch \} from '@\/app\/lib\/searchCircle';/);
+  });
+
+  test('"Different area" always has an area to give while there is another one, however many have been passed on', () => {
+    // The list logic of takeStreet, run: five searched areas, the person on one, pressing "Different area" over and over.
+    const { rankAreas, needsSearch } = require('@/app/lib/searchCircle');
+    const searched = (id, at) => ({ id, status: 'SEARCHED', searchCount: 1, searchedAt: at, priority: 6, on: 0, coming: 0, mine: false, full: false });
+    const areas = ['middle', 'north', 'east', 'south', 'west'].map((id, i) => searched(id, `2026-11-12T0${i + 1}:00:00Z`));
+    let passed = new Set();
+    let mine = 'middle';
+    const given = [];
+    for (let press = 0; press < 12; press += 1) {
+      const exceptId = mine;
+      passed.add(exceptId);
+      const ranked = rankAreas(areas.map((a) => ({ ...a, mine: a.id === mine }))).filter((i) => i.id !== exceptId);
+      let list = ranked.filter((i) => !passed.has(i.id));
+      if (!list.length || (!list.some(needsSearch) && ranked.some(needsSearch))) {
+        passed = new Set([exceptId]);
+        list = ranked;
+      }
+      expect(list.length).toBeGreaterThan(0);
+      mine = list[0].id;
+      given.push(mine);
+    }
+    // Every other area comes round before any comes round twice, and it never hands back the one just left.
+    expect(given.slice(0, 4).sort()).toEqual(['east', 'north', 'south', 'west']);
+    given.forEach((id, i) => expect(id).not.toBe(i === 0 ? 'middle' : given[i - 1]));
+  });
+
+  test('after the circle round a sighting, the thanks do not count it among the areas', () => {
+    expect(shell).toMatch(/setDoneAtSighting\(unit === 'area' && isSeenCircle\(mineRaw\)\);/);
+    const helper = read('app/mission-control/steps/Helper.js');
+    expect(helper).toMatch(/\{done\} is searched\. Thank you\.\{doneAtSighting \? '' : ` \$\{counts\.searched\} of the \$\{counts\.total\} areas /);
+  });
+
+  test('when the pet was seen is said with its day: a sighting keeps its circle for three days', () => {
+    const helper = read('app/mission-control/steps/Helper.js');
+    expect(helper).toMatch(/const seenWhen = sighting && mine\.sightingAt \? whenWords\(mine\.sightingAt, picture\.timeZone, now\) : '';/);
+    expect(code(helper)).not.toMatch(/Seen at \$\{/);
+    const { whenWords } = require('@/app/mission-control/lib/insight');
+    const now = new Date('2026-11-12T22:00:00Z').getTime();
+    expect(`Seen ${whenWords('2026-11-12T21:40:00Z', 'America/Chicago', now)}.`).toBe('Seen at 3:40 pm.');
+    expect(`Seen ${whenWords('2026-11-10T21:40:00Z', 'America/Chicago', now)}.`).toBe('Seen on Tue at 3:40 pm.');
+  });
+
+  test('on the desk a sighting\'s circle can be pointed at: it is drawn after the areas it lies in', () => {
+    const map = read('app/mission-control/components/SearchMap.js');
+    expect(map).toMatch(/const drawn = \[\.\.\.areas\]\.sort\(\(a, b\) => Number\(a\.ring === 3\) - Number\(b\.ring === 3\)\);\s*for \(const area of drawn\) \{/);
   });
 
   test('when no street can be given, the first card says why and nobody is sent off', () => {

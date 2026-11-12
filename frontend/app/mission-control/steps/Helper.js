@@ -37,6 +37,7 @@ import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 import { areaName, isSeenCircle, whereWords } from '../lib/ground';
+import { whenWords } from '../lib/insight';
 
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '';
 // What the button says is what the people running the search are told in this person's name (app/lib/searchAsk.js, CANNOT_WORDS).
@@ -121,7 +122,7 @@ function ShareLink({ onShare }) {
  * (`asked`), the same card says which street and whose ask it is, and its
  * one button starts it.
  */
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, doneAtSighting = false, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
@@ -151,7 +152,8 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
         </>
       ) : done && ground ? (
         <Lead className="mt-1.5">
-          {done} is searched. Thank you. {counts.searched} of the {counts.total} areas {counts.searched === 1 ? 'has' : 'have'} been searched so far.
+          {/* The count is of the circle's own areas. The circle round a sighting is not one of them, so it is not counted after one. */}
+          {done} is searched. Thank you.{doneAtSighting ? '' : ` ${counts.searched} of the ${counts.total} areas ${counts.searched === 1 ? 'has' : 'have'} been searched so far.`}
         </Lead>
       ) : done ? (
         <Lead className="mt-1.5">
@@ -323,7 +325,8 @@ export function Area({ picture, name, mine, instrument, gps, onSearched, onOther
   const recording = instrument === 'field' && gps?.recording;
   const desk = instrument === 'command';
   const sighting = isSeenCircle(mine);
-  const seenAt = sighting && mine.sightingAt ? clockTime(mine.sightingAt, picture.timeZone) : '';
+  // With its day when it was not today: a sighting keeps its circle for three days.
+  const seenWhen = sighting && mine.sightingAt ? whenWords(mine.sightingAt, picture.timeZone, now) : '';
   // The site's own brief, word for word. At a sighting, what to do on seeing the pet comes first.
   const advice = sighting ? [brief.never, brief.look] : [brief.look];
   return (
@@ -332,7 +335,7 @@ export function Area({ picture, name, mine, instrument, gps, onSearched, onOther
       <Heading className="mt-1">Search {areaName(mine)}</Heading>
       <Lead className="mt-1.5">
         {whereWords(mine)}
-        {seenAt ? ` Seen at ${seenAt}.` : ''} About {mine.minutes} minutes.{recording ? ` ${brief.records}` : ''}
+        {seenWhen ? ` Seen ${seenWhen}.` : ''} About {mine.minutes} minutes.{recording ? ` ${brief.records}` : ''}
       </Lead>
       {asked && (
         // Asked for another area while on this one: said here, and it is the first card when this one is done.

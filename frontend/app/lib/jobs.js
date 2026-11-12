@@ -125,15 +125,16 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
         labels: [area.label],
         title: way === 'car' ? `Drive ${place}` : `Search ${place}`,
         minutes: area.minutes || 30,
+        // Facts about this area only: nothing here speaks for the areas it was not.
         why: [
-          (area.priority || 0) >= FIRST_PRIORITY ? `${petName}'s owner asked for it to be searched first.` : null,
+          area.askedOfMe ? `${petName}'s owner asked you to search it.` : (area.priority || 0) >= FIRST_PRIORITY ? `${petName}'s owner asked for it to be searched first.` : null,
           area.reach ? `${area.reach}${marks.length ? `, around ${marks.join(' and ')}` : ''}.` : null,
-          area.status === 'NEEDS_REVISIT'
-            ? 'It has been searched and is down for another look.'
-            : area.on > 0
-              ? `${area.on === 1 ? '1 person is' : `${area.on} people are`} searching it now, and there is room for more.`
+          area.on > 0
+            ? `${area.on === 1 ? '1 person is' : `${area.on} people are`} searching it now, and there is room for more.`
+            : area.status === 'NEEDS_REVISIT' || area.again
+              ? 'It has been searched and is down for another look.'
               : area.searchCount > 0
-                ? 'Every area has been searched. This one was searched longest ago.'
+                ? `It has been searched ${area.searchCount === 1 ? 'once' : area.searchCount === 2 ? 'twice' : `${area.searchCount} times`}.`
                 : 'Nobody has searched it.',
           away != null ? `${walkText(away)}.` : null,
         ].filter(Boolean).join(' '),

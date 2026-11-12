@@ -9,7 +9,7 @@
  */
 import {
   CIRCLES, DEFAULT_CIRCLE, RING, MINUTES_PER_HECTARE, MINUTES_PER_HECTARE_CLOSE_CAT,
-  circleFor, areasOf, inArea, areaAt, hectaresOf, minutesFor, seenArea, inWords, pointAt, outlineOf, heartOf, reachOf, landmarksIn, urgencyOf, planCircle, rankAreas,
+  circleFor, areasOf, inArea, areaAt, hectaresOf, minutesFor, seenArea, inWords, pointAt, outlineOf, heartOf, reachOf, landmarksIn, urgencyOf, planCircle, rankAreas, needsSearch, outLongAfter, heldFor,
 } from '@/app/lib/searchCircle';
 import { distanceMeters } from '@/app/lib/searchGrid';
 
@@ -308,6 +308,38 @@ describe('the order ground is given out in', () => {
     expect(order([area('middle', { status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T10:00:00Z', priority: 8 }), area('east', { status: 'NEEDS_REVISIT', searchCount: 1 })])).toEqual(['east', 'middle']);
   });
 
+  test('up for another look, it keeps its place once someone starts it: one person on it does not make it searched', () => {
+    // The board says IN_PROGRESS while anyone is on it, which hides "another look". `again` is what says it still is.
+    const north = area('north', { status: 'IN_PROGRESS', on: 1, searchCount: 1, searchedAt: '2026-11-12T12:00:00Z', again: true });
+    const middle = area('middle', { status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T09:00:00Z', priority: 8 });
+    const south = area('south', { status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T10:00:00Z' });
+    expect(order([middle, south, north])).toEqual(['north', 'middle', 'south']);
+    // Without it, the same area is plain searched ground with someone on it, and goes last.
+    expect(order([middle, south, { ...north, again: false }])).toEqual(['middle', 'south', 'north']);
+  });
+
+  test('"send people here first" holds until it is searched: the next people go there whoever is already on it', () => {
+    const first = area('north', { first: true, priority: 11, status: 'IN_PROGRESS', on: 1 });
+    expect(order([area('middle', { priority: 8 }), area('east'), first])).toEqual(['north', 'middle', 'east']);
+    // Searched before and asked for first: the same, though the board says it is being searched.
+    expect(order([area('middle', { priority: 8 }), { ...first, searchCount: 1, searchedAt: '2026-11-12T09:00:00Z', again: true }])).toEqual(['north', 'middle']);
+    // Two asked for first: the one with fewer people on it.
+    expect(order([first, area('west', { first: true, priority: 11 })])).toEqual(['west', 'north']);
+    // The area this person was asked to search still comes before it, and a sighting's circle with its one person is never given.
+    expect(order([first, area('west', { askedOfMe: true }), area('seen-1', { ring: RING.SEEN, first: true, priority: 11, full: true })])).toEqual(['west', 'north']);
+  });
+
+  test('what "still needs a search" means, wherever it is asked', () => {
+    expect(needsSearch({ status: 'UNSEARCHED', searchCount: 0 })).toBe(true);
+    expect(needsSearch({ status: 'IN_PROGRESS', searchCount: 0 })).toBe(true);
+    expect(needsSearch({ status: 'NEEDS_REVISIT', searchCount: 1 })).toBe(true);
+    expect(needsSearch({ status: 'IN_PROGRESS', searchCount: 1, again: true })).toBe(true);
+    expect(needsSearch({ status: 'IN_PROGRESS', searchCount: 2, first: true })).toBe(true);
+    expect(needsSearch({ status: 'SEARCHED', searchCount: 1 })).toBe(false);
+    expect(needsSearch({ status: 'IN_PROGRESS', searchCount: 1 })).toBe(false);
+    expect(needsSearch(null)).toBe(false);
+  });
+
   test('then ground searched longest ago, so there is always some to give', () => {
     const searched = (key, at) => area(key, { status: 'SEARCHED', searchCount: 1, searchedAt: at });
     expect(order([searched('north', '2026-11-12T12:00:00Z'), searched('middle', '2026-11-12T09:00:00Z'), searched('east', '2026-11-12T10:00:00Z')])).toEqual(['middle', 'east', 'north']);
@@ -327,5 +359,32 @@ describe('the order ground is given out in', () => {
     expect(order([area('south', { priority: 10 }), area('seen-1', { priority: 10, ring: 3 }), area('middle', { priority: 8 })], away)).toEqual(['seen-1', 'south', 'middle']);
     // The owner sending people somewhere first is above both.
     expect(order([area('seen-1', { priority: 10, ring: 3 }), area('west', { priority: 11 })], away)[0]).toBe('west');
+  });
+});
+
+describe('how long someone is counted as on an area with no word from them', () => {
+  test('the desk is told they have been out a long time after twice what the area takes and a quarter of an hour', () => {
+    expect(outLongAfter(45)).toBe(105);
+    expect(outLongAfter(30)).toBe(75);
+    expect(outLongAfter(75)).toBe(165);
+    // An area whose time is not known is taken to be twenty minutes.
+    expect(outLongAfter(undefined)).toBe(55);
+  });
+
+  test('the site goes on counting them for half an hour after that, and never under two hours', () => {
+    expect(heldFor(45)).toBe(135);
+    expect(heldFor(75)).toBe(195);
+    expect(heldFor(30)).toBe(120);
+    expect(heldFor(10)).toBe(120);
+  });
+
+  test('so for every area of every search, the desk hears before the site stops counting', () => {
+    for (const circle of [CIRCLES.DOG, CIRCLES.CAT]) {
+      const areas = [...areasOf(circle, { widened: true }), seenArea('s1', circle, 'Max')];
+      for (const a of areas) {
+        const minutes = minutesFor(a, circle);
+        expect(heldFor(minutes) - outLongAfter(minutes)).toBeGreaterThanOrEqual(30);
+      }
+    }
   });
 });

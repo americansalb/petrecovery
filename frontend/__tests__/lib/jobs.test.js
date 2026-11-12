@@ -180,7 +180,26 @@ describe('rankJobs: ground', () => {
     expect(why({ status: 'NEEDS_REVISIT', searchCount: 1 })).toBe('It has been searched and is down for another look.');
     expect(why({ status: 'IN_PROGRESS', on: 1 })).toBe('1 person is searching it now, and there is room for more.');
     expect(why({ status: 'IN_PROGRESS', on: 2 })).toBe('2 people are searching it now, and there is room for more.');
-    expect(why({ status: 'SEARCHED', searchCount: 2, searchedAt: '2026-11-12T10:00:00Z' })).toBe('Every area has been searched. This one was searched longest ago.');
+    // A fact about this area only. The page is handed one area, and cannot speak for the others.
+    expect(why({ status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T10:00:00Z' })).toBe('It has been searched once.');
+    expect(why({ status: 'SEARCHED', searchCount: 2, searchedAt: '2026-11-12T10:00:00Z' })).toBe('It has been searched twice.');
+    expect(why({ status: 'SEARCHED', searchCount: 4, searchedAt: '2026-11-12T10:00:00Z' })).toBe('It has been searched 4 times.');
+    expect(why({ status: 'SEARCHED', searchCount: 2 })).not.toMatch(/Every area|longest ago/);
+    // Asked to search it by the owner: said as that, whatever else is true of it.
+    expect(why({ askedOfMe: true, status: 'SEARCHED', searchCount: 1 })).toBe("Max's owner asked you to search it. It has been searched once.");
+    expect(why({ askedOfMe: true, priority: 11 })).toBe("Max's owner asked you to search it. Nobody has searched it.");
+  });
+
+  test('ranked again for the nearest, the order keeps what the search screen orders by', () => {
+    // "Send people here first" with someone on it, a sighting's circle on a tie, and another look with someone on it.
+    const first = area('north', 'North side', { first: true, priority: 11, status: 'IN_PROGRESS', on: 1 });
+    expect(rankJobs({ blocks: [area('middle', 'The middle', { priority: 8 }), first], way: 'foot' })[0].id).toBe('zone-north');
+    const near = { lat: 30.3148, lng: -97.7459 };
+    const seen = area('seen', 'Where Max was seen', { ring: 3, priority: 10, centerLatitude: 30.3100 });
+    expect(rankJobs({ blocks: [area('south', 'South side', { priority: 10 }), seen], way: 'foot', near })[0].id).toBe('zone-seen');
+    const again = area('east', 'East side', { status: 'IN_PROGRESS', on: 1, searchCount: 1, again: true });
+    const job = rankJobs({ blocks: [area('middle', 'The middle', { status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T09:00:00Z', priority: 8 }), again], way: 'foot' })[0];
+    expect(job.id).toBe('zone-east');
   });
 
   test('the order is the search screen\'s own: ground nobody is on first, and the nearest on a tie', () => {

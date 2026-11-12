@@ -44,7 +44,7 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { distanceMeters } from '@/app/lib/searchGrid';
-import { rankAreas } from '@/app/lib/searchCircle';
+import { rankAreas, needsSearch } from '@/app/lib/searchCircle';
 // The site's own address, built in: a link or a QR code made here never carries the host's name (app/lib/config.js).
 import { getBaseUrl } from '@/app/lib/config';
 import { orientWalk, walkTitle, placeFromStreets } from '@/app/lib/streetWalks';
@@ -63,7 +63,7 @@ import { readNote, saveNote } from './lib/identity';
 import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SIGHTING_MS } from './lib/words';
 import { searcherBrief } from './lib/briefLines';
 import { wordsForCard, wordsForOwner, dealtLine } from './lib/team';
-import { AreaName, circleAreas, minutesRange } from './lib/ground';
+import { AreaName, circleAreas, isSeenCircle, minutesRange } from './lib/ground';
 
 /** The space between the sheet and the map's key above it, and between the sheet and the map's credit when there is no key. */
 const KEY_GAP = 8;
@@ -149,6 +149,8 @@ function Screen({ mission }) {
 
   const [view, setView] = useState('main'); // main | join | seen | sent
   const [done, setDone] = useState(null);
+  // Whether what they just searched was the circle round a sighting, which is not one of the areas the card counts.
+  const [doneAtSighting, setDoneAtSighting] = useState(false);
   const [busy, setBusy] = useState(null);
   const [problem, setProblem] = useState('');
   const [photo, setPhoto] = useState(false);
@@ -386,10 +388,12 @@ function Screen({ mission }) {
       if (exceptId) passed.current.add(exceptId);
       else passed.current = new Set();
       const ranked = rank(items, here || position, unit).filter((i) => i.id !== exceptId);
-      const unwalked = (i) => (unit === 'area' ? !(i.searchCount > 0) : i.status !== 'SEARCHED');
+      // Ground that still needs a search: never searched, or put up for another look.
+      const unwalked = (i) => (unit === 'area' ? needsSearch(i) : i.status !== 'SEARCHED');
       let list = ranked.filter((i) => !passed.current.has(i.id));
-      if (!list.some(unwalked) && ranked.some(unwalked)) {
-        // Every unwalked street has been passed on: the round starts again, rather than a second pass of a walked one.
+      if (!list.length || (!list.some(unwalked) && ranked.some(unwalked))) {
+        // Everything that needs a search has been passed on, or everything has: the round starts again, rather
+        // than a second pass of a searched area, and never an empty hand.
         passed.current = new Set(exceptId ? [exceptId] : []);
         list = ranked;
       }
@@ -440,6 +444,7 @@ function Screen({ mission }) {
       if (result.error) return setProblem(result.error);
       if (gps?.recording) gps.stop().catch(() => {});
       setDone(title);
+      setDoneAtSighting(unit === 'area' && isSeenCircle(mineRaw));
       return go('main');
     } finally {
       setBusy(null);
@@ -716,7 +721,7 @@ function Screen({ mission }) {
   } else if (view === 'join' && !desk) {
     step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} doneAtSighting={doneAtSighting} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   }
 
   const overlays = (
