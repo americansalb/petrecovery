@@ -3,15 +3,18 @@
 /**
  * The desk's People: everyone on the search, what each is doing right
  * now, and for the person running the search (the owner), the two things
- * they do with a person: give them a street, and send them a word.
+ * they do with a person: ask them to search an area, and send them a word.
  *
- *   the list     free first, then asked, then walking. One line each.
- *   one person   what they have done, "Give Dana a street" (pick one, add
- *                a word, ask), and the words between them and the desk.
+ *   the list     free first, then asked, then searching. One line each.
+ *   one person   what they have done, "Ask Dana to search an area" (pick
+ *                one, add a word, ask), and the words between them and
+ *                the desk.
  *
  * An ask is closed, the way a radio call is: the row says asked, then
- * seen (their phone showed it), then walking. Nobody at the desk has to
- * wonder whether it landed.
+ * seen (their phone showed it), then searching. Nobody at the desk has to
+ * wonder whether it landed. On ground an ask keeps nothing from anyone:
+ * several people can search one area. (A search from before it was on
+ * areas gives a named person a street, which is kept for them.)
  *
  * Names are here because this person may see them (the owner and the
  * forces looking for the pet); for anyone else the tab says how many are
@@ -22,8 +25,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronRight, Loader2, Send, Share2 } from 'lucide-react';
 import { clockTime } from '../lib/words';
+import { rankAreas } from '@/app/lib/searchCircle';
 import { lookFirst } from '../lib/insight';
 import { grouped, outLong, personLine, shortTitle } from '../lib/team';
+import { areaName, areaState } from '../lib/ground';
 
 const NOTE_MAX = 140;
 const BUTTON =
@@ -51,7 +56,9 @@ const Label = ({ children, count }) => (
 );
 
 function Row({ person, minutes, zone, now, unit, leads, onOpen }) {
-  const thing = unit === 'block' ? 'block' : 'street';
+  const thing = unit === 'area' ? 'area' : unit === 'block' ? 'block' : 'street';
+  // A named person is given a street or an area, never a square.
+  const gives = unit === 'street' || unit === 'area';
   const long = outLong(person, minutes, now);
   return (
     <li>
@@ -66,11 +73,11 @@ function Row({ person, minutes, zone, now, unit, leads, onOpen }) {
             {/* The whole line, on two rows where it needs them: what someone is doing is not cut short. */}
             <span className="block text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">{personLine(person, { timeZone: zone, now, unit })}</span>
           </span>
-          {!(leads && unit === 'street' && person.state === 'free') && <ChevronRight size={16} className="shrink-0 text-[var(--mc-muted)]" aria-hidden="true" />}
+          {!(leads && gives && person.state === 'free') && <ChevronRight size={16} className="shrink-0 text-[var(--mc-muted)]" aria-hidden="true" />}
         </button>
-        {leads && unit === 'street' && person.state === 'free' && (
+        {leads && gives && person.state === 'free' && (
           <button type="button" onClick={() => onOpen(person.handle, 'give')} className={BUTTON}>
-            Give a {thing}
+            Give {thing === 'area' ? 'an area' : `a ${thing}`}
           </button>
         )}
       </div>
@@ -81,9 +88,14 @@ function Row({ person, minutes, zone, now, unit, leads, onOpen }) {
 /** One person: what they are on, a street to give them, and the words between them and the desk. */
 function Person({ person, picture, items, unit, now, leads, selected, words, onBack, onAsk, onUnask, onWord, onPick }) {
   const zone = picture.timeZone;
-  const thing = unit === 'block' ? 'block' : 'street';
-  // What could be given: still to walk, most urgent first, and not kept for someone else.
-  const open = useMemo(() => lookFirst(items).filter((i) => !i.reserved || i.askedOfHandle === person.handle), [items, person.handle]);
+  const ground = unit === 'area';
+  const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
+  // What could be given. Ground: every area in the order it is given out, as anyone else would be given it.
+  // Streets: still to walk, most urgent first, and not kept for someone else.
+  const open = useMemo(
+    () => (ground ? rankAreas(items.map((i) => ({ ...i, mine: false, askedOfMe: false }))) : lookFirst(items).filter((i) => !i.reserved || i.askedOfHandle === person.handle)),
+    [items, person.handle, ground]
+  );
   const options = useMemo(() => {
     const top = open.slice(0, 4);
     const picked = selected && open.find((i) => i.id === selected);
@@ -126,7 +138,7 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
       return result;
     });
   const thread = words.filter((w) => (w.fromDesk ? w.toHandle : w.fromHandle) === person.handle);
-  const canGive = leads && unit === 'street' && person.state !== 'walking' && !person.asked;
+  const canGive = leads && (unit === 'street' || ground) && person.state !== 'walking' && !person.asked;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
@@ -144,11 +156,11 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
       {person.asked && (
         <div className="mt-3 rounded-xl border border-[var(--mc-line)] bg-[var(--mc-ground)] p-3">
           <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">
-            {person.on?.id === person.asked.id ? 'Walking what was asked' : person.asked.seenAt ? `Asked ${clockTime(person.asked.at, zone)}. Seen ${clockTime(person.asked.seenAt, zone)}, not started.` : `Asked ${clockTime(person.asked.at, zone)}. Not seen yet.`}
+            {person.on?.id === person.asked.id ? (ground ? 'Searching what was asked' : 'Walking what was asked') : person.asked.seenAt ? `Asked ${clockTime(person.asked.at, zone)}. Seen ${clockTime(person.asked.seenAt, zone)}, not started.` : `Asked ${clockTime(person.asked.at, zone)}. Not seen yet.`}
           </p>
           <p className="mt-0.5 text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">{person.asked.title}</p>
           {person.asked.note && <p className="mt-0.5 text-[14px] font-medium leading-5 text-[var(--mc-soft)]">&quot;{person.asked.note}&quot;</p>}
-          {!person.asked.holds && person.on?.id !== person.asked.id && (
+          {!ground && !person.asked.holds && person.on?.id !== person.asked.id && (
             <p className="mt-1 text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">
               It was kept for {person.name} for half an hour. Anyone who asks for a {thing} can be given it now.
             </p>
@@ -163,12 +175,12 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
 
       {canGive && (
         <div className="mt-4">
-          <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">Give {person.name} a street</p>
+          <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">{ground ? `Ask ${person.name} to search an area` : `Give ${person.name} a street`}</p>
           {options.length === 0 ? (
-            <p className="mt-2 text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">Every street has been walked or has someone on it.</p>
+            <p className="mt-2 text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">{ground ? 'There is no area to give right now.' : 'Every street has been walked or has someone on it.'}</p>
           ) : (
             <>
-              <div className="mt-2 flex flex-col gap-2" role="radiogroup" aria-label={`A street for ${person.name}`}>
+              <div className="mt-2 flex flex-col gap-2" role="radiogroup" aria-label={`${ground ? 'An area' : 'A street'} for ${person.name}`}>
                 {options.map((street) => {
                   const on = chosen?.id === street.id;
                   return (
@@ -188,11 +200,12 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
                       </span>
                       <span className="min-w-0">
                         <span className="flex flex-wrap items-center gap-x-1.5">
-                          <span className="text-[15px] font-bold leading-5 text-[var(--mc-ink)]">Walk {shortTitle(street.title)}</span>
-                          {(street.priority || 0) === (open[0]?.priority || 0) && <span className="rounded-md bg-[var(--mc-seen-bg)] px-1.5 text-[13px] font-bold leading-[18px] text-[var(--mc-seen-ink)]">Most urgent</span>}
+                          <span className="text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{ground ? `Search ${areaName(street)}` : `Walk ${shortTitle(street.title)}`}</span>
+                          {/* On ground the first in the order is what anyone who asked would be given. */}
+                          {(ground ? street.id === open[0]?.id : (street.priority || 0) === (open[0]?.priority || 0)) && <span className="rounded-md bg-[var(--mc-seen-bg)] px-1.5 text-[13px] font-bold leading-[18px] text-[var(--mc-seen-ink)]">{ground ? 'Given out next' : 'Most urgent'}</span>}
                         </span>
                         <span className="block text-[13px] font-medium leading-[19px] text-[var(--mc-muted)]">
-                          {street.fromName && street.toName ? `${street.fromName} to ${street.toName}. ` : ''}About {street.minutes} minutes.
+                          {ground ? `${areaState(street)}. ${street.reach}. ` : street.fromName && street.toName ? `${street.fromName} to ${street.toName}. ` : ''}About {street.minutes} minutes.
                         </span>
                       </span>
                     </button>
@@ -207,13 +220,13 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
                 {busy === 'ask' && <Loader2 size={17} className="animate-spin" aria-hidden="true" />} Ask {person.name}
               </button>
               <p className="mt-2 text-[13px] font-medium leading-[19px] text-[var(--mc-muted)]">
-                It becomes the card on {person.name}&apos;s phone while {picture.pet?.name || 'the pet'}&apos;s search is open there, with one button, and is kept for {person.name} for half an hour. You see when their phone has shown it and when {person.name} starts.
+                It becomes the card on {person.name}&apos;s phone while {picture.pet?.name || 'the pet'}&apos;s search is open there, with one button{ground ? '.' : `, and is kept for ${person.name} for half an hour.`} You see when their phone has shown it and when {person.name} starts.
               </p>
             </>
           )}
         </div>
       )}
-      {leads && unit !== 'street' && person.state !== 'walking' && (
+      {leads && unit !== 'street' && !ground && person.state !== 'walking' && (
         <p className="mt-4 text-[14px] font-medium leading-5 text-[var(--mc-muted)]">This search is on blocks, which are given out as people ask for one. A word to {person.name} still reaches their phone.</p>
       )}
 
@@ -264,14 +277,15 @@ export default function People({ picture, people = [], items, unit, now, selecte
   const viewer = picture.viewer;
   const leads = Boolean(viewer?.leads);
   const zone = picture.timeZone;
-  const thing = unit === 'block' ? 'block' : 'street';
+  const ground = unit === 'area';
+  const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const name = picture.pet?.name || 'the pet';
   const count = picture.looking?.helpers || 0;
   if (!viewer?.seesNames) {
     return (
       <p className="px-4 py-6 text-[15px] font-medium leading-[22px] text-[var(--mc-muted)]">
         {count === 0 ? 'Nobody is out looking right now.' : count === 1 ? '1 person is out looking.' : `${count} people are out looking.`} Who they are is shown to {picture.owner?.firstName || 'the owner'}
-        {picture.forces > 0 ? ` and the Rescue Force looking for ${name}` : ''}. Everyone else sees {thing}s, not people.
+        {picture.forces > 0 ? ` and the Rescue Force looking for ${name}` : ''}. Everyone else sees {ground ? 'ground' : `${thing}s`}, not people.
       </p>
     );
   }
@@ -301,14 +315,14 @@ export default function People({ picture, people = [], items, unit, now, selecte
       </div>
       {people.length === 0 && (
         <p className="px-2 pt-2 text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">
-          Everyone who opens {name}&apos;s link and takes a {thing} shows up here with what they are doing.{leads ? (unit === 'street' ? ' You can give any of them a street or send them a word.' : ' You can send any of them a word.') : ''}
+          Everyone who opens {name}&apos;s link and takes {ground ? 'an area' : `a ${thing}`} shows up here with what they are doing.{leads ? (ground ? ' You can ask any of them to search an area or send them a word.' : unit === 'street' ? ' You can give any of them a street or send them a word.' : ' You can send any of them a word.') : ''}
         </p>
       )}
       {g.free.length > 0 && <Label count={g.free.length}>Free</Label>}
       {list(g.free)}
       {g.asked.length > 0 && <Label count={g.asked.length}>Asked</Label>}
       {list(g.asked)}
-      {g.walking.length > 0 && <Label count={g.walking.length}>On a {thing}</Label>}
+      {g.walking.length > 0 && <Label count={g.walking.length}>{ground ? 'Searching' : `On a ${thing}`}</Label>}
       {list(g.walking)}
     </div>
   );

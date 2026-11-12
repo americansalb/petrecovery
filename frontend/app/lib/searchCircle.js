@@ -10,7 +10,8 @@
  *   four sides        north, east, south and west, from `inner` to `edge`
  *   eight outer areas from `edge` to `wide`, once the circle is widened
  *
- * A fresh sighting is a second, small circle of its own (SEEN_RADIUS_METERS).
+ * A fresh sighting is a second, small circle of its own (`seen` metres
+ * round it), and one person goes there, never a group.
  *
  * The board this replaces handed out streets (app/lib/streetWalks.js) and
  * counted streets walked. With every street walked it would have read as
@@ -29,17 +30,29 @@
 import { distanceMeters, SIGHTING_PRIORITY_WINDOW_MS } from './searchGrid';
 import { bearingDegrees } from './streetWalks';
 
-/** Metres: the middle, the circle a search starts with, and the circle after it is widened. */
+/** One person going round ground on foot once, looking low. A park with no street in it takes as long as a block of houses. */
+export const MINUTES_PER_HECTARE = 4;
+/**
+ * A cat hides within a few houses and goes quiet (the site's brief,
+ * app/lib/brief.js), so close in every hiding place is looked into and the
+ * same ground takes five times as long.
+ */
+export const MINUTES_PER_HECTARE_CLOSE_CAT = 20;
+
+/**
+ * Metres: the middle (`inner`), the circle a search starts with (`edge`),
+ * the circle after it is widened (`wide`) and the circle round a sighting
+ * (`seen`). `rate` is minutes a hectare inside the starting circle and
+ * round a sighting; past the edge everything is covered at the plain rate.
+ */
 export const CIRCLES = Object.freeze({
-  DOG: Object.freeze({ inner: 150, edge: 400, wide: 800 }),
-  CAT: Object.freeze({ inner: 50, edge: 150, wide: 500 }),
+  DOG: Object.freeze({ inner: 150, edge: 400, wide: 800, seen: 150, rate: MINUTES_PER_HECTARE }),
+  CAT: Object.freeze({ inner: 50, edge: 150, wide: 500, seen: 50, rate: MINUTES_PER_HECTARE_CLOSE_CAT }),
 });
 /** A pet that is neither is searched for like a dog: the wider of the two. */
 export const DEFAULT_CIRCLE = CIRCLES.DOG;
-/** The circle around a fresh sighting. */
-export const SEEN_RADIUS_METERS = 150;
-/** One person searching ground on foot, looking low. A park with no street in it takes as long as a block of houses. */
-export const MINUTES_PER_HECTARE = 4;
+/** `ring` of an area: the middle, a side, an outer area, the circle round a sighting. */
+export const RING = Object.freeze({ MIDDLE: 0, SIDE: 1, OUTER: 2, SEEN: 3 });
 
 const SIDES = [
   ['north', 'North side', 'north', 315, 45],
@@ -48,17 +61,17 @@ const SIDES = [
   ['west', 'West side', 'west', 225, 315],
 ];
 const OUTER = [
-  ['outer-north', 'North', 'north', 337.5, 22.5],
-  ['outer-north-east', 'North-east', 'north-east', 22.5, 67.5],
-  ['outer-east', 'East', 'east', 67.5, 112.5],
-  ['outer-south-east', 'South-east', 'south-east', 112.5, 157.5],
-  ['outer-south', 'South', 'south', 157.5, 202.5],
-  ['outer-south-west', 'South-west', 'south-west', 202.5, 247.5],
-  ['outer-west', 'West', 'west', 247.5, 292.5],
-  ['outer-north-west', 'North-west', 'north-west', 292.5, 337.5],
+  ['outer-north', 'Far north', 'north', 337.5, 22.5],
+  ['outer-north-east', 'Far north-east', 'north-east', 22.5, 67.5],
+  ['outer-east', 'Far east', 'east', 67.5, 112.5],
+  ['outer-south-east', 'Far south-east', 'south-east', 112.5, 157.5],
+  ['outer-south', 'Far south', 'south', 157.5, 202.5],
+  ['outer-south-west', 'Far south-west', 'south-west', 202.5, 247.5],
+  ['outer-west', 'Far west', 'west', 247.5, 292.5],
+  ['outer-north-west', 'Far north-west', 'north-west', 292.5, 337.5],
 ];
 
-/** The sizes for a species: { inner, edge, wide } in metres. */
+/** The sizes for a species: { inner, edge, wide, seen } in metres, and its `rate`. */
 export function circleFor(species) {
   return CIRCLES[String(species || '').toUpperCase()] || DEFAULT_CIRCLE;
 }
@@ -103,9 +116,30 @@ export function hectaresOf(area) {
   return (Math.PI * (area.to * area.to - area.from * area.from) * turn) / 10000;
 }
 
-/** About how long one person takes to search an area: from its size, to the nearest five minutes, never under ten. */
-export function minutesFor(area) {
-  return Math.max(10, Math.round((hectaresOf(area) * MINUTES_PER_HECTARE) / 5) * 5);
+/**
+ * About how long one person takes to go round an area once: from its size,
+ * to the nearest five minutes, never under ten. `circle` is the species'
+ * own (its `rate` applies inside the starting circle and round a sighting).
+ */
+export function minutesFor(area, circle = DEFAULT_CIRCLE) {
+  const rate = area.ring === RING.OUTER ? MINUTES_PER_HECTARE : circle?.rate || MINUTES_PER_HECTARE;
+  return Math.max(10, Math.round((hectaresOf(area) * rate) / 5) * 5);
+}
+
+/** The circle round one sighting, as an area: { key, name, way, ring, from, to, a, b }. */
+export function seenArea(sightingId, circle = DEFAULT_CIRCLE, name = 'the pet') {
+  return { key: `seen-${sightingId}`, name: `Where ${name} was seen`, way: null, ring: RING.SEEN, from: 0, to: circle.seen, a: 0, b: 360 };
+}
+
+/**
+ * An area's name as a sentence takes it: "the north side", "the middle",
+ * "the far north-east", "where Max was seen".
+ */
+export function inWords(name) {
+  const text = String(name || '').trim();
+  if (!text) return 'the area';
+  const lower = text.charAt(0).toLowerCase() + text.slice(1);
+  return /^(The|Where) /.test(text) ? lower : `the ${lower}`;
 }
 
 const METERS_PER_DEGREE = 111320;
@@ -154,6 +188,7 @@ export function heartOf(area, center) {
  * "150 m to 400 m north of where Max was lost".
  */
 export function reachOf(area, name = 'the pet') {
+  if (area.ring === RING.SEEN) return `Within ${area.to} m of where ${name} was seen`;
   if (area.from === 0) return `Within ${area.to} m of where ${name} was lost`;
   return `${area.from} m to ${area.to} m ${area.way} of where ${name} was lost`;
 }
@@ -187,7 +222,7 @@ export function landmarksIn(area, center, streets = [], { limit = 2 } = {}) {
  * last three days above all of them, the fresher the higher.
  */
 export function urgencyOf(area, center, { sightings = [], now = Date.now() } = {}) {
-  let urgency = area.ring === 0 ? 8 : area.ring === 1 ? 6 : 3;
+  let urgency = area.ring === RING.MIDDLE ? 8 : area.ring === RING.SIDE ? 6 : 3;
   for (const s of sightings) {
     if (!s || typeof s.lat !== 'number' || typeof s.lng !== 'number') continue;
     const age = s.at ? now - new Date(s.at).getTime() : 0;
@@ -209,7 +244,7 @@ export function planCircle({ center, species, name = 'the pet', streets = [], si
   const circle = circleFor(species);
   const areas = areasOf(circle, { widened }).map((area) => ({
     ...area,
-    minutes: minutesFor(area),
+    minutes: minutesFor(area, circle),
     reach: reachOf(area, name),
     landmarks: landmarksIn(area, center, streets),
     outline: outlineOf(area, center),
@@ -218,4 +253,29 @@ export function planCircle({ center, species, name = 'the pet', streets = [], si
   }));
   areas.sort((a, b) => b.urgency - a.urgency || a.ring - b.ring || a.a - b.a);
   return { circle, areas };
+}
+
+/**
+ * The order ground is given out in, for someone who asks for some: the
+ * area they were asked to search; then ground that still needs a search
+ * with nobody on it and nobody on the way, most urgent first and the
+ * nearest on a tie; then such ground with someone already there (a second
+ * person in ten hectares is a help), fewest people first; then ground
+ * searched longest ago. Never the circle round a sighting that has its
+ * one person. `areas` are as the board sends them
+ * (app/lib/searchZones.js), `away` gives metres from the person asking to
+ * one of them.
+ */
+export function rankAreas(areas = [], away = () => 0) {
+  const can = areas.filter((a) => !a.mine && !a.full);
+  const people = (a) => (a.on || 0) + (a.coming || 0);
+  const urgent = (a, b) => b.priority - a.priority || away(a) - away(b);
+  // Never searched, or searched and put up for another look.
+  const needs = (a) => a.status === 'UNSEARCHED' || a.status === 'NEEDS_REVISIT' || !(a.searchCount > 0);
+  const asked = can.filter((a) => a.askedOfMe);
+  const rest = can.filter((a) => !a.askedOfMe);
+  const empty = rest.filter((a) => needs(a) && people(a) === 0).sort(urgent);
+  const shared = rest.filter((a) => needs(a) && people(a) > 0).sort((a, b) => people(a) - people(b) || urgent(a, b));
+  const again = rest.filter((a) => !needs(a)).sort((a, b) => people(a) - people(b) || new Date(a.searchedAt || 0) - new Date(b.searchedAt || 0));
+  return [...asked, ...empty, ...shared, ...again];
 }

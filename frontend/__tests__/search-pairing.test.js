@@ -125,6 +125,20 @@ describe('the brief on the pet\'s page is true there', () => {
     expect(block).toHaveLength(4);
   });
 
+  test('nor is a job that is an area of ground: ground is searched, not walked street by street', () => {
+    const area = briefOnPage(briefFor({ way: 'foot', pet }), { unit: 'area' });
+    expect(area).toHaveLength(3);
+    expect(area[0]).toMatch(/^Look low/);
+    expect(area.join(' ')).not.toMatch(/every street/);
+    // And the jobs the page hands out on foot are areas: what the job picker reads is the search's own ground.
+    const jobs = read('app/lib/jobs.js');
+    expect(jobs).toMatch(/import \{ openAreas \} from '@\/app\/lib\/searchZones';/);
+    expect(jobs).toMatch(/way === 'foot' \|\| way === 'car' \? openAreas\(pet\.id, \{ viewer: userId \|\| null \}\) : \[\],/);
+    expect(jobs).not.toMatch(/openBlocks/);
+    const intake = read('app/cases/[caseNumber]/components/HelpIntake.js');
+    expect(intake).toMatch(/job\.unit === 'area' \? 'I will search it'/);
+  });
+
   test('no word is added, and the other ways of helping keep every line', () => {
     const foot = briefFor({ way: 'foot', pet });
     expect(briefOnPage(foot, { unit: 'street' })).toEqual(foot.slice(1));

@@ -17,6 +17,7 @@ jest.mock('@/app/lib/prisma', () => ({
     searchStreet: { findMany: jest.fn(async () => []) },
     searchMessage: { findMany: jest.fn(async () => []) },
     searchGrid: { findUnique: jest.fn(async () => null) },
+    searchZone: { findMany: jest.fn(async () => []) },
     user: { findMany: jest.fn(async () => []) },
   },
 }));
@@ -212,5 +213,90 @@ describe('teamOf and personByHandle: read from the database', () => {
     expect(await personByHandle(CASE, 'v:vol-1', { now: NOW })).toBeNull();
     expect(await personByHandle(CASE, '', { now: NOW })).toBeNull();
     expect(await personByHandle(CASE, null, { now: NOW })).toBeNull();
+  });
+});
+
+describe('a search on areas of ground', () => {
+  const visit = (over = {}) => ({ searcherId: 'v:vol-1', searcherName: 'Dana', askedAt: null, askedSeenAt: null, askedNote: null, askedByName: null, startedAt: null, endedAt: null, outcome: null, ...over });
+  const zone = (over = {}) => ({ id: 'z-west', name: 'West side', visits: [], ...over });
+
+  test('someone on an area is searching it, since they started', () => {
+    const team = roster({ caseId: CASE, helpers: [helper()], zones: [zone({ visits: [visit({ startedAt: ago(12) })] })], now: NOW });
+    expect(team[0]).toMatchObject({ name: 'Dana', state: 'walking', on: { unit: 'area', id: 'z-west', title: 'West side' }, since: ago(12), walked: 0 });
+  });
+
+  test('two people can be on the same area at once', () => {
+    const team = by(roster({ caseId: CASE, zones: [zone({ visits: [visit({ startedAt: ago(12) }), visit({ searcherId: 'u-sam', searcherName: 'Sam', startedAt: ago(3) })] })], now: NOW }));
+    expect(team.Dana.on.id).toBe('z-west');
+    expect(team.Sam.on.id).toBe('z-west');
+  });
+
+  test('each area someone searched counts, and the last one is where they were', () => {
+    const zones = [
+      zone({ id: 'z-mid', name: 'The middle', visits: [visit({ startedAt: ago(90), endedAt: ago(60), outcome: 'SEARCHED' })] }),
+      zone({ visits: [visit({ startedAt: ago(50), endedAt: ago(10), outcome: 'SEARCHED' })] }),
+    ];
+    const [dana] = roster({ caseId: CASE, zones, now: NOW });
+    expect(dana).toMatchObject({ state: 'free', walked: 2, lastWalkedAt: ago(10), lastOn: { unit: 'area', id: 'z-west', title: 'West side' } });
+  });
+
+  test('an area given back, or one whose search lapsed, is not an area searched', () => {
+    const zones = [zone({ visits: [visit({ startedAt: ago(50), endedAt: ago(40), outcome: 'GAVE_BACK' }), visit({ startedAt: ago(300), endedAt: ago(200), outcome: 'LAPSED' })] })];
+    const [dana] = roster({ caseId: CASE, zones, now: NOW });
+    expect(dana).toMatchObject({ state: 'free', walked: 0, on: null, lastOn: null });
+  });
+
+  test('asked, then seen, then started: the ask stays on the person while they are on what was asked', () => {
+    const asked = visit({ askedAt: ago(5), askedNote: 'Start at the creek path, please.', askedByName: 'Avery' });
+    let [dana] = roster({ caseId: CASE, zones: [zone({ visits: [asked] })], now: NOW });
+    expect(dana).toMatchObject({ state: 'asked', on: null, asked: { id: 'z-west', title: 'West side', at: ago(5), seenAt: null, note: 'Start at the creek path, please.', byName: 'Avery', holds: true } });
+    [dana] = roster({ caseId: CASE, zones: [zone({ visits: [{ ...asked, askedSeenAt: ago(4) }] })], now: NOW });
+    expect(dana.asked.seenAt).toEqual(ago(4));
+    [dana] = roster({ caseId: CASE, zones: [zone({ visits: [{ ...asked, askedSeenAt: ago(4), startedAt: ago(2) }] })], now: NOW });
+    expect(dana).toMatchObject({ state: 'walking', on: { id: 'z-west' }, asked: { id: 'z-west' } });
+  });
+
+  test('an ask that was taken back, or answered with "I cannot", is no ask', () => {
+    const zones = [zone({ visits: [visit({ askedAt: ago(30), endedAt: ago(20), outcome: 'TAKEN_BACK' }), visit({ askedAt: ago(15), endedAt: ago(14), outcome: 'CANNOT' })] })];
+    const [dana] = roster({ caseId: CASE, zones, now: NOW });
+    expect(dana).toMatchObject({ state: 'free', asked: null });
+  });
+
+  test('the owner searching an area of their own search is not one of the people helping it', () => {
+    const team = roster({ caseId: CASE, ownerId: 'u-owner', zones: [zone({ visits: [visit({ searcherId: 'u-owner', searcherName: 'Avery', startedAt: ago(5) })] })], now: NOW });
+    expect(team).toEqual([]);
+  });
+
+  test('someone known only from before the areas is listed by name, and is free', () => {
+    const team = roster({ caseId: CASE, zones: [zone()], known: [{ id: 'u-mike', name: 'Mike Ortiz' }, { id: 'm:u-owner', name: 'Avery' }, { id: null, name: 'Nobody' }], now: NOW });
+    expect(team).toHaveLength(1);
+    expect(team[0]).toMatchObject({ name: 'Mike', state: 'free', on: null, walked: 0 });
+  });
+
+  describe('read from the database', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      prisma.missionVolunteer.findMany.mockResolvedValue([helper()]);
+      prisma.searchMessage.findMany.mockResolvedValue([]);
+      prisma.user.findMany.mockResolvedValue([{ id: 'u-mike', firstName: 'Mike' }]);
+      prisma.searchZone.findMany.mockResolvedValue([zone({ visits: [visit({ startedAt: ago(12) })] })]);
+      // From before the search was on areas: Dana still holds a street, and Mike once walked a square.
+      prisma.searchStreet.findMany.mockResolvedValue([street({ id: 'st-old', status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedByName: 'Dana', claimedAt: ago(600) })]);
+      prisma.searchGrid.findUnique.mockResolvedValue({ cells: [{ id: 'c-1', row: 0, col: 0, status: 'SEARCHED', claimedById: null, claimedAt: null, searchedById: 'u-mike', searchedByKey: null, searchedAt: ago(900), searchCount: 1 }] });
+    });
+
+    test('what each person is doing comes from the areas alone', async () => {
+      const team = by(await teamOf(CASE, { ownerId: 'u-owner', now: NOW }));
+      expect(prisma.searchZone.findMany.mock.calls[0][0].where).toEqual({ caseId: CASE });
+      // Not "walking Ramsey Ave" from a claim made ten hours ago.
+      expect(team.Dana).toMatchObject({ state: 'walking', on: { unit: 'area', id: 'z-west', title: 'West side' } });
+      // Mike is still someone the desk can write to, and has searched no area.
+      expect(team.Mike).toMatchObject({ state: 'free', walked: 0, on: null });
+    });
+
+    test('a handle finds the same person', async () => {
+      const dana = await personByHandle(CASE, handleFor(CASE, 'v:vol-1'), { ownerId: 'u-owner', now: NOW });
+      expect(dana).toMatchObject({ id: 'v:vol-1', name: 'Dana' });
+    });
   });
 });

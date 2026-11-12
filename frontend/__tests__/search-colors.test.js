@@ -111,7 +111,7 @@ describe('no text on the search screen is smaller than 13px', () => {
   test('the screen\'s own pieces are all among them', () => {
     const all = walk(SCREEN).map((f) => path.relative(SCREEN, f).split(path.sep).join('/'));
     for (const file of LOADED) expect(all).toContain(file);
-    for (const file of ['SearchScreen.js', 'components/TopBar.js', 'components/kit.js', 'components/SearchMap.js', 'components/Word.js', 'components/overlays/MarkReunitedModal.js', 'steps/Helper.js', 'steps/Owner.js', 'steps/Witness.js', 'desktop/Command.js', 'desktop/Board.js', 'desktop/Know.js', 'desktop/People.js', 'desktop/Messages.js', 'desktop/Needs.js']) {
+    for (const file of ['SearchScreen.js', 'components/TopBar.js', 'components/kit.js', 'components/SearchMap.js', 'components/Word.js', 'components/overlays/MarkReunitedModal.js', 'steps/Helper.js', 'steps/Owner.js', 'steps/Witness.js', 'desktop/Command.js', 'desktop/Board.js', 'desktop/Ground.js', 'desktop/Know.js', 'desktop/People.js', 'desktop/Messages.js', 'desktop/Needs.js', 'lib/ground.js']) {
       expect(LOADED).toContain(file);
     }
   });
@@ -144,7 +144,7 @@ describe('the desk is light by day and dark by its own switch, and the map says 
   test('no colour of its own on the desk: every one comes from the palette or the map\'s own values', () => {
     // Every file of the desk, and the pieces it shares with a phone that were made for both palettes.
     const files = [...fs.readdirSync(path.join(FRONTEND, 'app', 'mission-control', 'desktop')).map((name) => `desktop/${name}`), 'components/Word.js', 'components/overlays/MarkReunitedModal.js'];
-    expect(files).toEqual(expect.arrayContaining(['desktop/Command.js', 'desktop/Board.js', 'desktop/Know.js', 'desktop/People.js', 'desktop/Messages.js', 'desktop/Needs.js']));
+    expect(files).toEqual(expect.arrayContaining(['desktop/Command.js', 'desktop/Board.js', 'desktop/Ground.js', 'desktop/Know.js', 'desktop/People.js', 'desktop/Messages.js', 'desktop/Needs.js']));
     for (const file of files) {
       const source = read(`app/mission-control/${file}`);
       expect({ file, colour: (source.match(/(text|bg|border|ring)-(slate|teal|emerald|orange|amber|midnight|red|green|blue)-\d+/) || [null])[0] }).toEqual({ file, colour: file.endsWith('MarkReunitedModal.js') ? 'bg-slate-950' : null });
@@ -164,7 +164,20 @@ describe('the desk is light by day and dark by its own switch, and the map says 
     expect(map).toMatch(/L\.polyline\(street\.path, \{ color: look\.later, weight: 2\.5,/);
     // Which streets are "next" is every street as urgent as the most urgent (lib/insight.js, givenNext): a phone
     // gives the nearest of them, so no few of them can be picked out here.
-    expect(desk).toMatch(/const next = useMemo\(\(\) => new Set\(givenNext\(items\)\.map\(\(i\) => i\.id\)\), \[items\]\);/);
+    expect(desk).toMatch(/const next = useMemo\(\(\) => new Set\(\(ground \? givenNextAreas\(items\) : givenNext\(items\)\)\.map\(\(i\) => i\.id\)\), \[items, ground\]\);/);
     expect(desk).not.toMatch(/NEXT_SHOWN/);
+  });
+
+  test('ground is drawn the same way: weight for what is given out next, colour for what has happened', () => {
+    // Nobody has searched it: an outline, heavy in ink where it is given out next.
+    expect(map).toMatch(/\? \{ color: area\.next \? look\.ink : look\.later, weight: area\.next \? 3\.5 : 1\.5 \}/);
+    // Searched is the map's own green, deeper for a second search; someone on it is the map's own teal, dashed.
+    expect(map).toMatch(/const fill = searched \? \{ fillColor: look\.walked, fillOpacity: area\.searchCount > 1 \? 0\.5 : 0\.26 \}/);
+    expect(map).toMatch(/\? \{ color: look\.walking, weight: desk \? 3\.5 : 3, dashArray: '2 9', lineCap: 'round' \}/);
+    // Yellow is the area in hand, as it is the street in hand: the one this person is on, or the one that is picked.
+    expect(map).toMatch(/const edge = lit\s*\? \{ color: FLASH, weight: 4,/);
+    expect(map).not.toMatch(/area\.first|area\.priority/);
+    // The key beside the map uses the palette and the map's own values, and no colour of its own.
+    expect(desk).toMatch(/\['seen', 'var\(--mc-seen\)', 'Round a sighting'\]/);
   });
 });

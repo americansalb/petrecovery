@@ -5,8 +5,8 @@
  *
  * Two reads, both open to anyone holding the pet's link: the picture
  * (the pet, where it was lost, the sightings, how many people are out)
- * and the board (the streets and whether each is free, being walked or
- * searched). The picture is asked again every thirty seconds, and every
+ * and the board (the ground of the search in areas, and whether each has
+ * been searched or has someone on it). The picture is asked again every thirty seconds, and every
  * ten while a sighting is fresh; the board every thirty, and at once
  * after this person's own tap. Both reads are limited per network
  * address, and a whole search party can sit behind one address, so the
@@ -23,17 +23,17 @@
  * holds the next ones back, and an answer that arrives after a newer one
  * has been shown is dropped.
  *
- * Someone on the search (holding a street, joined from the link, asked to
- * walk one or written to), and the owner on a phone, read the picture
+ * Someone on the search (on an area, joined from the link, asked to
+ * search one or written to), and the owner on a phone, read the picture
  * every ten seconds, the pace already kept while a sighting is fresh. The picture is the small read,
- * and it says when this person was asked to walk a street, which is when
+ * and it says when this person was asked to search an area, which is when
  * the board is read again: so an ask or a word from the desk is on their
  * card within seconds, and the board itself is still read only twice a
  * minute.
  *
  * Who this person is comes from the session, or from the volunteer this
  * browser joined as (lib/identity.js). The position is one reading of
- * the phone's location, taken when the person asks for a street or sends
+ * the phone's location, taken when the person asks for ground or sends
  * a sighting and never watched: walking with GPS belongs to the app
  * (app/hooks/useInstrument.js), and a browser cannot do it with the
  * screen off.
@@ -98,8 +98,10 @@ export default function useSearch(missionParam, { desk = false } = {}) {
   const pausedUntil = useRef(0);
   // The last answer of each read, as text: one that comes back the same is not set again.
   const lastText = useRef({ picture: '', board: '' });
-  // The street the board says this person was asked to walk, so the picture can tell when that has changed.
+  // The area the board says this person was asked to search, so the picture can tell when that has changed.
   const askedOnBoard = useRef(null);
+  // What the board is in: areas of ground, or the streets or squares of a search from before it was on areas.
+  const unitNow = useRef('area');
   const everMine = useRef(false);
   // What this screen has already said it showed (a word, the ask), so each is said once.
   const told = useRef(new Set());
@@ -146,13 +148,15 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     if (turn < shown.current.board) return data;
     shown.current.board = turn;
     boardAt.current = Date.now();
-    const askedOfMe = (data.streets || []).find((s) => s.askedOfMe) || null;
+    unitNow.current = data.unit || 'area';
+    const all = [...(data.areas || []), ...(data.streets || []), ...(data.cells || [])];
+    const askedOfMe = all.find((s) => s.askedOfMe) || null;
     const askedNow = askedOfMe?.id || null;
     // A new ask is a new thing to show, and to say it was shown. So is one the search has not heard was shown:
     // taken back and made again for the same street between two reads, it is the same street and a new ask.
     if (askedNow !== askedOnBoard.current || askedOfMe?.askedSeen === false) told.current.delete('ask');
     askedOnBoard.current = askedNow;
-    if ((data.streets || data.cells || []).some((i) => i.mine)) everMine.current = true;
+    if (all.some((i) => i.mine)) everMine.current = true;
     const text = JSON.stringify(data);
     if (text !== lastText.current.board) {
       lastText.current.board = text;
@@ -323,14 +327,18 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     [missionParam, headers, loadBoard, loadPicture]
   );
 
-  /** Take a street, give it back, or mark it searched. From the desk of whoever runs the search, also the steering actions. */
+  /** Start an area, stop, or say it is searched. From the desk of whoever runs the search, also the steering actions. */
   const act = useCallback((unit, id, action) => change({ unit, id, action }), [change]);
-  /** Whoever runs the search asks one person (a handle from `people`) to walk a street, with a note if they have one. */
-  const ask = useCallback((person, streetId, note = '') => change({ unit: 'street', id: streetId, action: 'ask', person, note }), [change]);
-  /** Take back what a person was asked to walk. */
-  const unask = useCallback((person) => change({ action: 'unask', person }), [change]);
+  /** Whoever runs the search asks one person (a handle from `people`) to search an area, with a note if they have one. */
+  const ask = useCallback((person, id, note = '') => change({ unit: unitNow.current, id, action: 'ask', person, note }), [change]);
+  /** Take back what a person was asked to search. */
+  const unask = useCallback((person) => change({ unit: unitNow.current, action: 'unask', person }), [change]);
   /** The person asked says they cannot. */
-  const cannot = useCallback(() => change({ action: 'cannot' }), [change]);
+  const cannot = useCallback(() => change({ unit: unitNow.current, action: 'cannot' }), [change]);
+  /** Whoever runs the search adds the outer ring to it. */
+  const widen = useCallback(() => change({ unit: 'area', action: 'widen' }), [change]);
+  /** Whoever runs the search puts every searched area up for another look. */
+  const againAll = useCallback(() => change({ unit: 'area', action: 'againAll' }), [change]);
 
   /**
    * A word through the search screen. With `to` (a handle from `people`)
@@ -442,7 +450,7 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     [missionParam, headers]
   );
 
-  const items = board ? (board.unit === 'street' ? board.streets : board.cells) : NO_ITEMS;
+  const items = board ? (board.unit === 'area' ? board.areas : board.unit === 'street' ? board.streets : board.cells) || NO_ITEMS : NO_ITEMS;
   const mine = items.find((i) => i.mine) || null;
 
   return {
@@ -450,10 +458,12 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     failure,
     picture,
     board,
-    unit: board?.unit || 'street',
+    unit: board?.unit || 'area',
     items,
-    // Named streets just past the board's edge, for naming a place or a direction.
-    around: board?.around || [],
+    // The circle the areas are cut from: { center, inner, edge, wide, radius, widened }.
+    circle: board?.circle || null,
+    // Named streets near the search, for naming a place or a direction. Nobody is sent to walk one.
+    around: board?.around || NO_ITEMS,
     mine,
     // Everyone on the search and what each is doing: sent only to the owner and the forces looking.
     people: board?.people || NO_PEOPLE,
@@ -477,6 +487,8 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     ask,
     unask,
     cannot,
+    widen,
+    againAll,
     say,
     saw,
   };

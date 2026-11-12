@@ -3,16 +3,22 @@
  * by car, from home, with gear) and when (now for half an hour, now for an
  * hour or more, tonight, the next search party), and the search hands
  * them one job sized to that, with a brief. Every job is a real thing:
- * a block of the board nobody is walking (app/lib/searchBoard.js), an
- * open need of the force (app/lib/forceNeeds.js), or the next search
- * party (app/lib/petRoom.js). Nothing is invented to keep people busy.
+ * an area of the search's ground (app/lib/searchZones.js), an open need
+ * of the force (app/lib/forceNeeds.js), or the next search party
+ * (app/lib/petRoom.js). Nothing is invented to keep people busy.
+ *
+ * The ground is the same ground the search screen gives out, in the same
+ * order (app/lib/searchCircle.js, rankAreas): an area to search, not a
+ * street to walk. (`rankJobs` still reads streets and squares, for rows
+ * from before a search was on areas.)
  *
  * `rankJobs` is pure and tested; `pickJob` reads the rows.
  */
 
 import { listNeeds } from '@/app/lib/forceNeeds';
 import { nextParty } from '@/app/lib/petRoom';
-import { openBlocks } from '@/app/lib/searchBoard';
+import { openAreas } from '@/app/lib/searchZones';
+import { inWords, rankAreas } from '@/app/lib/searchCircle';
 import { distanceMeters, FIRST_PRIORITY } from '@/app/lib/searchGrid';
 import { briefFor } from '@/app/lib/brief';
 
@@ -72,7 +78,7 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
       id: party.id,
       title: `Join the search party for ${petName}`,
       minutes: WHENS.party.minutes,
-      why: `${party.goingCount} going so far. Streets are handed out when it meets.`,
+      why: `${party.goingCount} going so far. Areas to search are handed out when it meets.`,
       score: 1000,
     });
   }
@@ -101,7 +107,40 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
   // otherwise squares. The priority already says "near a sighting". A
   // street is one walk and one person holds one at a time, so a job is
   // one street; squares are smaller and several fit an hour.
-  if (way === 'foot' || way === 'car') {
+  // Ground: one area of the search, the first in the order the search screen gives it out, with the nearest
+  // winning a tie where this person said where they are. Several people can search one area, so it is offered
+  // whether or not someone is on it.
+  const areas = blocks.filter((b) => b.unit === 'area');
+  if ((way === 'foot' || way === 'car') && areas.length) {
+    const [area] = rankAreas(areas, (b) => metersAway(near, { lat: b.centerLatitude, lng: b.centerLongitude }) ?? 0);
+    if (area) {
+      const away = metersAway(near, { lat: area.centerLatitude, lng: area.centerLongitude });
+      const place = inWords(area.label);
+      const marks = (area.landmarks || []).slice(0, 2);
+      jobs.push({
+        kind: 'block',
+        id: area.id,
+        cellIds: [area.id],
+        unit: 'area',
+        labels: [area.label],
+        title: way === 'car' ? `Drive ${place}` : `Search ${place}`,
+        minutes: area.minutes || 30,
+        why: [
+          (area.priority || 0) >= FIRST_PRIORITY ? `${petName}'s owner asked for it to be searched first.` : null,
+          area.reach ? `${area.reach}${marks.length ? `, around ${marks.join(' and ')}` : ''}.` : null,
+          area.status === 'NEEDS_REVISIT'
+            ? 'It has been searched and is down for another look.'
+            : area.on > 0
+              ? `${area.on === 1 ? '1 person is' : `${area.on} people are`} searching it now, and there is room for more.`
+              : area.searchCount > 0
+                ? 'Every area has been searched. This one was searched longest ago.'
+                : 'Nobody has searched it.',
+          away != null ? `${walkText(away)}.` : null,
+        ].filter(Boolean).join(' '),
+        score: (way === 'foot' ? 400 : 200) + (area.priority || 0) * 10 - (away != null ? Math.min(away, 3000) / 100 : 0),
+      });
+    }
+  } else if (way === 'foot' || way === 'car') {
     const streets = blocks.some((b) => b.unit === 'street');
     const count = way === 'car' || streets ? 1 : blocksThatFit(when);
     const sorted = blocks
@@ -147,8 +186,8 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
  */
 export async function pickJob({ pet, forceId, userId, member, way = 'foot', when = 'now30', near = null, now = new Date() }) {
   const [blocks, needs, party] = await Promise.all([
-    // Not a street kept for someone else: taking it would be refused, and asking again would offer it again.
-    way === 'foot' || way === 'car' ? openBlocks(pet.id, { viewer: userId || null }) : [],
+    // Never a sighting's circle that has its one person: taking it would be refused, and asking again would offer it again.
+    way === 'foot' || way === 'car' ? openAreas(pet.id, { viewer: userId || null }) : [],
     forceId && member ? listNeeds(forceId, { userId, member, caseId: pet.id }) : [],
     forceId && member && when === 'party' ? nextParty(forceId, pet.id, { userId, member, now }) : null,
   ]);

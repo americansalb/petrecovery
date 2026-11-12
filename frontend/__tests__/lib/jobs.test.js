@@ -6,12 +6,12 @@
 jest.mock('@/app/lib/prisma', () => ({ __esModule: true, default: {} }));
 jest.mock('@/app/lib/forceNeeds', () => ({ __esModule: true, listNeeds: jest.fn() }));
 jest.mock('@/app/lib/petRoom', () => ({ __esModule: true, nextParty: jest.fn() }));
-jest.mock('@/app/lib/searchBoard', () => ({ __esModule: true, openBlocks: jest.fn() }));
+jest.mock('@/app/lib/searchZones', () => ({ __esModule: true, openAreas: jest.fn() }));
 
 import { rankJobs, briefFor, pickJob, WAYS, WHENS } from '@/app/lib/jobs';
 import { listNeeds } from '@/app/lib/forceNeeds';
 import { nextParty } from '@/app/lib/petRoom';
-import { openBlocks } from '@/app/lib/searchBoard';
+import { openAreas as openBlocks } from '@/app/lib/searchZones';
 
 const block = (label, priority, over = {}) => ({
   id: `cell-${label}`,
@@ -121,9 +121,9 @@ describe('rankJobs', () => {
     expect(rankJobs({ blocks: [block('C4', 9)], way: 'car' })[0].title).toBe('Drive the edge of the area, then walk c4');
   });
 
-  test('the search party says streets are handed out', () => {
+  test('the search party says areas are handed out', () => {
     const jobs = rankJobs({ party: { id: 'post-1', goingCount: 4 }, way: 'foot', when: 'party' });
-    expect(jobs[0].why).toBe('4 going so far. Streets are handed out when it meets.');
+    expect(jobs[0].why).toBe('4 going so far. Areas to search are handed out when it meets.');
   });
 
   test('the nearer block wins a tie, and the job says how far', () => {
@@ -133,6 +133,76 @@ describe('rankJobs', () => {
     const jobs = rankJobs({ blocks: [far, close], way: 'foot', near });
     expect(jobs[0].labels).toEqual(['C4']);
     expect(jobs[0].why).toMatch(/m from you/);
+  });
+});
+
+describe('rankJobs: ground', () => {
+  // As the board gives areas to the job picker (app/lib/searchZones.js, openAreas).
+  const area = (key, label, over = {}) => ({
+    id: `zone-${key}`,
+    unit: 'area',
+    label,
+    status: 'UNSEARCHED',
+    priority: 6,
+    centerLatitude: 30.3148,
+    centerLongitude: -97.7488,
+    minutes: 45,
+    reach: `150 m to 400 m ${key} of where Max was lost`,
+    landmarks: ['Jefferson St', 'Shoal Creek Blvd'],
+    on: 0,
+    coming: 0,
+    searchCount: 0,
+    searchedAt: null,
+    askedOfMe: false,
+    ...over,
+  });
+
+  test('a job is one area of ground to search: where it is, by the streets round it, and that nobody has searched it', () => {
+    const jobs = rankJobs({ blocks: [area('north', 'North side'), area('middle', 'The middle', { priority: 8, minutes: 30, reach: 'Within 150 m of where Max was lost', landmarks: [] })], way: 'foot', when: 'now60', petName: 'Max' });
+    expect(jobs[0]).toMatchObject({ kind: 'block', unit: 'area', id: 'zone-middle', cellIds: ['zone-middle'], labels: ['The middle'], title: 'Search the middle', minutes: 30 });
+    expect(jobs[0].why).toBe('Within 150 m of where Max was lost. Nobody has searched it.');
+    const west = rankJobs({ blocks: [area('west', 'West side')], way: 'foot', petName: 'Max' });
+    expect(west[0].title).toBe('Search the west side');
+    expect(west[0].why).toBe('150 m to 400 m west of where Max was lost, around Jefferson St and Shoal Creek Blvd. Nobody has searched it.');
+    // Never "walk": ground is searched, and no job on ground names a street to walk.
+    expect(JSON.stringify(west)).not.toMatch(/\bWalk\b|walked/);
+  });
+
+  test('one area whatever the time given, and by car it is driven', () => {
+    const blocks = [area('west', 'West side'), area('east', 'East side')];
+    expect(rankJobs({ blocks, way: 'foot', when: 'now60' }).filter((j) => j.kind === 'block')).toHaveLength(1);
+    expect(rankJobs({ blocks, way: 'car' })[0].title).toBe('Drive the west side');
+  });
+
+  test('the reason given is the reason', () => {
+    const why = (over) => rankJobs({ blocks: [area('west', 'West side', { reach: '', landmarks: [], ...over })], way: 'foot', petName: 'Max' })[0].why;
+    expect(why({ priority: 11 })).toBe("Max's owner asked for it to be searched first. Nobody has searched it.");
+    expect(why({ status: 'NEEDS_REVISIT', searchCount: 1 })).toBe('It has been searched and is down for another look.');
+    expect(why({ status: 'IN_PROGRESS', on: 1 })).toBe('1 person is searching it now, and there is room for more.');
+    expect(why({ status: 'IN_PROGRESS', on: 2 })).toBe('2 people are searching it now, and there is room for more.');
+    expect(why({ status: 'SEARCHED', searchCount: 2, searchedAt: '2026-11-12T10:00:00Z' })).toBe('Every area has been searched. This one was searched longest ago.');
+  });
+
+  test('the order is the search screen\'s own: ground nobody is on first, and the nearest on a tie', () => {
+    const busy = area('middle', 'The middle', { priority: 8, status: 'IN_PROGRESS', on: 1 });
+    expect(rankJobs({ blocks: [busy, area('north', 'North side')], way: 'foot' })[0].id).toBe('zone-north');
+    const near = { lat: 30.3148, lng: -97.7430 };
+    const jobs = rankJobs({ blocks: [area('west', 'West side'), area('east', 'East side', { centerLongitude: -97.7430 })], way: 'foot', near });
+    expect(jobs[0].id).toBe('zone-east');
+    expect(jobs[0].why).toMatch(/Right where you are\.$/);
+    // The area this person was asked to search comes before every other.
+    expect(rankJobs({ blocks: [area('middle', 'The middle', { priority: 10 }), area('west', 'West side', { askedOfMe: true })], way: 'foot' })[0].id).toBe('zone-west');
+  });
+
+  test('the circle round a sighting is a job like any other, named for what it is', () => {
+    const seen = area('seen', 'Where Max was seen', { priority: 10, minutes: 30, reach: 'Within 150 m of where Max was seen', landmarks: ['Ramsey Ave'] });
+    const [job] = rankJobs({ blocks: [area('north', 'North side'), seen], way: 'foot', petName: 'Max' });
+    expect(job.title).toBe('Search where Max was seen');
+    expect(job.why).toBe('Within 150 m of where Max was seen, around Ramsey Ave. Nobody has searched it.');
+  });
+
+  test('from home there is no ground to give', () => {
+    expect(rankJobs({ blocks: [area('west', 'West side')], way: 'home' })).toEqual([]);
   });
 });
 
@@ -167,6 +237,8 @@ describe('pickJob', () => {
   test('a member on foot gets the block, with the needs as alternatives', async () => {
     const out = await pickJob({ pet: { id: 'case-max', petName: 'Max', petSpecies: 'DOG' }, forceId: 'force-1', userId: 'u1', member: true, way: 'foot', when: 'now30' });
     expect(out.job.kind).toBe('block');
+    // The ground comes from the areas of the search, read as this person would be given them.
+    expect(openBlocks).toHaveBeenCalledWith('case-max', { viewer: 'u1' });
     expect(out.way).toBe(WAYS.foot.label);
     expect(out.when).toBe(WHENS.now30.label);
     expect(out.brief).toHaveLength(4);

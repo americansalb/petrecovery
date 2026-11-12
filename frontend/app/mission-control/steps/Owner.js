@@ -63,6 +63,7 @@ function useAdvice(picture, now) {
 export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, problem, heard = [], onReply = null, onPutAway = null }) {
   const advice = useAdvice(picture, now);
   const [open, setOpen] = useState(false);
+  const ground = unit === 'area';
   const thing = unit === 'block' ? 'block' : 'street';
   const steps = [...advice.steps, ...advice.more].slice(0, 5);
   return (
@@ -70,7 +71,9 @@ export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, pr
       <Heading>{lookingLine(picture.looking?.helpers || 0)}</Heading>
       {counts.total > 0 && (
         <Lead className="mt-1.5">
-          {counts.searched} of {counts.total} {thing}s {counts.searched === 1 ? 'is' : 'are'} searched.
+          {ground
+            ? `${counts.searched} of the ${counts.total} areas ${counts.searched === 1 ? 'has' : 'have'} been searched.`
+            : `${counts.searched} of ${counts.total} ${thing}s ${counts.searched === 1 ? 'is' : 'are'} searched.`}
         </Lead>
       )}
       <Heard heard={heard} picture={picture} now={now} onReply={onReply} onPutAway={onPutAway} />

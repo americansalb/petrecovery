@@ -3408,6 +3408,11 @@ model SearchGrid {
   // Why the last fetch failed, as each map server answered it. Cleared by a fetch that works.
   streetsNote   String?
 
+  // When the person running the search widened its circle to the outer ring
+  // (SearchZone, app/lib/searchZones.js), and who did. Null: not widened.
+  widenedAt   DateTime?
+  widenedById String?
+
   // Cells
   cells GridCell[]
 
@@ -3530,6 +3535,96 @@ model SearchStreet {
 /// the people running the search (app/lib/searchTalk.js). What the owner
 /// tells everyone is a CaseUpdate, which the pet's page shows too. Ids as
 /// for a claim on a street: a User id, or "v:" and a MissionVolunteer id.
+// An area of ground of one pet's search (app/lib/searchCircle.js has the
+// geometry, app/lib/searchZones.js reads and writes these). A search is a
+// circle around where the pet was lost, cut into areas: the middle, four
+// sides, eight more once it is widened, and a small circle round each fresh
+// sighting. Several people can search one area at once, so who is on it is
+// kept per person (SearchZoneVisit) and not on the row.
+model SearchZone {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  caseId String
+
+  // "middle", "north", "outer-north-east", or "seen-" and a sighting id.
+  key  String
+  name String
+  // 0 the middle, 1 a side, 2 an outer area, 3 the circle round a sighting.
+  ring Int
+
+  // The shape: a circle's centre, metres out from it, and bearings in
+  // degrees clockwise from north (0 to 360 for a whole circle).
+  centerLatitude  Float
+  centerLongitude Float
+  fromMeters      Int
+  toMeters        Int
+  bearingFrom     Float
+  bearingTo       Float
+  // The middle of the area itself: for directions, and for "nearest to you".
+  heartLatitude   Float
+  heartLongitude  Float
+
+  minutes    Int
+  // JSON list of the street names that run through it, for finding it. Null until the streets are known.
+  landmarks  String?
+  // The sighting a ring-3 circle is drawn round.
+  sightingId String?
+
+  // 11 (FIRST_PRIORITY) when the owner sent the next helpers here first. Otherwise
+  // unused: how urgent an area is comes from its ring and the sightings, on every read.
+  priority Int @default(5)
+
+  // Search history. `searchedById` is a User id, "v:" and a MissionVolunteer
+  // id, or "m:" and a User id for ground put down as searched from the desk.
+  searchCount    Int       @default(0)
+  searchedAt     DateTime?
+  searchedById   String?
+  searchedByName String?
+  // When a searched area was put up for another look. Cleared when it is searched again.
+  againAt        DateTime?
+
+  visits SearchZoneVisit[]
+
+  @@unique([caseId, key])
+  @@index([caseId])
+}
+
+// One person and one area: asked to search it, searching it, or done.
+//   asked     askedAt set, startedAt and endedAt null
+//   on it     startedAt set, endedAt null
+//   over      endedAt set, and `outcome` says how:
+//             SEARCHED, GAVE_BACK, CANNOT, TAKEN_BACK or LAPSED
+model SearchZoneVisit {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  zoneId String
+  zone   SearchZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  caseId String
+
+  // A User id, or "v:" and a MissionVolunteer id. The first name is kept beside it.
+  searcherId   String
+  searcherName String?
+
+  // The ask, where the person running the search asked for it.
+  askedById   String?
+  askedByName String?
+  askedAt     DateTime?
+  askedSeenAt DateTime?
+  askedNote   String?
+
+  startedAt DateTime?
+  endedAt   DateTime?
+  outcome   String?
+
+  @@index([caseId])
+  @@index([zoneId])
+  @@index([caseId, searcherId])
+}
+
 model SearchMessage {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())

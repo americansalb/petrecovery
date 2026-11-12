@@ -9,8 +9,8 @@
  *
  * Three instruments, three jobs (app/hooks/useInstrument.js):
  *   a desk         sees the whole search and steers it. It is never asked
- *                  where it is and is never handed a street. Only the
- *                  owner and the people leading a force can steer.
+ *                  where it is and is never handed ground to search. Only
+ *                  the owner can steer.
  *   a phone        in a browser reads its position once, when asked, and
  *                  never watches it. No GPS walk.
  *   the app        does what the phone does, and records the walk.
@@ -20,6 +20,11 @@
  *   2. Nothing on the screen asks a helper to hold back. (The owner's
  *      "ask" was one more thing to answer; it went with the maze.)
  *   3. Advice is the site's own, word for word. The screen writes none.
+ *
+ * The search is a circle of ground in areas, not a list of streets
+ * (founder, 2026-11-12: "pets don't tend to follow infrastructure"). The
+ * street's card and the street's lines stay for a search from before it
+ * was on areas, and the rules hold both to the same things.
  */
 
 const fs = require('fs');
@@ -65,7 +70,7 @@ const desk = read('app/mission-control/desktop/Command.js');
 
 // Files outside the screen's folder that put words in front of people on a search: asks, messages, the roster,
 // the reasons the pet's page gives for a job, and the routes that answer in words. Held to the same rules on words.
-const TALKERS = ['app/lib/searchAsk.js', 'app/lib/searchTalk.js', 'app/lib/searchTeam.js', 'app/lib/jobs.js', 'app/api/mission/[missionId]/board/route.js', 'app/api/mission/[missionId]/message/route.js', 'app/api/mission/[missionId]/volunteer/route.js'];
+const TALKERS = ['app/lib/searchAsk.js', 'app/lib/searchZones.js', 'app/lib/searchCircle.js', 'app/lib/searchTalk.js', 'app/lib/searchTeam.js', 'app/lib/jobs.js', 'app/api/mission/[missionId]/board/route.js', 'app/api/mission/[missionId]/message/route.js', 'app/api/mission/[missionId]/volunteer/route.js'];
 
 /** The cards a step file exports, each as { name, source }. */
 function cardsOf(source) {
@@ -80,7 +85,12 @@ const RECORDER = ['app/mission-control/hooks/useSearchLeg.js', 'app/mission-cont
 
 describe('no maze: eight cards, and one next step on each', () => {
   test('the screen is eight cards for three people', () => {
-    expect(cardsOf(helper).map((c) => c.name)).toEqual(['Main', 'Join', 'Street', 'Home']);
+    // `Area` is the card of someone's ground. `Street` is the same card for a search from before it was on areas:
+    // a search shows one or the other, never both, so it is still eight cards to anyone looking at one.
+    expect(cardsOf(helper).map((c) => c.name)).toEqual(['Main', 'Join', 'Area', 'Street', 'Home']);
+    expect(code(shell)).toMatch(/\} else if \(mine && ground\) \{\s*step = <Area\b/);
+    expect(code(shell)).toMatch(/\} else if \(mine\) \{\s*step = <Street\b/);
+    expect(code(shell).match(/<(Area|Street)\b/g)).toHaveLength(2);
     expect(cardsOf(witness).map((c) => c.name)).toEqual(['Seen', 'Sent']);
     expect(cardsOf(owner).map((c) => c.name)).toEqual(['OwnerNow', 'OwnerSighting']);
     // No fourth file of steps appears beside them.
@@ -206,9 +216,12 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     expect(code(hook).match(/if \(!res\) return \{ error: NO_SIGNAL/g)).toHaveLength(8);
     // Everything that changes the board goes through the one function that reads it again afterwards.
     expect(code(hook)).toMatch(/const act = useCallback\(\(unit, id, action\) => change\(\{ unit, id, action \}\), \[change\]\);/);
-    expect(code(hook)).toMatch(/const ask = useCallback\(\(person, streetId, note = ''\) => change\(\{ unit: 'street', id: streetId, action: 'ask', person, note \}\), \[change\]\);/);
-    expect(code(hook)).toMatch(/const unask = useCallback\(\(person\) => change\(\{ action: 'unask', person \}\), \[change\]\);/);
-    expect(code(hook)).toMatch(/const cannot = useCallback\(\(\) => change\(\{ action: 'cannot' \}\), \[change\]\);/);
+    expect(code(hook)).toMatch(/const ask = useCallback\(\(person, id, note = ''\) => change\(\{ unit: unitNow\.current, id, action: 'ask', person, note \}\), \[change\]\);/);
+    expect(code(hook)).toMatch(/const unask = useCallback\(\(person\) => change\(\{ unit: unitNow\.current, action: 'unask', person \}\), \[change\]\);/);
+    expect(code(hook)).toMatch(/const cannot = useCallback\(\(\) => change\(\{ unit: unitNow\.current, action: 'cannot' \}\), \[change\]\);/);
+    // Widening the search, and putting every searched area up for another look, go the same way.
+    expect(code(hook)).toMatch(/const widen = useCallback\(\(\) => change\(\{ unit: 'area', action: 'widen' \}\), \[change\]\);/);
+    expect(code(hook)).toMatch(/const againAll = useCallback\(\(\) => change\(\{ unit: 'area', action: 'againAll' \}\), \[change\]\);/);
     // And each thing a person presses clears its own spinner whatever happens.
     for (const name of ['takeStreet', 'walked', 'stopWalking', 'sendSeen']) {
       const body = code(shell).slice(code(shell).indexOf(`async function ${name}(`));
@@ -224,6 +237,9 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     expect(code(shell)).toMatch(/if \(!list\.some\(unwalked\) && ranked\.some\(unwalked\)\) \{\s*passed\.current = new Set\(exceptId \? \[exceptId\] : \[\]\);\s*list = ranked;/);
     // A desk holds a street only if a phone took it: it cannot be handed another.
     expect(shell).toMatch(/<Street\b.*canOther=\{!desk && candidates\.length > 0\}/);
+    // The same for an area of ground, where "nobody has searched it" is what comes before a second search.
+    expect(shell).toMatch(/<Area\b.*canOther=\{!desk && candidates\.length > 0\}/);
+    expect(code(shell)).toMatch(/const unwalked = \(i\) => \(unit === 'area' \? !\(i\.searchCount > 0\) : i\.status !== 'SEARCHED'\);/);
   });
 
   test('when no street can be given, the first card says why and nobody is sent off', () => {
@@ -234,15 +250,16 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
   test('on a phone the map is looked at, not tapped: it answers to the pointer only on a desk', () => {
     const map = code(read('app/mission-control/components/SearchMap.js'));
     expect(map).not.toMatch(/onPick|offered|bearing/);
-    // Three places listen for a pointer, and each is behind `desk`: the map itself, a square, and a street.
+    // Four places listen for a pointer, and each is behind `desk`: the map itself, an area, a square, and a street.
     expect(map.match(/\.on\('(click|mouseover|mouseout)'/g)).toHaveLength(4);
     expect(map).toMatch(/if \(desk\) map\.on\('click', \(\) => select\.current\?\.\(null\)\);/);
     const answer = map.slice(map.indexOf('const answer = (shape, item) => {'), map.indexOf('for (const cell of cells)'));
     expect(answer.match(/shape\.on\('(click|mouseover|mouseout)'/g)).toHaveLength(3);
-    expect(map.match(/\banswer\(/g)).toHaveLength(2);
-    expect(map.match(/if \(desk\) answer\(/g)).toHaveLength(2);
+    expect(map.match(/\banswer\(/g)).toHaveLength(3);
+    expect(map.match(/if \(desk\) answer\(/g)).toHaveLength(3);
     // Nothing else drawn takes a pointer: every other shape and mark says so.
-    const drawn = map.match(/L\.(polyline|rectangle|circle|marker)\([^\n]*/g);
+    const drawn = map.match(/L\.(polyline|polygon|rectangle|circle|marker)\([^\n]*/g);
+    expect(drawn.filter((line) => line.startsWith('L.polygon(')).length).toBeGreaterThanOrEqual(2);
     const taking = drawn.filter((line) => !/interactive: (false|desk)/.test(line));
     expect(taking).toHaveLength(1);
     expect(taking[0]).toMatch(/^L\.polyline\(street\.path, \{ color: '#000000', weight: 20, opacity: 0/);
@@ -288,8 +305,10 @@ describe('three instruments: the GPS walk is the app\'s alone', () => {
     expect(code(shell).match(/gps\.start\(/g)).toHaveLength(1);
     // "Your path records as you go" is shown only while the app is recording.
     expect(helper).toMatch(/const recording = instrument === 'field' && gps\?\.recording;/);
-    expect(helper).toMatch(/\{recording \? ` \$\{brief\.records\}` : ''\}/);
-    expect(helper.match(/brief\.records/g)).toHaveLength(1);
+    // Twice: on the card of an area, and on the card of a street. Never outside that condition.
+    expect(helper.match(/\{recording \? ` \$\{brief\.records\}` : ''\}/g)).toHaveLength(2);
+    expect(helper.match(/brief\.records/g)).toHaveLength(2);
+    expect(helper.match(/const recording = instrument === 'field' && gps\?\.recording;/g)).toHaveLength(2);
     // The recorded path is drawn only from the app's recorder.
     expect(shell).toMatch(/const track = app && gps\?\.recording && /);
   });
@@ -341,7 +360,7 @@ describe('three instruments: a desk is never asked where it is and is never hand
   });
 
   test('a desk is a view of its own, and the screen switches to it in one place', () => {
-    expect(fs.readdirSync(path.join(SCREEN, 'desktop')).sort()).toEqual(['Board.js', 'Command.js', 'Know.js', 'Messages.js', 'Needs.js', 'People.js']);
+    expect(fs.readdirSync(path.join(SCREEN, 'desktop')).sort()).toEqual(['Board.js', 'Command.js', 'Ground.js', 'Know.js', 'Messages.js', 'Needs.js', 'People.js']);
     expect(code(shell).match(/<Command\b/g)).toHaveLength(1);
     expect(code(shell)).toMatch(/if \(desk\) \{\s*return \(\s*<Command\b/);
     // It is given this person's own card as it is, so a desk and a phone never say different things about a step.
@@ -384,9 +403,23 @@ describe('a desk steers the search, and only for the owner', () => {
   test('each steering button is behind `leads`, which comes from the server', () => {
     const acts = [...card.matchAll(/\{(leads && [^{}]*?)act\('(first|normal|walked|again)'/g)];
     expect(acts.map((m) => m[2])).toEqual(['first', 'normal', 'walked', 'again']);
-    // No steering button anywhere else on the desk.
     expect((card.match(/act\('/g) || []).length).toBe(4);
-    for (const file of DESK_FILES.filter((f) => !f.endsWith('Command.js'))) expect(read(file)).not.toMatch(/onSteer|search\.act|\bact\(/);
+    // The same four on the card of an area of ground (Ground.js), each behind `leads`.
+    const ground = read('app/mission-control/desktop/Ground.js');
+    const areaCard = ground.slice(ground.indexOf('export function AreaCard'));
+    const areaActs = [...areaCard.matchAll(/\{(leads && [^{}]*?)act\('(first|normal|walked|again)'/g)];
+    expect(areaActs.map((m) => m[2])).toEqual(['first', 'normal', 'walked', 'again']);
+    expect((areaCard.match(/act\('/g) || []).length).toBe(4);
+    expect((ground.match(/act\('/g) || []).length).toBe(4);
+    // Asking a person from an area's card, and taking an ask back, are behind it too. So is widening the search.
+    expect(areaCard).toMatch(/\{leads && !taken && \(/);
+    expect(areaCard).toMatch(/\{leads &&\s*\(area\.asked \|\| \[\]\)\.map\(/);
+    expect(areaCard).toMatch(/\{!leads && </);
+    expect(ground).toMatch(/\{leads \? \(\s*<button type="button" onClick=\{onWiden\}/);
+    expect(desk).toMatch(/const canWiden = ground && leads && circle && !circle\.widened && circle\.wide > circle\.edge;/);
+    expect(desk).toMatch(/\{canWiden && \(\s*<button type="button" onClick=\{widen\}/);
+    // No steering button anywhere else on the desk.
+    for (const file of DESK_FILES.filter((f) => !/(Command|Ground)\.js$/.test(f))) expect(read(file)).not.toMatch(/onSteer|search\.act|\bact\(/);
     // Asking a person from a street's card, and taking an ask back, are behind it too.
     expect(card).toMatch(/\{leads && unit === 'street' && open && !kept && free\.length > 0 && \(/);
     expect(card).toMatch(/\{leads && kept && street\.askedOfHandle && \(/);
@@ -401,6 +434,11 @@ describe('a desk steers the search, and only for the owner', () => {
     expect(route).toMatch(/if \(steering && !searcher\.leads\) return NextResponse\.json\(\{ error: WORDS\.NOT_ALLOWED\(\), code: 'NOT_ALLOWED' \}, \{ status: 403 \}\);/);
     // And the function that writes checks again, so no other caller can steer for someone who may not.
     expect(code(read('app/lib/searchBoard.js'))).toMatch(/if \(STEER_ACTIONS\.includes\(action\)\) \{\s*if \(!searcher\.leads\) return \{ error: 'NOT_ALLOWED', title \};/);
+    // The same for ground: every steering action, widening and asking a person included.
+    const zones = code(read('app/lib/searchZones.js'));
+    expect(zones).toMatch(/const steering = ZONE_STEER_ACTIONS\.includes\(action\);\s*if \(steering && !searcher\.leads\) return \{ error: 'NOT_ALLOWED', title: null \};/);
+    expect(zones).toMatch(/export const ZONE_STEER_ACTIONS = \['first', 'normal', 'walked', 'again', 'againAll', 'widen'\];/);
+    expect(zones.match(/if \(!searcher\?\.leads\) return \{ error: 'NOT_ALLOWED'/g)).toHaveLength(3); // widen, ask, take an ask back
     // Running a search is the owner's alone. No role in a Rescue Force is it: a force with no leader gives the
     // role to any member who asks, and anyone can found one, so nobody had to agree to any of them.
     const who = code(read('app/lib/searcher.js'));
@@ -420,6 +458,11 @@ describe('a desk steers the search, and only for the owner', () => {
     expect(insight).toMatch(/i\.marked \? `\$\{i\.searchedByName \|\| 'Someone'\} put \$\{title\} down as walked\.`/);
     // And it is not counted as a person out looking.
     expect(read('app/lib/searchPicture.js')).toMatch(/filter\(\(id\) => !isMark\(id\)\)/);
+    // Ground put down as searched from the desk is said the same way, and is no visit of anyone's.
+    const ground = read('app/mission-control/lib/ground.js');
+    expect(ground).toMatch(/area\.marked \? `, put down by \$\{area\.searchedByName\}` : `, by \$\{area\.searchedByName\}`/);
+    expect(ground).toMatch(/area\.marked \? `\$\{who\} put \$\{title\} down as searched\.` : `\$\{who\} searched \$\{title\}\.`/);
+    expect(code(read('app/lib/searchZones.js'))).toMatch(/searchedById: `\$\{MARK\}\$\{searcher\.userId\}`/);
   });
 });
 
@@ -454,7 +497,7 @@ describe('a desk steering the search is kept current, and nobody else pays for i
     expect(hook.match(/setPicture\(/g)).toHaveLength(1);
     expect(hook.match(/setBoard\(/g)).toHaveLength(1);
     // With no board there is one empty list, not a new one on every render.
-    expect(hook).toMatch(/const items = board \? \(board\.unit === 'street' \? board\.streets : board\.cells\) : NO_ITEMS;/);
+    expect(hook).toMatch(/const items = board \? \(board\.unit === 'area' \? board\.areas : board\.unit === 'street' \? board\.streets : board\.cells\) \|\| NO_ITEMS : NO_ITEMS;/);
   });
 
   test('a read that fails holds the next ones back, and an answer that arrives late is dropped', () => {
@@ -477,8 +520,11 @@ describe('what a desk says about the search is a count, a time, a distance or a 
   test('every sentence under "What the search shows" comes from the one tested file', () => {
     const know = read('app/mission-control/desktop/Know.js');
     expect(know).toMatch(/import \{ coverage, groundLines, missingFor, researchFor, sightingLines \} from '\.\.\/lib\/insight';/);
-    // The only sum with people is with how many are on a street right now, which the streets themselves say.
-    expect(know).toMatch(/const ground = groundLines\(\{ items, unit, name \}\);/);
+    // On ground the sentences are the ground's own tested file (lib/ground.js); on streets, the streets' (lib/insight.js).
+    expect(know).toMatch(/import \{ groundCoverage, groundLines as areaLines \} from '\.\.\/lib\/ground';/);
+    expect(know).toMatch(/const ground = unit === 'area' \? areaLines\(\{ areas: items, circle, name \}\) : groundLines\(\{ items, unit, name \}\);/);
+    // The only number about people is how many are on ground right now, which the areas themselves say.
+    expect(know).toMatch(/<Stat value=\{g\.people\} label="searching now" \/>/);
     expect(know).toMatch(/<Stat value=\{c\.walking\} label="walking now" \/>/);
     expect(know).not.toMatch(/looking\?\.helpers/);
     expect(know).toMatch(/\{\[\.\.\.seen, \.\.\.ground\]\.map\(\(line\) => \(/);
@@ -501,6 +547,9 @@ describe('what a desk says about the search is a count, a time, a distance or a 
   test('it never says where the pet is, where it is going, or what anyone should do', () => {
     const said = code(insight).match(/`[^`]*`|'[^'\n]*'/g).join('\n');
     expect(said).not.toMatch(/\b(probably|likely|should|must|is heading|is moving|will be|try |go to)\b/i);
+    // The sentences about ground are held to the same.
+    const ground = code(read('app/mission-control/lib/ground.js')).match(/`[^`]*`|'[^'\n]*'/g).join('\n');
+    expect(ground).not.toMatch(/\b(probably|likely|should|must|is heading|is moving|will be|try |go to)\b/i);
   });
 });
 
@@ -516,8 +565,10 @@ describe('rule 1: the product never tells a helper to stop or not to search', ()
   });
 
   test('stopping is the helper\'s own word, said by them and never to them', () => {
-    const street = cardsOf(helper).find((c) => c.name === 'Street').source;
-    expect(street).toMatch(/<QuietLink onClick=\{onStop\}>I am stopping<\/QuietLink>/);
+    for (const name of ['Area', 'Street']) {
+      const card = cardsOf(helper).find((c) => c.name === name).source;
+      expect(card).toMatch(/<QuietLink onClick=\{onStop\}>I am stopping<\/QuietLink>/);
+    }
     const others = [...folderFiles, 'app/lib/searchPicture.js'].filter((file) => /\bstopping\b/i.test(code(read(file)).replace(/I am stopping/g, '')));
     expect(others).toEqual([]);
   });
@@ -558,14 +609,20 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
         expect(lines[1]).not.toMatch(/['"`]/);
       }
     }
-    // A helper's street, the owner's sighting, and what the witness reads once it is sent.
-    expect(blocks).toBe(3);
+    // A helper's area (and a helper's street, on a search from before it was on areas), the owner's sighting,
+    // and what the witness reads once it is sent.
+    expect(blocks).toBe(4);
   });
 
   test('the lines come from the three places the site already keeps them', () => {
     expect(helper).toMatch(/import \{ searcherBrief \} from '\.\.\/lib\/briefLines';/);
     expect(read('app/mission-control/lib/briefLines.js')).toMatch(/import \{ briefFor, onSeeing \} from '@\/app\/lib\/brief';/);
     expect(helper).toMatch(/lines=\{\[brief\.look\]\}/);
+    // On ground the same line; round a sighting, the brief's own line on seeing the pet comes first.
+    expect(helper).toMatch(/const advice = sighting \? \[brief\.never, brief\.look\] : \[brief\.look\];/);
+    expect(helper).toMatch(/<AdviceBlock source="The searcher's brief" lines=\{advice\} /);
+    // The desk shows the person running the search the very lines a helper is given, as values.
+    expect(read('app/mission-control/desktop/Ground.js')).toMatch(/\{\(sighting \? \[brief\.never, brief\.look\] : \[brief\.look\]\)\.filter\(Boolean\)\.map\(\(line\) => \(/);
     expect(owner).toMatch(/import \{ adviceFor \} from '@\/app\/lib\/adviceFor';/);
     expect(read('app/lib/adviceFor.js')).toMatch(/from '@\/app\/lib\/petAdvice'|from '\.\/petAdvice'/);
     expect(owner).toMatch(/const first = advice\.mistakes\[0\]\?\.full;/);
@@ -609,6 +666,7 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
 describe('the screen keeps the house rules', () => {
   test('no em dashes in its source', () => {
     const offenders = [...folderFiles, 'app/lib/searchPicture.js', 'app/lib/adviceFor.js', 'app/lib/safetyRules.js', 'app/lib/witness.js', 'app/lib/searchBoard.js', 'app/lib/streetWalks.js', ...TALKERS].filter((file) => read(file).includes('—'));
+    expect(TALKERS).toEqual(expect.arrayContaining(['app/lib/searchZones.js', 'app/lib/searchCircle.js']));
     expect(offenders).toEqual([]);
   });
 

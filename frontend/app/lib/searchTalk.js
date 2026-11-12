@@ -104,14 +104,16 @@ export async function sendWord({ caseId, pet, searcher, to = null, text, about =
   } else if (recent >= WORDS_PER_HOUR) {
     throw new WordError('That is a lot of messages in an hour. Call the owner if it is urgent.', 429, 'TOO_MANY');
   }
-  // Whether the owner has written to this person or asked them to walk a street: someone the owner chose to hear from.
+  // Whether the owner has written to this person or asked them to search an area: someone the owner chose to hear from.
   let known = Boolean(to);
   if (!to) {
-    const [written, asked] = await Promise.all([
+    const [written, asked, askedBefore] = await Promise.all([
       prisma.searchMessage.count({ where: { caseId, toId: searcher.id } }),
+      prisma.searchZoneVisit.count({ where: { caseId, searcherId: searcher.id, askedAt: { not: null } } }),
+      // An ask from when the search was on streets counts the same.
       prisma.searchStreet.count({ where: { caseId, askedOfId: searcher.id } }),
     ]);
-    known = written + asked > 0;
+    known = written + asked + askedBefore > 0;
     if (!known) {
       const toDesk = await prisma.searchMessage.count({ where: { caseId, fromDesk: false, createdAt: { gte: hourAgo } } });
       if (toDesk >= DESK_WORDS_PER_HOUR) throw new WordError('A lot of messages have been sent on this search in the last hour. Call the owner if it is urgent.', 429, 'TOO_MANY');

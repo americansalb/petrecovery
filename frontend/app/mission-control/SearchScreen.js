@@ -5,8 +5,8 @@
  *
  * Three people, and one card for each at any moment:
  *
- *   someone who wants to help   two buttons; then their street and
- *                               "I walked it"
+ *   someone who wants to help   two buttons; then their area of ground
+ *                               and "I searched it"
  *   someone who saw the pet     where and when, and "Send"; then "Sent"
  *   the owner                   who is looking and "Text the link";
  *                               on a sighting, "Directions"
@@ -20,14 +20,14 @@
  * One mission, three instruments (app/hooks/useInstrument.js), and they
  * do different jobs:
  *
- *   desk (desktop)        see the whole search and run it: every street
+ *   desk (desktop)        see the whole search and run it: every area
  *                         on the map, the people on it, what the numbers
  *                         show, everything said and done, and for the
- *                         owner, giving a person a street, writing to
- *                         them and where helpers go first. Nobody walks
- *                         from a desk, so there is no street to take
+ *                         owner, giving a person an area, writing to
+ *                         them and where helpers go first. Nobody searches
+ *                         from a desk, so there is no area to take
  *                         here and no GPS.
- *   phone (mobile web)    see, join, take a street, mark it by tapping,
+ *   phone (mobile web)    see, join, take an area, mark it by tapping,
  *                         report a sighting with one location reading.
  *                         No GPS walk: a browser cannot record with the
  *                         screen off.
@@ -44,6 +44,7 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { distanceMeters } from '@/app/lib/searchGrid';
+import { rankAreas } from '@/app/lib/searchCircle';
 // The site's own address, built in: a link or a QR code made here never carries the host's name (app/lib/config.js).
 import { getBaseUrl } from '@/app/lib/config';
 import { orientWalk, walkTitle, placeFromStreets } from '@/app/lib/streetWalks';
@@ -53,7 +54,7 @@ import TopBar from './components/TopBar';
 import PhotoView from './components/PhotoView';
 import FieldGps from './components/FieldGps';
 import { Stamp } from './components/kit';
-import { Main, Join, Street, Home } from './steps/Helper';
+import { Main, Join, Area, Street, Home } from './steps/Helper';
 import { Seen, Sent } from './steps/Witness';
 import { OwnerNow, OwnerSighting } from './steps/Owner';
 import Command from './desktop/Command';
@@ -62,6 +63,7 @@ import { readNote, saveNote } from './lib/identity';
 import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SIGHTING_MS } from './lib/words';
 import { searcherBrief } from './lib/briefLines';
 import { wordsForCard, wordsForOwner, dealtLine } from './lib/team';
+import { AreaName, circleAreas, minutesRange } from './lib/ground';
 
 /** The space between the sheet and the map's key above it, and between the sheet and the map's credit when there is no key. */
 const KEY_GAP = 8;
@@ -96,9 +98,10 @@ function Centered({ children }) {
 const WAY_OUT =
   'inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border border-[var(--mc-line-strong)] bg-[var(--mc-raised)] px-4 text-base font-bold text-[var(--mc-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
 
-/** A corner of a square, or an end of a street, as map points. */
+/** The edge of an area, a corner of a square, or an end of a street, as map points. */
 function pointsOf(item, unit) {
   if (!item) return [];
+  if (unit === 'area') return item.outline || [];
   if (unit === 'street') return item.path || [];
   return [
     [item.northLat, item.westLng],
@@ -123,8 +126,10 @@ function around(lat, lng, meters) {
  * the nearer one on a tie, and after those the street searched longest
  * ago (a pet moves, and an old pass is worth a second).
  */
-function rank(items, here) {
+function rank(items, here, unit = 'street') {
   const away = (i) => (here ? distanceMeters(here, i.center) : 0);
+  // Ground is given out in its own order (app/lib/searchCircle.js): several people can be on one area.
+  if (unit === 'area') return rankAreas(items, away);
   // A street kept for someone the person running the search asked is not offered to anyone else, and the one
   // this person was asked to walk comes before every other (app/lib/searchAsk.js).
   const free = items
@@ -173,7 +178,8 @@ function Screen({ mission }) {
   // The sighting that leads this person's screen. For everyone, one seen within the hour. For the owner, also one
   // that only just reached them, whenever it was seen: they were just told about it and came to see where.
   const hot = isOwner ? ownerSighting(picture?.sightings, now) : seenLately;
-  const thing = unit === 'block' ? 'block' : 'street';
+  const ground = unit === 'area';
+  const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const petHref = picture ? `/cases/${encodeURIComponent(picture.caseNumber)}` : '/lost-and-found';
   const go = useCallback((next) => {
     setProblem('');
@@ -189,9 +195,9 @@ function Screen({ mission }) {
   const readPosition = search.locate;
   const locate = useCallback((options) => (desk ? Promise.resolve(null) : readPosition(options)), [desk, readPosition]);
 
-  // The board's streets and the ring just past them, for calling a place by its corner.
+  // The named streets near the search, for calling a place by its corner.
   const naming = useRef([]);
-  naming.current = unit === 'street' ? [...items, ...search.around] : [];
+  naming.current = unit === 'street' ? [...items, ...search.around] : ground ? search.around : [];
 
   // "I've seen it": one form, where and when. A phone is asked where it is
   // and the pin is set there; a desk, or a phone that will not say, types
@@ -302,20 +308,21 @@ function Screen({ mission }) {
     };
   }, [desk, picture, isOwner]);
 
-  // ----- The street this person holds, and what is left to give out -----
-  const candidates = useMemo(() => rank(items, position), [items, position]);
-  // "10 to 20": the shortest and longest of what could be given, so the first card never contradicts the street that is.
+  // ----- The area this person is on, and what is left to give out -----
+  const candidates = useMemo(() => rank(items, position, unit), [items, position, unit]);
+  // "30 to 45": the shortest and longest of what could be given, so the first card never contradicts the area that is.
   const minutesWords = useMemo(() => {
+    if (unit === 'area') return minutesRange(candidates);
     const all = candidates.filter((c) => c.status !== 'SEARCHED').map((c) => c.minutes).filter(Number.isFinite);
     if (!all.length) return '';
     const low = Math.min(...all);
     const high = Math.max(...all);
     return low === high ? `${low}` : `${low} to ${high}`;
-  }, [candidates]);
+  }, [candidates, unit]);
   const mine = useMemo(() => (mineRaw && unit === 'street' ? orientWalk(mineRaw, walkFrom || position) : mineRaw), [mineRaw, unit, walkFrom, position]);
-  // The street the person running the search asked this person to walk, until they start it.
-  const askedRaw = useMemo(() => (unit === 'street' ? items.find((i) => i.askedOfMe && !i.mine) || null : null), [items, unit]);
-  const asked = useMemo(() => (askedRaw ? orientWalk(askedRaw, position) : null), [askedRaw, position]);
+  // The area the person running the search asked this person to search, until they start it.
+  const askedRaw = useMemo(() => (unit === 'street' || unit === 'area' ? items.find((i) => i.askedOfMe && !i.mine) || null : null), [items, unit]);
+  const asked = useMemo(() => (askedRaw && unit === 'street' ? orientWalk(askedRaw, position) : askedRaw), [askedRaw, position, unit]);
   // What this person has put away on this phone or computer: a helper's word on the owner's card, the owner's on a helper's.
   const [put, putAway] = usePutAway(caseId || 'none');
   // What was said to this person: the newest word written to them, and what the owner last told everyone, while each is fresh.
@@ -352,10 +359,14 @@ function Screen({ mission }) {
   const sawAsk = () => search.saw({ ask: true });
   // Answering takes someone on the search, as the server also checks. Someone leading answers what was written to them.
   const canSay = Boolean(viewer && !isOwner && (viewer.leads ? search.words.some((w) => !w.mine) : viewer.seesNames || search.volunteer || mineRaw || askedRaw || search.words.length > 0));
-  const counts = useMemo(
-    () => ({ total: items.length, searched: items.filter((i) => i.status === 'SEARCHED').length, inProgress: items.filter((i) => i.status === 'IN_PROGRESS').length }),
-    [items]
-  );
+  const counts = useMemo(() => {
+    // Ground counts what has been searched at least once, over the circle's own areas: a sighting's circle is not one of them.
+    if (unit === 'area') {
+      const own = circleAreas(items);
+      return { total: own.length, searched: own.filter((i) => i.searchCount > 0).length, inProgress: items.filter((i) => i.status === 'IN_PROGRESS').length };
+    }
+    return { total: items.length, searched: items.filter((i) => i.status === 'SEARCHED').length, inProgress: items.filter((i) => i.status === 'IN_PROGRESS').length };
+  }, [items, unit]);
 
   // ----- A helper's actions -----
   // The streets this person passed on in this round of "Different street", so it moves down the list and does not hand one straight back.
@@ -374,8 +385,8 @@ function Screen({ mission }) {
       // street someone passed on an hour ago is offered again before any street is walked twice.
       if (exceptId) passed.current.add(exceptId);
       else passed.current = new Set();
-      const ranked = rank(items, here || position).filter((i) => i.id !== exceptId);
-      const unwalked = (i) => i.status !== 'SEARCHED';
+      const ranked = rank(items, here || position, unit).filter((i) => i.id !== exceptId);
+      const unwalked = (i) => (unit === 'area' ? !(i.searchCount > 0) : i.status !== 'SEARCHED');
       let list = ranked.filter((i) => !passed.current.has(i.id));
       if (!list.some(unwalked) && ranked.some(unwalked)) {
         // Every unwalked street has been passed on: the round starts again, rather than a second pass of a walked one.
@@ -399,7 +410,7 @@ function Screen({ mission }) {
         if (result.code !== 'TAKEN') break;
       }
       if (!taken) {
-        const words = last?.error || `Every ${thing} has someone on it right now. One comes free when it has been walked.`;
+        const words = last?.error || (unit === 'area' ? 'That did not go through. Try again in a moment.' : `Every ${thing} has someone on it right now. One comes free when it has been walked.`);
         // Said on the first card, which has the button to try again.
         setView('main');
         setProblem(words);
@@ -424,7 +435,7 @@ function Screen({ mission }) {
     if (!mineRaw || busy) return undefined;
     setBusy('walked');
     try {
-      const title = unit === 'street' ? walkTitle(mineRaw) : mineRaw.title;
+      const title = unit === 'area' ? AreaName(mineRaw) : unit === 'street' ? walkTitle(mineRaw) : mineRaw.title;
       const result = await search.act(unit, mineRaw.id, 'searched');
       if (result.error) return setProblem(result.error);
       if (gps?.recording) gps.stop().catch(() => {});
@@ -560,8 +571,17 @@ function Screen({ mission }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [picture?.sightings, zone, hot?.id, Math.floor(now / 60000)]
   );
-  // The street that is lit on this person's map: the one they hold, or else the one they were asked to walk.
+  // What is lit on this person's map: the area they are on, or else the one they were asked to search.
   const litId = mineRaw?.id || askedRaw?.id || null;
+  // The ground of the search. On a phone an area carries no name: the one that is lit is the one the card names.
+  // Who is on one is written on it for the people who may know.
+  const mapAreas = useMemo(
+    () =>
+      unit === 'area'
+        ? items.map((i) => ({ id: i.id, outline: i.outline, ring: i.ring, status: i.status, searchCount: i.searchCount, on: i.on, mine: i.id === litId, center: i.center, label: '', who: (i.who || []).map((w) => w.name).join(', ') || null }))
+        : [],
+    [unit, items, litId]
+  );
   const mapStreets = useMemo(() => (unit === 'street' ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: i.id === litId, who: i.claimedByName || null })) : []), [unit, items, litId]);
   const mapCells = useMemo(() => (unit === 'block' ? items : []), [unit, items]);
   const lit = !sending && !isOwner ? mine || asked : null;
@@ -581,11 +601,13 @@ function Screen({ mission }) {
     if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 180), ...self];
     // A helper keeps their street in view, with a fresh sighting beside it when it is near enough to share a map.
     if (lit) return [...pointsOf(lit, unit), ...self, ...(hotNear ? [[hot.lat, hot.lng]] : [])];
+    // With nothing lit, the whole circle of the search, and where the pet was seen with it.
+    if (unit === 'area' && search.circle?.center) return [...around(search.circle.center.lat, search.circle.center.lng, search.circle.radius), ...(hot ? [[hot.lat, hot.lng]] : []), ...mapSightings.slice(0, 3).map((s) => [s.lat, s.lng])];
     if (hot) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 220), ...(lastSeenTag ? [[lastSeenTag.lat, lastSeenTag.lng]] : [])];
     if (lastSeenTag) return [...around(lastSeenTag.lat, lastSeenTag.lng, 330), ...mapSightings.slice(0, 3).map((s) => [s.lat, s.lng])];
     return [];
-  }, [hot, hotNear, isOwner, lit, unit, me, lastSeenTag, mapSightings]);
-  const fitKey = `${lit ? `lit:${lit.id}:${hotNear ? hot.id : ''}` : hot ? `seen:${hot.id}` : 'home'}|${lastSeenTag ? 1 : 0}|${Math.round(sheetHeight / 40)}`;
+  }, [hot, hotNear, isOwner, lit, unit, me, lastSeenTag, mapSightings, search.circle]);
+  const fitKey = `${lit ? `lit:${lit.id}:${hotNear ? hot.id : ''}` : hot ? `seen:${hot.id}` : `home:${search.circle?.radius || 0}`}|${lastSeenTag ? 1 : 0}|${Math.round(sheetHeight / 40)}`;
 
   // The sheet's height, so the map keeps what matters above it.
   const sheetRef = useCallback((el) => {
@@ -687,6 +709,8 @@ function Screen({ mission }) {
     step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (isOwner) {
     step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
+  } else if (mine && ground) {
+    step = <Area picture={picture} name={name} mine={mine} instrument={instrument} gps={gps} onSearched={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (mine) {
     step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (view === 'join' && !desk) {
@@ -723,6 +747,7 @@ function Screen({ mission }) {
         picture={picture}
         items={items}
         unit={unit}
+        circle={search.circle}
         now={now}
         line={line}
         petHref={petHref}
@@ -743,8 +768,8 @@ function Screen({ mission }) {
   const brief = searcherBrief(picture);
   const showChip = !isOwner && view === 'main' && !mine;
   const keyBits = [
-    counts.searched > 0 ? ['bar', 'Already searched'] : null,
-    counts.inProgress > (mine ? 1 : 0) ? ['dots', 'Someone is on it now'] : null,
+    counts.searched > 0 ? [ground ? 'fill' : 'bar', 'Already searched'] : null,
+    counts.inProgress > (mine ? 1 : 0) ? ['dots', ground ? 'Someone is searching it now' : 'Someone is on it now'] : null,
     track.length > 1 ? ['path', 'Your path'] : null,
   ].filter(Boolean);
   const map = (
@@ -752,6 +777,7 @@ function Screen({ mission }) {
       theme="dark"
       lastSeen={mapLastSeen}
       sightings={mapSightings}
+      areas={mapAreas}
       streets={mapStreets}
       cells={mapCells}
       me={me}
@@ -768,7 +794,9 @@ function Screen({ mission }) {
     <div className="pointer-events-none flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-semibold text-[var(--mc-soft)]">
       {keyBits.map(([kind, words]) => (
         <span key={words} className="flex items-center gap-1.5 rounded-md bg-[var(--mc-surface)]/85 px-1.5 py-0.5">
-          {kind === 'bar' ? (
+          {kind === 'fill' ? (
+            <span className="h-3 w-5 rounded-[3px]" style={{ border: '1px solid var(--mc-done)', background: 'color-mix(in srgb, var(--mc-done) 45%, transparent)' }} aria-hidden="true" />
+          ) : kind === 'bar' ? (
             <span className="h-1.5 w-5 rounded-full bg-slate-400/70" aria-hidden="true" />
           ) : kind === 'path' ? (
             <span className="h-[3px] w-5 rounded-full bg-[var(--mc-ink)]" aria-hidden="true" />

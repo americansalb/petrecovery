@@ -4,9 +4,11 @@
  * The right of the desk: the search itself, four ways.
  *
  *   People     everyone on the search and what each is doing; for the
- *              owner, give one of them a street or write to them
+ *              owner, ask one of them to search an area or write to them
  *              (People.js)
- *   Streets    every street, in the order the search hands them out
+ *   Ground     the search area by area, and the card of the one that is
+ *              picked (Ground.js). "Streets" or "Blocks" for a search
+ *              from before it was on areas.
  *   Sightings  each one, numbered in the order they happened
  *   Messages   everything said and everything that happened, in one stream
  *              (Messages.js)
@@ -26,6 +28,7 @@ import { directionWord, lookFirst, metersWords, stateWords } from '../lib/insigh
 import { distanceMeters } from '@/app/lib/searchGrid';
 import People from './People';
 import Messages from './Messages';
+import Ground from './Ground';
 
 const TABS = [
   ['people', 'People'],
@@ -197,14 +200,16 @@ function Sightings({ picture, now, focused, onFocus, onAdd }) {
   );
 }
 
-export default function Board({ picture, items, unit, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null, people = [], talk = [], waiting = 0, person = null, onPerson, to = null, onTo, onAsk, onUnask, onWord, onPick, onShare }) {
+export default function Board({ picture, items, unit, circle = null, onWiden = null, widening = false, areaCard = null, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null, people = [], talk = [], waiting = 0, person = null, onPerson, to = null, onTo, onAsk, onUnask, onWord, onPick, onShare }) {
   const names = Boolean(picture.viewer?.seesNames);
-  // How many are on the search where this person may know; otherwise how many are out, which anyone may.
-  const counts = { people: names ? people.length : picture.looking?.helpers || 0, streets: items.length, sightings: picture.sightings.length };
+  const ground = unit === 'area';
+  // How many are on the search where this person may know; otherwise how many are out, which anyone may. Ground
+  // carries no count: "5" beside it would read as five things to do.
+  const counts = { people: names ? people.length : picture.looking?.helpers || 0, streets: ground ? 0 : items.length, sightings: picture.sightings.length };
   // `waiting`: words from helpers that nobody running the search has answered or put away. Said on the tab, so
   // it is seen from any other.
   // Where the search is on squares, that tab says so.
-  const named = TABS.map(([id, words]) => [id, id === 'streets' && unit === 'block' ? 'Blocks' : words]);
+  const named = TABS.map(([id, words]) => [id, id === 'streets' ? (ground ? 'Ground' : unit === 'block' ? 'Blocks' : words) : words]);
   // On a narrower screen the left column's cards are the first tab here, and the map keeps the room.
   const tabs = overview ? [['overview', 'Overview'], ...named] : named;
   return (
@@ -236,9 +241,10 @@ export default function Board({ picture, items, unit, now, tab, onTab, next, sel
       <div className="flex min-h-0 flex-1 flex-col" role="tabpanel">
         {tab === 'overview' && overview}
         {tab === 'people' && <People picture={picture} people={people} items={items} unit={unit} now={now} selected={selected} words={talk} open={person} onOpen={onPerson} onAsk={onAsk} onUnask={onUnask} onWord={onWord} onPick={onPick} onShare={onShare} />}
-        {tab === 'streets' && <Streets picture={picture} items={items} unit={unit} next={next} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} />}
+        {tab === 'streets' && ground && (areaCard || <Ground picture={picture} items={items} circle={circle} next={next} now={now} leads={Boolean(picture.viewer?.leads)} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} onWiden={onWiden} widening={widening} />)}
+        {tab === 'streets' && !ground && <Streets picture={picture} items={items} unit={unit} next={next} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} />}
         {tab === 'sightings' && <Sightings picture={picture} now={now} focused={focused} onFocus={onFocus} onAdd={onAdd} />}
-        {tab === 'messages' && <Messages picture={picture} items={items} now={now} people={people} words={talk} to={to} onTo={onTo} onSelect={onSelect} onFocus={onFocus} onTell={onTell} onWord={onWord} onAdd={onAdd} />}
+        {tab === 'messages' && <Messages picture={picture} items={items} unit={unit} now={now} people={people} words={talk} to={to} onTo={onTo} onSelect={onSelect} onFocus={onFocus} onTell={onTell} onWord={onWord} onAdd={onAdd} />}
       </div>
     </div>
   );

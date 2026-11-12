@@ -5,16 +5,16 @@
  * with gear) and when (now for half an hour, an hour or more, tonight, the
  * next search party), and the search hands them one job with a brief
  * (GET /api/public/missions/[caseNumber]/job, app/lib/jobs.js). Taking it
- * uses the route that owns the thing: a street (or, where the map has no
- * named streets, a square) is taken on the board and the search screen
- * opens on it; a need is taken; "I am going" is said to the party.
+ * uses the route that owns the thing: an area of the search's ground is
+ * started on the board and the search screen opens on it; a need is
+ * taken; "I am going" is said to the party.
  *
- * A street needs the safety waiver, which the board asks for with
+ * Searching an area needs the safety waiver, which the board asks for with
  * WAIVER_NOT_ACCEPTED; the waiver opens here and the claim goes through
- * after. Someone not in the force gets streets only; taking a need joins
+ * after. Someone not in the force gets ground only; taking a need joins
  * the force first (`onJoin`), like the needs below.
  *
- * Someone with no account who wants to walk goes straight to the search
+ * Someone with no account who wants to search goes straight to the search
  * screen's join card, which takes a first name and the safety tick
  * instead of an account (app/mission-control, `?action=walk`). They have
  * already said "on foot" here, so they are not asked again there.
@@ -22,8 +22,8 @@
  * The brief is the site's (app/lib/brief.js), with two cuts so that every
  * line is true on this page (`briefOnPage` there): nothing here says a
  * path is recorded, which happens only in the app and is said there while
- * it records; and a job that is one street is not told to "walk every
- * street in the block".
+ * it records; and a job that is one area of ground is not told to "walk
+ * every street in the block".
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -33,7 +33,7 @@ import WaiverModal from '@/components/WaiverModal';
 import { briefOnPage } from '@/app/lib/brief';
 
 const WAYS = [
-  { id: 'foot', label: 'On foot', sub: 'Walk a street, check hiding spots', icon: Footprints },
+  { id: 'foot', label: 'On foot', sub: 'Search an area, check hiding spots', icon: Footprints },
   { id: 'car', label: 'By car', sub: 'Drive the edge, reach a sighting fast', icon: Car },
   { id: 'home', label: 'From home', sub: 'Calls and posts, 10 minutes at a time', icon: Phone },
   { id: 'gear', label: 'With gear', sub: 'A trap, a drone, a flashlight at night', icon: Wrench },
@@ -107,7 +107,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
 
   async function ask() {
     if (!signedIn) {
-      // Walking a street needs no account: the search screen takes a first name, and opens on that card.
+      // Searching an area needs no account: the search screen takes a first name, and opens on that card.
       router.push(way === 'foot' ? `${missionHref}&action=walk` : `/login?callbackUrl=${encodeURIComponent(`/cases/${caseNumber}`)}`);
       return;
     }
@@ -131,7 +131,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
   }
 
   async function claimBlocks(j) {
-    // One person holds one street at a time: the job's first is the one taken.
+    // One person is on one area at a time: the job's first is the one taken.
     const { ok, status, data } = await send(`/api/mission/${caseId}/board`, 'PATCH', { unit: j.unit || 'block', id: j.id, action: 'claim' });
     if (!ok) {
       if (status === 403 && data.code === 'WAIVER_NOT_ACCEPTED') {
@@ -140,7 +140,9 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
         return false;
       }
       if (data.code === 'TAKEN') {
-        setError(`${j.labels?.[0] || 'That street'} was just taken. Ask for another.`);
+        // An area is never "taken": several people can search one. The one exception is the circle round a
+        // sighting, which one person goes to, and the board says so in its own words.
+        setError(j.unit === 'area' ? `${data.error || 'Someone is already there.'} Ask for another.` : `${j.labels?.[0] || 'That street'} was just taken. Ask for another.`);
         return false;
       }
       throw new Error(data.error || 'That did not go through. Try again in a moment.');
@@ -233,7 +235,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
             {stage === 'loading' ? 'Finding your job' : 'Give me a job'}
           </button>
           <p className="mt-2 text-center text-xs text-midnight-500">
-            Every job is a real need or a street nobody has walked. Nothing is made up to keep you busy.
+            Every job is a real need or ground that needs searching. Nothing is made up to keep you busy.
           </p>
         </div>
       )}
@@ -243,7 +245,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
           <p className="font-semibold text-midnight-900">Nothing fits that right now.</p>
           <p className="mt-1">
             {picked?.force && !picked.member
-              ? `Join ${picked.force.name} to take its needs, or pick "On foot" for a street to walk.`
+              ? `Join ${picked.force.name} to take its needs, or pick "On foot" for an area to search.`
               : 'Try another way or time.'}
           </p>
           {picked?.force && !picked.member && (
@@ -277,7 +279,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <button type="button" onClick={() => take(job)} disabled={busy} className={`${PRIMARY} sm:flex-1`}>
               {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Check className="h-5 w-5" strokeWidth={3} aria-hidden="true" />}
-              {job.kind === 'block' ? (job.unit === 'street' ? 'I will walk it' : `Take it. Claim ${job.labels?.join(' and ') || 'the block'}`) : job.kind === 'party' ? 'I am going' : 'I will do it'}
+              {job.kind === 'block' ? (job.unit === 'area' ? 'I will search it' : job.unit === 'street' ? 'I will walk it' : `Take it. Claim ${job.labels?.join(' and ') || 'the block'}`) : job.kind === 'party' ? 'I am going' : 'I will do it'}
             </button>
             {picked?.alternatives?.length > 0 && (
               <button
@@ -297,7 +299,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
             )}
           </div>
           {job.kind === 'block' && (
-            <p className="mt-2 text-xs text-midnight-500">The map opens on it. Nobody else is sent there while you have it.</p>
+            <p className="mt-2 text-xs text-midnight-500">{job.unit === 'area' ? 'The map opens on it.' : 'The map opens on it. Nobody else is sent there while you have it.'}</p>
           )}
         </div>
       )}
@@ -307,7 +309,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
           <p className="font-bold">You are on it: {job.title}</p>
           <p className="mt-1 text-sm text-midnight-200">
             {job.kind === 'party'
-              ? 'The force sees you are coming. Streets are handed out when it meets.'
+              ? 'The force sees you are coming. Areas to search are handed out when it meets.'
               : 'It is yours in the list below. Tap Done there when you finish, and the next job is a tap away.'}
           </p>
           <button

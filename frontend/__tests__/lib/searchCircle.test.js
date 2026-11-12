@@ -8,8 +8,8 @@
  * time an area takes to its size and not to the streets in it.
  */
 import {
-  CIRCLES, DEFAULT_CIRCLE, SEEN_RADIUS_METERS, MINUTES_PER_HECTARE,
-  circleFor, areasOf, inArea, areaAt, hectaresOf, minutesFor, pointAt, outlineOf, heartOf, reachOf, landmarksIn, urgencyOf, planCircle,
+  CIRCLES, DEFAULT_CIRCLE, RING, MINUTES_PER_HECTARE, MINUTES_PER_HECTARE_CLOSE_CAT,
+  circleFor, areasOf, inArea, areaAt, hectaresOf, minutesFor, seenArea, inWords, pointAt, outlineOf, heartOf, reachOf, landmarksIn, urgencyOf, planCircle, rankAreas,
 } from '@/app/lib/searchCircle';
 import { distanceMeters } from '@/app/lib/searchGrid';
 
@@ -19,8 +19,8 @@ const at = (meters, bearing) => pointAt(LOST, meters, bearing);
 
 describe('how big the circle is', () => {
   test('a dog starts at 400 m and widens to 800 m; a cat starts at 150 m and widens to 500 m', () => {
-    expect(circleFor('DOG')).toEqual({ inner: 150, edge: 400, wide: 800 });
-    expect(circleFor('cat')).toEqual({ inner: 50, edge: 150, wide: 500 });
+    expect(circleFor('DOG')).toMatchObject({ inner: 150, edge: 400, wide: 800 });
+    expect(circleFor('cat')).toMatchObject({ inner: 50, edge: 150, wide: 500 });
   });
 
   test('any other animal, or none named, is searched for like a dog', () => {
@@ -32,7 +32,13 @@ describe('how big the circle is', () => {
   test('the sizes cannot be changed by a caller', () => {
     expect(Object.isFrozen(CIRCLES)).toBe(true);
     expect(Object.isFrozen(CIRCLES.DOG)).toBe(true);
-    expect(SEEN_RADIUS_METERS).toBe(150);
+  });
+
+  test('the circle round a sighting: 150 m for a dog, 50 m for a cat', () => {
+    expect(CIRCLES.DOG.seen).toBe(150);
+    expect(CIRCLES.CAT.seen).toBe(50);
+    expect(seenArea('s1', CIRCLES.DOG, 'Max')).toEqual({ key: 'seen-s1', name: 'Where Max was seen', way: null, ring: RING.SEEN, from: 0, to: 150, a: 0, b: 360 });
+    expect(seenArea('s2', CIRCLES.CAT, 'Luna')).toMatchObject({ key: 'seen-s2', to: 50 });
   });
 });
 
@@ -49,7 +55,7 @@ describe('the areas', () => {
     const areas = areasOf(DOG, { widened: true });
     expect(areas).toHaveLength(13);
     const outer = areas.filter((a) => a.ring === 2);
-    expect(outer.map((a) => a.name)).toEqual(['North', 'North-east', 'East', 'South-east', 'South', 'South-west', 'West', 'North-west']);
+    expect(outer.map((a) => a.name)).toEqual(['Far north', 'Far north-east', 'Far east', 'Far south-east', 'Far south', 'Far south-west', 'Far west', 'Far north-west']);
     expect(outer.every((a) => a.from === 400 && a.to === 800)).toBe(true);
   });
 
@@ -111,8 +117,29 @@ describe('how long an area takes', () => {
     expect(new Set(sides.map(minutesFor)).size).toBe(1);
   });
 
-  test('a cat\'s small areas are never under ten minutes', () => {
-    for (const area of areasOf(CIRCLES.CAT)) expect(minutesFor(area)).toBe(10);
+  test('close in, a cat\'s ground takes five times as long: every hiding place is looked into', () => {
+    const [middle, north] = areasOf(CIRCLES.CAT);
+    expect(MINUTES_PER_HECTARE_CLOSE_CAT).toBe(20);
+    // 0.79 hectares and 1.57 hectares.
+    expect(minutesFor(middle, CIRCLES.CAT)).toBe(15);
+    expect(minutesFor(north, CIRCLES.CAT)).toBe(30);
+    // At the plain rate both would be the ten-minute floor.
+    expect(minutesFor(middle)).toBe(10);
+    expect(minutesFor(north)).toBe(10);
+  });
+
+  test('past the edge, ground is covered at the plain rate for any animal', () => {
+    const outerCat = areasOf(CIRCLES.CAT, { widened: true }).find((a) => a.ring === RING.OUTER);
+    const outerDog = areasOf(CIRCLES.DOG, { widened: true }).find((a) => a.ring === RING.OUTER);
+    expect(hectaresOf(outerCat)).toBeCloseTo(8.93, 1);
+    expect(minutesFor(outerCat, CIRCLES.CAT)).toBe(35);
+    expect(hectaresOf(outerDog)).toBeCloseTo(18.85, 1);
+    expect(minutesFor(outerDog, CIRCLES.DOG)).toBe(75);
+  });
+
+  test('the circle round a sighting takes half an hour for a dog and a quarter for a cat', () => {
+    expect(minutesFor(seenArea('s', CIRCLES.DOG), CIRCLES.DOG)).toBe(30);
+    expect(minutesFor(seenArea('s', CIRCLES.CAT), CIRCLES.CAT)).toBe(15);
   });
 });
 
@@ -152,6 +179,15 @@ describe('an area in words', () => {
     expect(reachOf(north, 'Max')).toBe('150 m to 400 m north of where Max was lost');
     expect(reachOf(west, 'Max')).toBe('150 m to 400 m west of where Max was lost');
     expect(reachOf(areasOf(DOG, { widened: true })[6], 'Max')).toBe('400 m to 800 m north-east of where Max was lost');
+    expect(reachOf(seenArea('s', DOG, 'Max'), 'Max')).toBe('Within 150 m of where Max was seen');
+  });
+
+  test('its name inside a sentence', () => {
+    expect(inWords('The middle')).toBe('the middle');
+    expect(inWords('North side')).toBe('the north side');
+    expect(inWords('Far north-east')).toBe('the far north-east');
+    expect(inWords('Where Max was seen')).toBe('where Max was seen');
+    expect(inWords('')).toBe('the area');
   });
 });
 
@@ -227,7 +263,8 @@ describe('a search, planned', () => {
 
   test('a cat\'s search is the same shape, smaller', () => {
     const { circle, areas } = planCircle({ center: LOST, species: 'CAT', name: 'Luna' });
-    expect(circle).toEqual({ inner: 50, edge: 150, wide: 500 });
+    expect(circle).toBe(CIRCLES.CAT);
+    expect(areas.find((a) => a.key === 'middle').minutes).toBe(15);
     expect(areas.find((a) => a.key === 'middle').reach).toBe('Within 50 m of where Luna was lost');
     expect(areas.find((a) => a.key === 'east').reach).toBe('50 m to 150 m east of where Luna was lost');
   });
@@ -235,5 +272,52 @@ describe('a search, planned', () => {
   test('a search with nowhere to start has no circle', () => {
     expect(planCircle({ center: null, species: 'DOG' })).toEqual({ circle: null, areas: [] });
     expect(planCircle({ center: { lat: NaN, lng: 1 }, species: 'DOG' })).toEqual({ circle: null, areas: [] });
+  });
+});
+
+describe('the order ground is given out in', () => {
+  const area = (key, over = {}) => ({ id: key, key, status: 'UNSEARCHED', priority: 6, on: 0, coming: 0, searchCount: 0, searchedAt: null, mine: false, full: false, ...over });
+  const order = (areas, away) => rankAreas(areas, away).map((a) => a.id);
+
+  test('unsearched ground with nobody on it, most urgent first', () => {
+    expect(order([area('north'), area('middle', { priority: 8 }), area('east')])).toEqual(['middle', 'north', 'east']);
+  });
+
+  test('on a tie, the nearest to the person asking', () => {
+    const away = (a) => ({ north: 500, east: 120, south: 300 })[a.id];
+    expect(order([area('north'), area('east'), area('south')], away)).toEqual(['east', 'south', 'north']);
+  });
+
+  test('the area this person was asked to search comes before all of them', () => {
+    expect(order([area('middle', { priority: 10 }), area('west', { askedOfMe: true })])).toEqual(['west', 'middle']);
+  });
+
+  test('ground with nobody on it comes before ground someone is already on, however urgent', () => {
+    expect(order([area('middle', { priority: 8, status: 'IN_PROGRESS', on: 1 }), area('north')])).toEqual(['north', 'middle']);
+  });
+
+  test('and before ground someone was asked to search and is on the way to', () => {
+    expect(order([area('middle', { priority: 8, coming: 1 }), area('north')])).toEqual(['north', 'middle']);
+  });
+
+  test('with every unsearched area taken, a second person joins the one with the fewest people', () => {
+    expect(order([area('north', { status: 'IN_PROGRESS', on: 2 }), area('east', { status: 'IN_PROGRESS', on: 1 }), area('middle', { status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T10:00:00Z' })])).toEqual(['east', 'north', 'middle']);
+  });
+
+  test('an area up for another look is given out like one never searched', () => {
+    expect(order([area('middle', { status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T10:00:00Z', priority: 8 }), area('east', { status: 'NEEDS_REVISIT', searchCount: 1 })])).toEqual(['east', 'middle']);
+  });
+
+  test('then ground searched longest ago, so there is always some to give', () => {
+    const searched = (key, at) => area(key, { status: 'SEARCHED', searchCount: 1, searchedAt: at });
+    expect(order([searched('north', '2026-11-12T12:00:00Z'), searched('middle', '2026-11-12T09:00:00Z'), searched('east', '2026-11-12T10:00:00Z')])).toEqual(['middle', 'east', 'north']);
+  });
+
+  test('never the area this person is on, and never a sighting\'s circle that has its one person', () => {
+    expect(order([area('middle', { mine: true }), area('seen-1', { priority: 10, full: true }), area('north')])).toEqual(['north']);
+  });
+
+  test('a sighting\'s circle with nobody there is given first', () => {
+    expect(order([area('middle', { priority: 8 }), area('seen-1', { priority: 10 }), area('south', { priority: 10 })])).toEqual(['seen-1', 'south', 'middle']);
   });
 });
