@@ -23,14 +23,14 @@ import crypto from 'crypto';
 import prisma from '@/app/lib/prisma';
 import { walkTitle } from '@/app/lib/streetWalks';
 import { cellLabel } from '@/app/lib/searchGrid';
+import { firstWord, NAME_MAX } from '@/app/lib/searchText';
+
+export { NAME_MAX };
 
 /** An ask keeps a street for the person asked this long. After it, anyone can be given the street. */
 export const ASK_HOLD_MS = 30 * 60 * 1000;
 
 const MARK = 'm:';
-/** A first name as the desk shows it: one word, and not a paragraph. A helper types their own. */
-export const NAME_MAX = 30;
-const firstWord = (s) => (String(s || '').trim().split(/\s+/)[0] || '').slice(0, NAME_MAX);
 
 function secret() {
   // The site's own secret, under either of the names sign-in reads it by. Without one (a local run with no

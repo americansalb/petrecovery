@@ -213,6 +213,39 @@ describe('a word written to someone is on their card, and the card says when it 
     window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
   });
 
+  test('a phone on a street loses its signal: until the search has heard, the card says it again every half minute', async () => {
+    const state = hook({ words });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const told = () => state.saw.mock.calls.filter(([what]) => what.words && what.words[0] === 'm1').length;
+    expect(told()).toBe(1);
+    // Half a minute on and the search still says "not seen": said again. The hook sends it only if the first was not heard.
+    useSearch.mockReturnValue({ ...state, now: NOW + 31000 });
+    await act(async () => view.rerender(<SearchScreen mission="AUS-1" />));
+    expect(told()).toBe(2);
+    // Heard: the search says "seen", and the card has nothing more to say however long it stays up.
+    useSearch.mockReturnValue({ ...state, now: NOW + 62000, words: [{ ...words[0], seen: true }] });
+    await act(async () => view.rerender(<SearchScreen mission="AUS-1" />));
+    useSearch.mockReturnValue({ ...state, now: NOW + 93000, words: [{ ...words[0], seen: true }] });
+    await act(async () => view.rerender(<SearchScreen mission="AUS-1" />));
+    expect(told()).toBe(2);
+  });
+
+  test('asked for another street while walking one: the street card shows the ask, and says it did', async () => {
+    const state = hook({ items: [street('a', { status: 'IN_PROGRESS', mine: true }), street('b', { askedOfMe: true, askedNote: 'Check the alley.', askedBy: 'Avery', askedSeen: false })] });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const card = view.container.querySelector('[aria-label="Your step"]').textContent;
+    // Their own street is still the card, with its one button.
+    expect(card).toMatch(/Walk Elm a/);
+    expect(card).toMatch(/I walked it/);
+    expect(card).toMatch(/Avery asked you/);
+    expect(card).toMatch(/Walk Elm b\./);
+    expect(state.saw).toHaveBeenCalledWith({ ask: true });
+  });
+
   test('the answer line keeps what is being typed when a new word arrives above it', async () => {
     const state = hook({ words });
     useSearch.mockReturnValue(state);

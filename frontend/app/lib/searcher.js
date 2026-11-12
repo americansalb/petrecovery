@@ -15,12 +15,11 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { forcesOf } from '@/app/lib/forceFeed';
 import { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER } from '@/app/lib/searcherHeaders';
+// A name is one word, and not a paragraph: a helper types their own, and it is shown to the owner and put in notices.
+import { firstWord } from '@/app/lib/searchText';
 
 export { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER };
 
-
-// One word, and not a paragraph: a helper types their own, and it is shown to the owner and put in notices.
-const firstWord = (s) => (String(s || '').trim().split(/\s+/)[0] || '').slice(0, 30);
 
 /**
  * The person behind a request, for one pet's search, or null for someone

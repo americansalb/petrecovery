@@ -13,16 +13,26 @@
  *
  * `onShown` is how the desk comes to read "seen": a Word says so itself
  * once it is on a screen someone can see (the tab is in front), and never
- * because the phone only fetched it. The answer line is its own piece so
- * that a new word arriving above it does not throw away what is being
- * typed.
+ * because the phone only fetched it. A phone on a street loses its signal,
+ * so while the search still says "not seen" it says so again every half
+ * minute until it is heard. The answer line is its own piece so that a new
+ * word arriving above it does not throw away what is being typed.
  */
 import { useEffect, useState } from 'react';
 import { Loader2, Send } from 'lucide-react';
 import { wordFrom } from '../lib/team';
 
-/** Run `tell` once the page is in front of someone: now if it is, else when it next is. */
-export function useShown(key, tell) {
+/** How long before a card that has not been heard says again that it showed something. */
+export const SAY_AGAIN_MS = 30 * 1000;
+/** A number that changes once in that long, from the screen's clock. */
+export const beatOf = (now) => Math.floor((Number(now) || 0) / SAY_AGAIN_MS);
+
+/**
+ * Run `tell` once the page is in front of someone: now if it is, else when it next is. `key` is the thing shown,
+ * and is empty once the search knows it was. `beat` runs it again while it is not: whoever sends it sends once
+ * per thing heard, so saying it again costs nothing when it was.
+ */
+export function useShown(key, tell, beat = 0) {
   useEffect(() => {
     if (!key || !tell) return undefined;
     let done = false;
@@ -34,14 +44,14 @@ export function useShown(key, tell) {
     check();
     document.addEventListener('visibilitychange', check);
     return () => document.removeEventListener('visibilitychange', check);
-    // Once per thing shown: `tell` is a new function on every render and is not what this waits on.
+    // Once per thing shown, and again on the beat: `tell` is a new function on every render and is not what this waits on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, beat]);
 }
 
 export default function Word({ word, timeZone, now, onShown = null, children = null }) {
   // Only a word written to this person is one whose reading is reported, and only until it has been.
-  useShown(word && word.kind === 'yours' && word.seen === false ? word.id : null, onShown ? () => onShown(word.id) : null);
+  useShown(word && word.kind === 'yours' && word.seen === false ? word.id : null, onShown ? () => onShown(word.id) : null, beatOf(now));
   if (!word) return null;
   return (
     <div className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3">

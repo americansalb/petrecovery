@@ -21,6 +21,7 @@ import prisma from '@/app/lib/prisma';
 import { walkTitle } from '@/app/lib/streetWalks';
 import { ASK_HOLD_MS, askHolds, handleFor } from '@/app/lib/searchTeam';
 import { cleanWord } from '@/app/lib/searchTalk';
+import { cut } from '@/app/lib/searchText';
 
 export const ASK_NOTE_MAX = 140;
 /** What the asked person's button says, and so what the desk is told in their name when they press it. */
@@ -61,7 +62,7 @@ export async function askStreet({ caseId, streetId, person, searcher, note = '',
       askedByName: searcher.firstName,
       askedAt: new Date(now),
       askedSeenAt: null,
-      askedNote: cleanWord(note).replace(/\n+/g, ' ').slice(0, ASK_NOTE_MAX) || null,
+      askedNote: cut(cleanWord(note).replace(/\n+/g, ' '), ASK_NOTE_MAX) || null,
     },
   });
   if (asked.count === 0) {

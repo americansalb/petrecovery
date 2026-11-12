@@ -661,7 +661,7 @@ function Screen({ mission }) {
   } else if (isOwner) {
     step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (mine) {
-    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} said={said} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (view === 'join' && !desk) {
     step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {

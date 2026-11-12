@@ -146,9 +146,11 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     if (turn < shown.current.board) return data;
     shown.current.board = turn;
     boardAt.current = Date.now();
-    const askedNow = (data.streets || []).find((s) => s.askedOfMe)?.id || null;
-    // A new ask is a new thing to show, and to say it was shown.
-    if (askedNow !== askedOnBoard.current) told.current.delete('ask');
+    const askedOfMe = (data.streets || []).find((s) => s.askedOfMe) || null;
+    const askedNow = askedOfMe?.id || null;
+    // A new ask is a new thing to show, and to say it was shown. So is one the search has not heard was shown:
+    // taken back and made again for the same street between two reads, it is the same street and a new ask.
+    if (askedNow !== askedOnBoard.current || askedOfMe?.askedSeen === false) told.current.delete('ask');
     askedOnBoard.current = askedNow;
     if ((data.streets || data.cells || []).some((i) => i.mine)) everMine.current = true;
     const text = JSON.stringify(data);

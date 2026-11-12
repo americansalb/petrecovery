@@ -29,6 +29,7 @@
 import prisma from '@/app/lib/prisma';
 import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
 import { handleFor } from '@/app/lib/searchTeam';
+import { onlyText, hasText, cut } from '@/app/lib/searchText';
 
 /** The longest a message may be. */
 export const WORD_MAX = 400;
@@ -55,19 +56,18 @@ export const OWNER_BELLS_PER_HOUR = 12;
 export const WORD_NOTICE = 'SEARCH_WORD';
 
 /**
- * A message as it is stored: line breaks kept, a tab made a space, everything else that is not text removed
- * (control characters, and the characters that take up no room, so a message that looks blank is blank), cut
- * to length.
+ * A message as it is stored: the person's words with their line breaks, without what is not text
+ * (app/lib/searchText.js), cut to length. A message with nothing in it to read is blank.
  */
 export function cleanWord(text) {
-  return String(text ?? '')
-    .replace(/\t/g, ' ')
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u0009\u000B-\u001F\u007F\u00AD\u115F\u1160\u180E\u200B-\u200F\u2028-\u202F\u2060-\u2064\u2066-\u2069\u3164\uFEFF\uFFA0]/g, '')
-    .replace(/ +/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-    .slice(0, WORD_MAX);
+  const words = cut(
+    onlyText(text)
+      .replace(/ +/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim(),
+    WORD_MAX
+  );
+  return hasText(words) ? words : '';
 }
 
 export class WordError extends Error {

@@ -28,7 +28,7 @@ import { useEffect, useState } from 'react';
 import { Share2 } from 'lucide-react';
 import { SAFETY_RULES, SAFETY_AGREEMENT } from '@/app/lib/safetyRules';
 import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Stamp } from '../components/kit';
-import Word, { Answer, useShown } from '../components/Word';
+import Word, { Answer, useShown, beatOf } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 
@@ -83,7 +83,7 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
   const asker = ask?.askedBy || 'The people running the search';
   // The card says when it has shown the ask, which is what the desk reads as "seen": a phone that only fetched
   // it, or a computer that does not show it, says nothing.
-  useShown(ask && ask.askedSeen === false ? ask.id : null, onAskShown);
+  useShown(ask && ask.askedSeen === false ? ask.id : null, onAskShown, beatOf(now));
   return (
     <>
       <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
@@ -258,8 +258,10 @@ function spanWords(street) {
 }
 
 /** The street that is theirs: where, how long, and the one button that ends it. */
-export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther, asked = null, said = [], onSay = null, onShown = null, now }) {
+export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther, asked = null, onAskShown = null, said = [], onSay = null, onShown = null, now }) {
   const brief = searcherBrief(picture);
+  // This card shows the ask too, so it says so: the desk is not left reading "asked" until this street is done.
+  useShown(asked && asked.askedSeen === false ? asked.id : null, onAskShown, beatOf(now));
   const block = unit === 'block';
   const thing = block ? 'block' : 'street';
   const recording = instrument === 'field' && gps?.recording;
