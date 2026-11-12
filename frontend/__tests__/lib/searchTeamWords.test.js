@@ -3,7 +3,7 @@
  * card shows of what was said to them (app/mission-control/lib/team.js).
  */
 
-import { personLine, shortTitle, outLong, grouped, wordsForCard, wordsForOwner, wordFrom, stream, unanswered, WORD_FRESH_MS, WORDS_ON_CARD } from '@/app/mission-control/lib/team';
+import { personLine, shortTitle, outLong, grouped, wordsForCard, wordsForOwner, dealtLine, wordFrom, stream, unanswered, WORD_FRESH_MS, WORDS_ON_CARD } from '@/app/mission-control/lib/team';
 
 const ZONE = 'America/Chicago';
 const NOW = new Date('2026-11-13T04:00:00Z').getTime(); // 10 pm Thursday in Austin
@@ -79,8 +79,8 @@ describe('what a helper\'s card shows of what was said to them', () => {
   ];
   const updates = [{ id: 'u1', at: ago(19), text: 'He comes to a squeaky ball.' }];
 
-  const yours = { id: 'm3', kind: 'yours', text: 'Can you take the alley too?', at: ago(5), from: 'Avery', seen: true };
-  const everyone = { id: 'u1', kind: 'everyone', text: 'He comes to a squeaky ball.', at: ago(19), from: 'Avery', seen: true };
+  const yours = { id: 'm3', kind: 'yours', text: 'Can you take the alley too?', at: ago(5), from: 'Avery', seen: true, waiting: true };
+  const everyone = { id: 'u1', kind: 'everyone', text: 'He comes to a squeaky ball.', at: ago(19), from: 'Avery', seen: true, waiting: true };
 
   test('the newest word written to them, and under it what the owner last told everyone', () => {
     expect(wordsForCard({ words, updates, ownerName: 'Avery', now: NOW })).toEqual([yours, everyone]);
@@ -89,14 +89,14 @@ describe('what a helper\'s card shows of what was said to them', () => {
   test('a word written to them stays on the card when everyone is told something later', () => {
     // The desk is told when it was seen, so it has to be there to see: the newer word to everyone goes under it.
     const later = [{ id: 'u2', at: ago(1), text: 'He is wearing a blue collar.' }, ...updates];
-    expect(wordsForCard({ words, updates: later, ownerName: 'Avery', now: NOW })).toEqual([yours, { id: 'u2', kind: 'everyone', text: 'He is wearing a blue collar.', at: ago(1), from: 'Avery', seen: true }]);
+    expect(wordsForCard({ words, updates: later, ownerName: 'Avery', now: NOW })).toEqual([yours, { id: 'u2', kind: 'everyone', text: 'He is wearing a blue collar.', at: ago(1), from: 'Avery', seen: true, waiting: true }]);
   });
 
   test('with nothing written to them, only what the owner told everyone; and the other way round', () => {
     expect(wordsForCard({ words: words.slice(1, 2), updates, ownerName: 'Avery', now: NOW })).toEqual([everyone]);
     expect(wordsForCard({ words, updates: [], ownerName: 'Avery', now: NOW })).toEqual([yours]);
     // From anyone else who came to run the search: whose it is, is not said.
-    expect(wordsForCard({ words: words.slice(0, 1), updates: [], ownerName: 'Avery', now: NOW })).toEqual([{ id: 'm1', kind: 'yours', text: 'Thanks for coming.', at: ago(60), from: null, seen: true }]);
+    expect(wordsForCard({ words: words.slice(0, 1), updates: [], ownerName: 'Avery', now: NOW })).toEqual([{ id: 'm1', kind: 'yours', text: 'Thanks for coming.', at: ago(60), from: null, seen: true, waiting: true }]);
   });
 
   test('every word written to them since they last wrote back is on the card, so none is marked seen without being shown', () => {
@@ -116,6 +116,54 @@ describe('what a helper\'s card shows of what was said to them', () => {
     const many = Array.from({ length: 6 }, (_, i) => ({ id: `w${i}`, at: ago(10 - i), text: `word ${i}`, mine: false, from: 'Avery', seen: false }));
     expect(wordsForCard({ words: many, updates: [], now: NOW }).map((w) => w.id)).toEqual(['w3', 'w4', 'w5']);
     expect(WORDS_ON_CARD).toBe(3);
+  });
+
+  test('a word is waiting until it is answered or put away, and a card with nothing waiting folds to one line', () => {
+    const two = [
+      { id: 'c', at: ago(9), text: 'Thanks. Try the creek.', mine: false, from: 'Avery', seen: true },
+      { id: 'd', at: ago(4), text: 'Do not go into the yard on the corner.', mine: false, from: 'Avery', seen: true },
+    ];
+    const waits = (list) => list.map((w) => [w.id, w.waiting]);
+    // Written since they last wrote back: both wait.
+    expect(waits(wordsForCard({ words: two, updates: [], ownerName: 'Avery', now: NOW }))).toEqual([['c', true], ['d', true]]);
+    // "Got it" on this phone puts them away, one by one.
+    expect(waits(wordsForCard({ words: two, updates: [], ownerName: 'Avery', now: NOW, put: new Set(['word-c']) }))).toEqual([['c', false], ['d', true]]);
+    expect(waits(wordsForCard({ words: two, updates: [], ownerName: 'Avery', now: NOW, put: new Set(['word-c', 'word-d']) }))).toEqual([['c', false], ['d', false]]);
+    // Writing back deals with all of them: the last stays on the card, and does not wait.
+    const answered = [...two, { id: 'e', at: ago(1), text: 'Understood.', mine: true, from: null }];
+    expect(waits(wordsForCard({ words: answered, updates: [], ownerName: 'Avery', now: NOW }))).toEqual([['d', false]]);
+    // A new word after that waits again.
+    const again = [...answered, { id: 'f', at: ago(0.5), text: 'Come to the corner.', mine: false, from: 'Avery', seen: false }];
+    expect(waits(wordsForCard({ words: again, updates: [], ownerName: 'Avery', now: NOW }))).toEqual([['f', true]]);
+    // What the owner told everyone waits until it is put away: there is nothing to answer it with.
+    expect(waits(wordsForCard({ words: [], updates, ownerName: 'Avery', now: NOW }))).toEqual([['u1', true]]);
+    expect(waits(wordsForCard({ words: [], updates, ownerName: 'Avery', now: NOW, put: new Set(['word-u1']) }))).toEqual([['u1', false]]);
+  });
+
+  test('the one line a folded card shows: what happened last, and when', () => {
+    const line = (given) => dealtLine({ ...given, said: wordsForCard({ ...given, ownerName: 'Avery', now: NOW, put: given.put }), timeZone: ZONE, now: NOW });
+    const theirs = [{ id: 'd', at: ago(4), text: 'Do not go into the yard on the corner.', mine: false, from: 'Avery', seen: true }];
+    // Put away without an answer: whose the word was.
+    expect(line({ words: theirs, updates: [], put: new Set(['word-d']) })).toBe('Avery wrote to you at 9:56 pm');
+    // Answered: that they answered, which is also how they know it went.
+    expect(line({ words: [...theirs, { id: 'e', at: ago(1), text: 'Understood.', mine: true, from: null }], updates: [] })).toBe('You answered Avery at 9:59 pm');
+    // Only something told to everyone.
+    expect(line({ words: [], updates, put: new Set(['word-u1']) })).toBe('Avery told everyone at 9:41 pm');
+    // From someone else who came to run the search: a helper is not told their name.
+    const unnamed = [{ id: 'm1', at: ago(60), text: 'Thanks for coming.', mine: false, from: null }];
+    expect(dealtLine({ said: wordsForCard({ words: unnamed, updates: [], now: NOW }), words: unnamed, timeZone: ZONE, now: NOW })).toBe('The people running the search wrote to you at 9:00 pm');
+    const back = [...unnamed, { id: 'm2', at: ago(20), text: 'Gate open.', mine: true, from: null }];
+    expect(dealtLine({ said: wordsForCard({ words: back, updates: [], now: NOW }), words: back, timeZone: ZONE, now: NOW })).toBe('You answered the people running the search at 9:40 pm');
+    // An answer older than a newer word to everyone does not speak for it.
+    const older = [...theirs, { id: 'e', at: ago(3), text: 'Understood.', mine: true, from: null }];
+    expect(line({ words: older, updates: [{ id: 'u2', at: ago(1), text: 'He is wearing a blue collar.' }], put: new Set(['word-u2']) })).toBe('Avery told everyone at 9:59 pm');
+    // Nothing said, nothing to fold.
+    expect(dealtLine({ said: [], words: [], timeZone: ZONE, now: NOW })).toBe('');
+    // Read the next morning, a word from the night before says which day.
+    const morning = NOW + 10 * 3600 * 1000; // 8 am Friday
+    const night = [{ id: 'n', at: ago(3), text: 'Thank you for tonight.', mine: false, from: 'Avery', seen: true }];
+    const kept = wordsForCard({ words: night, updates: [], ownerName: 'Avery', now: morning, put: new Set(['word-n']) });
+    expect(dealtLine({ said: kept, words: night, timeZone: ZONE, now: morning })).toBe('Avery wrote to you Thu 9:57 pm');
   });
 
   test('their own words are never shown back to them as news', () => {

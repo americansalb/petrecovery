@@ -345,7 +345,8 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
   }, [focused, street, items, numbered, lastSeenTag]);
   const fitKey = `${focused ? `seen:${focused}` : street ? `street:${street.id}` : `all:${items.length}:${numbered.length}`}|${refit}`;
 
-  // The map's key: what a line's weight and colour mean, in the map's own values.
+  // The map's key: what a line's weight and colour mean, in the map's own values. It sits above the strip the
+  // map's credit has along the bottom, and stops short of the zoom buttons in the corner, wrapping to a second line.
   const anyKept = mapStreets.some((s) => s.keptFor);
   const key = [
     ['thick', look.ink, 'Given out next'],
@@ -452,7 +453,7 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
               <Maximize2 size={15} aria-hidden="true" /> The whole search
             </button>
           </div>
-          <div className={`pointer-events-none absolute bottom-7 left-3 z-[400] flex-wrap items-center gap-x-3.5 gap-y-1 rounded-lg border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3 py-1.5 text-[13px] font-semibold text-[var(--mc-soft)] shadow-sm ${street ? 'hidden' : 'flex'}`}>
+          <div className={`pointer-events-none absolute bottom-7 left-3 z-[400] max-w-[calc(100%-76px)] flex-wrap items-center gap-x-3.5 gap-y-1 rounded-lg border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3 py-1.5 text-[13px] font-semibold text-[var(--mc-soft)] shadow-sm ${street ? 'hidden' : 'flex'}`}>
             {key.map(([kind, color, words]) => (
               <span key={words} className="flex items-center gap-1.5">
                 {kind === 'dots' ? (

@@ -61,7 +61,7 @@ import MarkReunitedModal from './components/overlays/MarkReunitedModal';
 import { readNote, saveNote } from './lib/identity';
 import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SIGHTING_MS } from './lib/words';
 import { searcherBrief } from './lib/briefLines';
-import { wordsForCard, wordsForOwner } from './lib/team';
+import { wordsForCard, wordsForOwner, dealtLine } from './lib/team';
 
 /** The space between the sheet and the map's key above it, and between the sheet and the map's credit when there is no key. */
 const KEY_GAP = 8;
@@ -316,15 +316,22 @@ function Screen({ mission }) {
   // The street the person running the search asked this person to walk, until they start it.
   const askedRaw = useMemo(() => (unit === 'street' ? items.find((i) => i.askedOfMe && !i.mine) || null : null), [items, unit]);
   const asked = useMemo(() => (askedRaw ? orientWalk(askedRaw, position) : null), [askedRaw, position]);
+  // What this person has put away on this phone or computer: a helper's word on the owner's card, the owner's on a helper's.
+  const [put, putAway] = usePutAway(caseId || 'none');
   // What was said to this person: the newest word written to them, and what the owner last told everyone, while each is fresh.
   const said = useMemo(
-    () => (isOwner || !picture ? NO_WORDS : wordsForCard({ words: search.words, updates: picture.updates || [], ownerName: owner?.firstName || null, now })),
+    () => (isOwner || !picture ? NO_WORDS : wordsForCard({ words: search.words, updates: picture.updates || [], ownerName: owner?.firstName || null, now, put })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isOwner, picture?.updates, search.words, owner?.firstName, Math.floor(now / 60000)]
+    [isOwner, picture?.updates, search.words, owner?.firstName, put, Math.floor(now / 60000)]
+  );
+  // Once all of it has been dealt with, the one line the card shows in its place.
+  const saidLine = useMemo(
+    () => dealtLine({ said, words: search.words, timeZone: picture?.timeZone, now }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [said, search.words, picture?.timeZone, Math.floor(now / 60000)]
   );
   // On a phone the owner reads what a helper said, and answers it, on their own card. (On a desk it is in "Needs
   // you" and in Messages.) One at a time: answering it brings up the next.
-  const [put, putAway] = usePutAway(caseId || 'none');
   const heard = useMemo(
     () => (isOwner && !desk ? wordsForOwner({ talk: search.talk, put, now }) : NO_WORDS),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -338,6 +345,8 @@ function Screen({ mission }) {
   };
   // "Got it": read, and nothing to write back. The same list the desk's "Needs you" keeps.
   const gotIt = (word) => putAway(`word-${word.id}`);
+  // A helper's "Got it" puts away every word that was waiting on their card.
+  const gotWords = (list) => list.forEach((word) => putAway(`word-${word.id}`));
   // The card says when it has shown a word written to this person, or the street they were asked to walk.
   const sawWord = (id) => search.saw({ words: [id] });
   const sawAsk = () => search.saw({ ask: true });
@@ -679,11 +688,11 @@ function Screen({ mission }) {
   } else if (isOwner) {
     step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (mine) {
-    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (view === 'join' && !desk) {
     step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   }
 
   const overlays = (

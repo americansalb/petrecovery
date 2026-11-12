@@ -42,24 +42,56 @@ const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL || '';
  * everyone. Under them, one line to answer in. It is its own piece, in the same place whatever is above it, so a
  * new word arriving does not throw away an answer that is being typed. Each word written to this person says so
  * when it has been shown (`onShown`), which is what the desk reads as "seen".
+ *
+ * Words stay for twelve hours, and on a small phone a card that tall leaves a strip of map. So once every word
+ * has been dealt with (answered, or put away with "Got it") they fold into one line that says what happened
+ * last (`line`), and that line opens them again. A new word opens them by itself.
  */
-function Said({ said = [], picture, now, onSay, onShown, also = null }) {
+function Said({ said = [], picture, now, onSay, onShown, onPutAway = null, line = '', also = null }) {
   const end = useRef(null);
+  const [opened, setOpened] = useState(false);
+  const waiting = said.filter((word) => word.waiting);
+  const open = waiting.length > 0 || opened || !line;
   // A new word is read where it lands: a phone's sheet moves so the word, and the line to answer in, are above
   // the buttons kept at its bottom. Only when what was said changes, so reading further up is left alone.
   // `also` is anything else that arrives above the words and pushes them down (the street someone was asked to walk).
-  const which = said.map((word) => word.id).join(' ');
+  const which = open ? said.map((word) => word.id).join(' ') : '';
   useEffect(() => {
     if (which) keepInView(end.current);
   }, [which, also]);
   if (!said.length) return null;
   const who = said[0].from || picture.owner?.firstName || 'the people running the search';
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpened(true)}
+        aria-expanded="false"
+        className="mt-3 flex min-h-[44px] w-full items-center justify-between gap-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400"
+      >
+        <span className="min-w-0 text-[15px] font-semibold leading-5 text-[var(--mc-ink)]">{line}</span>
+        <span className="shrink-0 text-[15px] font-semibold leading-5 text-[var(--mc-ink)] underline underline-offset-4">Read</span>
+      </button>
+    );
+  }
   return (
     <>
       {said.map((word) => (
         <Word key={word.id} word={word} timeZone={picture.timeZone} now={now} onShown={onShown} />
       ))}
       {onSay && <Answer key="answer" who={who} onSay={onSay} />}
+      {waiting.length > 0 && onPutAway ? (
+        // Read, and nothing to write back.
+        <QuietLink key="got" onClick={() => onPutAway(waiting)} className="!min-h-[36px]">
+          Got it
+        </QuietLink>
+      ) : (
+        opened && line && (
+          <QuietLink key="close" onClick={() => setOpened(false)} className="!min-h-[36px]">
+            Close
+          </QuietLink>
+        )
+      )}
       <span ref={end} key="end" className="block h-0" aria-hidden="true" />
     </>
   );
@@ -83,7 +115,7 @@ function ShareLink({ onShare }) {
  * (`asked`), the same card says which street and whose ask it is, and its
  * one button starts it.
  */
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], onSay = null, onShown = null, now }) {
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
   const thing = unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
   const desk = instrument === 'command';
@@ -124,7 +156,7 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
         <Lead className="mt-1.5">If you see {name}, send where. It reaches {owner?.firstName || 'the owner'} at once.</Lead>
       )}
       {/* With an ask on the card too: a word written to this person is always where they can read it. */}
-      <Said said={said} picture={picture} now={now} onSay={onSay} onShown={onShown} also={ask?.id || null} />
+      <Said said={said} line={saidLine} picture={picture} now={now} onSay={onSay} onShown={onShown} onPutAway={onPutAway} also={ask?.id || null} />
       {/* On a phone the buttons stay on the screen, whatever was said above them. */}
       <Pinned on={!desk}>
         <Problem className={desk ? 'mt-2' : 'pb-2'}>{problem}</Problem>
@@ -270,7 +302,7 @@ function spanWords(street) {
 }
 
 /** The street that is theirs: where, how long, and the one button that ends it. */
-export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther, asked = null, onAskShown = null, said = [], onSay = null, onShown = null, now }) {
+export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther, asked = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
   const brief = searcherBrief(picture);
   // This card shows the ask too, so it says so: the desk is not left reading "asked" until this street is done.
   // Only once the ask is where it can be read, and not while it is scrolled out of the card.
@@ -295,7 +327,7 @@ export function Street({ picture, name, unit, mine, instrument, gps, onWalked, o
           </p>
         </div>
       )}
-      <Said said={said} picture={picture} now={now} onSay={onSay} onShown={onShown} also={asked?.id || null} />
+      <Said said={said} line={saidLine} picture={picture} now={now} onSay={onSay} onShown={onShown} onPutAway={onPutAway} also={asked?.id || null} />
       <AdviceBlock source="The searcher's brief" lines={[brief.look]} className="mt-3" />
       {/* On a phone the buttons stay on the screen, whatever was said above them. */}
       <Pinned on={!desk}>

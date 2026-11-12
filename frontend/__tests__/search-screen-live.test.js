@@ -87,6 +87,8 @@ beforeAll(() => {
 beforeEach(() => {
   made.groups.length = 0;
   place.word = { top: 400, bottom: 440 };
+  // What a phone has put away ("Got it") is kept in the browser: each test starts with nothing put away.
+  window.localStorage.clear();
 });
 
 const NOW = new Date('2026-11-12T04:00:05Z').getTime();
@@ -314,6 +316,53 @@ describe('a word written to someone is on their card, and the card says when it 
     expect(view.container.querySelector('[data-pinned]')).toBeNull();
     useInstrument.mockReturnValue({ instrument: 'bridge', resolving: false });
     window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  });
+
+  test('"Got it" folds what was said into one line, and the line opens it again', async () => {
+    const state = hook({ items: [street('a', { status: 'IN_PROGRESS', mine: true })], words: [{ ...words[0], seen: true }] });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const card = () => view.container.querySelector('[aria-label="Your step"]').textContent;
+    expect(card()).toMatch(/Do not go into the yard on the corner\./);
+    expect(view.queryByPlaceholderText('Answer Avery')).not.toBeNull();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'Got it' })));
+    // One line in its place: whose it was and when. The words and the answer line are gone, and the buttons are not.
+    expect(card()).toMatch(/Avery wrote to you at 9:59 pm/);
+    expect(card()).not.toMatch(/Do not go into the yard/);
+    expect(view.queryByPlaceholderText('Answer Avery')).toBeNull();
+    expect(card()).toMatch(/I walked it/);
+    // The line opens it again, to read or to answer after all.
+    await act(async () => fireEvent.click(view.getByRole('button', { name: /Avery wrote to you at 9:59 pm/ })));
+    expect(card()).toMatch(/Do not go into the yard on the corner\./);
+    expect(view.queryByPlaceholderText('Answer Avery')).not.toBeNull();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'Close' })));
+    expect(card()).not.toMatch(/Do not go into the yard/);
+  });
+
+  test('an answer folds it too, and the line says the answer went', async () => {
+    const answered = [{ ...words[0], seen: true }, { id: 'm2', at: new Date(NOW - 20000).toISOString(), text: 'Understood.', mine: true, from: null }];
+    useSearch.mockReturnValue(hook({ items: [street('a', { status: 'IN_PROGRESS', mine: true })], words: answered }));
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const card = view.container.querySelector('[aria-label="Your step"]').textContent;
+    expect(card).toMatch(/You answered Avery at 9:59 pm/);
+    expect(card).not.toMatch(/Do not go into the yard/);
+  });
+
+  test('a new word opens a folded card by itself', async () => {
+    const answered = [{ ...words[0], seen: true }, { id: 'm2', at: new Date(NOW - 20000).toISOString(), text: 'Understood.', mine: true, from: null }];
+    const state = hook({ items: [street('a', { status: 'IN_PROGRESS', mine: true })], words: answered });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(view.container.textContent).toMatch(/You answered Avery/);
+    useSearch.mockReturnValue({ ...state, words: [...answered, { id: 'm3', at: new Date(NOW - 2000).toISOString(), text: 'Come to the corner when you are done.', mine: false, from: 'Avery', seen: false }] });
+    await act(async () => view.rerender(<SearchScreen mission="AUS-1" />));
+    const card = view.container.querySelector('[aria-label="Your step"]').textContent;
+    expect(card).toMatch(/Come to the corner when you are done\./);
+    expect(view.queryByPlaceholderText('Answer Avery')).not.toBeNull();
+    expect(state.saw).toHaveBeenCalledWith({ words: ['m3'] });
   });
 
   test('asked for another street while walking one: the street card shows the ask, and says it did', async () => {
