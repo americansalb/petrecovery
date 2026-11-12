@@ -178,7 +178,7 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
  * whoever searches it, and what the person running the search can do
  * about it.
  */
-export function AreaCard({ area, picture, circle, now, leads, busy, problem, free = [], next = false, onSteer, onGive, onUnask, onClose }) {
+export function AreaCard({ area, picture, circle, now, leads, busy, problem, free = [], next = false, onSteer, onAsk, onUnask, onClose }) {
   const zone = picture.timeZone;
   const facts = areaFacts(area, { picture, circle, now });
   const brief = searcherBrief(picture);
@@ -230,13 +230,14 @@ export function AreaCard({ area, picture, circle, now, leads, busy, problem, fre
         </p>
       )}
       {leads && !taken && (
-        // From an area to a person: the same ask as from the People list, started the other way round.
+        // From an area to a person. The button asks them at once, as the same button under "Needs you" does, and
+        // then opens them, where the ask shows as asked, seen, started. An ask with a note is made from People.
         <div className="mt-3 border-t border-[var(--mc-line)] pt-3">
           <p className="text-[13px] font-bold leading-5 text-[var(--mc-muted)]">Who searches it</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {free.slice(0, 4).map((p) => (
-              <button key={p.handle} type="button" onClick={() => onGive(p.handle)} className={CONTROL}>
-                Ask {p.name}
+              <button key={p.handle} type="button" onClick={() => onAsk(p.handle)} disabled={Boolean(busy)} className={`${CONTROL} disabled:opacity-60`}>
+                {busy === `ask:${p.handle}` && <Loader2 size={15} className="animate-spin" aria-hidden="true" />} Ask {p.name}
               </button>
             ))}
             {free.length === 0 && <span className="text-[14px] font-medium leading-5 text-[var(--mc-soft)]">Nobody is free right now.</span>}

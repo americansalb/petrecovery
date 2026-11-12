@@ -450,6 +450,9 @@ describe('a desk steers the search, and only for the owner', () => {
   test('steering goes through the screen\'s one sender, and no button is left spinning', () => {
     expect(code(desk)).toMatch(/async function steer\(target, action\) \{[\s\S]*?const result = await search\.act\(unit, target\.id, action\);[\s\S]*?finally \{\s*setBusy\(null\);\s*\}/);
     for (const file of DESK_FILES) expect(code(read(file))).not.toMatch(/\bfetch\(/);
+    // "Ask Jo" on an area's card asks at once, through the same sender, and clears its spinner whatever happens.
+    expect(code(desk)).toMatch(/async function askFromCard\(handle, areaId\) \{[\s\S]*?const result = await search\.ask\(handle, areaId, ''\);[\s\S]*?finally \{\s*setBusy\(null\);\s*\}/);
+    expect(read('app/mission-control/desktop/Ground.js')).toMatch(/<button key=\{p\.handle\} type="button" onClick=\{\(\) => onAsk\(p\.handle\)\} disabled=\{Boolean\(busy\)\}/);
   });
 
   test('a street put down from the desk is said as that, never as someone having walked it', () => {

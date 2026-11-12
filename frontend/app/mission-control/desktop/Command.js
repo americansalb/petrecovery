@@ -328,6 +328,20 @@ export default function Command({ picture, items, unit, circle = null, now, line
   // Words from helpers still to answer, less the ones this person has put away: the count on the Messages tab.
   const waiting = useMemo(() => unanswered(talk).filter((w) => !put.has(`word-${w.id}`)).length, [talk, put]);
 
+  // "Ask Jo" on an area's card: asked at once, and then Jo is opened, where the ask reads asked, seen, started.
+  async function askFromCard(handle, areaId) {
+    if (busy) return;
+    setBusy(`ask:${handle}`);
+    setProblem('');
+    try {
+      const result = await search.ask(handle, areaId, '');
+      if (result.error) setProblem(result.error);
+      else give(handle);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function takeBack(target) {
     // A street carries who it is kept for; an area's card passes the handle of the person asked.
     const handle = typeof target === 'string' ? target : target?.askedOfHandle;
@@ -586,7 +600,7 @@ export default function Command({ picture, items, unit, circle = null, now, line
             widening={widening}
             areaCard={
               ground && street ? (
-                <AreaCard area={street} picture={picture} circle={circle} now={now} leads={leads} busy={busy} problem={problem} free={free} next={next.has(street.id)} onSteer={steer} onGive={(handle) => give(handle, street.id)} onUnask={takeBack} onClose={() => pick(null)} />
+                <AreaCard area={street} picture={picture} circle={circle} now={now} leads={leads} busy={busy} problem={problem} free={free} next={next.has(street.id)} onSteer={steer} onAsk={(handle) => askFromCard(handle, street.id)} onUnask={takeBack} onClose={() => pick(null)} />
               ) : null
             }
             now={now}
