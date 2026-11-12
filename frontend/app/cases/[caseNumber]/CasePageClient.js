@@ -377,11 +377,12 @@ export default function CasePageClient() {
 
   /* ------------------------------ What anyone can do ------------------------------ */
 
+  // The flyers are the share kit's, further down this page. Where a pet has none (an older report, or one
+  // still being made) there is nothing to print, so no row offers it. It used to send a signed-in visitor
+  // to a flyer tab on the search screen, which that screen no longer has.
   const flyerItem = kitReady
     ? { key: 'flyer', icon: Printer, label: 'Print a flyer', sub: `Put it up near where ${name} was last seen.`, href: '#share-kit' }
-    : signedIn
-      ? { key: 'flyer', icon: Printer, label: 'Print a flyer', sub: `Put it up near where ${name} was last seen.`, href: `${missionHref}&tab=flyer` }
-      : null;
+    : null;
   const ways =
     status.key === 'lost'
       ? [
