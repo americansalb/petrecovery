@@ -120,7 +120,7 @@ describe('recordWitnessSighting', () => {
     expect(out.error).toBeUndefined();
     expect(prisma.caseSighting.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ missionId: 'case-max', reportedById: null, reporterName: 'Jo', certaintyLevel: 5, description: 'Blue collar Heading west.', address: 'Zilker Park, Austin', sightedAt: NOW }),
+        data: expect.objectContaining({ missionId: 'case-max', reportedById: null, reporterName: 'Jo', certaintyLevel: 5, description: 'Blue collar Heading west.', address: 'Zilker Park', sightedAt: NOW }),
       })
     );
     expect(prisma.case.update).toHaveBeenCalledWith({ where: { id: 'case-max' }, data: { status: 'SIGHTING_REPORTED' } });
@@ -185,17 +185,44 @@ describe('the place is a street or a corner, never a house', () => {
     expect(JSON.stringify([wakeForces.mock.calls, sendEmail.mock.calls, broadcast.mock.calls, prisma.notification.create.mock.calls])).not.toContain('4001');
   });
 
-  test('off the board, the place is what was typed, told to people without its number', async () => {
+  test('off the board, the place is what was typed without its number, and the number is not kept either', async () => {
     const out = await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.77, address: '2100 Barton Springs Rd, Austin' }).value, { now: NOW });
     expect(out.place).toBe('Barton Springs Rd');
     expect(wakeForces.mock.calls[0][0].body).toMatch(/^Near Barton Springs Rd\./);
+    // Older routes hand whole sighting rows to anyone, so the row holds the street and the pin, never the number.
+    const stored = prisma.caseSighting.create.mock.calls[0][0].data;
+    expect(stored.address).toBe('Barton Springs Rd');
+    expect(JSON.stringify(stored)).not.toContain('2100');
+    expect(stored).toMatchObject({ latitude: 30.26, longitude: -97.77 });
   });
 
-  test('an address that will not give up its house number is not passed on at all', async () => {
+  test('a corner on numbered streets is a place like any other', async () => {
+    prisma.searchStreet.findMany.mockResolvedValueOnce([
+      { name: '5th St', path: '[[30.3105,-97.7470],[30.3148,-97.7442]]' },
+      { name: 'Main St', path: '[[30.3112,-97.7483],[30.3098,-97.7457]]' },
+    ]);
+    const out = await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.3105, lng: -97.747 }).value, { now: NOW });
+    expect(out.place).toBe('5th St and Main St');
+    expect(prisma.caseSighting.create.mock.calls[0][0].data.address).toBe('5th St and Main St');
+    expect(wakeForces.mock.calls[0][0].body).toMatch(/^Near 5th St and Main St\./);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: 'Max was just seen near 5th St and Main St' }));
+  });
+
+  test('a house number never goes out, however it is written, and an address that is only a number is no place', async () => {
     const out = await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.77, address: '4001 1/2 Ramsey Ave, Austin' }).value, { now: NOW });
-    expect(out.place).toBeNull();
+    expect(out.place).toBe('Ramsey Ave');
+    expect(JSON.stringify([wakeForces.mock.calls, broadcast.mock.calls, prisma.notification.create.mock.calls, sendEmail.mock.calls, prisma.caseSighting.create.mock.calls])).not.toMatch(/4001|1\/2/);
+    // The number behind the street, as most of the world writes it.
+    prisma.caseSighting.create.mockClear();
+    wakeForces.mockClear();
+    expect((await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 52.5, lng: 13.4, address: 'Hauptstrasse 12, Berlin' }).value, { now: NOW })).place).toBe('Hauptstrasse');
+    expect(JSON.stringify([wakeForces.mock.calls, prisma.caseSighting.create.mock.calls])).not.toContain('12');
+    // Nothing but a number: recorded by its pin, with no place.
+    prisma.caseSighting.create.mockClear();
+    wakeForces.mockClear();
+    expect((await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.77, address: '4001' }).value, { now: NOW })).place).toBeNull();
     expect(wakeForces.mock.calls[0][0].body).toMatch(/^Marked on the map\./);
-    expect(JSON.stringify([wakeForces.mock.calls, broadcast.mock.calls, prisma.notification.create.mock.calls, sendEmail.mock.calls])).not.toContain('4001');
+    expect(prisma.caseSighting.create.mock.calls[0][0].data.address).toBe('Marked on the map');
     // A landmark with no number in it is a place.
     prisma.caseSighting.create.mockClear();
     expect((await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.77, address: 'Zilker Park' }).value, { now: NOW })).place).toBe('Zilker Park');

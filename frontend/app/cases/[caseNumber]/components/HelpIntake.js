@@ -244,7 +244,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
           <p className="mt-1">
             {picked?.force && !picked.member
               ? `Join ${picked.force.name} to take its needs, or pick "On foot" for a street to walk.`
-              : 'Try another way or time, or open the map and pick a street yourself.'}
+              : 'Try another way or time.'}
           </p>
           {picked?.force && !picked.member && (
             <button type="button" onClick={() => onJoin(ask)} className={`${QUIET} mt-3`}>

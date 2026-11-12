@@ -20,7 +20,7 @@ import { isCaseOpen } from '@/app/lib/caseStatus';
 import { casePhone } from '@/app/lib/caseLabels';
 import { finderGuide } from '@/app/lib/caseDetails';
 import { zoneFor } from '@/app/lib/caseZone';
-import { placeName, placeOnly } from '@/app/lib/needOptions';
+import { placeOnly } from '@/app/lib/needOptions';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import { forcesOf } from '@/app/lib/forceFeed';
 
@@ -193,7 +193,7 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
       lng: pet.lastSeenLongitude,
       at: pet.lastSeenAt,
       // The street, never the house number.
-      place: placeName(pet.lastSeenAddress) || null,
+      place: placeOnly(pet.lastSeenAddress) || null,
     },
     owner: { firstName: ownerFirst, phone },
     sightings,

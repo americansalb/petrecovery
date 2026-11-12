@@ -183,16 +183,28 @@ describe('searchPicture: what anyone with the link sees', () => {
     expect(prisma.alert.count).not.toHaveBeenCalled();
   });
 
-  test('a sighting whose address will not give up its house number is shown without a place', async () => {
-    prisma.case.findFirst.mockResolvedValue(pet({ sightings: [sighting({ address: '4001 1/2 Ramsey Ave, Austin, TX' })] }));
-    const out = await searchPicture('case-max', { now: NOW });
-    // The town, where the address names one, and never the number.
-    expect(out.sightings[0].place).toBe('Austin, TX');
-    expect(JSON.stringify(out.sightings)).not.toMatch(/4001|1\/2/);
-    prisma.case.findFirst.mockResolvedValue(pet({ sightings: [sighting({ address: '4001 1/2 Ramsey Ave' })] }));
-    expect((await searchPicture('case-max', { now: NOW })).sightings[0].place).toBeNull();
-    prisma.case.findFirst.mockResolvedValue(pet({ sightings: [sighting({ address: '4001 Ramsey Ave, Austin, TX' })] }));
-    expect((await searchPicture('case-max', { now: NOW })).sightings[0].place).toBe('Ramsey Ave');
+  test('a sighting is shown by its street, whatever the stored address holds', async () => {
+    const placeOf = async (address) => {
+      prisma.case.findFirst.mockResolvedValue(pet({ sightings: [sighting({ address })] }));
+      const out = await searchPicture('case-max', { now: NOW });
+      expect(JSON.stringify(out.sightings)).not.toMatch(/4001|1\/2/);
+      return out.sightings[0].place;
+    };
+    expect(await placeOf('4001 Ramsey Ave, Austin, TX')).toBe('Ramsey Ave');
+    expect(await placeOf('4001 1/2 Ramsey Ave, Austin, TX')).toBe('Ramsey Ave');
+    // A numbered street is a street: it used to be dropped as if it were a house.
+    expect(await placeOf('5th St and Main St')).toBe('5th St and Main St');
+    expect(await placeOf('42nd St')).toBe('42nd St');
+    // Only a number: the town where the address names one, and otherwise no place.
+    expect(await placeOf('4001, Austin, TX')).toBe('Austin, TX');
+    expect(await placeOf('4001')).toBeNull();
+  });
+
+  test('where the pet was lost reads the same way: a numbered street is kept, a house number is not', async () => {
+    prisma.case.findFirst.mockResolvedValue(pet({ lastSeenAddress: '120 5th St, Austin, TX 78701' }));
+    expect((await searchPicture('case-max', { now: NOW })).lastSeen.place).toBe('5th St');
+    prisma.case.findFirst.mockResolvedValue(pet({ lastSeenAddress: 'Hauptstrasse 12, Berlin' }));
+    expect((await searchPicture('case-max', { now: NOW })).lastSeen.place).toBe('Hauptstrasse');
   });
 
   test('a sighting marked on the map with no street has no place, and a deleted account is not named', async () => {

@@ -125,11 +125,11 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   const name = pet.petName || 'The pet';
   const point = { lat: value.lat, lng: value.lng };
   // The board knows the streets, so its corner ("Ramsey Ave and W 40th St") names the place where the
-  // point is on it. Off the board, the place is whatever the witness typed or the map lookup gave.
+  // point is on it, and is used as it stands. Off the board, the place is what the witness typed or the
+  // map lookup gave, kept as the street or the landmark: a house number is neither stored nor passed on,
+  // because older routes hand whole sighting rows to anyone. The pin keeps the exact spot.
   const corner = placeFromStreets(await boardStreets(pet.id), point) || '';
-  const address = corner || value.address || '';
-  // What people are told is the street or the landmark. An address that will not give up its number is not passed on.
-  const place = placeOnly(address) || null;
+  const place = corner || placeOnly(value.address) || null;
   const who = value.name || null;
   const heading = value.direction ? `Heading ${value.direction.toLowerCase()}.` : '';
   // A sighting can be sent for earlier. Only one sent as it happens is "just seen".
@@ -169,7 +169,7 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
       sightedAt: new Date(now.getTime() - minutes * 60000),
       latitude: value.lat,
       longitude: value.lng,
-      address: address || 'Marked on the map',
+      address: place || 'Marked on the map',
       description,
       certaintyLevel: SURE[value.sure],
       photoUrls: '[]',

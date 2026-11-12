@@ -41,8 +41,14 @@ async function readJson(res) {
  * that into words on the card, and nothing is left spinning.
  */
 function send(url, init) {
-  return fetch(url, init).catch(() => null);
+  // A request that stalls on a weak signal never fails by itself: it is given up on, so the card can say so.
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), SEND_TIMEOUT_MS);
+  return fetch(url, { ...init, signal: stop.signal })
+    .catch(() => null)
+    .finally(() => clearTimeout(timer));
 }
+const SEND_TIMEOUT_MS = 20000;
 const NO_SIGNAL = 'No connection just now. Check your signal and try again.';
 
 export default function useSearch(missionParam) {

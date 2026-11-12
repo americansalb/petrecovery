@@ -257,7 +257,8 @@ function Screen({ mission }) {
     if (!action) return;
     const rest = new URLSearchParams(window.location.search);
     rest.delete('action');
-    window.history.replaceState(window.history.state, '', `${window.location.pathname}?${rest}`);
+    // With no state of its own, so that the router takes the new address in too (it skips entries that carry its own mark).
+    window.history.replaceState(null, '', `${window.location.pathname}?${rest}`);
     if (!picture.open) return;
     if (action === 'sighting') openSeen();
     else if (action === 'walk' && !desk && !viewer?.isOwner && !viewer?.waiver) go('join');
@@ -300,7 +301,7 @@ function Screen({ mission }) {
   );
 
   // ----- A helper's actions -----
-  // The streets this person passed on, so "Different street" moves down the list and never hands one back.
+  // The streets this person passed on in this round of "Different street", so it moves down the list and does not hand one straight back.
   const passed = useRef(new Set());
   // A street is theirs as soon as they are given it. Taking a new one hands back the old (the server does both).
   // Answers { ok } or { error }, and never leaves the button spinning: a dropped signal is words on the card.
@@ -311,12 +312,17 @@ function Screen({ mission }) {
     setDone(null);
     try {
       const here = await locate();
+      // Passing on a street lasts for one round of "Different street". A fresh ask starts clean, so the
+      // street someone passed on an hour ago is offered again before any street is walked twice.
       if (exceptId) passed.current.add(exceptId);
-      let list = rank(items, here || position).filter((i) => i.id !== exceptId && !passed.current.has(i.id));
-      if (!list.length && passed.current.size) {
-        // Every other one has been passed on: the round starts again.
-        passed.current = new Set();
-        list = rank(items, here || position).filter((i) => i.id !== exceptId);
+      else passed.current = new Set();
+      const ranked = rank(items, here || position).filter((i) => i.id !== exceptId);
+      const unwalked = (i) => i.status !== 'SEARCHED';
+      let list = ranked.filter((i) => !passed.current.has(i.id));
+      if (!list.some(unwalked) && ranked.some(unwalked)) {
+        // Every unwalked street has been passed on: the round starts again, rather than a second pass of a walked one.
+        passed.current = new Set(exceptId ? [exceptId] : []);
+        list = ranked;
       }
       let taken = null;
       let last = null;

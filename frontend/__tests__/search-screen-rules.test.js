@@ -196,7 +196,9 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
   });
 
   test('a link that opens a card is used once: a reload or a restored tab asks the phone nothing', () => {
-    expect(code(shell)).toMatch(/rest\.delete\('action'\);\s*window\.history\.replaceState\(window\.history\.state, '', `\$\{window\.location\.pathname\}\?\$\{rest\}`\);/);
+    // With no state of its own: Next's router skips an entry that carries its mark, and would go on holding the action.
+    expect(code(shell)).toMatch(/rest\.delete\('action'\);\s*window\.history\.replaceState\(null, '', `\$\{window\.location\.pathname\}\?\$\{rest\}`\);/);
+    expect(code(shell)).not.toMatch(/replaceState\(window\.history\.state/);
     // The action is taken off the address before anything is opened.
     const effect = code(shell).slice(code(shell).indexOf("const action = params.get('action');"));
     expect(effect.indexOf('window.history.replaceState')).toBeLessThan(effect.indexOf('openSeen()'));
@@ -207,7 +209,11 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
   test('a dropped signal is words on the card, and no button is left spinning', () => {
     const hook = read('app/mission-control/hooks/useSearch.js');
     // Every write goes through the one request that answers null instead of throwing.
-    expect(code(hook)).toMatch(/function send\(url, init\) \{\s*return fetch\(url, init\)\.catch\(\(\) => null\);/);
+    expect(code(hook)).toMatch(/function send\(url, init\) \{[\s\S]*?return fetch\(url, \{ \.\.\.init, signal: stop\.signal \}\)\s*\.catch\(\(\) => null\)/);
+    // A request that stalls is given up on, so it too becomes words on the card.
+    expect(code(hook)).toMatch(/const timer = setTimeout\(\(\) => stop\.abort\(\), SEND_TIMEOUT_MS\);/);
+    expect(Number(code(hook).match(/const SEND_TIMEOUT_MS = (\d+);/)[1])).toBeLessThanOrEqual(30000);
+    expect(code(hook).match(/\bfetch\(/g)).toHaveLength(3); // the one sender, and the two readers
     expect(code(hook).match(/await send\(/g)).toHaveLength(5);
     expect(code(hook).match(/if \(!res\) return \{ error: NO_SIGNAL/g)).toHaveLength(5);
     // And each thing a person presses clears its own spinner whatever happens.
@@ -219,8 +225,10 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
   });
 
   test('"Different street" moves down the list and never hands one back', () => {
-    expect(code(shell)).toMatch(/if \(exceptId\) passed\.current\.add\(exceptId\);/);
-    expect(code(shell)).toMatch(/\.filter\(\(i\) => i\.id !== exceptId && !passed\.current\.has\(i\.id\)\)/);
+    expect(code(shell)).toMatch(/if \(exceptId\) passed\.current\.add\(exceptId\);\s*else passed\.current = new Set\(\);/);
+    expect(code(shell)).toMatch(/let list = ranked\.filter\(\(i\) => !passed\.current\.has\(i\.id\)\);/);
+    // A street nobody has walked comes before a second pass of one that has been: the round restarts rather than skip it.
+    expect(code(shell)).toMatch(/if \(!list\.some\(unwalked\) && ranked\.some\(unwalked\)\) \{\s*passed\.current = new Set\(exceptId \? \[exceptId\] : \[\]\);\s*list = ranked;/);
     // A desk holds a street only if a phone took it: it cannot be handed another.
     expect(shell).toMatch(/<Street\b.*canOther=\{!desk && candidates\.length > 0\}/);
   });
