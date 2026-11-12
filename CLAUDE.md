@@ -78,6 +78,21 @@ few words per line), and spend full sentences only where trust demands
 them. Grids of interchangeable icon-badge cards are slop furniture; do
 not build them.
 
+### A search is ground in areas, never a list of streets
+
+Founder rule, 2026-11-12, on the street board: "Shouldn't it be a RADIUS
+not streets? pets don't tend to follow infrastructure seems like a
+fundemental misunderstanding". A lost pet can be in a yard, under a deck,
+in a shed or on a creek bank, so the search is a circle of ground around
+where the pet was lost, cut into areas (`frontend/app/lib/searchCircle.js`,
+`frontend/app/lib/searchZones.js`). Streets are landmarks for finding an
+area and for naming a sighting's corner. Do not hand out streets to walk,
+count streets walked as progress, or call ground "done": an area is
+searched once, twice, and so on, by whoever was on it. Several people can
+search one area; the one exception is the circle round a sighting, which
+one person goes to. Full description: `docs/APP_MAP.md`, the
+`/mission-control` row and the board route.
+
 ### The site's address is built in, never configured
 
 Every absolute URL the pet site produces (email and SMS links, flyer QR
