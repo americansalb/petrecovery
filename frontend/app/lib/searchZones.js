@@ -273,10 +273,15 @@ function seenCircleFull(row, { except = null, sighting = null, ownerId = null, n
  * crash). `work` is given the transaction to read and write through.
  */
 function oneAtATime(zoneId, work) {
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(7304, hashtext(${String(zoneId)}))`;
-    return work(tx);
-  });
+  return prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(7304, hashtext(${String(zoneId)}))`;
+      return work(tx);
+    },
+    // Each read inside sees what was written before it, which is what makes the read after the lock true. It is
+    // the database's default, and is said here so a change of default cannot quietly undo the lock.
+    { isolationLevel: 'ReadCommitted' }
+  );
 }
 
 /**
@@ -369,10 +374,12 @@ const byUrgency = (a, b) => b.priority - a.priority || Number(b.ring === RING.SE
 /**
  * The last area this person started, where the site stopped counting them
  * as there before they said what happened (sweepStaleVisits): { id,
- * zoneId }, or null. An hour-long search can take three; the clock is a
- * guess, and the person who went over the ground is the one who knows. So
- * for half a day they can still say it is searched, or that they stopped.
- * Starting anything since makes that the last thing they started.
+ * zoneId, endedAt } (`endedAt` is when the site stopped counting), or null.
+ * An hour-long search can take three; the clock is a guess, and the person
+ * who went over the ground is the one who knows. So for half a day they
+ * can still say it is searched, or that they stopped. Starting anything
+ * since makes that the last thing they started, and the owner putting the
+ * area down as searched settles it.
  */
 async function lapsedVisitOf(caseId, searcherId, now = Date.now()) {
   if (!searcherId) return null;
@@ -380,7 +387,7 @@ async function lapsedVisitOf(caseId, searcherId, now = Date.now()) {
     .findFirst({ where: { caseId, searcherId, startedAt: { not: null } }, orderBy: [{ startedAt: 'desc' }, { id: 'desc' }], select: { id: true, zoneId: true, outcome: true, endedAt: true } })
     .catch(() => null);
   if (!last || last.outcome !== 'LAPSED' || !last.endedAt) return null;
-  return now - new Date(last.endedAt).getTime() < LATE_MS ? { id: last.id, zoneId: last.zoneId } : null;
+  return now - new Date(last.endedAt).getTime() < LATE_MS ? { id: last.id, zoneId: last.zoneId, endedAt: last.endedAt } : null;
 }
 
 /**
@@ -415,9 +422,10 @@ export async function readZones(caseId, { viewer = null, withNames = false, owne
   if (viewer && !areas.some((a) => a.mine)) {
     // The site stopped counting this person as on an area, and they have not said what happened there. To
     // everyone else they are no longer on it. Their own card stays, so they can still say it is searched. A
-    // sighting's circle that someone else has since gone to is that person's.
+    // sighting's circle that someone else has since gone to is that person's. And asked since to search the same
+    // area, they see the ask: it is the newer word, and its card is how the desk hears it was seen.
     const late = await lapsedVisitOf(caseId, viewer, now);
-    const theirs = late ? areas.find((a) => a.id === late.zoneId && !a.full) : null;
+    const theirs = late ? areas.find((a) => a.id === late.zoneId && !a.full && !a.askedOfMe) : null;
     if (theirs) theirs.mine = true;
   }
   const { circle, center, widened } = made;
@@ -518,6 +526,9 @@ export async function actOnZone({ caseId, id, action, searcher, ownerId = null, 
       data: { searchCount: { increment: 1 }, searchedAt: when, searchedById: `${MARK}${searcher.userId}`, searchedByName: searcher.firstName, againAt: null },
     });
     if (marked.count === 0) return { error: 'ALREADY_WALKED', title };
+    // Someone the site had stopped counting as there, who had not yet said what happened: the area is down as
+    // searched now, so the card comes off their screen and their search is not counted a second time from it.
+    await prisma.searchZoneVisit.updateMany({ where: { zoneId: before.id, outcome: 'LAPSED', startedAt: { not: null } }, data: { outcome: 'PUT_DOWN' } }).catch(() => {});
     await askMet();
   } else if (action === 'again') {
     if (busy) return { error: 'SOMEONE_ON_IT', title };
@@ -566,16 +577,29 @@ export async function actOnZone({ caseId, id, action, searcher, ownerId = null, 
   } else if (action === 'searched') {
     // Only someone on it can say so: "searched" means a person went over the ground.
     const done = await prisma.searchZoneVisit.updateMany({ where: { zoneId: before.id, searcherId: me, endedAt: null, startedAt: { not: null } }, data: { endedAt: when, outcome: 'SEARCHED' } });
-    if (done.count === 0) {
+    if (done.count > 0) {
+      await prisma.searchZone.update({ where: { id: before.id }, data: { searchCount: { increment: 1 }, searchedAt: when, searchedById: me, searchedByName: searcher.firstName, againAt: null } });
+      await askMet();
+    } else {
       // Out longer than the site allowed for, so it had stopped counting them as there. They went over the
       // ground all the same, and saying so counts. Once: only the request that changes the visit counts it.
       const late = await lapsedVisitOf(caseId, me, now);
       if (!late || late.zoneId !== before.id) return { error: 'NOT_CLAIMED', title };
-      const counted = await prisma.searchZoneVisit.updateMany({ where: { id: late.id, outcome: 'LAPSED' }, data: { endedAt: when, outcome: 'SEARCHED' } });
+      const counted = await prisma.searchZoneVisit.updateMany({ where: { id: late.id, outcome: 'LAPSED' }, data: { outcome: 'SEARCHED' } });
       if (counted.count === 0) return { error: 'NOT_CLAIMED', title };
+      // That search was made before the site stopped counting them, not now. So it is dated then, and it undoes
+      // nothing done on the area since: a later search stays the last one, and another look the owner has asked
+      // for since still stands. "Send people here first" is met only if nothing at all was written on the area
+      // after they were last counted there.
+      const then = new Date(late.endedAt);
+      const newest = !before.searchedAt || new Date(before.searchedAt) < then;
+      const lookStands = Boolean(before.againAt) && new Date(before.againAt) > then;
+      await prisma.searchZone.update({
+        where: { id: before.id },
+        data: { searchCount: { increment: 1 }, ...(newest ? { searchedAt: then, searchedById: me, searchedByName: searcher.firstName } : {}), ...(lookStands ? {} : { againAt: null }) },
+      });
+      if (before.updatedAt && new Date(before.updatedAt) <= then) await askMet();
     }
-    await prisma.searchZone.update({ where: { id: before.id }, data: { searchCount: { increment: 1 }, searchedAt: when, searchedById: me, searchedByName: searcher.firstName, againAt: null } });
-    await askMet();
   } else {
     return { error: 'NOT_FOUND', title };
   }

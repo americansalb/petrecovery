@@ -270,7 +270,8 @@ function sightingCard({ picture, areas, people, name, now }) {
     const said = [];
     if (went) said.push(`${picture.viewer?.isOwner ? 'You' : picture.owner?.firstName || 'The owner'} set off for it at ${clockTime(went, zone)}.`);
     if (asked) said.push(`${asked.name} was asked to go at ${clockTime(asked.at, zone)}${asked.seenAt ? ' and has seen that' : ''}.`);
-    facts.push(`${said.join(' ')} ${one}`);
+    // With both, two people are going by the owner's own word, so the card does not say one goes.
+    facts.push(`${said.join(' ')} ${said.length > 1 ? 'Nobody else is given it.' : one}`);
   } else if (ring) {
     // Someone free who joined or finished lately: a person who was here two days ago is not someone to send.
     const lately = (p) => {

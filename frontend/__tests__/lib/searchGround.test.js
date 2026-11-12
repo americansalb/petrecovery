@@ -383,7 +383,9 @@ describe('"Needs you" on ground', () => {
     const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(12), place: 'Ramsey Ave', ownerGoingAt: ago(8) };
     const ring = seenCircle({ going: { at: ago(8) }, asked: [{ name: 'Jo', handle: 'h-Jo', at: ago(3), seenAt: ago(2), holds: true }], coming: 1, full: true });
     const [card] = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [ring, ...five()] }));
-    expect(card.body).toBe('300 m south of where Max was lost. You set off for it at 9:52 pm. Jo was asked to go at 9:57 pm and has seen that. One person goes to a sighting, never a group.');
+    // Two people are going, by the owner's own word: the card does not go on to say that one person goes.
+    expect(card.body).toBe('300 m south of where Max was lost. You set off for it at 9:52 pm. Jo was asked to go at 9:57 pm and has seen that. Nobody else is given it.');
+    expect(card.body).not.toMatch(/One person goes/);
   });
 
   test('when the owner set off, or someone was asked, the card says so and asks nobody else', () => {

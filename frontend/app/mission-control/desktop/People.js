@@ -28,7 +28,7 @@ import { clockTime } from '../lib/words';
 import { rankAreas } from '@/app/lib/searchCircle';
 import { lookFirst } from '../lib/insight';
 import { grouped, outLong, personLine, shortTitle } from '../lib/team';
-import { areaName, areaState } from '../lib/ground';
+import { areaName, areaState, forAnyoneElse } from '../lib/ground';
 
 const NOTE_MAX = 140;
 const BUTTON =
@@ -93,7 +93,7 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
   // What could be given. Ground: every area in the order it is given out, as anyone else would be given it.
   // Streets: still to walk, most urgent first, and not kept for someone else.
   const open = useMemo(
-    () => (ground ? rankAreas(items.map((i) => ({ ...i, mine: false, askedOfMe: false }))) : lookFirst(items).filter((i) => !i.reserved || i.askedOfHandle === person.handle)),
+    () => (ground ? rankAreas(forAnyoneElse(items)) : lookFirst(items).filter((i) => !i.reserved || i.askedOfHandle === person.handle)),
     [items, person.handle, ground]
   );
   const options = useMemo(() => {

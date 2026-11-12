@@ -774,7 +774,8 @@ function Screen({ mission }) {
   const showChip = !isOwner && view === 'main' && !mine;
   const keyBits = [
     counts.searched > 0 ? [ground ? 'fill' : 'bar', 'Already searched'] : null,
-    counts.inProgress > (mine ? 1 : 0) ? ['dots', ground ? 'Someone is searching it now' : 'Someone is on it now'] : null,
+    // Their own area is one of those in progress only while the site counts them as on it.
+    counts.inProgress > (mine?.status === 'IN_PROGRESS' ? 1 : 0) ? ['dots', ground ? 'Someone is searching it now' : 'Someone is on it now'] : null,
     track.length > 1 ? ['path', 'Your path'] : null,
   ].filter(Boolean);
   const map = (

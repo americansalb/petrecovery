@@ -288,6 +288,22 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     expect(`Seen ${whenWords('2026-11-10T21:40:00Z', 'America/Chicago', now)}.`).toBe('Seen on Tue at 3:40 pm.');
   });
 
+  test('every place on the desk that says what is given out next works it out as anyone else would be given it', () => {
+    // The board sends `full` for the person reading it. The owner's own setting off does not keep the owner out, so a
+    // list ranked from the owner's own view named a sighting's circle as next while everyone else was refused it.
+    const people = read('app/mission-control/desktop/People.js');
+    expect(people).toMatch(/ground \? rankAreas\(forAnyoneElse\(items\)\) : /);
+    const ground = read('app/mission-control/lib/ground.js');
+    expect(ground.match(/rankAreas\(forAnyoneElse\(areas\)\)/g)).toHaveLength(2);
+    for (const file of ['desktop/People.js', 'desktop/Command.js', 'desktop/Ground.js', 'lib/ground.js']) {
+      expect(code(read(`app/mission-control/${file}`))).not.toMatch(/mine: false, askedOfMe: false \}\)\)\)/);
+    }
+  });
+
+  test('the phone map\'s key counts this person among those searching only while the site counts them as on it', () => {
+    expect(shell).toMatch(/counts\.inProgress > \(mine\?\.status === 'IN_PROGRESS' \? 1 : 0\) \? \['dots'/);
+  });
+
   test('on the desk a sighting\'s circle can be pointed at: it is drawn after the areas it lies in', () => {
     const map = read('app/mission-control/components/SearchMap.js');
     expect(map).toMatch(/const drawn = \[\.\.\.areas\]\.sort\(\(a, b\) => Number\(a\.ring === 3\) - Number\(b\.ring === 3\)\);\s*for \(const area of drawn\) \{/);
