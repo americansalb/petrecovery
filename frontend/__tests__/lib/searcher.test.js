@@ -53,7 +53,7 @@ test('someone only looking is nobody', async () => {
 test('the owner sees names, leads, and needs no waiver for their own pet', async () => {
   getServerSession.mockResolvedValue({ user: { id: 'user-avery' } });
   prisma.user.findUnique.mockResolvedValue({ firstName: 'Avery', waiverAcceptedAt: null });
-  expect(await searcherFor(request(), CASE)).toEqual({ id: 'user-avery', kind: 'user', userId: 'user-avery', volunteerId: null, firstName: 'Avery', isOwner: true, waiver: true, seesNames: true, leads: true });
+  expect(await searcherFor(request(), CASE)).toEqual({ id: 'user-avery', kind: 'user', userId: 'user-avery', volunteerId: null, firstName: 'Avery', isOwner: true, waiver: true, seesNames: true, leads: true, admin: false });
   // No force is consulted for the owner.
   expect(prisma.rescueForceMember.findMany).not.toHaveBeenCalled();
 });
@@ -76,7 +76,9 @@ test.each(FORCE_COMMAND_ROLES)('a %s of such a force sees names like any member,
 
 test('running a search is not read from a force role anywhere in the file', () => {
   const source = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'app', 'lib', 'searcher.js'), 'utf8');
-  expect(source).toMatch(/leads: isOwner,/);
+  // The owner, and the site's own admin: a role on the account itself, never one in a force.
+  expect(source).toMatch(/leads: isOwner \|\| admin,/);
+  expect(source).toMatch(/const admin = user\.role === 'ADMIN';/);
   expect(source).not.toMatch(/FORCE_COMMAND_ROLES/);
 });
 
@@ -99,4 +101,20 @@ test('the id alone, or the key alone, is nobody', async () => {
   expect(await searcherFor(request({ 'x-volunteer-id': 'vol-1' }), CASE)).toBeNull();
   expect(await searcherFor(request({ 'x-volunteer-key': 'dev_abc' }), CASE)).toBeNull();
   expect(prisma.missionVolunteer.findFirst).not.toHaveBeenCalled();
+});
+
+test('the site\'s own admin runs any search: an account an existing admin made one, never a role someone gives themselves', async () => {
+  getServerSession.mockResolvedValue({ user: { id: 'user-root' } });
+  prisma.user.findUnique.mockResolvedValue({ firstName: 'Root', waiverAcceptedAt: null, role: 'ADMIN' });
+  const who = await searcherFor(request(), CASE);
+  expect(who).toMatchObject({ id: 'user-root', isOwner: false, leads: true, seesNames: true, admin: true });
+  // Not the owner: answering a sighting, and writing to everyone in the owner's name, stay the owner's.
+  expect(who.isOwner).toBe(false);
+  // The role is read from the account's own row, never from what the request says about itself.
+  expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { id: 'user-root' }, select: { firstName: true, waiverAcceptedAt: true, role: true } });
+  // Every other role runs nothing.
+  for (const role of ['USER', 'GUEST', 'PATROL', 'MODERATOR']) {
+    prisma.user.findUnique.mockResolvedValue({ firstName: 'Sam', waiverAcceptedAt: new Date(), role });
+    expect(await searcherFor(request(), CASE)).toMatchObject({ leads: false, admin: false });
+  }
 });

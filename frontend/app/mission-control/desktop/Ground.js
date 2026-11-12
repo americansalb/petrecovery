@@ -27,7 +27,7 @@
  * Names appear exactly where the board carries them, which is for the
  * owner and the Rescue Forces looking for the pet.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, ExternalLink, Flag, Loader2, Maximize, RotateCcw } from 'lucide-react';
 import { metersWords } from '../lib/insight';
 import { clockTime } from '../lib/words';
@@ -52,34 +52,52 @@ export function inListOrder(areas = []) {
   );
 }
 
+/** A point on the glyph's own circle: `r` from its middle, on a bearing clockwise from north. */
+const at = (r, bearing) => {
+  const turn = (bearing * Math.PI) / 180;
+  return `${(12 + r * Math.sin(turn)).toFixed(2)} ${(12 - r * Math.cos(turn)).toFixed(2)}`;
+};
+/** The outline of one area on the glyph: a disc for the middle, a wedge of a ring for a side or an outer area. */
+function wedge(area, wide) {
+  // Where the three rings fall on a 24 px glyph. Not widened, the sides reach its edge.
+  const [inner, edge, far] = wide ? [3.6, 7.4, 11] : [4.4, 11, 11];
+  if (area.ring === 0) return `M ${at(inner, 0)} A ${inner} ${inner} 0 1 1 ${at(inner, 180)} A ${inner} ${inner} 0 1 1 ${at(inner, 0)} Z`;
+  const [r1, r2] = area.ring === 1 ? [inner, edge] : [edge, far];
+  const span = (((area.b - area.a) % 360) + 360) % 360 || 360;
+  const large = span > 180 ? 1 : 0;
+  return `M ${at(r2, area.a)} A ${r2} ${r2} 0 ${large} 1 ${at(r2, area.a + span)} L ${at(r1, area.a + span)} A ${r1} ${r1} 0 ${large} 0 ${at(r1, area.a)} Z`;
+}
+
 /**
- * An area's mark beside its row, saying what its shape on the map says:
- * an empty outline for not searched (heavy where it is given out next),
- * a dashed teal edge for someone on it, green for searched and deeper
- * green for twice, an orange ring for the circle round a sighting. A
- * searched area carries a tick; one put up for another look keeps its
- * green and loses the tick, inside an ink edge: it is to be searched again.
+ * An area's mark beside its row: the circle of the search, small, with
+ * this area's own part of it filled in. So a row shows where its area
+ * lies before its name is read, and its colour says what its shape on the
+ * map says: ink for not searched (heavier where it is given out next),
+ * teal for someone on it, green for searched and deeper green for twice.
+ * An area put up for another look keeps its green inside an ink edge. The
+ * circle round a sighting is an orange ring. It is a picture and never a
+ * box to tick: what can be done to an area is a button with words on it.
  */
-export function Glyph({ area, next = false }) {
+export function Glyph({ area, next = false, wide = false, size = 26 }) {
+  if (isSeenCircle(area)) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" className="shrink-0" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" fill="var(--mc-seen-bg)" stroke="var(--mc-seen)" strokeWidth="2" strokeDasharray="3.2 2.6" />
+        <circle cx="12" cy="12" r="3.2" fill="var(--mc-seen)" />
+      </svg>
+    );
+  }
   const searched = area.searchCount > 0;
+  const busy = area.status === 'IN_PROGRESS';
   const again = area.status === 'NEEDS_REVISIT';
-  const fill = searched ? (area.searchCount > 1 ? 'color-mix(in srgb, var(--mc-done) 72%, transparent)' : 'color-mix(in srgb, var(--mc-done) 36%, transparent)') : 'transparent';
-  const edge =
-    area.status === 'IN_PROGRESS'
-      ? '2.5px dashed var(--mc-teal)'
-      : isSeenCircle(area)
-        ? '2px dashed var(--mc-seen)'
-        : next || area.first
-          ? '2.5px solid var(--mc-ink)'
-          : again
-            ? '2px solid var(--mc-ink)'
-          : searched
-            ? '1.5px solid var(--mc-done)'
-            : '1.5px solid var(--mc-muted)';
+  const fill = busy ? 'var(--mc-teal)' : searched ? 'var(--mc-done)' : 'var(--mc-ink)';
+  const strength = busy ? 0.3 : searched ? (area.searchCount > 1 ? 0.9 : 0.55) : next || area.first ? 0.85 : 0.22;
+  const edge = busy ? 'var(--mc-teal)' : again || next || area.first ? 'var(--mc-ink)' : searched ? 'var(--mc-done)' : 'var(--mc-muted)';
   return (
-    <span className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center ${isSeenCircle(area) ? 'rounded-full' : 'rounded-[5px]'}`} style={{ background: fill, border: edge }} aria-hidden="true">
-      {searched && !again && area.status !== 'IN_PROGRESS' && <Check size={11} strokeWidth={3.5} className="text-[var(--mc-ink)]" />}
-    </span>
+    <svg width={size} height={size} viewBox="0 0 24 24" className="shrink-0" aria-hidden="true">
+      <circle cx="12" cy="12" r="11" fill="none" stroke="var(--mc-line-strong)" strokeWidth="1" opacity="0.7" />
+      <path d={wedge(area, wide)} fill={fill} fillOpacity={strength} stroke={edge} strokeWidth={busy || again ? 1.6 : 1.2} strokeDasharray={busy ? '2 1.6' : undefined} strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -89,12 +107,27 @@ function turnWords(area, next) {
   return next ? 'given out next' : '';
 }
 
-export default function Ground({ picture, items, circle, next, now, leads, selected, hovered, onSelect, onHover, onWiden, widening = false }) {
+export default function Ground({ picture, items, circle, next, now, leads, selected, hovered, onSelect, onHover, onWiden, widening = false, onSteer = null }) {
   const name = picture.pet?.name || 'the pet';
   const zone = picture.timeZone;
   const rows = inListOrder(items);
   const own = circleAreas(items);
   const placed = picture.lastSeen && Number.isFinite(picture.lastSeen.lat);
+  const wide = Boolean(circle?.widened);
+  // The row whose button was pressed, until the search has answered.
+  const [pending, setPending] = useState(null);
+  const [fault, setFault] = useState('');
+  const mark = async (area, action) => {
+    if (pending || !onSteer) return;
+    setPending(area.id);
+    setFault('');
+    try {
+      const result = await onSteer(area, action);
+      if (result?.error) setFault(result.error);
+    } finally {
+      setPending(null);
+    }
+  };
   const picked = useRef(null);
   useEffect(() => {
     // An area picked on the map is brought into view here.
@@ -112,13 +145,24 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
           {own.length} areas of ground. A helper who asks is given the one that needs it most. Several people can search one area at once.
         </p>
       </div>
+      {fault && (
+        <p role="alert" className="px-4 pb-1 text-sm font-semibold text-[var(--mc-danger)]">
+          {fault}
+        </p>
+      )}
       <ul className="px-2">
         {rows.map((area) => {
           const on = area.id === selected;
           const soon = next?.has(area.id);
           const turn = turnWords(area, soon);
+          // What the person running the search most often does to an area, on its own row: say it has been
+          // searched (by them, or by someone who looked without the site), or ask for another look at it.
+          const sighting = isSeenCircle(area);
+          const canMark = leads && area.status !== 'IN_PROGRESS' && (area.searchCount === 0 || area.status === 'NEEDS_REVISIT');
+          const canAgain = leads && area.status === 'SEARCHED';
+          const tone = area.status === 'IN_PROGRESS' ? 'text-[var(--mc-teal-ink)]' : area.searchCount > 0 && area.status !== 'NEEDS_REVISIT' ? 'text-[var(--mc-done-ink)]' : 'text-[var(--mc-soft)]';
           return (
-            <li key={area.id} ref={on ? picked : null}>
+            <li key={area.id} ref={on ? picked : null} className={`group relative rounded-xl ${on ? 'bg-[var(--mc-pick)] ring-2 ring-[var(--mc-ink)]' : area.id === hovered ? 'bg-[var(--mc-raised)]' : 'hover:bg-[var(--mc-raised)]'}`}>
               <button
                 type="button"
                 onClick={() => onSelect(on ? null : area.id)}
@@ -127,17 +171,15 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
                 onFocus={() => onHover(area.id)}
                 onBlur={() => onHover(null)}
                 aria-pressed={on}
-                className={`flex w-full items-start gap-2.5 rounded-xl px-2.5 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${
-                  on ? 'bg-[var(--mc-pick)] ring-2 ring-[var(--mc-ink)]' : area.id === hovered ? 'bg-[var(--mc-raised)]' : 'hover:bg-[var(--mc-raised)]'
-                }`}
+                className="flex w-full items-start gap-3 rounded-xl px-2.5 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400"
               >
-                <Glyph area={area} next={soon} />
+                <Glyph area={area} next={soon} wide={wide} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{area.name}</span>
                     <span className="shrink-0 text-[13px] font-semibold leading-5 text-[var(--mc-muted)]">about {area.minutes} min</span>
                   </span>
-                  <span className={`block text-[14px] font-medium leading-5 ${area.status === 'IN_PROGRESS' ? 'text-[var(--mc-teal-ink)]' : 'text-[var(--mc-soft)]'}`}>
+                  <span className={`block text-[14px] font-medium leading-5 ${tone}`}>
                     {areaLine(area, { timeZone: zone, now, owner: picture.owner?.firstName || null, isOwner: Boolean(picture.viewer?.isOwner) })}
                   </span>
                   {(turn || (area.asked || []).length > 0) && (
@@ -145,8 +187,21 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
                       {[turn, ...(area.asked || []).map((a) => `${a.name} asked at ${clockTime(a.at, zone)}${a.seenAt ? ', seen' : ''}`)].filter(Boolean).join(' · ')}
                     </span>
                   )}
+                  {/* Room for the button below, which is its own control and cannot sit inside this one. */}
+                  {(canMark || canAgain) && <span className="block h-9" aria-hidden="true" />}
                 </span>
               </button>
+              {(canMark || canAgain) && (
+                <button
+                  type="button"
+                  onClick={() => mark(area, canMark ? 'walked' : 'again')}
+                  disabled={Boolean(pending)}
+                  className="absolute bottom-2 left-[50px] inline-flex min-h-[30px] items-center gap-1.5 rounded-lg border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] px-2.5 text-[13px] font-bold leading-5 text-[var(--mc-ink)] shadow-sm hover:border-[var(--mc-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 disabled:opacity-60"
+                >
+                  {pending === area.id ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : canMark ? <Check size={14} strokeWidth={3} className="text-[var(--mc-done-ink)]" aria-hidden="true" /> : <RotateCcw size={14} aria-hidden="true" />}
+                  {canMark ? (sighting ? 'Mark as checked' : 'Mark searched') : 'Needs another look'}
+                </button>
+              )}
             </li>
           );
         })}
@@ -198,7 +253,7 @@ export function AreaCard({ area, picture, circle, now, leads, busy, problem, fre
         <ArrowLeft size={16} aria-hidden="true" /> All the ground
       </button>
       <div className="mt-2 flex items-start gap-3">
-        <Glyph area={area} next={next} />
+        <Glyph area={area} next={next} wide={Boolean(circle?.widened)} size={30} />
         <div className="min-w-0">
           <h2 className="text-[19px] font-extrabold leading-[25px] text-[var(--mc-ink)]">{area.name}</h2>
           <p className="text-[13px] font-bold leading-[19px] text-[var(--mc-muted)]">
@@ -253,7 +308,7 @@ export function AreaCard({ area, picture, circle, now, leads, busy, problem, fre
         )}
         {leads && !area.first && !taken && act('first', 'Send people here first', Flag)}
         {leads && area.first && act('normal', 'Back to its place in the order', RotateCcw)}
-        {leads && !searching && (area.searchCount === 0 || area.status === 'NEEDS_REVISIT') && act('walked', 'Put down as searched', Check)}
+        {leads && !searching && (area.searchCount === 0 || area.status === 'NEEDS_REVISIT') && act('walked', sighting ? 'Mark as checked' : 'Mark searched', Check)}
         {leads && !searching && area.status === 'SEARCHED' && act('again', 'Needs another look', RotateCcw)}
         {leads &&
           (area.asked || []).map((a) => (

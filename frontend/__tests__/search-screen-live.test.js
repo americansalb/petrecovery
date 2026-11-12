@@ -31,7 +31,7 @@ jest.mock('leaflet', () => {
   });
   const L = {
     map: () => {
-      const map = { on: () => map, once: () => map, off: () => map, remove() {}, removeLayer() {}, getZoom: () => 16, setView: () => map, fitBounds() {}, invalidateSize() {}, attributionControl: { setPrefix() {}, getContainer: () => null } };
+      const map = { on: () => map, once: () => map, off: () => map, remove() {}, removeLayer() {}, getZoom: () => 16, getCenter: () => ({ lat: 30.3, lng: -97.7 }), distance: () => 500, getBounds: () => ({ pad: () => ({ contains: () => true }) }), panTo() {}, setView: () => map, fitBounds() {}, invalidateSize() {}, attributionControl: { setPrefix() {}, getContainer: () => null } };
       return map;
     },
     layerGroup: () => {

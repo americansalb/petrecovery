@@ -131,6 +131,7 @@ export default function LocationPicker({
   canLocate = true, // false: never offer or ask for the device's position
   search = true, // false: no search box; the pin is placed from outside and can be dragged
   near: nearby = null, // { lat, lng }: where a typed search leans when nothing else says where
+  mapless = false, // true: the search box alone; the place is shown on a map the screen already has
 }) {
   const mapHex = variant === 'found' ? '#10b981' : '#ef4444';
   const [query, setQuery] = useState('');
@@ -444,7 +445,7 @@ export default function LocationPicker({
       )}
 
       {/* Map / empty state */}
-      <div className="relative z-10 flex-1 min-h-[240px] rounded-2xl overflow-hidden border border-midnight-100 shadow-card">
+      <div className={`relative z-10 flex-1 min-h-[240px] rounded-2xl overflow-hidden border border-midnight-100 shadow-card ${mapless ? 'hidden' : ''}`}>
         <div ref={mapRef} className="absolute inset-0" />
         {!value && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-midnight-50 to-midnight-100">
@@ -505,7 +506,7 @@ export default function LocationPicker({
       {locateError && <p className="shrink-0 text-sm text-red-600">{locateError}</p>}
 
       {/* Confirmed address */}
-      {value && (
+      {value && !mapless && (
         <div className="shrink-0 flex items-center gap-3 p-3.5 rounded-2xl bg-midnight-50 border border-midnight-100">
           <span
             className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"

@@ -33,7 +33,8 @@ export { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER };
  * `leads` is who runs the search from the desk: steers it (sends people
  * to an area first, puts one down as searched, widens the search:
  * app/lib/searchZones.js), asks a named helper to search an area and
- * writes to them (app/lib/searchTalk.js). That is the owner, and nobody
+ * writes to them (app/lib/searchTalk.js). That is the owner, and the
+ * site's own admins (who can already change anything on it), and nobody
  * else.
  *
  * A command role in a Rescue Force is not enough, because nobody has to
@@ -51,11 +52,14 @@ export async function searcherFor(request, caseId) {
   const userId = session?.user?.id || null;
   if (userId) {
     const [user, pet] = await Promise.all([
-      prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, waiverAcceptedAt: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, waiverAcceptedAt: true, role: true } }),
       prisma.case.findUnique({ where: { id: caseId }, select: { reporterId: true } }),
     ]);
     if (user) {
       const isOwner = Boolean(pet && pet.reporterId === userId);
+      // Whoever runs the site can run any search on it. That role is given by an existing admin, one account at a
+      // time (app/lib/auth.js): unlike a role in a Rescue Force, nobody can reach it by themselves.
+      const admin = user.role === 'ADMIN';
       let inForce = false;
       if (!isOwner) {
         const forceIds = await forcesOf(caseId).catch(() => []);
@@ -75,9 +79,10 @@ export async function searcherFor(request, caseId) {
         firstName: firstWord(user.firstName) || 'A helper',
         isOwner,
         waiver: Boolean(user.waiverAcceptedAt) || isOwner,
-        seesNames: isOwner || inForce,
-        // The owner's alone: see the note above before widening it.
-        leads: isOwner,
+        seesNames: isOwner || inForce || admin,
+        // The owner's, and the site's own admins': see the note above before widening it.
+        leads: isOwner || admin,
+        admin,
       };
     }
   }

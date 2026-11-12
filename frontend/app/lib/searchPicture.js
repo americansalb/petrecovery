@@ -281,7 +281,7 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
     ...(mineToRead || {}),
     ...(talk ? { talk } : {}),
     viewer: searcher
-      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
+      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), admin: Boolean(searcher.admin), waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
       : null,
   };
 }

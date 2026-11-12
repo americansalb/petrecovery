@@ -16,7 +16,7 @@
  * shows it. This file writes no advice of its own.
  */
 import { useState } from 'react';
-import { Check, Loader2, Phone } from 'lucide-react';
+import { Check, Loader2, MapPin, MousePointerClick, Phone } from 'lucide-react';
 import LocationPicker from '@/app/components/report/LocationPicker';
 import { Eyebrow, Heading, Lead, Note, Primary, SeenButton, QuietLink, AdviceBlock, Problem } from '../components/kit';
 import { clockTime, phoneTel, phoneWords } from '../lib/words';
@@ -30,7 +30,7 @@ export const WHEN = [
 ];
 
 /** Where and when, on one screen, with one button. */
-export function Seen({ name, owner, signedIn = false, where, onWhere, near = null, locating = false, canLocate = true, minutes, onMinutes, onSend, busy, problem }) {
+export function Seen({ name, owner, signedIn = false, where, onWhere, near = null, locating = false, canLocate = true, mapPick = false, minutes, onMinutes, onSend, busy, problem }) {
   // With the spot already on the map, typing is the second way and stays out of sight until asked for.
   const [typing, setTyping] = useState(false);
   const placed = Boolean(where && Number.isFinite(Number(where.lat)));
@@ -42,6 +42,29 @@ export function Seen({ name, owner, signedIn = false, where, onWhere, near = nul
           <Loader2 size={22} className="shrink-0 animate-spin text-flash-400" aria-hidden="true" />
           Finding where you are
         </p>
+      ) : mapPick ? (
+        // A desk has the whole map beside this form: a click on it is the place, and the pin can be dragged.
+        // Typing a street is the second way.
+        <>
+          <div className="mt-3 flex items-start gap-3 rounded-2xl border border-[var(--mc-seen)] bg-[var(--mc-seen-bg)] px-3.5 py-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--mc-seen)] text-[var(--mc-on-seen)]" aria-hidden="true">
+              {placed ? <MapPin size={19} /> : <MousePointerClick size={19} />}
+            </span>
+            <p className="min-w-0 text-[15px] font-semibold leading-[22px] text-[var(--mc-ink)]" aria-live="polite">
+              {placed ? (where.address ? `Marked at ${where.address}.` : 'Marked on the map.') : `Click the map where you saw ${name}.`}
+              <span className="block text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{placed ? 'Drag the pin, or click again, to move it.' : 'Zoom in for a closer place.'}</span>
+            </p>
+          </div>
+          {typing ? (
+            <div className="mt-2.5 overflow-visible rounded-2xl bg-white p-3 text-midnight-900">
+              <LocationPicker value={where} onChange={onWhere} variant="lost" canLocate={false} search near={near} mapless />
+            </div>
+          ) : (
+            <div>
+              <QuietLink onClick={() => setTyping(true)}>Type a street instead</QuietLink>
+            </div>
+          )}
+        </>
       ) : (
         <>
           <div className="mt-3 overflow-hidden rounded-2xl bg-white p-3 text-midnight-900">

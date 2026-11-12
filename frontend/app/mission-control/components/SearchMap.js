@@ -83,7 +83,7 @@ const TAG_TONES = {
 };
 
 /** A marker that is a dot (or nothing) with a word tag beside it. */
-function tagged(L, { dot = null, text, tone = 'plain', theme = 'dark', side = 'right' }) {
+function tagged(L, { dot = null, text, tone = 'plain', theme = 'dark', side = 'right', cls = '' }) {
   const root = node('div', 'position:relative;width:0;height:0');
   if (dot) root.appendChild(dot);
   if (text) {
@@ -100,13 +100,13 @@ function tagged(L, { dot = null, text, tone = 'plain', theme = 'dark', side = 'r
           : side === 'below'
             ? 'top:14px;left:0;transform:translateX(-50%);'
             : 'top:-13px;left:16px;';
-    root.appendChild(
-      node(
-        'span',
-        `position:absolute;${place}white-space:nowrap;padding:3px 8px;border-radius:8px;font:700 13px/19px Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(2,6,23,0.35);${TAG_TONES[tone][theme]}`,
-        text
-      )
+    const words = node(
+      'span',
+      `position:absolute;${place}white-space:nowrap;padding:3px 8px;border-radius:8px;font:700 13px/19px Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(2,6,23,0.35);${TAG_TONES[tone][theme]}`,
+      text
     );
+    if (cls) words.className = cls;
+    root.appendChild(words);
   }
   return L.divIcon({ className: '', html: root, iconSize: [0, 0], iconAnchor: [0, 0] });
 }
@@ -160,6 +160,9 @@ export default function SearchMap({
   trail = false, // join the sightings in the order they happened
   layer = 'map', // 'map' | 'satellite'
   maxFitZoom = 17, // how close a fit may go
+  pick = false, // a place is being chosen: a click anywhere on the map puts the pin there
+  pin = null, // { lat, lng }: the place chosen so far, which can be dragged
+  onPick = null, // ({ lat, lng }) => void
 }) {
   const holder = useRef(null);
   const state = useRef({ map: null, L: null, layers: null, focus: null, tiles: {} });
@@ -167,10 +170,26 @@ export default function SearchMap({
   select.current = onSelect;
   const hover = useRef(onHover);
   hover.current = onHover;
+  const picking = useRef(pick);
+  picking.current = pick;
+  const putPin = useRef(onPick);
+  putPin.current = onPick;
   const layerNow = useRef(layer);
   layerNow.current = layer;
   const themeNow = useRef(theme);
   themeNow.current = theme;
+
+  // How far apart the names of the areas are on the ground, in metres: the widest gap between two of them.
+  const nameSpan = useRef(0);
+  // Whether the areas' names have room. Zoomed far out the whole circle is a few pixels across, and five names on
+  // one spot read as a smudge: below about a hundred and forty pixels between them they are left off.
+  const crowd = () => {
+    const { map } = state.current;
+    const el = holder.current;
+    if (!map || !el) return;
+    const metersPerPixel = (156543.03392 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / 2 ** map.getZoom();
+    el.classList.toggle('mc-far', nameSpan.current > 0 && nameSpan.current / metersPerPixel < 140);
+  };
 
   // The ground under everything: the street map, or the view from above with the roads named over it.
   const showLayer = () => {
@@ -214,7 +233,10 @@ export default function SearchMap({
       state.current = { map, L, layers: L.layerGroup().addTo(map), focus: L.layerGroup().addTo(map), tiles: {} };
       showLayer();
       // On a desk, a click on the map itself, and not on a street, lets go of the street that was picked.
-      if (desk) map.on('click', () => select.current?.(null));
+      // While a place is being chosen, the click is the place.
+      if (desk) map.on('click', (event) => (picking.current ? putPin.current?.({ lat: event.latlng.lat, lng: event.latlng.lng }) : select.current?.(null)));
+      // Far out, the areas are a few pixels across and their names would lie on top of each other: they are left off.
+      map.on('zoomend', () => crowd());
       // The zoom, readable from outside, so a test can tell what is in view.
       const note = () => {
         if (holder.current) holder.current.dataset.zoom = String(map.getZoom());
@@ -254,7 +276,9 @@ export default function SearchMap({
         shape.on('mouseout', () => hover.current?.(null));
         shape.on('click', (event) => {
           L.DomEvent.stopPropagation(event);
-          select.current?.(item.id);
+          // While a place is being chosen, a click on an area is still a click on the ground.
+          if (picking.current) putPin.current?.({ lat: event.latlng.lat, lng: event.latlng.lng });
+          else select.current?.(item.id);
         });
       };
 
@@ -267,6 +291,9 @@ export default function SearchMap({
       // The circle round a sighting lies inside the circle's own areas, so it is drawn after them: on a desk
       // the shape on top is the one the pointer finds, and drawn first it could never be pointed at or picked.
       const drawn = [...areas].sort((a, b) => Number(a.ring === 3) - Number(b.ring === 3));
+      const named = drawn.filter((a) => a.label && a.center && Number.isFinite(a.center.lat));
+      nameSpan.current = named.reduce((far, a) => Math.max(far, ...named.map((b) => map.distance([a.center.lat, a.center.lng], [b.center.lat, b.center.lng]))), 0);
+      crowd();
       for (const area of drawn) {
         if (!Array.isArray(area.outline) || area.outline.length < 4) continue;
         const lit = Boolean(area.mine);
@@ -292,9 +319,9 @@ export default function SearchMap({
           const at = [area.center.lat, area.center.lng];
           // Its name on the ground. A sighting's circle is named by the sighting's own mark.
           // The middle's name sits under the mark of where the pet was lost, which is at its centre.
-          if (area.label && !sightingCircle) L.marker(at, { icon: tagged(L, { text: area.label, tone: lit ? 'flash' : 'bare', theme, side: area.ring === 0 ? 'below' : 'center' }), interactive: false, keyboard: false, zIndexOffset: 100 }).addTo(layers);
+          if (area.label && !sightingCircle) L.marker(at, { icon: tagged(L, { text: area.label, tone: lit ? 'flash' : 'bare', theme, side: area.ring === 0 ? 'below' : 'center', cls: 'mc-area-name' }), interactive: false, keyboard: false, zIndexOffset: 100 }).addTo(layers);
           // Who is on it, for the people who may know: first names, under the area's own.
-          if (area.who && !lit) L.marker(at, { icon: tagged(L, { text: area.who, tone: 'on', theme, side: sightingCircle ? 'below' : 'under' }), interactive: false, keyboard: false, zIndexOffset: 150 }).addTo(layers);
+          if (area.who && !lit) L.marker(at, { icon: tagged(L, { text: area.who, tone: 'on', theme, side: sightingCircle ? 'below' : 'under', cls: 'mc-area-name' }), interactive: false, keyboard: false, zIndexOffset: 150 }).addTo(layers);
         }
       }
 
@@ -509,6 +536,40 @@ export default function SearchMap({
     el?.addEventListener('searchmap:ready', place);
     return () => el?.removeEventListener('searchmap:ready', place);
   }, [creditBottom]);
+
+  // A place being chosen: the pointer is a cross, and the pin stands where the last click was. It can be dragged.
+  // The pin is its own layer, so the rest of the map being drawn again leaves it where it is.
+  useEffect(() => {
+    const el = holder.current;
+    const show = () => {
+      const { map, L } = state.current;
+      if (!map || !L) return;
+      el?.classList.toggle('mc-picking', Boolean(pick));
+      if (state.current.pin) {
+        map.removeLayer(state.current.pin);
+        state.current.pin = null;
+      }
+      if (!pick || !pin || !Number.isFinite(pin.lat) || !Number.isFinite(pin.lng)) return;
+      const dark = themeNow.current === 'dark';
+      const marker = L.marker([pin.lat, pin.lng], {
+        draggable: true,
+        keyboard: false,
+        zIndexOffset: 2000,
+        icon: tagged(L, { dot: disc(dark ? '#fb923c' : '#c2410c', 26, { ring: dark ? '#0f172a' : '#ffffff', pulse: true }), text: 'Seen here', tone: 'seen', theme: themeNow.current }),
+      }).addTo(map);
+      marker.on('dragend', () => {
+        const at = marker.getLatLng();
+        putPin.current?.({ lat: at.lat, lng: at.lng });
+      });
+      state.current.pin = marker;
+      // A typed street can be off the edge of what is in view: the map goes to it. A click never is.
+      if (!map.getBounds().pad(-0.1).contains([pin.lat, pin.lng])) map.panTo([pin.lat, pin.lng]);
+    };
+    show();
+    el?.addEventListener('searchmap:ready', show);
+    return () => el?.removeEventListener('searchmap:ready', show);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pick, pin?.lat, pin?.lng, theme]);
 
   // The colour behind the tiles is set inline: Leaflet's own stylesheet paints its container light grey.
   return <div ref={holder} className="h-full w-full" style={{ background: theme === 'dark' ? '#0b1220' : '#e2e8f0' }} role="img" aria-label={label} />;

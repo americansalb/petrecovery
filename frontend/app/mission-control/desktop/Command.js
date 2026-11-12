@@ -38,7 +38,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Check, ExternalLink, Flag, Maximize, Maximize2, Moon, RotateCcw, Sun, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, ExternalLink, Eye, Flag, LogIn, Maximize, Maximize2, Moon, RotateCcw, ShieldCheck, Sun, X, Loader2 } from 'lucide-react';
 import TopBar from '../components/TopBar';
 import usePutAway from '../hooks/usePutAway';
 import { DESK_MAP } from '../components/SearchMap';
@@ -195,13 +195,16 @@ function StreetCard({ street, picture, unit, now, leads, busy, problem, free = [
   );
 }
 
-export default function Command({ picture, items, unit, circle = null, now, line, petHref, onPhoto, step, full, onBack, onSeen, onShare, search, mapLabel: mapWords, overlays }) {
+export default function Command({ picture, items, unit, circle = null, now, line, petHref, onPhoto, step, full, onBack, onSeen, onShare, picking = false, pin = null, onPick = null, search, mapLabel: mapWords, overlays }) {
   const viewer = picture.viewer;
   const leads = Boolean(viewer?.leads);
   // The search is areas of ground. (Streets or squares, for a search from before it was.)
   const ground = unit === 'area';
   const people = search.people;
   const name = picture.pet?.name || 'the pet';
+  const ownerName = picture.owner?.firstName || 'The owner';
+  // Back to this search after signing in.
+  const signInHref = `/login?callbackUrl=${encodeURIComponent(`/mission-control?mission=${picture.caseNumber || picture.id}`)}`;
   const zone = picture.timeZone;
   const roomy = useRoomy();
   const [night, flipNight] = useNight();
@@ -261,12 +264,13 @@ export default function Command({ picture, items, unit, circle = null, now, line
   };
 
   async function steer(target, action) {
-    if (busy) return;
+    if (busy) return undefined;
     setBusy(action);
     setProblem('');
     try {
       const result = await search.act(unit, target.id, action);
       if (result.error) setProblem(result.error);
+      return result;
     } finally {
       setBusy(null);
     }
@@ -479,11 +483,36 @@ export default function Command({ picture, items, unit, circle = null, now, line
         onPhoto={onPhoto}
         wide
         right={
+          <>
+            {leads && (
+              // Who is running it, said once: the owner, or the site's own admin standing in.
+              <span className="ml-2 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--mc-line-strong)] px-2.5 py-1 text-[13px] font-bold leading-5 text-[var(--mc-ink)]">
+                <ShieldCheck size={14} className="text-[var(--mc-home)]" aria-hidden="true" /> {viewer?.isOwner ? 'You run this search' : 'Running it as site admin'}
+              </span>
+            )}
           <button type="button" onClick={flipNight} aria-pressed={night} className={`${CONTROL} ml-2 shrink-0`}>
             {night ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />} {night ? 'Day' : 'Night'}
           </button>
+          </>
         }
       />
+      {picture.open && !leads && (
+        // Someone only looking is told so, and told how the person whose search it is gets to run it. Without
+        // this the desk reads as broken: there is nothing to mark an area searched, widen the circle or write.
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-[var(--mc-line)] bg-[var(--mc-raised)] px-4 py-2" role="status">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--mc-ink)] px-2.5 py-0.5 text-[13px] font-bold leading-5 text-[var(--mc-surface)]">
+            <Eye size={14} aria-hidden="true" /> Viewing only
+          </span>
+          <p className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-[var(--mc-soft)]">
+            {viewer?.signedIn ? `You are signed in as ${viewer.firstName}. ` : ''}
+            {ownerName} runs this search: marking an area searched, widening the circle and writing to helpers are done from {ownerName}&apos;s account.
+            {viewer?.signedIn ? '' : ' If that is you, sign in.'} Anyone can add a sighting.
+          </p>
+          <a href={signInHref} className={`${CONTROL} shrink-0`}>
+            <LogIn size={15} aria-hidden="true" /> {viewer?.signedIn ? 'Use another account' : 'Sign in'}
+          </a>
+        </div>
+      )}
       <div className="flex min-h-0 flex-1">
         {roomy && (
           <aside className="flex w-[380px] shrink-0 flex-col overflow-y-auto" aria-label="The search in numbers, and your step">
@@ -514,6 +543,9 @@ export default function Command({ picture, items, unit, circle = null, now, line
               // A dog's circle fills the map near this zoom. A cat's is a third the size, so ground may be shown closer.
               maxFitZoom={ground ? 18 : 16.25}
               zoomControl
+              pick={picking}
+              pin={pin}
+              onPick={onPick}
               label={mapWords}
             />
           </div>
@@ -598,6 +630,7 @@ export default function Command({ picture, items, unit, circle = null, now, line
             circle={circle}
             onWiden={widen}
             widening={widening}
+            onSteer={steer}
             areaCard={
               ground && street ? (
                 <AreaCard area={street} picture={picture} circle={circle} now={now} leads={leads} busy={busy} problem={problem} free={free} next={next.has(street.id)} onSteer={steer} onAsk={(handle) => askFromCard(handle, street.id)} onUnask={takeBack} onClose={() => pick(null)} />

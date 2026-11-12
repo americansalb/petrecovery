@@ -306,7 +306,7 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
 
   test('on the desk a sighting\'s circle can be pointed at: it is drawn after the areas it lies in', () => {
     const map = read('app/mission-control/components/SearchMap.js');
-    expect(map).toMatch(/const drawn = \[\.\.\.areas\]\.sort\(\(a, b\) => Number\(a\.ring === 3\) - Number\(b\.ring === 3\)\);\s*for \(const area of drawn\) \{/);
+    expect(map).toMatch(/const drawn = \[\.\.\.areas\]\.sort\(\(a, b\) => Number\(a\.ring === 3\) - Number\(b\.ring === 3\)\);[\s\S]{0,400}?for \(const area of drawn\) \{/);
   });
 
   test('when no street can be given, the first card says why and nobody is sent off', () => {
@@ -316,10 +316,13 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
 
   test('on a phone the map is looked at, not tapped: it answers to the pointer only on a desk', () => {
     const map = code(read('app/mission-control/components/SearchMap.js'));
-    expect(map).not.toMatch(/onPick|offered|bearing/);
+    expect(map).not.toMatch(/offered|bearing/);
     // Four places listen for a pointer, and each is behind `desk`: the map itself, an area, a square, and a street.
     expect(map.match(/\.on\('(click|mouseover|mouseout)'/g)).toHaveLength(4);
-    expect(map).toMatch(/if \(desk\) map\.on\('click', \(\) => select\.current\?\.\(null\)\);/);
+    // On a desk a click is also how a place is chosen for a sighting (founder, 2026-11-12: "I have to type an
+    // address rather than just click where I saw"). It is the same listener, so it is behind `desk` too.
+    expect(map).toMatch(/if \(desk\) map\.on\('click', \(event\) => \(picking\.current \? putPin\.current\?\.\(\{ lat: event\.latlng\.lat, lng: event\.latlng\.lng \}\) : select\.current\?\.\(null\)\)\);/);
+    expect(map).toMatch(/if \(picking\.current\) putPin\.current\?\.\(\{ lat: event\.latlng\.lat, lng: event\.latlng\.lng \}\);\s*else select\.current\?\.\(item\.id\);/);
     const answer = map.slice(map.indexOf('const answer = (shape, item) => {'), map.indexOf('for (const cell of cells)'));
     expect(answer.match(/shape\.on\('(click|mouseover|mouseout)'/g)).toHaveLength(3);
     expect(map.match(/\banswer\(/g)).toHaveLength(3);
@@ -328,8 +331,12 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     const drawn = map.match(/L\.(polyline|polygon|rectangle|circle|marker)\([^\n]*/g);
     expect(drawn.filter((line) => line.startsWith('L.polygon(')).length).toBeGreaterThanOrEqual(2);
     const taking = drawn.filter((line) => !/interactive: (false|desk)/.test(line));
-    expect(taking).toHaveLength(1);
+    // Two things do: a street's wide unseen line on a desk, and the pin of a sighting being placed, which is dragged.
+    expect(taking).toHaveLength(2);
     expect(taking[0]).toMatch(/^L\.polyline\(street\.path, \{ color: '#000000', weight: 20, opacity: 0/);
+    expect(taking[1]).toMatch(/^L\.marker\(\[pin\.lat, pin\.lng\], \{/);
+    // The pin exists only while a place is being chosen, which only a desk's map is told.
+    expect(map).toMatch(/if \(!pick \|\| !pin \|\| !Number\.isFinite\(pin\.lat\) \|\| !Number\.isFinite\(pin\.lng\)\) return;/);
     // And the phone's map is never told it is a desk, or given anything to call.
     const phoneMap = shell.slice(shell.indexOf('const map = ('), shell.indexOf('const mapKey'));
     expect(phoneMap).toMatch(/<SearchMap\b/);
@@ -486,7 +493,13 @@ describe('a desk steers the search, and only for the owner', () => {
     expect(desk).toMatch(/const canWiden = ground && leads && circle && !circle\.widened && circle\.wide > circle\.edge;/);
     expect(desk).toMatch(/\{canWiden && \(\s*<button type="button" onClick=\{widen\}/);
     // No steering button anywhere else on the desk.
-    for (const file of DESK_FILES.filter((f) => !/(Command|Ground)\.js$/.test(f))) expect(read(file)).not.toMatch(/onSteer|search\.act|\bact\(/);
+    for (const file of DESK_FILES.filter((f) => !/(Command|Ground)\.js$/.test(f))) expect(read(file)).not.toMatch(/search\.act|\bact\(/);
+    // The right column hands the one sender on to the Ground list and uses it nowhere itself.
+    expect(read('app/mission-control/desktop/Board.js').match(/onSteer/g)).toHaveLength(3);
+    // The Ground list's own buttons (founder, 2026-11-12: "I can't mark a quadrant searched IDK how"): each is behind `leads`.
+    expect(ground).toMatch(/const canMark = leads && area\.status !== 'IN_PROGRESS' && \(area\.searchCount === 0 \|\| area\.status === 'NEEDS_REVISIT'\);/);
+    expect(ground).toMatch(/const canAgain = leads && area\.status === 'SEARCHED';/);
+    expect(ground).toMatch(/\{\(canMark \|\| canAgain\) && \(\s*<button\s+type="button"\s+onClick=\{\(\) => mark\(area, canMark \? 'walked' : 'again'\)\}/);
     // Asking a person from a street's card, and taking an ask back, are behind it too.
     expect(card).toMatch(/\{leads && unit === 'street' && open && !kept && free\.length > 0 && \(/);
     expect(card).toMatch(/\{leads && kept && street\.askedOfHandle && \(/);
@@ -509,9 +522,12 @@ describe('a desk steers the search, and only for the owner', () => {
     // Running a search is the owner's alone. No role in a Rescue Force is it: a force with no leader gives the
     // role to any member who asks, and anyone can found one, so nobody had to agree to any of them.
     const who = code(read('app/lib/searcher.js'));
-    expect(who).toMatch(/leads: isOwner,/);
+    // The owner, and the site's own admin, whose role only an existing admin can give (founder, 2026-11-12, after
+    // finding he could not run a search on his own site).
+    expect(who).toMatch(/const admin = user\.role === 'ADMIN';/);
+    expect(who).toMatch(/leads: isOwner \|\| admin,/);
     expect(who).not.toMatch(/FORCE_COMMAND_ROLES|leadsForce/);
-    expect(who).not.toMatch(/leads: seesNames|leads: true|leads: isOwner \|\|/);
+    expect(who).not.toMatch(/leads: seesNames|leads: true|leads: isOwner \|\| inForce/);
   });
 
   test('steering goes through the screen\'s one sender, and no button is left spinning', () => {
