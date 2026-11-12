@@ -18,15 +18,17 @@
  * (app/lib/searchAsk.js) and can send them a word. Neither is a new card:
  * an ask is the first card saying which street, with the same one button,
  * and a word is a block on the card they already have, with a line to
- * answer in (components/Word.js). A word written to this person is always
- * on their card while it is fresh, with what the owner told everyone
- * under it. Both are someone's own words, shown as theirs.
+ * answer in (components/Word.js). A word written to this person is on
+ * their card while it is fresh, whatever else the card is showing, with
+ * what the owner told everyone under it. Both are someone's own words,
+ * shown as theirs. The card says when it has shown an ask or a word, and
+ * that is what the desk reads as "seen".
  */
 import { useEffect, useState } from 'react';
 import { Share2 } from 'lucide-react';
 import { SAFETY_RULES, SAFETY_AGREEMENT } from '@/app/lib/safetyRules';
 import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Stamp } from '../components/kit';
-import Word from '../components/Word';
+import Word, { Answer, useShown } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 
@@ -36,11 +38,22 @@ const CANNOT_WORDS = "I can't right now";
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL || '';
 
 /**
- * What was said to this person (lib/team.js, wordsForCard): the word written to them, and what the owner told
- * everyone. One line to answer in, under the first: a card has one place to write.
+ * What was said to this person (lib/team.js, wordsForCard): the words written to them, and what the owner told
+ * everyone. Under them, one line to answer in. It is its own piece, in the same place whatever is above it, so a
+ * new word arriving does not throw away an answer that is being typed. Each word written to this person says so
+ * when it has been shown (`onShown`), which is what the desk reads as "seen".
  */
-function Said({ said = [], picture, now, onSay }) {
-  return said.map((word, index) => <Word key={word.id} word={word} timeZone={picture.timeZone} now={now} onSay={index === 0 ? onSay : null} />);
+function Said({ said = [], picture, now, onSay, onShown }) {
+  if (!said.length) return null;
+  const who = said[0].from || picture.owner?.firstName || 'the people running the search';
+  return (
+    <>
+      {said.map((word) => (
+        <Word key={word.id} word={word} timeZone={picture.timeZone} now={now} onShown={onShown} />
+      ))}
+      {onSay && <Answer key="answer" who={who} onSay={onSay} />}
+    </>
+  );
 }
 
 function ShareLink({ onShare }) {
@@ -61,13 +74,16 @@ function ShareLink({ onShare }) {
  * (`asked`), the same card says which street and whose ask it is, and its
  * one button starts it.
  */
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, said = [], onSay = null, now }) {
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], onSay = null, onShown = null, now }) {
   const thing = unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
   const desk = instrument === 'command';
   // A desk is never handed a street, so an ask is shown on the phone it was made to.
   const ask = !desk && asked ? asked : null;
   const asker = ask?.askedBy || 'The people running the search';
+  // The card says when it has shown the ask, which is what the desk reads as "seen": a phone that only fetched
+  // it, or a computer that does not show it, says nothing.
+  useShown(ask && ask.askedSeen === false ? ask.id : null, onAskShown);
   return (
     <>
       <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
@@ -98,7 +114,8 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       ) : (
         <Lead className="mt-1.5">If you see {name}, send where. It reaches {owner?.firstName || 'the owner'} at once.</Lead>
       )}
-      {!ask && <Said said={said} picture={picture} now={now} onSay={onSay} />}
+      {/* With an ask on the card too: a word written to this person is always where they can read it. */}
+      <Said said={said} picture={picture} now={now} onSay={onSay} onShown={onShown} />
       <Problem className="mt-2">{problem}</Problem>
       {desk ? (
         // A desk is never given a street: it hands the search to a phone.
@@ -241,7 +258,7 @@ function spanWords(street) {
 }
 
 /** The street that is theirs: where, how long, and the one button that ends it. */
-export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther, asked = null, said = [], onSay = null, now }) {
+export function Street({ picture, name, unit, mine, instrument, gps, onWalked, onOther, onStop, onSeen, busy, problem, canOther, asked = null, said = [], onSay = null, onShown = null, now }) {
   const brief = searcherBrief(picture);
   const block = unit === 'block';
   const thing = block ? 'block' : 'street';
@@ -261,7 +278,7 @@ export function Street({ picture, name, unit, mine, instrument, gps, onWalked, o
           </p>
         </div>
       )}
-      <Said said={said} picture={picture} now={now} onSay={onSay} />
+      <Said said={said} picture={picture} now={now} onSay={onSay} onShown={onShown} />
       <AdviceBlock source="The searcher's brief" lines={[brief.look]} className="mt-3" />
       <Problem className="mt-2">{problem}</Problem>
       <Primary onClick={onWalked} busy={busy === 'walked'} disabled={Boolean(busy)} className="mt-4">

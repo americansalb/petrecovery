@@ -18,9 +18,10 @@
  * more: [{ words, do }] }. `do` is what the desk does when it is pressed:
  * { type: 'give', handle, streetId } opens that person with a street
  * picked, { type: 'write', handle } opens the box to write to them,
- * { type: 'ask', handle, streetId } asks them at once, { type: 'show',
- * sightingId } shows it on the map, { type: 'done', key } puts the card
- * away on this computer.
+ * { type: 'ask', handle, streetId } asks them at once, { type: 'first',
+ * streetId } sends the next person who asks to that street first,
+ * { type: 'show', sightingId } shows it on the map, { type: 'done', key }
+ * puts the card away on this computer.
  */
 import { distanceMeters } from '@/app/lib/searchGrid';
 import { nearestOnPath } from '@/app/lib/streetWalks';
@@ -102,8 +103,13 @@ function sightingCard({ picture, items, people, name, unit, now }) {
     const street = shortTitle(open.street.title);
     facts.push(open.meters < 30 ? `${street} is still to walk.` : `${street}, ${metersWords(open.meters)} from it, is still to walk.`);
     // The free person whose last street was nearest: the nearest thing to where they are that the search knows.
+    // Only someone who joined or walked lately: a person who was here two days ago is not someone to keep a street for.
+    const lately = (p) => {
+      const since = p.lastWalkedAt || p.joinedAt;
+      return Boolean(since) && now - new Date(since).getTime() <= FREE_NEEDS_MS;
+    };
     const pick = people
-      .filter((p) => p.state === 'free')
+      .filter((p) => p.state === 'free' && lately(p))
       .map((p) => {
         const last = p.lastOn ? items.find((i) => i.id === p.lastOn.id) : null;
         return { person: p, meters: last ? apart(last, seen) : Infinity };
@@ -113,8 +119,13 @@ function sightingCard({ picture, items, people, name, unit, now }) {
       facts.push(Number.isFinite(pick.meters) ? `${pick.person.name} is free and last walked ${metersWords(pick.meters)} from there.` : `${pick.person.name} is free.`);
       more.push(show);
       primary = { words: `Ask ${pick.person.name} to walk ${street}`, do: { type: 'ask', handle: pick.person.handle, streetId: open.street.id } };
+    } else if (open.street.first) {
+      facts.push(`Nobody is free right now. The next person who asks for a street is sent to ${street} first.`);
     } else {
-      facts.push('Nobody is free right now. The next person who asks for a street is given the ones around it first.');
+      // Nobody to send: the owner can have the next person who asks sent there first, which is then true.
+      facts.push('Nobody is free right now.');
+      more.push(show);
+      primary = { words: `Send the next person to ${street}`, do: { type: 'first', streetId: open.street.id } };
     }
   }
   return {
@@ -122,7 +133,7 @@ function sightingCard({ picture, items, people, name, unit, now }) {
     kind: 'sighting',
     tone: 'seen',
     label: `Sighting · ${agoWords(seen.at, now)}`,
-    title: where ? `Seen ${where}` : 'Seen, and marked on the map',
+    title: where ? `Seen ${where}` : 'A sighting marked on the map',
     body: facts.filter(Boolean).join(' '),
     primary,
     more,
@@ -151,7 +162,8 @@ export function needsYou({ picture, items = [], people = [], words = [], leads =
       kind: 'word',
       label: `From ${w.from} · ${clockTime(w.at, zone)}`,
       title: '',
-      body: `"${w.text}"`,
+      // Their words in quotation marks; what the screen knew they were about, outside them.
+      body: w.about ? `"${w.text}"\nAbout ${w.about}.` : `"${w.text}"`,
       primary: { words: `Answer ${w.from}`, do: { type: 'write', handle: w.fromHandle } },
       more: [{ words: 'Got it', do: { type: 'done', key: `word-${w.id}` } }],
     });

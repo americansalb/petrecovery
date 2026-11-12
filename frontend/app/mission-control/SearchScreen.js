@@ -48,6 +48,7 @@ import { distanceMeters } from '@/app/lib/searchGrid';
 import { getBaseUrl } from '@/app/lib/config';
 import { orientWalk, walkTitle, placeFromStreets } from '@/app/lib/streetWalks';
 import useSearch from './hooks/useSearch';
+import usePutAway from './hooks/usePutAway';
 import TopBar from './components/TopBar';
 import PhotoView from './components/PhotoView';
 import FieldGps from './components/FieldGps';
@@ -318,19 +319,23 @@ function Screen({ mission }) {
   );
   // On a phone the owner reads what a helper said, and answers it, on their own card. (On a desk it is in "Needs
   // you" and in Messages.) One at a time: answering it brings up the next.
+  const [put, putAway] = usePutAway(caseId || 'none');
   const heard = useMemo(
-    () => (isOwner && !desk ? wordsForOwner({ talk: search.talk, now }) : NO_WORDS),
+    () => (isOwner && !desk ? wordsForOwner({ talk: search.talk, put, now }) : NO_WORDS),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isOwner, desk, search.talk, Math.floor(now / 60000)]
+    [isOwner, desk, search.talk, put, Math.floor(now / 60000)]
   );
-  const answerHelper = async (text) => {
-    const to = heard[0];
-    if (!to) return { error: '' };
+  const answerHelper = async (to, text) => {
     const result = await search.say(text, to.handle);
     // Answered, so the word leaves the card: said here, where it can still be read.
     if (!result.error) say(`Sent to ${to.from}.`);
     return result;
   };
+  // "Got it": read, and nothing to write back. The same list the desk's "Needs you" keeps.
+  const gotIt = (word) => putAway(`word-${word.id}`);
+  // The card says when it has shown a word written to this person, or the street they were asked to walk.
+  const sawWord = (id) => search.saw({ words: [id] });
+  const sawAsk = () => search.saw({ ask: true });
   // Answering takes someone on the search, as the server also checks. Someone leading answers what was written to them.
   const canSay = Boolean(viewer && !isOwner && (viewer.leads ? search.words.some((w) => !w.mine) : viewer.seesNames || search.volunteer || mineRaw || askedRaw || search.words.length > 0));
   const counts = useMemo(
@@ -546,6 +551,9 @@ function Screen({ mission }) {
   const mapStreets = useMemo(() => (unit === 'street' ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: i.id === litId, who: i.claimedByName || null })) : []), [unit, items, litId]);
   const mapCells = useMemo(() => (unit === 'block' ? items : []), [unit, items]);
   const lit = !sending && !isOwner ? mine || asked : null;
+  // With a street lit, where the pet was lost keeps its mark and loses its words, which would sit on the street.
+  // One object while nothing changes: the map is drawn again when this is a new one.
+  const mapLastSeen = useMemo(() => (lit && lastSeenTag ? { ...lastSeenTag, label: '' } : lastSeenTag), [Boolean(lit), lastSeenTag]); // eslint-disable-line react-hooks/exhaustive-deps
   const mapTags = useMemo(() => {
     if (!lit || unit !== 'street' || !lit.path?.length) return [];
     const first = lit.path[0];
@@ -649,15 +657,15 @@ function Screen({ mission }) {
     full = true;
     step = <Sent picture={picture} name={name} owner={owner} mine={mySeen} signedIn={Boolean(viewer?.signedIn)} onAgain={openSeen} onDone={() => go('main')} />;
   } else if (isOwner && hot) {
-    step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} />;
+    step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (isOwner) {
-    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} />;
+    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (mine) {
-    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} said={said} onSay={canSay ? search.say : null} now={now} />;
+    step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} said={said} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (view === 'join' && !desk) {
     step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} said={said} onSay={canSay ? search.say : null} now={now} />;
+    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   }
 
   const overlays = (
@@ -715,7 +723,7 @@ function Screen({ mission }) {
   const map = (
     <SearchMap
       theme="dark"
-      lastSeen={lit && lastSeenTag ? { ...lastSeenTag, label: '' } : lastSeenTag}
+      lastSeen={mapLastSeen}
       sightings={mapSightings}
       streets={mapStreets}
       cells={mapCells}

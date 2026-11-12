@@ -358,7 +358,7 @@ describe('searchPicture: what was said through the search screen, and what was a
     const out = await searchPicture('case-max', { searcher: HELPER, now: NOW });
     expect(out.words).toEqual([
       { id: 'm2', at: ago(8), text: 'Gate open behind the school.', mine: true, from: null },
-      { id: 'm3', at: ago(1), text: 'Can you take the alley too?', mine: false, from: 'Avery' },
+      { id: 'm3', at: ago(1), text: 'Can you take the alley too?', mine: false, from: 'Avery', seen: false },
     ]);
     expect(out.asked).toBe('street-42');
     expect(out).not.toHaveProperty('talk');
@@ -366,8 +366,8 @@ describe('searchPicture: what was said through the search screen, and what was a
     expect(prisma.searchMessage.findMany).toHaveBeenCalledTimes(1);
     expect(prisma.searchMessage.findMany.mock.calls[0][0].where).toEqual({ caseId: 'case-max', OR: [{ toId: 'v:vol-1' }, { fromId: 'v:vol-1', fromDesk: false }] });
     expect(prisma.searchStreet.findFirst).toHaveBeenCalledWith({ where: { caseId: 'case-max', context: false, askedOfId: 'v:vol-1', status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } }, select: { id: true } });
-    // Reading it is what the desk sees as "seen".
-    expect(prisma.searchMessage.updateMany).toHaveBeenCalledWith({ where: { id: { in: ['m3'] }, seenAt: null }, data: { seenAt: new Date(NOW) } });
+    // Reading it marks nothing: the desk is told "seen" when the screen says it showed the word, not when a phone fetched it.
+    expect(prisma.searchMessage.updateMany).not.toHaveBeenCalled();
     // No id of anyone leaves the server.
     expect(JSON.stringify(out)).not.toMatch(/user-avery|vol-1/);
   });

@@ -15,13 +15,14 @@ jest.mock('@/app/lib/prisma', () => ({
   default: {
     missionVolunteer: { findMany: jest.fn(async () => []) },
     searchStreet: { findMany: jest.fn(async () => []) },
+    searchMessage: { findMany: jest.fn(async () => []) },
     searchGrid: { findUnique: jest.fn(async () => null) },
     user: { findMany: jest.fn(async () => []) },
   },
 }));
 
 import prisma from '@/app/lib/prisma';
-import { roster, forDesk, handleFor, askHolds, teamOf, personByHandle, ASK_HOLD_MS } from '@/app/lib/searchTeam';
+import { roster, forDesk, handleFor, askHolds, teamOf, personByHandle, ASK_HOLD_MS, NAME_MAX } from '@/app/lib/searchTeam';
 
 const CASE = 'case-max';
 const NOW = new Date('2026-11-12T22:00:00Z').getTime();
@@ -99,6 +100,29 @@ describe('roster: who is on the search and what each is doing', () => {
     expect(team[0]).toMatchObject({ id: 'u-dana', kind: 'member', state: 'walking' });
   });
 
+  test('everyone the desk has exchanged a word with stays on the roster, whatever became of their street', () => {
+    // Pat (an account, in no force) took a street, was written to, and gave the street back: nothing on the board
+    // names Pat any more. Sam, in the force, never took a street and wrote to the desk. Both must stay people
+    // the owner can answer, and Pat must stay able to write back.
+    const messages = [
+      { fromId: 'u-avery', fromName: 'Avery', fromDesk: true, toId: 'u-pat', toName: 'Pat' },
+      { fromId: 'u-sam', fromName: 'Sam', fromDesk: false, toId: null, toName: null },
+    ];
+    const team = by(roster({ caseId: CASE, helpers: [], streets: [street()], messages, ownerId: 'u-avery', now: NOW }));
+    expect(Object.keys(team).sort()).toEqual(['Pat', 'Sam']);
+    expect(team.Pat).toMatchObject({ id: 'u-pat', state: 'free', kind: 'member', walked: 0, joinedAt: null });
+    expect(team.Sam).toMatchObject({ id: 'u-sam', state: 'free' });
+    // The owner wrote the first one and is still not one of the people helping.
+    expect(roster({ caseId: CASE, messages, ownerId: 'u-avery', now: NOW }).some((p) => p.id === 'u-avery')).toBe(false);
+  });
+
+  test('a name is one word and not a paragraph: a helper types their own', () => {
+    const long = `${'A'.repeat(200)} Smith`;
+    const [p] = roster({ caseId: CASE, helpers: [helper({ displayName: long })], now: NOW });
+    expect(p.name).toHaveLength(NAME_MAX);
+    expect(NAME_MAX).toBeLessThanOrEqual(40);
+  });
+
   test('a person nobody can name is "A helper", never an id', () => {
     const [p] = roster({ caseId: CASE, streets: [street({ status: 'IN_PROGRESS', claimedById: 'u-gone', claimedAt: ago(3) })], now: NOW });
     expect(p.name).toBe('A helper');
@@ -128,10 +152,28 @@ describe('a person is known to the desk by a handle, never by their id', () => {
 
   test('what is sent to the desk has no id in it', () => {
     const team = roster({ caseId: CASE, helpers: [helper()], streets: [street({ status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedAt: ago(4) })], now: NOW });
-    const sent = team.map(forDesk);
+    const sent = team.map((p) => forDesk(p));
     expect(sent[0]).not.toHaveProperty('id');
     expect(sent[0].handle).toBe(handleFor(CASE, 'v:vol-1'));
     expect(JSON.stringify(sent)).not.toMatch(/vol-1/);
+  });
+
+  test('the note on an ask goes to whoever runs the search, and to nobody else who sees the roster', () => {
+    // A member of a Rescue Force that is looking sees names. The note is the owner's word to one person
+    // ("Her gate code is 4411"), and joining a force takes one tap.
+    const asked = street({ askedOfId: 'v:vol-1', askedOfName: 'Dana', askedByName: 'Avery', askedAt: ago(3), askedNote: 'Her gate code is 4411, go round the back.' });
+    const team = roster({ caseId: CASE, helpers: [helper()], streets: [asked], now: NOW });
+    const forOwner = team.map((p) => forDesk(p, { notes: true }));
+    expect(forOwner[0].asked).toMatchObject({ note: 'Her gate code is 4411, go round the back.', byName: 'Avery', title: 'Ramsey Ave from W 40th St to W 44th St' });
+    for (const sent of [team.map((p) => forDesk(p)), team.map((p) => forDesk(p, { notes: false }))]) {
+      // That she was asked, for which street and when: yes. What was said: no.
+      expect(sent[0].asked).toMatchObject({ title: 'Ramsey Ave from W 40th St to W 44th St', at: ago(3), seenAt: null, holds: true });
+      expect(sent[0].asked).not.toHaveProperty('note');
+      expect(sent[0].asked).not.toHaveProperty('byName');
+      expect(JSON.stringify(sent)).not.toMatch(/4411|gate code/);
+    }
+    // Someone with no ask is sent as they are.
+    expect(forDesk({ id: 'x', handle: 'h', name: 'Jo', asked: null })).toEqual({ handle: 'h', name: 'Jo', asked: null });
   });
 });
 
@@ -142,6 +184,7 @@ describe('teamOf and personByHandle: read from the database', () => {
     prisma.searchStreet.findMany.mockResolvedValue([street({ status: 'IN_PROGRESS', claimedById: 'v:vol-1', claimedByName: 'Dana', claimedAt: ago(4) })]);
     prisma.searchGrid.findUnique.mockResolvedValue({ cells: [{ id: 'c-1', row: 0, col: 0, status: 'IN_PROGRESS', claimedById: 'u-mike', claimedAt: ago(2), searchedById: null, searchedByKey: null, searchedAt: null, searchCount: 0 }] });
     prisma.user.findMany.mockResolvedValue([{ id: 'u-mike', firstName: 'Mike' }]);
+    prisma.searchMessage.findMany.mockResolvedValue([]);
   });
 
   test('reads this pet only, never the streets outside the board, and names whoever the rows do not', async () => {
@@ -152,6 +195,14 @@ describe('teamOf and personByHandle: read from the database', () => {
     expect(prisma.searchGrid.findUnique.mock.calls[0][0].where).toEqual({ caseId: CASE });
     // Only the one nobody named already is looked up, and by first name.
     expect(prisma.user.findMany).toHaveBeenCalledWith({ where: { id: { in: ['u-mike'] } }, select: { id: true, firstName: true } });
+  });
+
+  test('someone the desk has only talked with is read too, so the owner can answer them', async () => {
+    prisma.searchMessage.findMany.mockResolvedValue([{ fromId: 'u-sam', fromName: 'Sam', fromDesk: false, toId: null, toName: null }]);
+    const team = await teamOf(CASE, { ownerId: 'u-avery', now: NOW });
+    expect(team.map((p) => p.name).sort()).toEqual(['Dana', 'Mike', 'Sam']);
+    expect(prisma.searchMessage.findMany.mock.calls[0][0]).toMatchObject({ where: { caseId: CASE }, select: { fromId: true, fromName: true, fromDesk: true, toId: true, toName: true } });
+    expect(await personByHandle(CASE, handleFor(CASE, 'u-sam'), { ownerId: 'u-avery', now: NOW })).toMatchObject({ id: 'u-sam', name: 'Sam' });
   });
 
   test('a handle finds its person on this pet, and nobody on another', async () => {

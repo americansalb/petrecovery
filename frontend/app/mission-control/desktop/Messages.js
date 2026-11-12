@@ -9,9 +9,10 @@
  * see it on the map.
  *
  * The owner writes to everyone helping (a case update: it goes on the
- * pet's page too, and shows on every helper's card) or to one person.
- * Someone leading a force writes to one person. A word to one person is
- * closed like a radio call: it says when their phone showed it.
+ * pet's page too, and shows on every helper's card) or to one person. A
+ * word to one person is closed like a radio call: it says when their
+ * phone showed it. "Answer" always writes to the person answered, never
+ * to everyone.
  *
  * Everyone else at a desk reads the same stream without the private
  * words, which the server never sends them, and without the box.
@@ -39,9 +40,13 @@ export default function Messages({ picture, items, now, people = [], words = [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [items, picture, words, Math.floor(now / 60000)]
   );
-  // The owner can write to everyone; anyone else leading writes to one person, the first on the list until they pick.
+  // The owner can write to everyone; anyone else who runs a search writes to one person, the first on the list
+  // until they pick. A person who was picked and is no longer on the list is NOT quietly swapped for "everyone":
+  // an answer meant for one helper must never go on every card and the pet's page. The box says so and waits.
   const everyone = isOwner ? 'everyone' : null;
-  const target = to && people.some((p) => p.handle === to) ? to : everyone || people[0]?.handle || null;
+  const wanted = to && to !== 'everyone' ? to : null;
+  const gone = Boolean(wanted && !people.some((p) => p.handle === wanted));
+  const target = gone ? null : wanted || (to === 'everyone' ? everyone : null) || everyone || people[0]?.handle || null;
   const person = target && target !== 'everyone' ? people.find((p) => p.handle === target) : null;
 
   // The newest line stays in view, as in any conversation.
@@ -84,6 +89,8 @@ export default function Messages({ picture, items, now, people = [], words = [],
                   <span>
                     {mine ? `${l.who}, to ${l.to}` : l.who} · {dayAndTime(l.at, zone, now)}
                     {mine ? (l.seenAt ? ` · seen ${clockTime(l.seenAt, zone)}` : ' · not seen yet') : ''}
+                    {/* What the screen knew it was about, beside the words and never inside them. */}
+                    {!mine && l.about ? ` · about ${l.about}` : ''}
                   </span>
                   {!mine && leads && l.handle && (
                     <button type="button" onClick={() => onTo(l.handle)} className="font-bold text-[var(--mc-ink)] underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
@@ -170,6 +177,13 @@ export default function Messages({ picture, items, now, people = [], words = [],
                 {person ? `It shows on ${person.name}'s card on their phone, while ${name}'s search is open there.` : `It shows on every helper's card and on ${name}'s page.`}
               </p>
             </>
+          ) : gone ? (
+            <p className="text-[14px] font-medium leading-5 text-[var(--mc-soft)]">
+              That person is no longer on this search, so there is nowhere to send it.{' '}
+              <button type="button" onClick={() => onTo(everyone || people[0]?.handle || null)} className="font-bold text-[var(--mc-ink)] underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
+                Write to someone else
+              </button>
+            </p>
           ) : (
             <p className="text-[14px] font-medium leading-5 text-[var(--mc-muted)]">When someone joins the search you can write to them here.</p>
           )}

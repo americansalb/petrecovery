@@ -46,13 +46,34 @@ describe('a sighting', () => {
     expect(card.primary.do).toEqual({ type: 'ask', handle: 'h-jo', streetId: 'Elm' });
   });
 
-  test('with nobody free it says what the search does by itself, and asks no one', () => {
+  test('with nobody free it asks no one, and offers to send the next person who asks there first', () => {
     // Dana is out, on a street far from the sighting.
     const dana = person('Dana', { state: 'walking', on: { id: 'Fir', title: 'Fir St from A Ave to B Ave' }, since: ago(5) });
-    const [card] = needsYou(base({ picture: picture({ sightings: [seen] }), people: [dana], items: [street('Oak', 100, { status: 'SEARCHED' }), street('Elm', 300), street('Fir', 900, { status: 'IN_PROGRESS' })] }));
-    expect(card.body).toBe('300 m south of where Max was lost. Elm St is still to walk. Nobody is free right now. The next person who asks for a street is given the ones around it first.');
-    expect(card.primary).toEqual({ words: 'Show it on the map', do: { type: 'show', sightingId: 's1' } });
-    expect(card.more).toEqual([]);
+    const items = [street('Oak', 100, { status: 'SEARCHED' }), street('Elm', 300), street('Fir', 900, { status: 'IN_PROGRESS' })];
+    const [card] = needsYou(base({ picture: picture({ sightings: [seen] }), people: [dana], items }));
+    // It does not say the streets around a sighting are given out first: a street nearer home, or one sent to
+    // first, can come before them. It offers the one thing that makes it so.
+    expect(card.body).toBe('300 m south of where Max was lost. Elm St is still to walk. Nobody is free right now.');
+    expect(card.body).not.toMatch(/given the ones around it first/);
+    expect(card.primary).toEqual({ words: 'Send the next person to Elm St', do: { type: 'first', streetId: 'Elm' } });
+    expect(card.more).toEqual([{ words: 'Show it on the map', do: { type: 'show', sightingId: 's1' } }]);
+    // Once it is sent to first, the card says so and has nothing more to ask for.
+    const sent = items.map((i) => (i.id === 'Elm' ? { ...i, first: true, priority: 11 } : i));
+    const [after] = needsYou(base({ picture: picture({ sightings: [seen] }), people: [dana], items: sent }));
+    expect(after.body).toBe('300 m south of where Max was lost. Elm St is still to walk. Nobody is free right now. The next person who asks for a street is sent to Elm St first.');
+    expect(after.primary).toEqual({ words: 'Show it on the map', do: { type: 'show', sightingId: 's1' } });
+  });
+
+  test('the one-click ask is only for someone who was here lately: not a person who joined two days ago and never came back', () => {
+    const pat = person('Pat', { joinedAt: ago(2 * 24 * 60) });
+    const items = [street('Oak', 100, { status: 'SEARCHED' }), street('Elm', 300)];
+    const [gone] = needsYou(base({ picture: picture({ sightings: [seen] }), people: [pat], items }));
+    expect(JSON.stringify(gone)).not.toMatch(/Ask Pat|Pat is free/);
+    expect(gone.primary.do.type).toBe('first');
+    // Someone who joined a few minutes ago is.
+    const jo = person('Jo', { joinedAt: ago(5) });
+    const [here] = needsYou(base({ picture: picture({ sightings: [seen] }), people: [pat, jo], items }));
+    expect(here.primary).toEqual({ words: 'Ask Jo to walk Elm St', do: { type: 'ask', handle: 'h-jo', streetId: 'Elm' } });
   });
 
   test('once someone has been asked for a street around it, the card says so and asks nobody else', () => {
@@ -83,7 +104,7 @@ describe('a sighting', () => {
     expect(two.map((c) => c.id)).toEqual(['seen-s1']);
     // Seen 900 m east of every street: nothing within 300 m of it.
     const far = needsYou(base({ picture: picture({ sightings: [{ id: 's2', at: ago(5), place: null, ...south(300, 900) }] }), people: [person('Jo', { joinedAt: ago(1) })] }));
-    expect(far[0]).toMatchObject({ title: 'Seen, and marked on the map', primary: { do: { type: 'show', sightingId: 's2' } } });
+    expect(far[0]).toMatchObject({ title: 'A sighting marked on the map', primary: { do: { type: 'show', sightingId: 's2' } } });
     expect(far[0].body).not.toMatch(/still to walk/);
   });
 
@@ -167,6 +188,16 @@ describe('someone out much longer than their street takes', () => {
   test('a careful walk is not flagged', () => {
     const dana = person('Dana', { state: 'walking', on: { id: 'Oak', title: 'Oak St from A Ave to B Ave' }, since: ago(30) });
     expect(needsYou(base({ people: [dana] }))).toEqual([]);
+  });
+});
+
+describe('a word from a helper', () => {
+  test('is their words in quotation marks, and what the screen knew they were about outside them', () => {
+    const words = [{ id: 'a', at: ago(8), text: "I can't right now.", about: 'Elm St from A Ave to B Ave', fromDesk: false, from: 'Dana', fromHandle: 'h-dana', to: null, toHandle: null }];
+    const [card] = needsYou(base({ words }));
+    expect(card.body).toBe('"I can\'t right now."\nAbout Elm St from A Ave to B Ave.');
+    const [plain] = needsYou(base({ words: [{ ...words[0], about: null, text: 'Gate open.' }] }));
+    expect(plain.body).toBe('"Gate open."');
   });
 });
 

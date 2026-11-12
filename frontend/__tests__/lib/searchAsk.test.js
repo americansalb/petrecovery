@@ -46,7 +46,9 @@ describe('askStreet', () => {
     expect(write.where).toEqual({ id: 'st-2', caseId: CASE, context: false, status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] }, OR: [{ askedOfId: null }, { askedOfId: 'v:vol-2' }, { askedAt: { lt: new Date(NOW - ASK_HOLD_MS) } }] });
     expect(write.data).toEqual({ askedOfId: 'v:vol-2', askedOfName: 'Jo', askedById: 'u-avery', askedByName: 'Avery', askedAt: new Date(NOW), askedSeenAt: null, askedNote: 'Check the alley behind the school.' });
     // One ask to a person: any other street Jo was asked for goes back to the search.
-    expect(others).toEqual({ where: { caseId: CASE, askedOfId: 'v:vol-2', NOT: { id: 'st-2' } }, data: EMPTY });
+    // Any street they were asked for before this one goes back. Only the ones before it: two asks made in the same
+    // moment must not each take the other back and leave the person with none.
+    expect(others).toEqual({ where: { caseId: CASE, askedOfId: 'v:vol-2', NOT: { id: 'st-2' }, askedAt: { lt: new Date(NOW) } }, data: EMPTY });
   });
 
   test('a note is the asker\'s own words, kept short, and none is none', async () => {
@@ -97,9 +99,18 @@ describe('taking an ask back, and saying "I can\'t"', () => {
     const out = await cannotWalk({ caseId: CASE, searcher: { id: 'v:vol-2', firstName: 'Jo' } });
     expect(out).toEqual({ title: 'W 42nd St from Rosedale Ave to Shoalwood Ave' });
     expect(prisma.searchStreet.findFirst).toHaveBeenCalledWith({ where: { caseId: CASE, context: false, askedOfId: 'v:vol-2', status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } } });
-    expect(prisma.searchStreet.updateMany).toHaveBeenCalledWith({ where: { id: 'st-2', askedOfId: 'v:vol-2' }, data: EMPTY });
+    expect(prisma.searchStreet.updateMany).toHaveBeenCalledWith({ where: { id: 'st-2', askedOfId: 'v:vol-2', status: { in: ['UNSEARCHED', 'NEEDS_REVISIT'] } }, data: EMPTY });
     expect(CANNOT_WORDS).toBe("I can't right now.");
-    expect(prisma.searchMessage.create).toHaveBeenCalledWith({ data: { caseId: CASE, fromId: 'v:vol-2', fromName: 'Jo', fromDesk: false, toId: null, toName: null, text: "I can't right now. (W 42nd St from Rosedale Ave to Shoalwood Ave)" } });
+    // The words are the button's and nothing else. Which street they are about is kept beside them, not inside them.
+    expect(prisma.searchMessage.create).toHaveBeenCalledWith({ data: { caseId: CASE, fromId: 'v:vol-2', fromName: 'Jo', fromDesk: false, toId: null, toName: null, text: "I can't right now.", about: 'W 42nd St from Rosedale Ave to Shoalwood Ave' } });
+  });
+
+  test('pressed twice, the desk is told once', async () => {
+    prisma.searchStreet.findFirst.mockResolvedValue(street({ askedOfId: 'v:vol-2', askedAt: ago(2) }));
+    // The other request gave it back first: this one's write changes nothing.
+    prisma.searchStreet.updateMany.mockResolvedValue({ count: 0 });
+    expect(await cannotWalk({ caseId: CASE, searcher: { id: 'v:vol-2', firstName: 'Jo' } })).toEqual({ error: 'NO_ASK' });
+    expect(prisma.searchMessage.create).not.toHaveBeenCalled();
   });
 
   test('someone who was not asked has nothing to give back', async () => {
@@ -132,7 +143,11 @@ describe('what a street says about its ask, to each kind of person', () => {
   });
 
   test('the person asked learns it is theirs, with the note, and whose ask it is when it is the owner\'s', () => {
-    expect(askOnStreet(asked, { viewer: 'v:vol-2', ownerId: 'u-avery', now: NOW })).toEqual({ reserved: false, askedOfMe: true, askedNote: 'Check the alley.', askedBy: 'Avery' });
+    // `askedSeen` is whether their screen has said it showed the ask: until it has, it says so when it does.
+    expect(askOnStreet({ ...asked, askedSeenAt: null }, { viewer: 'v:vol-2', ownerId: 'u-avery', now: NOW })).toEqual({ reserved: false, askedOfMe: true, askedNote: 'Check the alley.', askedBy: 'Avery', askedSeen: false });
+    expect(askOnStreet({ ...asked, askedSeenAt: ago(1) }, { viewer: 'v:vol-2', ownerId: 'u-avery', now: NOW }).askedSeen).toBe(true);
+    // The owner by the name the rest of the screen calls them (the report's), where that is given.
+    expect(askOnStreet(asked, { viewer: 'v:vol-2', ownerId: 'u-avery', ownerName: 'Avi', now: NOW }).askedBy).toBe('Avi');
     // Asked by someone leading a force: a helper is not told a lead's name.
     const byLead = { ...asked, askedById: 'u-sarah', askedByName: 'Sarah' };
     expect(askOnStreet(byLead, { viewer: 'v:vol-2', ownerId: 'u-avery', now: NOW })).toMatchObject({ askedOfMe: true, askedBy: null });

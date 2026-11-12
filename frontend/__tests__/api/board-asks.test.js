@@ -55,6 +55,7 @@ jest.mock('@/app/lib/osmStreets', () => ({ __esModule: true, fetchNamedWays: jes
 import prisma from '@/app/lib/prisma';
 import { searcherFor } from '@/app/lib/searcher';
 import { askStreet, unaskPerson, cannotWalk, markAskSeen } from '@/app/lib/searchAsk';
+import { forDesk as realForDesk } from '@/app/lib/searchTeam';
 import { teamOf, personByHandle, handleFor } from '@/app/lib/searchTeam';
 import { sendPushToUser } from '@/app/lib/push';
 import { broadcast } from '@/app/lib/sse/missionStream';
@@ -228,6 +229,21 @@ describe('the roster, and what a street says about its ask', () => {
     expect(teamOf).toHaveBeenCalledWith(CASE, { ownerId: 'u-avery' });
   });
 
+  test('the note on an ask is the owner\'s word to one person: it goes to the owner, and to no force member', async () => {
+    teamOf.mockResolvedValue(team);
+    searcherFor.mockResolvedValue(OWNER);
+    const forOwner = await (await GET(req('GET'), ctx)).json();
+    expect(forOwner.people[0].asked).toMatchObject({ note: 'Check the alley.', byName: 'Avery' });
+    // In a force, whatever the role: that Dana was asked, for which street and when, and not what was said.
+    searcherFor.mockResolvedValue(MEMBER);
+    const forMember = await (await GET(req('GET'), ctx)).json();
+    expect(forMember.people[0].asked).toMatchObject({ title: 'W 42nd St from Rosedale Ave to Shoalwood Ave', seenAt: null });
+    expect(forMember.people[0].asked).not.toHaveProperty('note');
+    expect(forMember.people[0].asked).not.toHaveProperty('byName');
+    expect(JSON.stringify(forMember)).not.toMatch(/alley/);
+    expect(realForDesk).toBeDefined();
+  });
+
   test('nobody else is: someone only looking, a signed-in stranger, another helper', async () => {
     teamOf.mockResolvedValue(team);
     for (const searcher of [null, STRANGER, { ...DANA, id: 'v:vol-2', volunteerId: 'vol-2', firstName: 'Jo' }]) {
@@ -247,13 +263,38 @@ describe('the roster, and what a street says about its ask', () => {
     expect(markAskSeen).not.toHaveBeenCalled();
   });
 
-  test('the person asked reads that it is theirs, with the owner\'s note and name, and reading it is what the desk sees as "seen"', async () => {
+  test('the person asked reads that it is theirs, with the owner\'s note and name; reading it marks nothing as seen', async () => {
     searcherFor.mockResolvedValue(DANA);
     const out = await (await GET(req('GET'), ctx)).json();
     const street = out.streets.find((s) => s.id === 'st-1');
-    expect(street).toMatchObject({ askedOfMe: true, askedNote: 'Check the alley.', askedBy: 'Avery', reserved: false });
-    expect(markAskSeen).toHaveBeenCalledWith(CASE, 'v:vol-1');
+    // `askedSeen` false: their screen has not yet said it showed the card.
+    expect(street).toMatchObject({ askedOfMe: true, askedNote: 'Check the alley.', askedBy: 'Avery', askedSeen: false, reserved: false });
+    // A phone that fetched the board has not shown the ask, and a computer never shows it: "seen" is said by the
+    // screen that showed it (PATCH .../message), not by this read.
+    expect(markAskSeen).not.toHaveBeenCalled();
     expect(out).not.toHaveProperty('people');
+  });
+
+  test('a request that is not what it should be is refused in words, and nothing is read as an id', async () => {
+    searcherFor.mockResolvedValue(OWNER);
+    personByHandle.mockResolvedValue({ id: 'v:vol-1', handle: H_DANA, name: 'Dana' });
+    const send = (raw) => PATCH(new NextRequest(`http://localhost/api/mission/${CASE}/board`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: raw }), ctx);
+    // No body, a bare null, a list, text that is not JSON.
+    for (const raw of ['null', '[]', '"ask"', 'not json', '7']) expect((await send(raw)).status).toBe(400);
+    // An id or a handle that is an object, a list or a number is not text.
+    for (const body of [{ unit: 'street', id: { toString: 1 }, action: 'claim' }, { unit: 'street', id: ['st-1'], action: 'first' }, { unit: 'street', id: 7, action: 'walked' }]) {
+      expect((await patch(body)).status).toBe(400);
+    }
+    for (const person of [{ toString: 1 }, ['x'], 7, null, '']) {
+      const res = await patch({ unit: 'street', id: 'st-1', action: 'ask', person });
+      expect(res.status).toBe(404);
+      expect(await res.json()).toMatchObject({ code: 'NO_PERSON' });
+    }
+    expect((await patch({ unit: 'street', id: { toString: 1 }, action: 'ask', person: H_DANA })).status).toBe(400);
+    // A note that is not text is no note.
+    askStreet.mockResolvedValue({ street: asked(), title: 'W 42nd St from Rosedale Ave to Shoalwood Ave' });
+    await patch({ unit: 'street', id: 'st-1', action: 'ask', person: H_DANA, note: { toString: 1 } });
+    expect(askStreet.mock.calls.at(-1)[0].note).toBe('');
   });
 });
 

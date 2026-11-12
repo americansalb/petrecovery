@@ -19,8 +19,9 @@ jest.mock('@/app/lib/searchTalk', () => {
       this.code = code;
     }
   }
-  return { __esModule: true, WordError, sendWord: jest.fn(async ({ text }) => ({ id: 'msg-1', createdAt: new Date('2026-11-12T22:00:00Z'), text: String(text).trim() })) };
+  return { __esModule: true, WordError, sendWord: jest.fn(async ({ text }) => ({ id: 'msg-1', createdAt: new Date('2026-11-12T22:00:00Z'), text: String(text).trim() })), markWordsSeen: jest.fn(async () => 1) };
 });
+jest.mock('@/app/lib/searchAsk', () => ({ __esModule: true, markAskSeen: jest.fn(async () => 1) }));
 jest.mock('@/lib/logging', () => ({ __esModule: true, logEvent: jest.fn(async () => {}) }));
 jest.mock('@/app/lib/rateLimit', () => ({
   __esModule: true,
@@ -32,9 +33,10 @@ import { NextRequest } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { searcherFor } from '@/app/lib/searcher';
 import { personByHandle, teamOf } from '@/app/lib/searchTeam';
-import { sendWord, WordError } from '@/app/lib/searchTalk';
+import { sendWord, markWordsSeen, WordError } from '@/app/lib/searchTalk';
+import { markAskSeen } from '@/app/lib/searchAsk';
 import { withRateLimitAsync } from '@/app/lib/rateLimit';
-import { POST } from '@/app/api/mission/[missionId]/message/route';
+import { POST, PATCH } from '@/app/api/mission/[missionId]/message/route';
 
 const PET = { id: 'case-max', caseNumber: 'AUS-2026-0001', status: 'ACTIVE', petName: 'Max', reporterId: 'u-avery' };
 const OWNER = { id: 'u-avery', kind: 'user', userId: 'u-avery', firstName: 'Avery', isOwner: true, seesNames: true, leads: true };
@@ -44,6 +46,8 @@ const HELPER = { id: 'v:vol-1', kind: 'volunteer', userId: null, firstName: 'Dan
 const STRANGER = { id: 'u-pat', kind: 'user', userId: 'u-pat', firstName: 'Pat', isOwner: false, seesNames: false, leads: false };
 const DANA = { id: 'v:vol-1', handle: 'h-dana', name: 'Dana' };
 
+const raw = (method, text) => new NextRequest('http://localhost/api/mission/AUS-2026-0001/message', { method, headers: { 'content-type': 'application/json' }, body: text });
+const shown = (body) => PATCH(raw('PATCH', JSON.stringify(body)), { params: { missionId: 'AUS-2026-0001' } });
 const post = (body) => POST(new NextRequest('http://localhost/api/mission/AUS-2026-0001/message', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }), { params: { missionId: 'AUS-2026-0001' } });
 
 beforeEach(() => {
@@ -151,5 +155,88 @@ describe('the rest', () => {
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: 'That did not go through. Try again in a moment.' });
     quiet.mockRestore();
+  });
+});
+
+describe('a found pet has no search, so it has none of this', () => {
+  test('nobody can be written to through a report of a found pet, by anyone', async () => {
+    prisma.case.findFirst.mockResolvedValue({ ...PET, reportType: 'FOUND' });
+    for (const searcher of [HELPER, MEMBER, STRANGER, OWNER]) {
+      searcherFor.mockResolvedValue(searcher);
+      const res = await post({ text: 'Is this your cat?' });
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: 'This link does not match a search.' });
+      expect((await shown({ words: ['m1'], ask: true })).status).toBe(404);
+    }
+    expect(sendWord).not.toHaveBeenCalled();
+    expect(markWordsSeen).not.toHaveBeenCalled();
+  });
+});
+
+describe('a request that is not what it should be', () => {
+  test('words are text: nothing else is read as text, and nothing is sent', async () => {
+    searcherFor.mockResolvedValue(HELPER);
+    teamOf.mockResolvedValue([{ id: 'v:vol-1' }]);
+    for (const text of [{ toString: 1 }, ['a'], 7, null, undefined, true]) {
+      const res = await post({ text });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ code: 'EMPTY' });
+    }
+    for (const body of ['null', '[]', '"hello"', 'not json']) expect((await POST(raw('POST', body), { params: { missionId: 'AUS-2026-0001' } })).status).toBe(400);
+    expect(sendWord).not.toHaveBeenCalled();
+  });
+
+  test('a `to` that is not a handle is nobody, for the owner too', async () => {
+    searcherFor.mockResolvedValue(OWNER);
+    for (const to of [{ toString: 1 }, ['h-dana'], 7]) {
+      const res = await post({ text: 'Hello', to });
+      expect(res.status).toBe(404);
+      expect(await res.json()).toMatchObject({ code: 'NO_PERSON' });
+    }
+    expect(personByHandle).not.toHaveBeenCalled();
+    expect(sendWord).not.toHaveBeenCalled();
+  });
+});
+
+describe('PATCH: this person\'s screen has shown a word, or the street they were asked to walk', () => {
+  test('it marks only what is theirs: the caller\'s own id is the only one used, whatever the request holds', async () => {
+    searcherFor.mockResolvedValue(HELPER);
+    const res = await shown({ words: ['m3', 'm9'], ask: true, toId: 'v:vol-2', searcherId: 'u-avery', person: 'h-jo' });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ seen: { words: 1, ask: 1 } });
+    // The library is given the caller, and marks a word only where it was written to them.
+    expect(markWordsSeen).toHaveBeenCalledWith('case-max', 'v:vol-1', ['m3', 'm9']);
+    expect(markAskSeen).toHaveBeenCalledWith('case-max', 'v:vol-1');
+  });
+
+  test('a word shown does not mark an ask seen, and the other way round', async () => {
+    searcherFor.mockResolvedValue(HELPER);
+    await shown({ words: ['m3'] });
+    expect(markAskSeen).not.toHaveBeenCalled();
+    // `ask` has to be exactly true: a string, a number or an object is not it.
+    for (const ask of ['true', 1, {}, []]) await shown({ ask });
+    expect(markAskSeen).not.toHaveBeenCalled();
+    await shown({ ask: true });
+    expect(markAskSeen).toHaveBeenCalledTimes(1);
+  });
+
+  test('someone only looking has nothing to mark, and a body that is not an object marks nothing', async () => {
+    expect((await shown({ words: ['m3'], ask: true })).status).toBe(401);
+    expect(markWordsSeen).not.toHaveBeenCalled();
+    searcherFor.mockResolvedValue(HELPER);
+    for (const body of ['null', '[]', '7', 'not json']) {
+      const res = await PATCH(raw('PATCH', body), { params: { missionId: 'AUS-2026-0001' } });
+      expect(res.status).toBe(200);
+      expect(markWordsSeen).toHaveBeenLastCalledWith('case-max', 'v:vol-1', undefined);
+    }
+    expect(markAskSeen).not.toHaveBeenCalled();
+  });
+
+  test('it is limited, and a link that matches no pet is 404', async () => {
+    withRateLimitAsync.mockResolvedValue({ success: false });
+    expect((await shown({ words: ['m3'] })).status).toBe(429);
+    withRateLimitAsync.mockResolvedValue({ success: true });
+    prisma.case.findFirst.mockResolvedValue(null);
+    expect((await shown({ words: ['m3'] })).status).toBe(404);
   });
 });

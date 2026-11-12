@@ -24,7 +24,8 @@ const HOUR = 60 * MINUTE;
  *  - Dogs: Kremer T. A New Web-Based Tool for RTO-Focused Animal Shelter
  *    Data Analysis. Front Vet Sci. 2021;8:669428. Dallas Animal Services,
  *    fiscal year 2019 (October 2018 to September 2019), 5,228 stray dogs
- *    returned to their owners: "70% of dogs are not found beyond 1 mile
+ *    returned to their owners whose pick-up address was not their own:
+ *    "70% of dogs are not found beyond 1 mile
  *    away from their owner address", and 42% of all dogs "go <400 ft
  *    away". Straight-line distance from the owner's address to where the
  *    dog was picked up: from HOME, which is not always where a dog was
@@ -47,7 +48,7 @@ export const RESEARCH = {
       { meters: 122, label: '400 ft' },
       { meters: 1609, label: '1 mile' },
     ],
-    line: 'In Dallas shelter records for the 2019 fiscal year, of 5,228 stray dogs returned to their owners, 42% were picked up within 400 feet of home and 70% within a mile.',
+    line: 'In Dallas shelter records for the 2019 fiscal year, of 5,228 stray dogs picked up away from home and returned to their owners, 42% were within 400 feet of home and 70% within a mile.',
     show: 'Show 400 ft and 1 mile',
     source: 'Kremer, Frontiers in Veterinary Science, 2021',
     url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC8185155/',

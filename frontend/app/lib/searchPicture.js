@@ -15,7 +15,7 @@
  * only to the people it is for: `words` is what was written to this
  * person and what they wrote back, and `asked` the street they were asked
  * to walk (the board has the street itself); `talk` is every message, for
- * the owner and the people leading the search.
+ * whoever runs the search. Reading the picture marks nothing as seen.
  *
  * The streets and who is on them are the board's (app/lib/searchBoard.js,
  * GET /api/mission/[id]/board); this is everything else.
@@ -128,8 +128,10 @@ const WRITTEN_BY_CODE = [
   /^New sighting reported/,
   /^Task (created: )?"/,
   /^(✅|🗺️)/u,
-  / (started searching|paused their search|resumed searching)$/,
-  / ended their search \(\d+ min\)$/,
+  // "{first name} started searching": one name and the phrase, which is how the session routes write it. A
+  // sentence of the owner's own that happens to end the same way ("Two neighbors started searching") is kept.
+  /^(A volunteer|\S+) (started searching|paused their search|resumed searching)$/,
+  /^(A volunteer|\S+) ended their search \(\d+ min\)$/,
 ];
 
 /** What the owner told everyone helping: written by the owner, and by hand. Newest first. */
@@ -223,7 +225,7 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
   let mineToRead = null;
   if (searcher && open && !isOwner && pet.reportType !== 'FOUND') {
     const [words, asked] = await Promise.all([
-      wordsForPerson(pet.id, searcher.id, { ownerId: pet.reporterId, ownerName: ownerFirst, now: new Date(now) }),
+      wordsForPerson(pet.id, searcher.id, { ownerId: pet.reporterId, ownerName: ownerFirst }),
       askWaitingFor(pet.id, searcher.id),
     ]);
     mineToRead = { words, asked };

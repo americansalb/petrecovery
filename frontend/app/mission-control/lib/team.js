@@ -55,42 +55,52 @@ export function grouped(people = []) {
   };
 }
 
+/** How many words written to one person their card shows at once. */
+export const WORDS_ON_CARD = 3;
+
 /**
- * What a helper's card shows of what was said: the newest word written to
- * them from the desk, and the newest thing the owner told everyone, each
- * while it is fresh. The one written to them comes first and is always
- * there: the desk is told when it was seen, so it has to be on the card
- * to see, and something told to everyone later must not push it off.
- * Each: { id, kind: 'yours' | 'everyone', text, at, from }. `from` is the
- * owner's first name, or null for a word from anyone else who came to run
- * the search (a helper is not told their name).
+ * What a helper's card shows of what was said: the words written to them
+ * from the desk since they last wrote back (the newest three, oldest
+ * first), or else the newest one, and then the newest thing the owner told
+ * everyone; each while it is fresh. A word written to this person is
+ * always there while it is fresh: the desk is told when it was seen, so it
+ * has to be on the card to see, and something told to everyone later must
+ * not push it off. Each: { id, kind: 'yours' | 'everyone', text, at, from,
+ * seen }. `from` is the owner's first name, or null for a word from anyone
+ * else who came to run the search (a helper is not told their name).
  */
 export function wordsForCard({ words = [], updates = [], ownerName = null, now = Date.now() } = {}) {
   const fresh = (at) => at && now - new Date(at).getTime() < WORD_FRESH_MS;
-  const direct = [...words].reverse().find((w) => !w.mine && fresh(w.at));
+  const theirs = words.filter((w) => !w.mine && fresh(w.at));
+  // Those since this person last wrote back are the ones still to answer.
+  const lastMine = words.reduce((last, w, i) => (w.mine ? i : last), -1);
+  const since = words.slice(lastMine + 1).filter((w) => !w.mine && fresh(w.at));
+  const direct = (since.length ? since : theirs.slice(-1)).slice(-WORDS_ON_CARD);
   const told = updates.find((u) => fresh(u.at));
   return [
-    direct ? { id: direct.id, kind: 'yours', text: direct.text, at: direct.at, from: direct.from || null } : null,
-    told ? { id: told.id, kind: 'everyone', text: told.text, at: told.at, from: ownerName || null } : null,
-  ].filter(Boolean);
+    ...direct.map((w) => ({ id: w.id, kind: 'yours', text: w.text, at: w.at, from: w.from || null, seen: w.seen !== false })),
+    ...(told ? [{ id: told.id, kind: 'everyone', text: told.text, at: told.at, from: ownerName || null, seen: true }] : []),
+  ];
 }
 
 /**
- * What the owner's phone card shows of what helpers said: the newest word
- * nobody running the search has answered, while it is fresh, with whose it
- * is and the handle to answer them by. On a computer the same words are in
+ * What the owner's phone card shows of what helpers said: the words nobody
+ * running the search has answered, while they are fresh, oldest first,
+ * each with whose it is and the handle to answer them by. The card shows
+ * the first and says how many wait behind it, so a newer word never takes
+ * the place of the one being answered. On a computer the same words are in
  * "Needs you" and in Messages. A phone has one card, so this is where an
  * owner who is out searching reads a helper's word and answers it; without
  * it a helper's answer would reach nobody who is not at a desk.
  * `talk` is every message of the search, as the picture sends it to whoever
- * runs it. One at a time: answering it brings up the next.
+ * runs it. `put` is the set of cards this person has put away ("Got it").
  */
-export function wordsForOwner({ talk = [], now = Date.now() } = {}) {
+export function wordsForOwner({ talk = [], put = new Set(), now = Date.now() } = {}) {
   const fresh = (at) => at && now - new Date(at).getTime() < WORD_FRESH_MS;
   return unanswered(talk)
-    .filter((w) => fresh(w.at) && w.fromHandle)
-    .slice(0, 1)
-    .map((w) => ({ id: w.id, kind: 'yours', text: w.text, at: w.at, from: w.from || 'A helper', handle: w.fromHandle }));
+    .filter((w) => fresh(w.at) && w.fromHandle && !put.has(`word-${w.id}`))
+    .sort((a, b) => new Date(a.at) - new Date(b.at))
+    .map((w) => ({ id: w.id, kind: 'yours', text: w.text, at: w.at, from: w.from || 'A helper', handle: w.fromHandle, about: w.about || null, seen: true }));
 }
 
 /** Whose a word on a helper's card is, as its label says it. */
@@ -123,6 +133,8 @@ export function stream({ events = [], words = [] } = {}) {
       to: w.to || null,
       seenAt: w.seenAt || null,
       handle: w.fromDesk ? w.toHandle : w.fromHandle,
+      // What the screen knew it was about (a street), shown beside the words.
+      about: w.about || null,
     });
   }
   return lines.filter((l) => l.at).sort((a, b) => new Date(a.at) - new Date(b.at));

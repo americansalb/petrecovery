@@ -101,6 +101,8 @@ export default function useSearch(missionParam, { desk = false } = {}) {
   // The street the board says this person was asked to walk, so the picture can tell when that has changed.
   const askedOnBoard = useRef(null);
   const everMine = useRef(false);
+  // What this screen has already said it showed (a word, the ask), so each is said once.
+  const told = useRef(new Set());
   // Reads are numbered as they are sent. One that answers after a later one has been shown is out of date and is dropped.
   const sent = useRef({ picture: 0, board: 0 });
   const shown = useRef({ picture: 0, board: 0 });
@@ -144,7 +146,10 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     if (turn < shown.current.board) return data;
     shown.current.board = turn;
     boardAt.current = Date.now();
-    askedOnBoard.current = (data.streets || []).find((s) => s.askedOfMe)?.id || null;
+    const askedNow = (data.streets || []).find((s) => s.askedOfMe)?.id || null;
+    // A new ask is a new thing to show, and to say it was shown.
+    if (askedNow !== askedOnBoard.current) told.current.delete('ask');
+    askedOnBoard.current = askedNow;
     if ((data.streets || data.cells || []).some((i) => i.mine)) everMine.current = true;
     const text = JSON.stringify(data);
     if (text !== lastText.current.board) {
@@ -407,6 +412,34 @@ export default function useSearch(missionParam, { desk = false } = {}) {
   );
 
   // One empty list while there is no board, so what is drawn from it is not drawn again on every render.
+  /**
+   * This person's screen has shown a word written to them, or the street they were asked to walk. It is what
+   * the desk reads as "seen", so it is said once per thing, when the card that shows it is in front of them.
+   */
+  const saw = useCallback(
+    async ({ words = [], ask = false } = {}) => {
+      const fresh = words.filter((id) => id && !told.current.has(`w:${id}`));
+      const askNew = ask && !told.current.has('ask');
+      if (!fresh.length && !askNew) return { ok: true };
+      fresh.forEach((id) => told.current.add(`w:${id}`));
+      if (askNew) told.current.add('ask');
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/message`, {
+        method: 'PATCH',
+        headers: headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ ...(fresh.length ? { words: fresh } : {}), ...(askNew ? { ask: true } : {}) }),
+      });
+      if (!res || !res.ok) {
+        // Not heard: it is said again the next time the card shows it.
+        fresh.forEach((id) => told.current.delete(`w:${id}`));
+        if (askNew) told.current.delete('ask');
+        if (!res) return { error: NO_SIGNAL };
+        return { error: 'not recorded' };
+      }
+      return { ok: true };
+    },
+    [missionParam, headers]
+  );
+
   const items = board ? (board.unit === 'street' ? board.streets : board.cells) : NO_ITEMS;
   const mine = items.find((i) => i.mine) || null;
 
@@ -443,5 +476,6 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     unask,
     cannot,
     say,
+    saw,
   };
 }

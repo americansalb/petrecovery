@@ -23,7 +23,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Eye } from 'lucide-react';
 import { dayAndTime, clockTime, placeWords } from '../lib/words';
 import { directionWord, lookFirst, metersWords, stateWords } from '../lib/insight';
-import { unanswered } from '../lib/team';
 import { distanceMeters } from '@/app/lib/searchGrid';
 import People from './People';
 import Messages from './Messages';
@@ -198,12 +197,12 @@ function Sightings({ picture, now, focused, onFocus, onAdd }) {
   );
 }
 
-export default function Board({ picture, items, unit, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null, people = [], talk = [], person = null, onPerson, to = null, onTo, onAsk, onUnask, onWord, onPick, onShare }) {
+export default function Board({ picture, items, unit, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null, people = [], talk = [], waiting = 0, person = null, onPerson, to = null, onTo, onAsk, onUnask, onWord, onPick, onShare }) {
   const names = Boolean(picture.viewer?.seesNames);
   // How many are on the search where this person may know; otherwise how many are out, which anyone may.
   const counts = { people: names ? people.length : picture.looking?.helpers || 0, streets: items.length, sightings: picture.sightings.length };
-  // Words from helpers that nobody running the search has answered: said on the tab, so they are seen from any other.
-  const waiting = unanswered(talk).length;
+  // `waiting`: words from helpers that nobody running the search has answered or put away. Said on the tab, so
+  // it is seen from any other.
   // Where the search is on squares, that tab says so.
   const named = TABS.map(([id, words]) => [id, id === 'streets' && unit === 'block' ? 'Blocks' : words]);
   // On a narrower screen the left column's cards are the first tab here, and the map keeps the room.

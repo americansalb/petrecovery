@@ -63,6 +63,10 @@ const STEP_FILES = ['app/mission-control/steps/Helper.js', 'app/mission-control/
 const DESK_FILES = fs.readdirSync(path.join(SCREEN, 'desktop')).sort().map((name) => `app/mission-control/desktop/${name}`);
 const desk = read('app/mission-control/desktop/Command.js');
 
+// Files outside the screen's folder that put words in front of people on a search: asks, messages, the roster,
+// the reasons the pet's page gives for a job, and the routes that answer in words. Held to the same rules on words.
+const TALKERS = ['app/lib/searchAsk.js', 'app/lib/searchTalk.js', 'app/lib/searchTeam.js', 'app/lib/jobs.js', 'app/api/mission/[missionId]/board/route.js', 'app/api/mission/[missionId]/message/route.js', 'app/api/mission/[missionId]/volunteer/route.js'];
+
 /** The cards a step file exports, each as { name, source }. */
 function cardsOf(source) {
   return source
@@ -197,9 +201,9 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     expect(Number(code(hook).match(/const SEND_TIMEOUT_MS = (\d+);/)[1])).toBeLessThanOrEqual(30000);
     expect(code(hook).match(/\bfetch\(/g)).toHaveLength(3); // the one sender, and the two readers
     // Joining, the waiver, a change to the board (a street taken, an ask), a sighting, the owner's answer, the
-    // owner's word to everyone helping, and a word between one person and the desk.
-    expect(code(hook).match(/await send\(/g)).toHaveLength(7);
-    expect(code(hook).match(/if \(!res\) return \{ error: NO_SIGNAL/g)).toHaveLength(7);
+    // owner's word to everyone helping, a word between one person and the desk, and a card saying what it showed.
+    expect(code(hook).match(/await send\(/g)).toHaveLength(8);
+    expect(code(hook).match(/if \(!res\) return \{ error: NO_SIGNAL/g)).toHaveLength(8);
     // Everything that changes the board goes through the one function that reads it again afterwards.
     expect(code(hook)).toMatch(/const act = useCallback\(\(unit, id, action\) => change\(\{ unit, id, action \}\), \[change\]\);/);
     expect(code(hook)).toMatch(/const ask = useCallback\(\(person, streetId, note = ''\) => change\(\{ unit: 'street', id: streetId, action: 'ask', person, note \}\), \[change\]\);/);
@@ -502,7 +506,7 @@ describe('what a desk says about the search is a count, a time, a distance or a 
 
 describe('rule 1: the product never tells a helper to stop or not to search', () => {
   const STOP = /\b(stop (searching|looking|walking|the search)|do not (search|look)|don['’]t (search|look)|stand down|call(ed)? off|pause the search|hold (your )?position|stay where you are|go home|wait here)\b/i;
-  const spoken = [...folderFiles, 'app/lib/searchPicture.js', 'app/lib/witness.js', 'app/api/mission/[missionId]/answer/route.js', 'app/api/mission/[missionId]/picture/route.js'];
+  const spoken = [...folderFiles, 'app/lib/searchPicture.js', 'app/lib/witness.js', 'app/api/mission/[missionId]/answer/route.js', 'app/api/mission/[missionId]/picture/route.js', ...TALKERS];
 
   test.each(spoken)('%s says nothing of the kind', (file) => {
     const lines = code(read(file))
@@ -604,7 +608,7 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
 
 describe('the screen keeps the house rules', () => {
   test('no em dashes in its source', () => {
-    const offenders = [...folderFiles, 'app/lib/searchPicture.js', 'app/lib/adviceFor.js', 'app/lib/safetyRules.js', 'app/lib/witness.js', 'app/lib/searchBoard.js', 'app/lib/streetWalks.js'].filter((file) => read(file).includes('—'));
+    const offenders = [...folderFiles, 'app/lib/searchPicture.js', 'app/lib/adviceFor.js', 'app/lib/safetyRules.js', 'app/lib/witness.js', 'app/lib/searchBoard.js', 'app/lib/streetWalks.js', ...TALKERS].filter((file) => read(file).includes('—'));
     expect(offenders).toEqual([]);
   });
 

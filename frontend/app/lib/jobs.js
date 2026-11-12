@@ -127,7 +127,7 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
         minutes: picked.reduce((sum, b) => sum + (b.minutes || MINUTES_PER_BLOCK), 0),
         why: [
           asked ? `${petName}'s owner asked for it to be walked first.` : hot ? `Close to where ${petName} was lost or seen.` : null,
-          again ? 'It has been walked once and is down for another look.' : 'Nobody has walked it.',
+          again ? 'It has been walked and is down for another look.' : 'Nobody has walked it.',
           picked[0].away != null ? `${walkText(picked[0].away)}.` : null,
         ].filter(Boolean).join(' '),
         score: (way === 'foot' ? 400 : 200) + (picked[0].priority || 0) * 10 - (picked[0].away != null ? Math.min(picked[0].away, 3000) / 100 : 0),
@@ -147,7 +147,8 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
  */
 export async function pickJob({ pet, forceId, userId, member, way = 'foot', when = 'now30', near = null, now = new Date() }) {
   const [blocks, needs, party] = await Promise.all([
-    way === 'foot' || way === 'car' ? openBlocks(pet.id) : [],
+    // Not a street kept for someone else: taking it would be refused, and asking again would offer it again.
+    way === 'foot' || way === 'car' ? openBlocks(pet.id, { viewer: userId || null }) : [],
     forceId && member ? listNeeds(forceId, { userId, member, caseId: pet.id }) : [],
     forceId && member && when === 'party' ? nextParty(forceId, pet.id, { userId, member, now }) : null,
   ]);

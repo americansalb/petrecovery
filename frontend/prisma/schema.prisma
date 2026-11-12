@@ -3547,6 +3547,10 @@ model SearchMessage {
   toName String?
 
   text String
+  // What it is about, where the screen knows and the person did not type it:
+  // the street someone was asked to walk when they pressed "I can't right
+  // now". Shown beside the words, never inside them.
+  about String?
 
   // When the person it is for first had it on their screen.
   seenAt DateTime?

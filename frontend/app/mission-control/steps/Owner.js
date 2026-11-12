@@ -12,9 +12,10 @@
  * has one button and not two.
  *
  * On a phone both cards also carry what a helper said to the people
- * running the search, with a line to answer in (`heard`: lib/team.js,
- * wordsForOwner). It is the helper's own words, shown as theirs. On a desk
- * the same words are in "Needs you" and in Messages, so the card has none.
+ * running the search, with a line to answer in and "Got it" (`heard`:
+ * lib/team.js, wordsForOwner): the oldest one first. It is the helper's
+ * own words, shown as theirs. On a desk the same words are in "Needs you"
+ * and in Messages, so the card has none.
  *
  * Every line of advice here is the advice engine's (app/lib/adviceFor.js
  * reads app/lib/petAdvice.js), under a line that says so. Nothing is
@@ -24,7 +25,29 @@ import { useMemo, useState } from 'react';
 import { Navigation, Share2 } from 'lucide-react';
 import { adviceFor } from '@/app/lib/adviceFor';
 import { Eyebrow, Heading, Lead, Note, Primary, QuietLink, AdviceBlock, Problem } from '../components/kit';
-import Word from '../components/Word';
+import Word, { Answer } from '../components/Word';
+
+/**
+ * What a helper said to the people running the search, on the owner's phone card: the oldest word nobody has
+ * answered, with a line to answer in and a way to put it away without answering. How many wait behind it is said,
+ * and a newer one never takes its place while it is being answered.
+ */
+function Heard({ heard = [], picture, now, onReply, onPutAway }) {
+  const word = heard[0];
+  if (!word) return null;
+  const more = heard.length - 1;
+  return (
+    <Word word={word} timeZone={picture.timeZone} now={now}>
+      {onReply && <Answer key={word.id} id={`mc-reply-${word.id}`} who={word.from} onSay={(text) => onReply(word, text)} />}
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <QuietLink onClick={() => onPutAway(word)} className="!min-h-[36px]">
+          Got it
+        </QuietLink>
+        {more > 0 && <span className="text-[13px] font-semibold leading-[18px] text-[var(--mc-muted)]">{more === 1 ? '1 more after this' : `${more} more after this`}</span>}
+      </div>
+    </Word>
+  );
+}
 import { clockTime, dayAndTime, placeWords, agoWords, lookingLine } from '../lib/words';
 
 function useAdvice(picture, now) {
@@ -37,7 +60,7 @@ function useAdvice(picture, now) {
 }
 
 /** Who is looking, and the one thing that brings more people. */
-export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, problem, heard = [], onReply = null }) {
+export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, problem, heard = [], onReply = null, onPutAway = null }) {
   const advice = useAdvice(picture, now);
   const [open, setOpen] = useState(false);
   const thing = unit === 'block' ? 'block' : 'street';
@@ -50,9 +73,7 @@ export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, pr
           {counts.searched} of {counts.total} {thing}s {counts.searched === 1 ? 'is' : 'are'} searched.
         </Lead>
       )}
-      {heard.map((word) => (
-        <Word key={word.id} word={word} timeZone={picture.timeZone} now={now} onSay={onReply} />
-      ))}
+      <Heard heard={heard} picture={picture} now={now} onReply={onReply} onPutAway={onPutAway} />
       <Problem className="mt-2">{problem}</Problem>
       <Primary onClick={onShare} icon={Share2} className="mt-4">
         Text the link to neighbors
@@ -85,7 +106,7 @@ export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, pr
 }
 
 /** The pet was seen: where, the engine's first line, and one button to get there. */
-export function OwnerSighting({ picture, name, hot, now, onGoing, onHome, problem, heard = [], onReply = null }) {
+export function OwnerSighting({ picture, name, hot, now, onGoing, onHome, problem, heard = [], onReply = null, onPutAway = null }) {
   const zone = picture.timeZone;
   const advice = adviceFor({ petSpecies: picture.pet?.species, escapeScenario: picture.pet?.howOut, petDescription: picture.pet?.description, lastSeenAt: picture.lastSeen?.at });
   const where = placeWords(hot.place);
@@ -110,9 +131,7 @@ export function OwnerSighting({ picture, name, hot, now, onGoing, onHome, proble
         {hot.ownerGoingAt ? `The person who saw ${name} was told you are coming, at ${clockTime(hot.ownerGoingAt, zone)}.` : `The person who saw ${name} is told you are coming.`}
       </Note>
       {/* Under the way there, which comes first on this card. */}
-      {heard.map((word) => (
-        <Word key={word.id} word={word} timeZone={picture.timeZone} now={now} onSay={onReply} />
-      ))}
+      <Heard heard={heard} picture={picture} now={now} onReply={onReply} onPutAway={onPutAway} />
       <div className="mt-1 flex items-center justify-between gap-3">
         <QuietLink onClick={onHome}>{name} is back with me</QuietLink>
       </div>

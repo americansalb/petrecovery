@@ -136,7 +136,7 @@ export async function sweepStaleClaims(gridId, now = Date.now()) {
  * `unit: 'block'`. The job picker hands these out, so a job on the pet's
  * page is the same street the search map shows.
  */
-export async function openBlocks(caseId, { take = 12 } = {}) {
+export async function openBlocks(caseId, { take = 12, viewer = null, now = Date.now() } = {}) {
   const grid = await ensureGrid(caseId);
   if (!grid) return [];
   const board = await prisma.searchGrid.findUnique({ where: { id: grid.id }, select: { streetsStatus: true } });
@@ -148,7 +148,8 @@ export async function openBlocks(caseId, { take = 12 } = {}) {
     });
     // The same order the search screen hands streets out in: next to a fresh sighting comes up.
     const seen = await recentSightings(caseId);
-    return byUrgency(streets.map((s) => ({ ...s, priority: livePriority(s, seen) })))
+    // A street kept for someone who was asked to walk it is not offered to anyone else: taking it would be refused.
+    return byUrgency(streets.filter((s) => !keptFromOthers(s, viewer, now)).map((s) => ({ ...s, priority: livePriority(s, seen) })))
       .slice(0, take)
       .map((s) => ({
         id: s.id,
@@ -321,7 +322,7 @@ export async function sweepStaleStreetClaims(caseId, now = Date.now()) {
  * the people holding streets go only to those the caller says may see
  * them: anyone with the link sees streets, not people.
  */
-export function streetForBoard(row, { viewer = null, withNames = false, ownerId = null } = {}) {
+export function streetForBoard(row, { viewer = null, withNames = false, ownerId = null, ownerName = null } = {}) {
   let path = [];
   try {
     path = JSON.parse(row.path);
@@ -351,7 +352,7 @@ export function streetForBoard(row, { viewer = null, withNames = false, ownerId 
     ...(withNames ? { claimedByName: row.claimedById ? row.claimedByName || 'A helper' : null, searchedByName: row.searchedByName || null } : {}),
     // Whether it is kept for someone the person running the search asked (app/lib/searchAsk.js): everyone
     // learns only that it is kept, the person asked that it is theirs, and who was asked goes where names go.
-    ...askOnStreet(row, { viewer, withNames, ownerId }),
+    ...askOnStreet(row, { viewer, withNames, ownerId, ownerName }),
   };
 }
 
@@ -407,7 +408,7 @@ const byUrgency = (rows) => [...rows].sort((a, b) => b.priority - a.priority || 
  * board is not on streets (not fetched yet, none on the map, or no
  * last-seen point). Sweeps stale claims on the way, like the squares do.
  */
-export async function readStreets(caseId, { viewer = null, withNames = false, ownerId = null } = {}) {
+export async function readStreets(caseId, { viewer = null, withNames = false, ownerId = null, ownerName = null } = {}) {
   const grid = await prisma.searchGrid.findUnique({ where: { caseId }, select: { streetsStatus: true } });
   if (grid?.streetsStatus !== 'READY') return null;
   await sweepStaleStreetClaims(caseId);
@@ -419,7 +420,7 @@ export async function readStreets(caseId, { viewer = null, withNames = false, ow
   // A board's priorities are worked out when it is made. Sightings come later, so they are applied here, on
   // every read: the streets next to a fresh sighting move up the order with nothing rewritten.
   const seen = await recentSightings(caseId);
-  return byUrgency(rows.map((row) => ({ ...row, priority: livePriority(row, seen) }))).map((row) => streetForBoard(row, { viewer, withNames, ownerId }));
+  return byUrgency(rows.map((row) => ({ ...row, priority: livePriority(row, seen) }))).map((row) => streetForBoard(row, { viewer, withNames, ownerId, ownerName }));
 }
 
 /**
@@ -523,7 +524,7 @@ export const STEER_ACTIONS = ['first', 'normal', 'walked', 'again'];
  * ASKED: the street is being kept for someone the person running the
  * search asked to walk it (app/lib/searchAsk.js).
  */
-export async function actOnBoard({ caseId, unit, id, action, searcher, ownerId = null, now = Date.now() }) {
+export async function actOnBoard({ caseId, unit, id, action, searcher, ownerId = null, ownerName = null, now = Date.now() }) {
   const streets = unit === 'street';
   const grid = await prisma.searchGrid.findUnique({ where: { caseId }, select: { id: true } });
   if (!grid) return { error: 'NOT_FOUND', title: null };
@@ -563,8 +564,10 @@ export async function actOnBoard({ caseId, unit, id, action, searcher, ownerId =
       // Each write is on what the row is at that moment, never on what was read a moment ago: someone may have
       // taken the street in between, and a street somebody is on must stay theirs.
       await model.updateMany({ where: { id, ...scope }, data: { priority: FIRST_PRIORITY } });
-      // A walked street that is asked for first is, by that, due another look.
-      await model.updateMany({ where: { id, ...scope, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT', againAt: new Date(now) } });
+      // A street that has been walked and is asked for first is, by that, due another look: marked so wherever
+      // it is now (someone may be on a second pass), so that if it is given back it is still to walk, and first.
+      await model.updateMany({ where: { id, ...scope, searchCount: { gt: 0 } }, data: { againAt: new Date(now) } });
+      await model.updateMany({ where: { id, ...scope, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT' } });
     } else if (action === 'normal') {
       await backToItsPlace();
     } else if (action === 'walked') {
@@ -588,7 +591,11 @@ export async function actOnBoard({ caseId, unit, id, action, searcher, ownerId =
       await prisma.searchGrid.update({ where: { id: grid.id }, data: { lastActivityAt: new Date(now), ...(streets ? {} : { cellsSearched: { increment: 1 } }) } }).catch(() => {});
     } else {
       const again = await model.updateMany({ where: { id, ...scope, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT', againAt: new Date(now) } });
-      if (again.count === 0) return { error: 'NOT_WALKED', title };
+      if (again.count === 0) {
+        // Said from what the row is now: someone may be on it, or it may already be down for another look.
+        const current = await model.findFirst({ where: { id, ...scope }, select: { status: true } });
+        return { error: current?.status === 'IN_PROGRESS' ? 'SOMEONE_ON_IT' : current?.status === 'NEEDS_REVISIT' ? 'ALREADY_AGAIN' : 'NOT_WALKED', title };
+      }
     }
   } else if (action === 'claim') {
     // A street someone was asked to walk is kept for them for a while: anyone else is told to pick another,
@@ -642,7 +649,7 @@ export async function actOnBoard({ caseId, unit, id, action, searcher, ownerId =
   }
 
   const after = await model.findFirst({ where: { id, ...scope } });
-  if (streets) return { item: streetForBoard(after, { viewer: me, withNames: searcher.seesNames, ownerId }), title };
+  if (streets) return { item: streetForBoard(after, { viewer: me, withNames: searcher.seesNames, ownerId, ownerName }), title };
   return {
     item: {
       id: after.id,

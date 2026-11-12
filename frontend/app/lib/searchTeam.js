@@ -5,9 +5,12 @@
  * named person a street or sends them a word.
  *
  * It is built from what the search already holds: the helpers who joined
- * from the share link without an account (MissionVolunteer), and whoever
- * holds, walked or was asked to walk a street or a square. Nobody is
- * listed for having only looked at the page.
+ * from the share link without an account (MissionVolunteer), whoever
+ * holds, walked or was asked to walk a street or a square, and whoever
+ * the desk has exchanged a word with. That last part matters: someone who
+ * wrote to the desk has to be someone the owner can answer, and someone
+ * the owner wrote to has to be able to write back, whatever has become of
+ * their street since. Nobody is listed for having only looked at the page.
  *
  * Names are for the owner and the forces looking for the pet, like every
  * name on the board (app/lib/searcher.js, `seesNames`), so this is read
@@ -25,11 +28,14 @@ import { cellLabel } from '@/app/lib/searchGrid';
 export const ASK_HOLD_MS = 30 * 60 * 1000;
 
 const MARK = 'm:';
-const firstWord = (s) => String(s || '').trim().split(/\s+/)[0] || '';
+/** A first name as the desk shows it: one word, and not a paragraph. A helper types their own. */
+export const NAME_MAX = 30;
+const firstWord = (s) => (String(s || '').trim().split(/\s+/)[0] || '').slice(0, NAME_MAX);
 
 function secret() {
-  // The site's own secret. Without one (a local run with no setup) handles still work, and mean nothing elsewhere.
-  return process.env.NEXTAUTH_SECRET || 'reunitepets-local';
+  // The site's own secret, under either of the names sign-in reads it by. Without one (a local run with no
+  // setup) nobody is signed in, so no handle is ever sent; the constant only keeps the function total.
+  return process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'reunitepets-local';
 }
 
 /** What the desk calls a person, for one pet. The same person on another pet's search has another handle. */
@@ -47,7 +53,8 @@ export function askHolds(askedAt, now = Date.now()) {
  * rows ({ id, displayName, joinedAt, userId }), `streets` and `cells` the
  * board's rows, `ownerId` the pet's reporter (the owner runs the search
  * and is not one of the people helping it), `users` a map of user id to
- * first name for anyone the rows do not already name.
+ * first name for anyone the rows do not already name, `messages` the
+ * search's messages ({ fromId, fromName, fromDesk, toId, toName }).
  *
  * Each person: { id, handle, name, kind: 'helper' | 'member', joinedAt,
  * state: 'walking' | 'asked' | 'free', on: { unit, id, title } | null,
@@ -55,7 +62,7 @@ export function askHolds(askedAt, now = Date.now()) {
  * walked, lastWalkedAt, lastOn: { unit, id, title } | null }. `id` is for
  * the server only: `forDesk` drops it.
  */
-export function roster({ caseId, helpers = [], streets = [], cells = [], ownerId = null, users = {}, now = Date.now() }) {
+export function roster({ caseId, helpers = [], streets = [], cells = [], messages = [], ownerId = null, users = {}, now = Date.now() }) {
   const people = new Map();
   const person = (id, name) => {
     if (!id || id === ownerId || String(id).startsWith(MARK)) return null;
@@ -99,6 +106,11 @@ export function roster({ caseId, helpers = [], streets = [], cells = [], ownerId
   };
   for (const s of streets) visit(s, 'street', walkTitle(s), s.searchedById);
   for (const c of cells) visit(c, 'block', `Block ${cellLabel(c.row, c.col)}`, c.searchedByKey || c.searchedById);
+  // Everyone the desk has exchanged a word with stays someone it can write to and hear from.
+  for (const m of messages) {
+    if (!m.fromDesk) person(m.fromId, m.fromName);
+    if (m.toId) person(m.toId, m.toName);
+  }
 
   const order = { free: 0, asked: 1, walking: 2 };
   return [...people.values()]
@@ -110,9 +122,16 @@ export function roster({ caseId, helpers = [], streets = [], cells = [], ownerId
     .sort((a, b) => order[a.state] - order[b.state] || new Date(b.joinedAt || b.lastWalkedAt || b.since || 0) - new Date(a.joinedAt || a.lastWalkedAt || a.since || 0) || (a.handle < b.handle ? -1 : 1));
 }
 
-/** A person as the desk is sent them: by handle, never by id. */
-export function forDesk({ id, ...person }) {
-  return person;
+/**
+ * A person as a desk is sent them: by handle, never by id. The note on an
+ * ask is the asker's word to one person, so it goes only to whoever runs
+ * the search (`notes`). A member of a Rescue Force that is looking sees
+ * that someone was asked, for which street and when, and not what was said.
+ */
+export function forDesk({ id, ...person }, { notes = false } = {}) {
+  if (notes || !person.asked) return person;
+  const { note, byName, ...asked } = person.asked;
+  return { ...person, asked };
 }
 
 /**
@@ -120,8 +139,10 @@ export function forDesk({ id, ...person }) {
  * have already checked that the viewer may see names.
  */
 export async function teamOf(caseId, { ownerId = null, now = Date.now() } = {}) {
-  const [helpers, streets, grid] = await Promise.all([
+  const [helpers, messages, streets, grid] = await Promise.all([
     prisma.missionVolunteer.findMany({ where: { mission: { caseId } }, select: { id: true, displayName: true, joinedAt: true, userId: true } }),
+    // The newest few hundred are plenty to know who the desk has talked with.
+    prisma.searchMessage.findMany({ where: { caseId }, orderBy: { createdAt: 'desc' }, take: 300, select: { fromId: true, fromName: true, fromDesk: true, toId: true, toName: true } }),
     prisma.searchStreet.findMany({
       where: { caseId, context: false },
       select: {
@@ -138,11 +159,11 @@ export async function teamOf(caseId, { ownerId = null, now = Date.now() } = {}) 
   ]);
   const cells = grid?.cells || [];
   // Squares keep no name beside a claim, and a street's row names only its own: anyone still unnamed is looked up.
-  const named = new Set([...helpers.map((h) => h.userId || `v:${h.id}`), ...streets.flatMap((s) => [s.claimedByName && s.claimedById, s.searchedByName && s.searchedById, s.askedOfName && s.askedOfId])].filter(Boolean));
+  const named = new Set([...helpers.map((h) => h.userId || `v:${h.id}`), ...streets.flatMap((s) => [s.claimedByName && s.claimedById, s.searchedByName && s.searchedById, s.askedOfName && s.askedOfId]), ...messages.flatMap((m) => [m.fromName && m.fromId, m.toName && m.toId])].filter(Boolean));
   const unnamed = [...new Set(cells.flatMap((c) => [c.claimedById, c.searchedByKey || c.searchedById]).filter((id) => id && !String(id).startsWith('v:') && !String(id).startsWith(MARK) && !named.has(id)))];
   const rows = unnamed.length ? await prisma.user.findMany({ where: { id: { in: unnamed } }, select: { id: true, firstName: true } }) : [];
   const users = Object.fromEntries((rows || []).map((u) => [u.id, u.firstName]));
-  return roster({ caseId, helpers, streets, cells, ownerId, users, now });
+  return roster({ caseId, helpers, streets, cells, messages, ownerId, users, now });
 }
 
 /** The person a handle stands for on this pet's search, or null. */

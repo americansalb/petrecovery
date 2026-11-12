@@ -35,10 +35,12 @@ import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, Check, ExternalLink, Flag, Maximize2, Moon, RotateCcw, Sun, X, Loader2 } from 'lucide-react';
 import TopBar from '../components/TopBar';
+import usePutAway from '../hooks/usePutAway';
 import { DESK_MAP } from '../components/SearchMap';
 import { clockTime, dayAndTime, HOT_SIGHTING_MS } from '../lib/words';
 import { givenNext, researchFor, stateWords, streetFacts } from '../lib/insight';
 import { needsYou, quietLine } from '../lib/needs';
+import { unanswered } from '../lib/team';
 import { Advice, Know, Numbers } from './Know';
 import Board from './Board';
 import Needs from './Needs';
@@ -74,37 +76,6 @@ function useNight() {
       return !was;
     });
   return [night, flip];
-}
-
-/**
- * The "Needs you" cards this person has put away, kept on this computer
- * for this pet. A card put away stays away; a new sighting, a new word or
- * someone newly free is a new card.
- */
-function usePutAway(caseId) {
-  const key = `rp_mc_put_${caseId}`;
-  const [put, setPut] = useState(() => new Set());
-  useEffect(() => {
-    try {
-      const kept = JSON.parse(window.localStorage.getItem(key) || '[]');
-      if (Array.isArray(kept)) setPut(new Set(kept.map(String)));
-    } catch {
-      // Nothing kept: every card shows.
-    }
-  }, [key]);
-  const putAway = (what) =>
-    setPut((was) => {
-      const next = new Set(was);
-      next.add(String(what));
-      try {
-        // The newest couple of hundred are plenty: an old card's reason has long passed.
-        window.localStorage.setItem(key, JSON.stringify([...next].slice(-200)));
-      } catch {
-        // Not kept: the card stays away until the page is closed.
-      }
-      return next;
-    });
-  return [put, putAway];
 }
 
 /** Four points round a centre, so a single mark is shown with its neighbourhood. */
@@ -302,18 +273,22 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
       setTab('messages');
       return setTo(what.handle);
     }
-    if (what.type !== 'ask' || needBusy) return undefined;
+    if (!['ask', 'first'].includes(what.type) || needBusy || busy) return undefined;
     setNeedBusy(card.id);
     try {
-      const result = await search.ask(what.handle, what.streetId, '');
+      // Nobody is free: the next person who asks for a street is sent to this one first.
+      const result = what.type === 'first' ? await search.act('street', what.streetId, 'first') : await search.ask(what.handle, what.streetId, '');
       if (result.error) setNeedProblem(result.error);
-      // Asked: the person's panel shows it asked, then seen, then walking.
-      else give(what.handle);
+      // Asked: the person's panel shows it asked, then seen, then walking. Sent to first: the street's own card says so.
+      else if (what.type === 'ask') give(what.handle);
+      else pick(what.streetId);
     } finally {
       setNeedBusy(null);
     }
     return undefined;
   }
+  // Words from helpers still to answer, less the ones this person has put away: the count on the Messages tab.
+  const waiting = useMemo(() => unanswered(talk).filter((w) => !put.has(`word-${w.id}`)).length, [talk, put]);
 
   async function takeBack(target) {
     if (busy || !target.askedOfHandle) return;
@@ -525,6 +500,7 @@ export default function Command({ picture, items, unit, now, line, petHref, onPh
             onTell={search.tell}
             people={people}
             talk={talk}
+            waiting={waiting}
             person={person}
             onPerson={setPerson}
             to={to}

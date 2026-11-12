@@ -19,7 +19,8 @@ import { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER } from '@/app/lib/searcherHea
 export { VOLUNTEER_ID_HEADER, VOLUNTEER_KEY_HEADER };
 
 
-const firstWord = (s) => String(s || '').trim().split(/\s+/)[0] || '';
+// One word, and not a paragraph: a helper types their own, and it is shown to the owner and put in notices.
+const firstWord = (s) => (String(s || '').trim().split(/\s+/)[0] || '').slice(0, 30);
 
 /**
  * The person behind a request, for one pet's search, or null for someone

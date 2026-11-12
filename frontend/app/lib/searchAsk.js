@@ -6,7 +6,8 @@
  * in: "Jo, walk W 42nd St", with a word of their own if they have one.
  * The street is kept for that person for half an hour (ASK_HOLD_MS), it
  * becomes the card on their phone with one button, and the desk sees it
- * asked, then seen, then walked.
+ * asked, then seen (their phone says when it has shown the card), then
+ * walked.
  *
  * It is for whoever runs the search to do (`searcher.leads`: the owner),
  * like the rest of steering (app/lib/searchBoard.js). The person asked
@@ -63,9 +64,14 @@ export async function askStreet({ caseId, streetId, person, searcher, note = '',
       askedNote: cleanWord(note).replace(/\n+/g, ' ').slice(0, ASK_NOTE_MAX) || null,
     },
   });
-  if (asked.count === 0) return { error: 'ASKED_ALREADY', title };
-  // One ask to a person at a time: any other street they were asked for goes back to the search.
-  await prisma.searchStreet.updateMany({ where: { caseId, askedOfId: person.id, NOT: { id: street.id } }, data: clearAsk() });
+  if (asked.count === 0) {
+    // Said from what the street is now: since it was read someone may have taken it, which is not "someone else was asked".
+    const current = await prisma.searchStreet.findFirst({ where: { id: street.id }, select: { status: true } });
+    return { error: current && !OPEN.includes(current.status) ? 'NOT_OPEN' : 'ASKED_ALREADY', title };
+  }
+  // One ask to a person at a time: any street they were asked for before this one goes back to the search. Only
+  // the ones before it: two asks made in the same moment must not each take the other back and leave the person none.
+  await prisma.searchStreet.updateMany({ where: { caseId, askedOfId: person.id, NOT: { id: street.id }, askedAt: { lt: new Date(now) } }, data: clearAsk() });
   return { street: await prisma.searchStreet.findFirst({ where: { id: street.id } }), title };
 }
 
@@ -85,8 +91,11 @@ export async function unaskPerson({ caseId, person, searcher }) {
 export async function cannotWalk({ caseId, searcher }) {
   const street = await prisma.searchStreet.findFirst({ where: { caseId, context: false, askedOfId: searcher.id, status: { in: OPEN } } });
   if (!street) return { error: 'NO_ASK' };
-  await prisma.searchStreet.updateMany({ where: { id: street.id, askedOfId: searcher.id }, data: clearAsk() });
-  await prisma.searchMessage.create({ data: { caseId, fromId: searcher.id, fromName: searcher.firstName, fromDesk: false, toId: null, toName: null, text: `${CANNOT_WORDS} (${walkTitle(street)})` } }).catch(() => null);
+  // Written only if this is the request that gave it back: pressed twice, the desk is told once.
+  const { count } = await prisma.searchStreet.updateMany({ where: { id: street.id, askedOfId: searcher.id, status: { in: OPEN } }, data: clearAsk() });
+  if (count === 0) return { error: 'NO_ASK' };
+  // The words are the button's. Which street they are about is kept beside them, since the person did not type it.
+  await prisma.searchMessage.create({ data: { caseId, fromId: searcher.id, fromName: searcher.firstName, fromDesk: false, toId: null, toName: null, text: CANNOT_WORDS, about: walkTitle(street) } }).catch(() => null);
   return { title: walkTitle(street) };
 }
 
@@ -97,7 +106,11 @@ export async function askWaitingFor(caseId, searcherId) {
   return street?.id || null;
 }
 
-/** The first time the asked person's screen shows the ask is when the desk sees "seen". */
+/**
+ * The asked person's screen has shown the ask, which is when the desk sees
+ * "seen". The screen says so itself (PATCH .../message): reading the board
+ * is not seeing the card, and a computer never shows it.
+ */
 export async function markAskSeen(caseId, searcherId, now = Date.now()) {
   if (!searcherId) return 0;
   const { count } = await prisma.searchStreet.updateMany({ where: { caseId, askedOfId: searcherId, askedSeenAt: null }, data: { askedSeenAt: new Date(now) } });
@@ -112,7 +125,7 @@ export async function markAskSeen(caseId, searcherId, now = Date.now()) {
  * run a search as null, so a helper is not told their name). Who was asked goes
  * where names go.
  */
-export function askOnStreet(row, { viewer = null, withNames = false, ownerId = null, caseId = row.caseId, now = Date.now() } = {}) {
+export function askOnStreet(row, { viewer = null, withNames = false, ownerId = null, ownerName = null, caseId = row.caseId, now = Date.now() } = {}) {
   if (!row.askedOfId) return { reserved: false };
   const mine = Boolean(viewer && row.askedOfId === viewer);
   const waiting = OPEN.includes(row.status);
@@ -120,7 +133,10 @@ export function askOnStreet(row, { viewer = null, withNames = false, ownerId = n
   if (mine && waiting) {
     out.askedOfMe = true;
     out.askedNote = row.askedNote || '';
-    out.askedBy = row.askedById && row.askedById === ownerId ? row.askedByName || null : null;
+    // The owner by the name the rest of the screen calls them (the report's), which can differ from their account's.
+    out.askedBy = row.askedById && row.askedById === ownerId ? ownerName || row.askedByName || null : null;
+    // Whether their screen has said it showed this: until it has, it says so when it does.
+    out.askedSeen = Boolean(row.askedSeenAt);
   }
   if (withNames) {
     out.askedOfName = row.askedOfName || 'A helper';

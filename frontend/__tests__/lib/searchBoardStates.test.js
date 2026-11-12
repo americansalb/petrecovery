@@ -101,6 +101,7 @@ beforeEach(() => {
   prisma.gridCell = table('cell');
   prisma.searchGrid = table('grid');
   prisma.caseSighting = { findMany: jest.fn(async () => []) };
+  prisma.case = { findUnique: jest.fn(async () => ({ id: CASE, status: 'ACTIVE', lastSeenLatitude: 30.3148, lastSeenLongitude: -97.7459, searchRadius: 0.5, sightings: [] })) };
   prisma.searchMessage = { create: jest.fn(async () => ({})) };
   prisma.user = { findMany: jest.fn(async () => []) };
   prisma.missionVolunteer = { findMany: jest.fn(async () => []) };
@@ -206,6 +207,26 @@ describe('asked for first', () => {
     await act('claim', DANA);
     await act('searched', DANA);
     expect(see().priority).toBe(4);
+  });
+
+  test('asked for first during a second pass that is then given back: it is still to walk, and first', async () => {
+    rows.street = [walked()];
+    // Jo takes a walked street for a second pass (nobody asked for one). The owner asks for it first. Jo gives it back.
+    await act('claim', JO);
+    await act('first', OWNER);
+    await act('release', JO);
+    // Not "Walked" and "sent here first" at once, with nobody ever sent.
+    expect(see()).toMatchObject({ status: 'NEEDS_REVISIT', priority: FIRST_PRIORITY, claimedById: null, again: true });
+  });
+
+  test('"another look" on a street someone has just taken, or one already down for it, says which, not "has not been walked"', async () => {
+    rows.street = [walked({ status: 'IN_PROGRESS', claimedById: 'v:vol-2', claimedByName: 'Jo', claimedAt: new Date(T0) })];
+    expect(await act('again', OWNER)).toMatchObject({ error: 'SOMEONE_ON_IT' });
+    rows.street = [walked()];
+    expect((await act('again', OWNER)).error).toBeUndefined();
+    expect(await act('again', OWNER)).toMatchObject({ error: 'ALREADY_AGAIN' });
+    rows.street = [street()];
+    expect(await act('again', OWNER)).toMatchObject({ error: 'NOT_WALKED' });
   });
 
   test('asked for first while someone is walking it: their walk still meets it', async () => {
@@ -317,7 +338,10 @@ describe('a street kept for the person who was asked', () => {
     await ask();
     expect(await cannotWalk({ caseId: CASE, searcher: DANA })).toEqual({ title: 'Elm St from A St to B St' });
     expect(st()).toMatchObject({ status: 'UNSEARCHED', askedOfId: null });
-    expect(prisma.searchMessage.create.mock.calls[0][0].data).toMatchObject({ fromId: 'v:vol-1', fromDesk: false, toId: null, text: "I can't right now. (Elm St from A St to B St)" });
+    expect(prisma.searchMessage.create.mock.calls[0][0].data).toMatchObject({ fromId: 'v:vol-1', fromDesk: false, toId: null, text: "I can't right now.", about: 'Elm St from A St to B St' });
+    // Pressed again: nothing is left to give back, and the desk is not told twice.
+    expect(await cannotWalk({ caseId: CASE, searcher: DANA })).toEqual({ error: 'NO_ASK' });
+    expect(prisma.searchMessage.create).toHaveBeenCalledTimes(1);
     // Nothing was asked of Jo, so there is nothing for Jo to turn down.
     expect(await cannotWalk({ caseId: CASE, searcher: JO })).toEqual({ error: 'NO_ASK' });
     expect((await act('claim', JO, { now: T0 + MINUTE })).error).toBeUndefined();
@@ -354,6 +378,55 @@ describe('a street kept for the person who was asked', () => {
     // And only whoever runs the search asks.
     expect(await askStreet({ caseId: CASE, streetId: 'st-1', person: dana, searcher: JO, now: T0 })).toMatchObject({ error: 'NOT_ALLOWED' });
     expect(st('st-1').askedOfId).toBeNull();
+  });
+
+  test('two asks to one person made in the same moment leave them with one, not none', async () => {
+    rows.street = [street(), street({ id: 'st-2', name: 'Oak St' })];
+    // The first ask's write to Elm St lands, then the second ask (a moment later) runs whole, then the first finishes.
+    const write = prisma.searchStreet.updateMany;
+    let between = false;
+    prisma.searchStreet.updateMany = jest.fn(async (arg) => {
+      const out = await write(arg);
+      if (!between && arg.data.askedOfId === 'v:vol-1') {
+        between = true;
+        await askStreet({ caseId: CASE, streetId: 'st-2', person: dana, searcher: OWNER, now: T0 + 5 });
+      }
+      return out;
+    });
+    await askStreet({ caseId: CASE, streetId: 'st-1', person: dana, searcher: OWNER, now: T0 });
+    prisma.searchStreet.updateMany = write;
+    // The later ask stands; the earlier one was taken back by it, and did not take the later one back in turn.
+    expect([st('st-1').askedOfId, st('st-2').askedOfId]).toEqual([null, 'v:vol-1']);
+  });
+
+  test('an ask that loses to a helper taking the street says someone is on it, not that someone else was asked', async () => {
+    const read = prisma.searchStreet.findFirst;
+    let taken = false;
+    prisma.searchStreet.findFirst = jest.fn(async (arg) => {
+      const before = await read(arg);
+      if (!taken) {
+        taken = true;
+        apply(st(), { status: 'IN_PROGRESS', claimedById: 'v:vol-2', claimedByName: 'Jo', claimedAt: new Date(T0) });
+      }
+      return before;
+    });
+    const result = await ask();
+    prisma.searchStreet.findFirst = read;
+    expect(result).toMatchObject({ error: 'NOT_OPEN' });
+    expect(st()).toMatchObject({ status: 'IN_PROGRESS', claimedById: 'v:vol-2', askedOfId: null });
+  });
+
+  test('the job picker on the pet\'s page does not hand out a street that is being kept', async () => {
+    rows.street = [street({ priority: 9 }), street({ id: 'st-2', name: 'Oak St', priority: 5 })];
+    await ask();
+    const { openBlocks } = require('@/app/lib/searchBoard');
+    // For anyone else, and for someone with no account at all, the kept street is not on offer.
+    expect((await openBlocks(CASE, { viewer: 'u-pat', now: T0 + MINUTE })).map((b) => b.id)).toEqual(['st-2']);
+    expect((await openBlocks(CASE, { now: T0 + MINUTE })).map((b) => b.id)).toEqual(['st-2']);
+    // For the person it is kept for, it is.
+    expect((await openBlocks(CASE, { viewer: 'v:vol-1', now: T0 + MINUTE })).map((b) => b.id)).toEqual(['st-1', 'st-2']);
+    // After half an hour it is anyone's again.
+    expect((await openBlocks(CASE, { viewer: 'u-pat', now: T0 + ASK_HOLD_MS + MINUTE })).map((b) => b.id)).toEqual(['st-1', 'st-2']);
   });
 
   test('a street kept for Dana cannot be asked of Jo until the ask lapses or is taken back', async () => {

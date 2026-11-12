@@ -32,28 +32,39 @@ import { handleFor } from '@/app/lib/searchTeam';
 
 /** The longest a message may be. */
 export const WORD_MAX = 400;
-/** How many messages one person may send on one search in an hour. */
+/** How many messages one helper may send on one search in an hour. */
 export const WORDS_PER_HOUR = 30;
+/** How many the person running a search may send in an hour: they write to many helpers, a helper to one desk. */
+export const DESK_SENT_PER_HOUR = 200;
 /**
- * How many messages all the helpers of one search may send its desk in an
- * hour. Joining takes no account, so the limit on one person is not a
- * limit on someone who joins many times.
+ * How many messages the helpers of one search may send its desk in an hour
+ * before a helper the owner has not yet written to or asked is refused.
+ * Joining takes no account, so the limit on one person is not a limit on
+ * someone who joins many times. Someone the owner has written to or asked
+ * is someone the owner chose to hear from: they are held to their own
+ * limit only, so a flood from strangers cannot shut them out.
  */
 export const DESK_WORDS_PER_HOUR = 120;
 /**
- * How many of those ring the owner's bell and phone in an hour. Past it a
- * message is still kept and shown on the search screen; it only stops
- * making a noise.
+ * How many times an hour the owner's bell and phone ring for helpers they
+ * have not yet written to or asked. Past it such a message is still kept
+ * and shown on the search screen; it only stops making a noise. A message
+ * from someone the owner has written to or asked always rings.
  */
 export const OWNER_BELLS_PER_HOUR = 12;
 export const WORD_NOTICE = 'SEARCH_WORD';
 
-/** A message as it is stored: one line breaks kept, everything else that is not text removed, cut to length. */
+/**
+ * A message as it is stored: line breaks kept, a tab made a space, everything else that is not text removed
+ * (control characters, and the characters that take up no room, so a message that looks blank is blank), cut
+ * to length.
+ */
 export function cleanWord(text) {
   return String(text ?? '')
+    .replace(/\t/g, ' ')
     // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u0009\u000B-\u001F\u007F\u200B-\u200F\u2028-\u202F\uFEFF]/g, '')
-    .replace(/[ \t]+/g, ' ')
+    .replace(/[\u0000-\u0009\u000B-\u001F\u007F\u00AD\u115F\u1160\u180E\u200B-\u200F\u2028-\u202F\u2060-\u2064\u2066-\u2069\u3164\uFEFF\uFFA0]/g, '')
+    .replace(/ +/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
     .slice(0, WORD_MAX);
@@ -70,10 +81,12 @@ export class WordError extends Error {
 /**
  * Send one message. `searcher` is who is writing (app/lib/searcher.js).
  * `to` is the person it is for, as the roster has them (id and name), and
- * only someone who leads may name one; with no `to`, it is a helper's
- * word to the people running the search. Returns the stored row.
+ * only whoever runs the search may name one; with no `to`, it is a
+ * helper's word to the people running the search. `about` is what the
+ * screen knows it concerns and the person did not type (a street), kept
+ * beside the words and never inside them. Returns the stored row.
  */
-export async function sendWord({ caseId, pet, searcher, to = null, text, now = new Date() }) {
+export async function sendWord({ caseId, pet, searcher, to = null, text, about = null, now = new Date() }) {
   const words = cleanWord(text);
   if (!words) throw new WordError('Write something first.', 400, 'EMPTY');
   if (to && !searcher.leads) throw new WordError('Only the owner can write to a helper.', 403, 'NOT_ALLOWED');
@@ -85,23 +98,37 @@ export async function sendWord({ caseId, pet, searcher, to = null, text, now = n
   }
   const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
   const recent = await prisma.searchMessage.count({ where: { caseId, fromId: searcher.id, createdAt: { gte: hourAgo } } });
-  if (recent >= WORDS_PER_HOUR) throw new WordError('That is a lot of messages in an hour. Call the owner if it is urgent.', 429, 'TOO_MANY');
+  if (to) {
+    // Said to the person running the search, so it does not tell them to call the owner.
+    if (recent >= DESK_SENT_PER_HOUR) throw new WordError('That is a lot of messages in an hour. Wait a little and send it again.', 429, 'TOO_MANY');
+  } else if (recent >= WORDS_PER_HOUR) {
+    throw new WordError('That is a lot of messages in an hour. Call the owner if it is urgent.', 429, 'TOO_MANY');
+  }
+  // Whether the owner has written to this person or asked them to walk a street: someone the owner chose to hear from.
+  let known = Boolean(to);
   if (!to) {
-    const toDesk = await prisma.searchMessage.count({ where: { caseId, fromDesk: false, createdAt: { gte: hourAgo } } });
-    if (toDesk >= DESK_WORDS_PER_HOUR) throw new WordError('A lot of messages have been sent on this search in the last hour. Call the owner if it is urgent.', 429, 'TOO_MANY');
+    const [written, asked] = await Promise.all([
+      prisma.searchMessage.count({ where: { caseId, toId: searcher.id } }),
+      prisma.searchStreet.count({ where: { caseId, askedOfId: searcher.id } }),
+    ]);
+    known = written + asked > 0;
+    if (!known) {
+      const toDesk = await prisma.searchMessage.count({ where: { caseId, fromDesk: false, createdAt: { gte: hourAgo } } });
+      if (toDesk >= DESK_WORDS_PER_HOUR) throw new WordError('A lot of messages have been sent on this search in the last hour. Call the owner if it is urgent.', 429, 'TOO_MANY');
+    }
   }
 
   const row = await prisma.searchMessage.create({
-    data: { caseId, fromId: searcher.id, fromName: searcher.firstName, fromDesk: Boolean(to), toId: to?.id || null, toName: to?.name || null, text: words },
+    data: { caseId, fromId: searcher.id, fromName: searcher.firstName, fromDesk: Boolean(to), toId: to?.id || null, toName: to?.name || null, text: words, about: about ? String(about).slice(0, 200) : null },
   });
 
   // Someone with an account also gets it in their bell and, where they allowed it, on their phone.
   const name = pet?.petName || 'the pet';
   const url = `/mission-control?mission=${encodeURIComponent(pet?.caseNumber || caseId)}`;
-  const tell = async (userId, title) => {
+  const tell = async (userId, title, tag) => {
     if (!userId || userId === searcher.userId) return;
     try {
-      await prisma.notification.create({ data: { userId, type: WORD_NOTICE, title, message: words.slice(0, 200), actionUrl: url, data: JSON.stringify({ caseId, messageId: row.id }) } });
+      await prisma.notification.create({ data: { userId, type: WORD_NOTICE, title, message: words.slice(0, 200), actionUrl: url, data: JSON.stringify({ caseId, messageId: row.id, from: tag }) } });
       if (isPushConfigured()) await sendPushToUser(prisma, userId, { title, body: words.slice(0, 200), url }).catch(() => null);
     } catch (error) {
       console.warn('[searchTalk] notice failed:', error?.message);
@@ -109,11 +136,11 @@ export async function sendWord({ caseId, pet, searcher, to = null, text, now = n
   };
   if (to) {
     // The owner by name; anyone else who came to run a search as the people running it.
-    if (!String(to.id).startsWith('v:')) await tell(to.id, searcher.isOwner ? `${searcher.firstName}, about the search for ${name}` : `About the search for ${name}`);
+    if (!String(to.id).startsWith('v:')) await tell(to.id, searcher.isOwner ? `${searcher.firstName}, about the search for ${name}` : `About the search for ${name}`, 'desk');
   } else if (pet?.reporterId) {
-    // Kept and shown either way; it rings the owner's bell and phone only so many times an hour.
-    const bells = await prisma.notification.count({ where: { userId: pet.reporterId, type: WORD_NOTICE, createdAt: { gte: hourAgo } } }).catch(() => 0);
-    if (bells < OWNER_BELLS_PER_HOUR) await tell(pet.reporterId, `${searcher.firstName}, searching for ${name}`);
+    // Kept and shown either way. From someone the owner has not yet written to or asked, it rings only so many times an hour.
+    const quiet = known ? false : (await prisma.notification.count({ where: { userId: pet.reporterId, type: WORD_NOTICE, createdAt: { gte: hourAgo }, data: { contains: '"from":"new"' } } }).catch(() => 0)) >= OWNER_BELLS_PER_HOUR;
+    if (!quiet) await tell(pet.reporterId, `${searcher.firstName} wrote about the search for ${name}`, known ? 'known' : 'new');
   }
   return row;
 }
@@ -136,25 +163,27 @@ export async function wordsForDesk(caseId, { take = 80, viewerId = null } = {}) 
     to: m.toName || null,
     toHandle: m.toId ? handleFor(caseId, m.toId) : null,
     seenAt: m.seenAt || null,
+    // What the screen knew it was about, shown beside the words.
+    about: m.about || null,
   }));
 }
 
 /**
  * The messages one person has with the desk, oldest first: what was
- * written to them and what they wrote. Reading them is what marks the
- * ones written to them as seen, which the desk then shows.
+ * written to them and what they wrote. `seen` says whether a word written
+ * to them has been on their screen; reading this does not make it so. The
+ * screen says when it has shown one (`markWordsSeen`), because the desk is
+ * told "seen" and that has to mean seen.
  * `ownerId` and `ownerName` say whose a message from the desk is, so a
  * helper reads the owner's by name and anyone else's as the people
  * running the search.
  */
-export async function wordsForPerson(caseId, searcherId, { ownerId = null, ownerName = null, take = 6, now = new Date() } = {}) {
+export async function wordsForPerson(caseId, searcherId, { ownerId = null, ownerName = null, take = 6 } = {}) {
   const rows = await prisma.searchMessage.findMany({
     where: { caseId, OR: [{ toId: searcherId }, { fromId: searcherId, fromDesk: false }] },
     orderBy: { createdAt: 'desc' },
     take,
   });
-  const unseen = rows.filter((m) => m.toId === searcherId && !m.seenAt).map((m) => m.id);
-  if (unseen.length) await prisma.searchMessage.updateMany({ where: { id: { in: unseen }, seenAt: null }, data: { seenAt: now } }).catch(() => null);
   return [...rows].reverse().map((m) => ({
     id: m.id,
     at: m.createdAt,
@@ -162,5 +191,17 @@ export async function wordsForPerson(caseId, searcherId, { ownerId = null, owner
     mine: m.fromId === searcherId,
     // Whose it is, for the person reading it.
     from: m.fromId === searcherId ? null : m.fromId === ownerId && ownerName ? ownerName : null,
+    ...(m.fromId === searcherId ? {} : { seen: Boolean(m.seenAt) }),
   }));
+}
+
+/**
+ * This person's screen has shown these words. Only words written to them
+ * can be marked, by them, once. Returns how many were.
+ */
+export async function markWordsSeen(caseId, searcherId, ids = [], now = new Date()) {
+  const wanted = [...new Set((Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && id))].slice(0, 20);
+  if (!searcherId || !wanted.length) return 0;
+  const { count } = await prisma.searchMessage.updateMany({ where: { id: { in: wanted }, caseId, toId: searcherId, seenAt: null }, data: { seenAt: now } });
+  return count;
 }

@@ -34,7 +34,8 @@ const street = (over = {}) => ({ id: 'st-1', title: 'W 43rd St from Rosedale Ave
 describe('the published findings', () => {
   test('each says what its study found, with the source, and nothing about this pet', () => {
     // With the study's own limits: whose dogs, how many, which year, and measured from home.
-    expect(RESEARCH.DOG.line).toBe('In Dallas shelter records for the 2019 fiscal year, of 5,228 stray dogs returned to their owners, 42% were picked up within 400 feet of home and 70% within a mile.');
+    // The 5,228 are the returned dogs that were picked up somewhere other than their own address.
+    expect(RESEARCH.DOG.line).toBe('In Dallas shelter records for the 2019 fiscal year, of 5,228 stray dogs picked up away from home and returned to their owners, 42% were within 400 feet of home and 70% within a mile.');
     expect(RESEARCH.CAT.line).toBe('In a study of missing cats, half of the cats found alive were within 50 metres of where they went missing, and 3 in 4 within 500 metres.');
     // A ring drawn on this pet's map carries its distance and nothing else: a share of dogs written on the map
     // would read as a claim about this pet, and the dog study measured from home, not from where a dog was lost.

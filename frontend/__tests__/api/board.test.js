@@ -22,6 +22,7 @@ jest.mock('@/app/lib/prisma', () => ({
     caseSighting: { findMany: jest.fn() },
     searchGrid: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn(), create: jest.fn() },
     searchStreet: { findMany: jest.fn(), findFirst: jest.fn(), update: jest.fn(async () => ({})), updateMany: jest.fn(), deleteMany: jest.fn(), createMany: jest.fn() },
+    searchMessage: { findMany: jest.fn(async () => []) },
     gridCell: { findMany: jest.fn(), findFirst: jest.fn(), update: jest.fn(async () => ({})), updateMany: jest.fn() },
   },
 }));
@@ -433,7 +434,10 @@ describe('PATCH: steering from the desk', () => {
     await steer('first');
     // Only where it is walked at that moment: a street someone took in between stays theirs (the states are
     // followed through in __tests__/lib/searchBoardStates.test.js).
-    expect(prisma.searchStreet.updateMany).toHaveBeenCalledWith({ where: { id: 'st-2', caseId: CASE, context: false, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT', againAt: expect.any(Date) } });
+    // Marked as due another look wherever it is now (someone may be on a second pass), and made "another look" only
+    // where it is walked at that moment: a street someone took in between stays theirs.
+    expect(prisma.searchStreet.updateMany).toHaveBeenCalledWith({ where: { id: 'st-2', caseId: CASE, context: false, searchCount: { gt: 0 } }, data: { againAt: expect.any(Date) } });
+    expect(prisma.searchStreet.updateMany).toHaveBeenCalledWith({ where: { id: 'st-2', caseId: CASE, context: false, status: 'SEARCHED' }, data: { status: 'NEEDS_REVISIT' } });
   });
 
   test('"normal" gives it back the place the search worked out for it', async () => {

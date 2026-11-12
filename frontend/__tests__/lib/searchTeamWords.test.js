@@ -3,7 +3,7 @@
  * card shows of what was said to them (app/mission-control/lib/team.js).
  */
 
-import { personLine, shortTitle, outLong, grouped, wordsForCard, wordsForOwner, wordFrom, stream, unanswered, WORD_FRESH_MS } from '@/app/mission-control/lib/team';
+import { personLine, shortTitle, outLong, grouped, wordsForCard, wordsForOwner, wordFrom, stream, unanswered, WORD_FRESH_MS, WORDS_ON_CARD } from '@/app/mission-control/lib/team';
 
 const ZONE = 'America/Chicago';
 const NOW = new Date('2026-11-13T04:00:00Z').getTime(); // 10 pm Thursday in Austin
@@ -79,8 +79,8 @@ describe('what a helper\'s card shows of what was said to them', () => {
   ];
   const updates = [{ id: 'u1', at: ago(19), text: 'He comes to a squeaky ball.' }];
 
-  const yours = { id: 'm3', kind: 'yours', text: 'Can you take the alley too?', at: ago(5), from: 'Avery' };
-  const everyone = { id: 'u1', kind: 'everyone', text: 'He comes to a squeaky ball.', at: ago(19), from: 'Avery' };
+  const yours = { id: 'm3', kind: 'yours', text: 'Can you take the alley too?', at: ago(5), from: 'Avery', seen: true };
+  const everyone = { id: 'u1', kind: 'everyone', text: 'He comes to a squeaky ball.', at: ago(19), from: 'Avery', seen: true };
 
   test('the newest word written to them, and under it what the owner last told everyone', () => {
     expect(wordsForCard({ words, updates, ownerName: 'Avery', now: NOW })).toEqual([yours, everyone]);
@@ -89,14 +89,33 @@ describe('what a helper\'s card shows of what was said to them', () => {
   test('a word written to them stays on the card when everyone is told something later', () => {
     // The desk is told when it was seen, so it has to be there to see: the newer word to everyone goes under it.
     const later = [{ id: 'u2', at: ago(1), text: 'He is wearing a blue collar.' }, ...updates];
-    expect(wordsForCard({ words, updates: later, ownerName: 'Avery', now: NOW })).toEqual([yours, { id: 'u2', kind: 'everyone', text: 'He is wearing a blue collar.', at: ago(1), from: 'Avery' }]);
+    expect(wordsForCard({ words, updates: later, ownerName: 'Avery', now: NOW })).toEqual([yours, { id: 'u2', kind: 'everyone', text: 'He is wearing a blue collar.', at: ago(1), from: 'Avery', seen: true }]);
   });
 
   test('with nothing written to them, only what the owner told everyone; and the other way round', () => {
     expect(wordsForCard({ words: words.slice(1, 2), updates, ownerName: 'Avery', now: NOW })).toEqual([everyone]);
     expect(wordsForCard({ words, updates: [], ownerName: 'Avery', now: NOW })).toEqual([yours]);
     // From anyone else who came to run the search: whose it is, is not said.
-    expect(wordsForCard({ words: words.slice(0, 1), updates: [], ownerName: 'Avery', now: NOW })).toEqual([{ id: 'm1', kind: 'yours', text: 'Thanks for coming.', at: ago(60), from: null }]);
+    expect(wordsForCard({ words: words.slice(0, 1), updates: [], ownerName: 'Avery', now: NOW })).toEqual([{ id: 'm1', kind: 'yours', text: 'Thanks for coming.', at: ago(60), from: null, seen: true }]);
+  });
+
+  test('every word written to them since they last wrote back is on the card, so none is marked seen without being shown', () => {
+    // Two words from the owner while the phone was in a pocket: both are there, oldest first, and each says
+    // whether this screen has shown it yet.
+    const two = [
+      { id: 'a', at: ago(30), text: 'Check the alley.', mine: false, from: 'Avery', seen: true },
+      { id: 'b', at: ago(20), text: 'Done, nothing there.', mine: true, from: null },
+      { id: 'c', at: ago(9), text: 'Thanks. Try the creek.', mine: false, from: 'Avery', seen: false },
+      { id: 'd', at: ago(4), text: 'Do not go into the yard on the corner.', mine: false, from: 'Avery', seen: false },
+    ];
+    expect(wordsForCard({ words: two, updates: [], ownerName: 'Avery', now: NOW }).map((w) => [w.id, w.seen])).toEqual([['c', false], ['d', false]]);
+    // Once they write back, the last word written to them stays for the record of what they answered.
+    const answered = [...two, { id: 'e', at: ago(1), text: 'Understood.', mine: true, from: null }];
+    expect(wordsForCard({ words: answered, updates: [], ownerName: 'Avery', now: NOW }).map((w) => w.id)).toEqual(['d']);
+    // Never more than three, the newest ones.
+    const many = Array.from({ length: 6 }, (_, i) => ({ id: `w${i}`, at: ago(10 - i), text: `word ${i}`, mine: false, from: 'Avery', seen: false }));
+    expect(wordsForCard({ words: many, updates: [], now: NOW }).map((w) => w.id)).toEqual(['w3', 'w4', 'w5']);
+    expect(WORDS_ON_CARD).toBe(3);
   });
 
   test('their own words are never shown back to them as news', () => {
@@ -160,22 +179,33 @@ describe('the desk\'s messages: everything said and everything that happened, in
 describe('what the owner\'s phone card shows of what helpers said', () => {
   const w = (id, minutes, fromDesk, who, over = {}) => ({ id, at: ago(minutes), text: `${id} text`, fromDesk, mine: fromDesk, from: fromDesk ? 'Avery' : who, fromHandle: fromDesk ? 'h-avery' : `h-${who.toLowerCase()}`, to: fromDesk ? who : null, toHandle: fromDesk ? `h-${who.toLowerCase()}` : null, ...over });
 
-  test('the newest word nobody has answered, with whose it is and the handle to answer them by', () => {
+  test('the words nobody has answered, oldest first, each with whose it is and the handle to answer them by', () => {
     const talk = [w('a', 30, false, 'Dana'), w('b', 20, false, 'Jo'), w('c', 10, false, 'Dana')];
-    expect(wordsForOwner({ talk, now: NOW })).toEqual([{ id: 'c', kind: 'yours', text: 'c text', at: ago(10), from: 'Dana', handle: 'h-dana' }]);
+    // The newest per person, and Jo's came before Dana's newest: the card shows Jo's, and says one more waits.
+    expect(wordsForOwner({ talk, now: NOW })).toEqual([
+      { id: 'b', kind: 'yours', text: 'b text', at: ago(20), from: 'Jo', handle: 'h-jo', about: null, seen: true },
+      { id: 'c', kind: 'yours', text: 'c text', at: ago(10), from: 'Dana', handle: 'h-dana', about: null, seen: true },
+    ]);
   });
 
-  test('one at a time: answering it brings up the next, and nothing answered is shown', () => {
-    const talk = [w('a', 30, false, 'Dana'), w('b', 20, false, 'Jo'), w('c', 5, true, 'Dana')];
-    expect(wordsForOwner({ talk, now: NOW }).map((x) => [x.id, x.from])).toEqual([['b', 'Jo']]);
-    expect(wordsForOwner({ talk: [...talk, w('d', 1, true, 'Jo')], now: NOW })).toEqual([]);
+  test('a newer word never takes the place of the one being answered: the first stays first until it is answered or put away', () => {
+    const talk = [w('b', 20, false, 'Jo')];
+    expect(wordsForOwner({ talk, now: NOW })[0].id).toBe('b');
+    // Dana writes while the owner is typing to Jo.
+    expect(wordsForOwner({ talk: [...talk, w('c', 1, false, 'Dana')], now: NOW }).map((x) => x.id)).toEqual(['b', 'c']);
+    // Answered: Jo's leaves, Dana's is next.
+    expect(wordsForOwner({ talk: [...talk, w('c', 1, false, 'Dana'), w('d', 0.5, true, 'Jo')], now: NOW }).map((x) => x.id)).toEqual(['c']);
+    // "Got it": put away without an answer, so a word that needs none does not hold the card.
+    expect(wordsForOwner({ talk: [...talk, w('c', 1, false, 'Dana')], put: new Set(['word-b']), now: NOW }).map((x) => x.id)).toEqual(['c']);
+    expect(wordsForOwner({ talk, put: new Set(['word-b']), now: NOW })).toEqual([]);
   });
 
-  test('an old word is not put on the card, and no id of anyone is', () => {
+  test('an old word is not put on the card, what it was about is, and no id of anyone is', () => {
     expect(wordsForOwner({ talk: [w('a', 13 * 60, false, 'Dana')], now: NOW })).toEqual([]);
     expect(wordsForOwner({ now: NOW })).toEqual([]);
-    const [card] = wordsForOwner({ talk: [w('a', 3, false, 'Dana')], now: NOW });
-    expect(Object.keys(card).sort()).toEqual(['at', 'from', 'handle', 'id', 'kind', 'text']);
+    const [card] = wordsForOwner({ talk: [w('a', 3, false, 'Dana', { about: 'Elm St from A St to B St' })], now: NOW });
+    expect(Object.keys(card).sort()).toEqual(['about', 'at', 'from', 'handle', 'id', 'kind', 'seen', 'text']);
+    expect(card.about).toBe('Elm St from A St to B St');
   });
 });
 

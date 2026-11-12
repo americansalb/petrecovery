@@ -207,7 +207,7 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
                 {busy === 'ask' && <Loader2 size={17} className="animate-spin" aria-hidden="true" />} Ask {person.name}
               </button>
               <p className="mt-2 text-[13px] font-medium leading-[19px] text-[var(--mc-muted)]">
-                It becomes the card on {person.name}&apos;s phone, with one button, and is kept for {person.name} for half an hour. You see when it has been seen and when {person.name} starts.
+                It becomes the card on {person.name}&apos;s phone while {picture.pet?.name || 'the pet'}&apos;s search is open there, with one button, and is kept for {person.name} for half an hour. You see when their phone has shown it and when {person.name} starts.
               </p>
             </>
           )}
@@ -233,7 +233,7 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
                 <span className={`max-w-[280px] whitespace-pre-line break-words rounded-2xl px-3 py-2 text-[15px] font-medium leading-[21px] ${w.fromDesk ? 'bg-[var(--mc-ink)] text-[var(--mc-surface)]' : 'bg-[var(--mc-raised)] text-[var(--mc-ink)]'}`}>{w.text}</span>
                 <span className="mt-0.5 px-1 text-[13px] font-semibold leading-[17px] text-[var(--mc-muted)]">
                   {w.fromDesk ? w.from : person.name} · {clockTime(w.at, zone)}
-                  {w.fromDesk ? (w.seenAt ? ` · seen ${clockTime(w.seenAt, zone)}` : ' · not seen yet') : ''}
+                  {w.fromDesk ? (w.seenAt ? ` · seen ${clockTime(w.seenAt, zone)}` : ' · not seen yet') : w.about ? ` · about ${w.about}` : ''}
                 </span>
               </li>
             ))}
@@ -291,7 +291,8 @@ export default function People({ picture, people = [], items, unit, now, selecte
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-4">
       <div className="flex items-center justify-between gap-3 px-2 pt-3">
-        <h2 className="text-[16px] font-bold leading-[22px] text-[var(--mc-ink)]">{people.length === 0 ? 'Nobody is helping yet' : people.length === 1 ? '1 person is helping' : `${people.length} people are helping`}</h2>
+        {/* Everyone who has joined, whether or not they are out right now: the groups below say who is. */}
+        <h2 className="text-[16px] font-bold leading-[22px] text-[var(--mc-ink)]">{people.length === 0 ? 'Nobody has joined yet' : people.length === 1 ? '1 person has joined' : `${people.length} people have joined`}</h2>
         {onShare && (
           <button type="button" onClick={onShare} className={BUTTON}>
             <Share2 size={15} aria-hidden="true" /> Bring more people
