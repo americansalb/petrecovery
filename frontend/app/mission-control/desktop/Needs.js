@@ -21,7 +21,7 @@ export default function Needs({ cards = [], quiet = '', busy = null, problem = '
   return (
     <section aria-label="Needs you">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[19px] font-extrabold leading-[26px] text-[var(--mc-ink)]">
+        <h2 className="flex items-center gap-2 text-[17px] font-extrabold leading-6 text-[var(--mc-ink)]">
           Needs you
           {cards.length > 0 && <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-[var(--mc-ink)] px-1.5 text-[14px] font-extrabold tabular-nums text-[var(--mc-surface)]">{cards.length}</span>}
         </h2>
@@ -32,7 +32,7 @@ export default function Needs({ cards = [], quiet = '', busy = null, problem = '
         )}
       </div>
       {cards.length === 0 && (
-        <p className="mt-2 rounded-2xl border border-[var(--mc-line)] bg-[var(--mc-surface)] px-4 py-3 text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">
+        <p className="mt-2 rounded-2xl bg-[var(--mc-raised)] px-4 py-3 text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">
           <span className="font-bold text-[var(--mc-ink)]">Nothing is waiting for you.</span> {quiet}
         </p>
       )}
@@ -40,7 +40,7 @@ export default function Needs({ cards = [], quiet = '', busy = null, problem = '
         {shown.map((card, index) => {
           const seen = card.tone === 'seen';
           return (
-            <li key={card.id} className={`rounded-2xl px-4 pb-3.5 pt-3 shadow-sm ${seen ? 'border border-l-4 border-[var(--mc-seen)] bg-[var(--mc-seen-bg)]' : 'border border-[var(--mc-line)] bg-[var(--mc-surface)]'}`}>
+            <li key={card.id} className={`rounded-2xl px-4 pb-3.5 pt-3 shadow-sm ${seen ? 'border border-l-4 border-[var(--mc-seen)] bg-[var(--mc-seen-bg)]' : 'bg-[var(--mc-raised)]'}`}>
               <p className={`text-[13px] font-bold leading-[18px] ${seen ? 'text-[var(--mc-seen-ink)]' : 'text-[var(--mc-muted)]'}`}>{card.label}</p>
               {card.title && <h3 className="mt-0.5 text-[17px] font-bold leading-[23px] text-[var(--mc-ink)]">{card.title}</h3>}
               <p className="mt-0.5 whitespace-pre-line break-words text-[15px] font-medium leading-[21px] text-[var(--mc-soft)]">{card.body}</p>
@@ -50,7 +50,7 @@ export default function Needs({ cards = [], quiet = '', busy = null, problem = '
                   onClick={() => onDo(card, card.primary.do)}
                   disabled={Boolean(busy)}
                   // The first card's button is the yellow one: the next thing to do at this desk. The rest are plain.
-                  className={`${MAIN} ${index === 0 ? 'border border-flash-600 bg-flash-400 text-[var(--mc-on-flash)] hover:bg-flash-300' : 'border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] text-[var(--mc-ink)] hover:bg-[var(--mc-raised)]'}`}
+                  className={`${MAIN} ${index === 0 ? 'border border-flash-600 bg-flash-400 text-[var(--mc-on-flash)] hover:bg-flash-300' : 'border border-[var(--mc-line-strong)] bg-transparent text-[var(--mc-ink)] hover:bg-[var(--mc-surface)]'}`}
                 >
                   {busy === card.id ? 'One moment' : card.primary.words}
                 </button>

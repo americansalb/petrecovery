@@ -60,7 +60,7 @@ describe.each(['mc-light', 'mc-dark'])('%s: every text colour reads on every sur
   const p = palette(name);
 
   test('the palette has every colour the screen uses', () => {
-    for (const key of ['ground', 'surface', 'raised', 'ink', 'soft', 'muted', 'line', 'line-strong', 'seen', 'seen-ink', 'seen-bg', 'on-seen', 'on-flash', 'home', 'check', 'check-ink', 'teal', 'teal-ink', 'on-teal', 'done', 'done-ink', 'danger', 'pick', 'shadow']) {
+    for (const key of ['ground', 'surface', 'raised', 'ink', 'soft', 'muted', 'line', 'line-strong', 'lost', 'seen', 'seen-ink', 'seen-bg', 'on-seen', 'on-flash', 'home', 'check', 'check-ink', 'teal', 'teal-ink', 'on-teal', 'done', 'done-ink', 'danger', 'pick', 'shadow']) {
       expect({ key, set: Boolean(p[key]) }).toEqual({ key, set: true });
     }
   });
@@ -128,15 +128,22 @@ describe('no text on the search screen is smaller than 13px', () => {
   });
 });
 
-describe('the desk is light by day and dark by its own switch, and the map says rank by weight', () => {
+describe('the desk\'s panels are the dark palette, day or night is the map\'s, and the map says rank by weight', () => {
   const desk = read('app/mission-control/desktop/Command.js');
   const map = read('app/mission-control/components/SearchMap.js');
 
-  test('day unless this person chose night, and the choice is kept on this computer', () => {
+  test('the panels are dark like the phone, and the map is light unless this person chose night on this computer', () => {
+    // Founder, 2026-11-12, on the white desk: "The white is super boring and seems incomplete". The panels and the
+    // top bar are the phone's own dark palette, on the map like instruments on a table. The switch is the map's.
+    expect(desk).toMatch(/<div className="mc-dark flex h-\[100dvh\] flex-col overflow-hidden bg-\[var\(--mc-ground\)\]">/);
     expect(desk).toMatch(/const \[night, setNight\] = useState\(false\);/);
     expect(desk).toMatch(/window\.localStorage\.getItem\(NIGHT_KEY\) === '1'/);
-    expect(desk).toMatch(/className=\{`\$\{night \? 'mc-dark' : 'mc-light'\} /);
     expect(desk).toMatch(/theme=\{night \? 'dark' : 'light'\}/);
+    // The key under the map shows the map's own colours, so it alone follows the map.
+    expect(desk.match(/\$\{night \? 'mc-dark' : 'mc-light'\}/g)).toHaveLength(1);
+    // The two panels float over a map that fills the screen, and stand clear of its own controls.
+    expect(desk.match(/\$\{PANEL\}/g)).toHaveLength(2);
+    expect(css).toMatch(/\.mc-stage-wide \.leaflet-right \{\s*right: 400px;/);
     // A browser that will not keep anything still gets a working switch.
     expect(desk.match(/\} catch \{/g).length).toBeGreaterThanOrEqual(2);
   });
@@ -144,7 +151,7 @@ describe('the desk is light by day and dark by its own switch, and the map says 
   test('no colour of its own on the desk: every one comes from the palette or the map\'s own values', () => {
     // Every file of the desk, and the pieces it shares with a phone that were made for both palettes.
     const files = [...fs.readdirSync(path.join(FRONTEND, 'app', 'mission-control', 'desktop')).map((name) => `desktop/${name}`), 'components/Word.js', 'components/overlays/MarkReunitedModal.js'];
-    expect(files).toEqual(expect.arrayContaining(['desktop/Command.js', 'desktop/Board.js', 'desktop/Ground.js', 'desktop/Know.js', 'desktop/People.js', 'desktop/Messages.js', 'desktop/Needs.js']));
+    expect(files).toEqual(expect.arrayContaining(['desktop/Command.js', 'desktop/Board.js', 'desktop/Dial.js', 'desktop/Ground.js', 'desktop/Know.js', 'desktop/People.js', 'desktop/Messages.js', 'desktop/Needs.js']));
     for (const file of files) {
       const source = read(`app/mission-control/${file}`);
       expect({ file, colour: (source.match(/(text|bg|border|ring)-(slate|teal|emerald|orange|amber|midnight|red|green|blue)-\d+/) || [null])[0] }).toEqual({ file, colour: file.endsWith('MarkReunitedModal.js') ? 'bg-slate-950' : null });
@@ -172,9 +179,12 @@ describe('the desk is light by day and dark by its own switch, and the map says 
     // Nobody has searched it: an outline, heavy in ink where it is given out next.
     // Searched and put up for another look is open again: an ink edge too, lighter than what is given out next.
     expect(map).toMatch(/const again = area\.status === 'NEEDS_REVISIT';/);
-    expect(map).toMatch(/\? \{ color: area\.next \|\| again \? look\.ink : look\.later, weight: area\.next \? 3\.5 : again \? 2\.5 : 1\.5 \}/);
+    // Every area's edge is ink, so the circle reads as one shape: full strength and heavy where it is given out next.
+    expect(map).toMatch(/\? \{ color: look\.ink, opacity: area\.next \|\| again \? 1 : 0\.55, weight: area\.next \? 4 : again \? 2\.5 : 1\.75, \.\.\.\(again \? \{ dashArray: '3 6' \} : \{\}\) \}/);
     // Searched is the map's own green, deeper for a second search; someone on it is the map's own teal, dashed.
-    expect(map).toMatch(/const fill = searched \? \{ fillColor: look\.walked, fillOpacity: area\.searchCount > 1 \? 0\.5 : 0\.26 \}/);
+    expect(map).toMatch(/const fill = searched\s*\? \{ fillColor: look\.walked, fillOpacity: area\.searchCount > 1 \? 0\.62 : 0\.36 \}/);
+    // The town outside the circle is dimmed, so the search stands out from it.
+    expect(map).toMatch(/L\.polygon\(\[world, hole\], \{ stroke: false, fillColor: dark \? '#020617' : '#0f172a', fillOpacity: dark \? 0\.5 : 0\.28, interactive: false \}\)/);
     expect(map).toMatch(/\? \{ color: look\.walking, weight: desk \? 3\.5 : 3, dashArray: '2 9', lineCap: 'round' \}/);
     // Yellow is the area in hand, as it is the street in hand: the one this person is on, or the one that is picked.
     expect(map).toMatch(/const edge = lit\s*\? \{ color: FLASH, weight: 4,/);

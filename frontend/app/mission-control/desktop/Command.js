@@ -6,10 +6,12 @@
  * so it is never asked where it is and is never handed ground
  * (SearchScreen.js). A phone is the opposite: one card, one button.
  *
- *   left    for the person running the search, what needs them now, each
- *           with one thing to do about it (Needs.js); then the numbers,
- *           this person's own card, what the search shows, and the site's
- *           advice for this pet at this stage
+ *   left    where the search stands, as a dial of its ground and three
+ *           numbers (Dial.js); for the person running the search, what
+ *           needs them now, each with one thing to do about it (Needs.js),
+ *           and for anyone else, that they are only looking and how the
+ *           owner signs in; then this person's own card, what the search
+ *           shows, and the site's advice for this pet at this stage
  *   middle  the map: the circle of the search, area by area. Ground nobody
  *           has searched is an outline, heaviest where it is given out
  *           next; searched ground is green, deeper for a second search;
@@ -31,10 +33,14 @@
  * (A search from before it was on areas is drawn as it was: its streets
  * or squares, with the street's own card.)
  *
- * It is light by day, like an ordinary map, and dark at night by its own
- * switch. Every colour comes from the screen's two palettes
- * (app/globals.css, .mc-light and .mc-dark), which are held to a contrast
- * of 4.5 to 1 or better, and no text here is smaller than 13px.
+ * The map fills the screen and the two panels float over it, like
+ * instruments on a table. The panels and the top bar are always the dark
+ * palette, the phone's own; the map is light by day, like an ordinary map,
+ * and dark by its own switch. (Until 2026-11-12 the desk was three white
+ * columns. Founder: "The white is super boring and seems incomplete".)
+ * Every colour comes from the screen's two palettes (app/globals.css,
+ * .mc-light and .mc-dark), which are held to a contrast of 4.5 to 1 or
+ * better, and no text here is smaller than 13px.
  */
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -50,6 +56,7 @@ import { areaState, givenNextAreas, mapLabel, needsForGround, quietGround } from
 import { Advice, Know, Numbers } from './Know';
 import Board from './Board';
 import Needs from './Needs';
+import Summary from './Dial';
 import { AreaCard } from './Ground';
 
 const SearchMap = dynamic(() => import('../components/SearchMap'), {
@@ -59,6 +66,10 @@ const SearchMap = dynamic(() => import('../components/SearchMap'), {
 
 const CONTROL =
   'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] px-3 text-[13px] font-bold leading-5 text-[var(--mc-ink)] shadow-sm hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
+
+/** A panel that floats over the map: the desk's two, and nothing else. */
+const PANEL =
+  'flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--mc-line)] bg-[color-mix(in_srgb,var(--mc-surface)_95%,transparent)] shadow-[var(--mc-shadow)] backdrop-blur-md';
 
 const NIGHT_KEY = 'rp_mc_night';
 const NO_RINGS = [];
@@ -454,14 +465,34 @@ export default function Command({ picture, items, unit, circle = null, now, line
   // The distances a study found, drawn round where the pet was lost. One list while nothing changes, so the map is not redrawn.
   const ringList = useMemo(() => (rings && study ? study.rings.map((r) => ({ meters: r.meters, label: r.label })) : NO_RINGS), [rings, study]);
 
-  // The numbers, this person's own card, what the search shows, and the advice.
+  // This person's own panel: where the search stands, what needs them or how they come to run it, their own
+  // card, what the search shows, and the advice.
   const overview = (
-    <div className={`flex flex-col gap-3 overflow-y-auto ${roomy ? 'p-4' : 'min-h-0 flex-1 p-3'}`}>
-      {leads && !full && (
-        <Needs cards={cards} quiet={ground ? quietGround({ areas: items, people }) : quietLine({ unit, items, people })} busy={needBusy} problem={needProblem} onDo={doNeed} all={allNeeds} onAll={() => setAllNeeds((v) => !v)} />
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="px-4 pb-4 pt-4">{ground ? <Summary picture={picture} items={items} circle={circle} next={next} now={now} selected={selected} hovered={hovered} onSelect={pickOnMap} onHover={setHovered} /> : <Numbers picture={picture} items={items} unit={unit} now={now} />}</div>
+      {picture.open && !leads && !full && (
+        // Someone only looking is told so, and told how the person whose search it is gets to run it. Without
+        // this the desk reads as broken: there is nothing to mark an area searched, widen the circle or write.
+        <div className="mx-4 mb-4 rounded-2xl bg-[var(--mc-raised)] px-4 py-3.5" role="status">
+          <p className="flex items-center gap-2 text-[14px] font-extrabold leading-5 text-[var(--mc-ink)]">
+            <Eye size={15} aria-hidden="true" /> Viewing only
+          </p>
+          <p className="mt-1 text-[14px] font-medium leading-[21px] text-[var(--mc-soft)]">
+            {viewer?.signedIn ? `You are signed in as ${viewer.firstName}. ` : ''}
+            {ownerName} runs this search. Marking an area searched, widening the circle and writing to helpers are done from {ownerName}&apos;s account.
+            {viewer?.signedIn ? '' : ' If that is you, sign in.'}
+          </p>
+          <a href={signInHref} className={`${CONTROL} mt-2.5`}>
+            <LogIn size={15} aria-hidden="true" /> {viewer?.signedIn ? 'Use another account' : 'Sign in'}
+          </a>
+        </div>
       )}
-      <Numbers picture={picture} items={items} unit={unit} now={now} />
-      <section aria-label="Your step" className={`rounded-2xl border border-[var(--mc-line)] ${roomy ? 'bg-[var(--mc-surface)]' : 'bg-[var(--mc-ground)]'} ${full ? 'overflow-hidden pb-2' : 'p-4'}`}>
+      {leads && !full && (
+        <div className="border-t border-[var(--mc-line)] px-4 py-4">
+          <Needs cards={cards} quiet={ground ? quietGround({ areas: items, people }) : quietLine({ unit, items, people })} busy={needBusy} problem={needProblem} onDo={doNeed} all={allNeeds} onAll={() => setAllNeeds((v) => !v)} />
+        </div>
+      )}
+      <section aria-label="Your step" className={`border-t border-[var(--mc-line)] ${full ? 'overflow-hidden pb-2' : 'p-4'}`}>
         {full && (
           <button type="button" onClick={onBack} className="ml-4 mt-3 inline-flex min-h-[36px] items-center gap-1.5 text-[15px] font-semibold text-[var(--mc-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
             <ArrowLeft size={18} aria-hidden="true" /> Back to the map
@@ -474,8 +505,12 @@ export default function Command({ picture, items, unit, circle = null, now, line
     </div>
   );
 
+  // Where the map's own controls start: clear of the panel on its left.
+  const inset = 'left-[396px]';
   return (
-    <div className={`${night ? 'mc-dark' : 'mc-light'} flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]`}>
+    // The desk's panels and top bar are always the dark palette, the phone's own: they sit on the map like
+    // instruments on a table. Day and night are the map's: light streets by day, dark by its switch.
+    <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]">
       <TopBar
         picture={picture}
         line={line}
@@ -486,141 +521,134 @@ export default function Command({ picture, items, unit, circle = null, now, line
           <>
             {leads && (
               // Who is running it, said once: the owner, or the site's own admin standing in.
-              <span className="ml-2 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--mc-line-strong)] px-2.5 py-1 text-[13px] font-bold leading-5 text-[var(--mc-ink)]">
-                <ShieldCheck size={14} className="text-[var(--mc-home)]" aria-hidden="true" /> {viewer?.isOwner ? 'You run this search' : 'Running it as site admin'}
+              <span className="ml-2 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--mc-raised)] px-3 py-1.5 text-[13px] font-bold leading-5 text-[var(--mc-ink)]">
+                <ShieldCheck size={15} className="text-[var(--mc-home)]" aria-hidden="true" /> {viewer?.isOwner ? 'You run this search' : 'Running it as site admin'}
               </span>
             )}
-          <button type="button" onClick={flipNight} aria-pressed={night} className={`${CONTROL} ml-2 shrink-0`}>
-            {night ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />} {night ? 'Day' : 'Night'}
-          </button>
+            <button type="button" onClick={flipNight} aria-pressed={night} className={`${CONTROL} ml-2 shrink-0`}>
+              {night ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />} {night ? 'Day map' : 'Night map'}
+            </button>
           </>
         }
       />
-      {picture.open && !leads && (
-        // Someone only looking is told so, and told how the person whose search it is gets to run it. Without
-        // this the desk reads as broken: there is nothing to mark an area searched, widen the circle or write.
-        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-[var(--mc-line)] bg-[var(--mc-raised)] px-4 py-2" role="status">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--mc-ink)] px-2.5 py-0.5 text-[13px] font-bold leading-5 text-[var(--mc-surface)]">
-            <Eye size={14} aria-hidden="true" /> Viewing only
-          </span>
-          <p className="min-w-0 flex-1 text-[14px] font-medium leading-5 text-[var(--mc-soft)]">
-            {viewer?.signedIn ? `You are signed in as ${viewer.firstName}. ` : ''}
-            {ownerName} runs this search: marking an area searched, widening the circle and writing to helpers are done from {ownerName}&apos;s account.
-            {viewer?.signedIn ? '' : ' If that is you, sign in.'} Anyone can add a sighting.
-          </p>
-          <a href={signInHref} className={`${CONTROL} shrink-0`}>
-            <LogIn size={15} aria-hidden="true" /> {viewer?.signedIn ? 'Use another account' : 'Sign in'}
-          </a>
+      <div className={`relative min-h-0 flex-1 ${roomy ? 'mc-stage-wide' : ''}`}>
+        <div className="absolute inset-0 z-0">
+          <SearchMap
+            theme={night ? 'dark' : 'light'}
+            desk
+            layer={layer}
+            lastSeen={lastSeenTag}
+            sightings={mapSightings}
+            areas={mapAreas}
+            streets={mapStreets}
+            cells={mapCells}
+            selected={selected}
+            hovered={hovered}
+            onSelect={pickOnMap}
+            onHover={setHovered}
+            rings={ringList}
+            spot={ground && circle?.center ? { lat: circle.center.lat, lng: circle.center.lng, meters: circle.radius } : null}
+            trail
+            fit={fit}
+            fitKey={fitKey}
+            // The whole search between the two panels, with room round it.
+            padding={{ top: 76, right: roomy ? 436 : 56, bottom: street && !ground ? 270 : 84, left: 420 }}
+            // A dog's circle fills the map near this zoom. A cat's is a third the size, so ground may be shown closer.
+            maxFitZoom={ground ? 18 : 16.25}
+            zoomControl
+            pick={picking}
+            pin={pin}
+            onPick={onPick}
+            label={mapWords}
+          />
         </div>
-      )}
-      <div className="flex min-h-0 flex-1">
+
         {roomy && (
-          <aside className="flex w-[380px] shrink-0 flex-col overflow-y-auto" aria-label="The search in numbers, and your step">
+          <aside className={`absolute left-3 top-3 z-[450] max-h-[calc(100%-24px)] w-[372px] ${PANEL}`} aria-label="The search in numbers, and your step">
             {overview}
           </aside>
         )}
 
-        <div className="relative min-w-0 flex-1 border-x border-[var(--mc-line)]">
-          <div className="absolute inset-0 z-0">
-            <SearchMap
-              theme={night ? 'dark' : 'light'}
-              desk
-              layer={layer}
-              lastSeen={lastSeenTag}
-              sightings={mapSightings}
-              areas={mapAreas}
-              streets={mapStreets}
-              cells={mapCells}
-              selected={selected}
-              hovered={hovered}
-              onSelect={pickOnMap}
-              onHover={setHovered}
-              rings={ringList}
-              trail
-              fit={fit}
-              fitKey={fitKey}
-              padding={{ top: 70, right: 60, bottom: street && !ground ? 260 : 70, left: 60 }}
-              // A dog's circle fills the map near this zoom. A cat's is a third the size, so ground may be shown closer.
-              maxFitZoom={ground ? 18 : 16.25}
-              zoomControl
-              pick={picking}
-              pin={pin}
-              onPick={onPick}
-              label={mapWords}
-            />
-          </div>
-          <div className="absolute left-3 top-3 z-[400] flex flex-wrap items-center gap-2">
-            <div className="flex overflow-hidden rounded-lg border border-[var(--mc-line-strong)] shadow" role="radiogroup" aria-label="What the map is drawn on">
-              {[
-                ['map', 'Map'],
-                ['satellite', 'Satellite'],
-              ].map(([id, words]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={layer === id}
-                  onClick={() => setLayer(id)}
-                  className={`min-h-[36px] px-3 text-[13px] font-bold leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${layer === id ? 'bg-[var(--mc-ink)] text-[var(--mc-surface)]' : 'bg-[var(--mc-surface)] text-[var(--mc-ink)]'}`}
-                >
-                  {words}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelected(null);
-                setFocused(null);
-                setRefit((n) => n + 1);
-              }}
-              className={CONTROL}
-            >
-              <Maximize2 size={15} aria-hidden="true" /> The whole search
-            </button>
-            {canWiden && (
-              <button type="button" onClick={widen} disabled={widening} className={`${CONTROL} disabled:opacity-60`}>
-                {widening ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Maximize size={15} aria-hidden="true" />} Widen to {circle.wide} m
-              </button>
-            )}
-          </div>
-          <div className={`pointer-events-none absolute bottom-7 left-3 z-[400] max-w-[calc(100%-76px)] flex-wrap items-center gap-x-3.5 gap-y-1 rounded-lg border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3 py-1.5 text-[13px] font-semibold text-[var(--mc-soft)] shadow-sm ${street && !ground ? 'hidden' : 'flex'}`}>
-            {key.map(([kind, color, words]) => (
-              <span key={words} className="flex items-center gap-1.5">
-                {kind === 'edge' || kind === 'open' ? (
-                  <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `${kind === 'edge' ? 3 : 1.5}px solid ${color}` }} aria-hidden="true" />
-                ) : kind === 'dash' ? (
-                  <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `2.5px dashed ${color}` }} aria-hidden="true" />
-                ) : kind === 'again' ? (
-                  <span className="relative h-3.5 w-5 overflow-hidden rounded-[3px]" style={{ border: `2px solid ${look.ink}` }} aria-hidden="true">
-                    <span className="absolute inset-0" style={{ background: color, opacity: 0.45 }} />
-                  </span>
-                ) : kind === 'once' || kind === 'twice' ? (
-                  <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `1.5px solid ${color}`, background: color, opacity: kind === 'twice' ? 0.85 : 0.45 }} aria-hidden="true" />
-                ) : kind === 'seen' ? (
-                  <span className="h-3.5 w-3.5 rounded-full" style={{ border: `2px dashed ${color}` }} aria-hidden="true" />
-                ) : kind === 'dots' ? (
-                  <span className="w-5 border-t-[5px] border-dotted" style={{ borderColor: color }} aria-hidden="true" />
-                ) : kind === 'kept' ? (
-                  <span className="flex h-[6px] w-5 items-center rounded-full" style={{ background: color }} aria-hidden="true">
-                    <span className="w-full border-t-[3px] border-dashed border-flash-400" />
-                  </span>
-                ) : (
-                  <span className="w-5 rounded-full" style={{ background: color, height: kind === 'thick' ? 6 : kind === 'thin' ? 3 : 5 }} aria-hidden="true" />
-                )}
+        <div className={`absolute top-3 z-[400] flex flex-wrap items-center gap-2 ${inset}`}>
+          <div className="flex overflow-hidden rounded-xl border border-[var(--mc-line)] bg-[var(--mc-surface)] p-0.5 shadow-[var(--mc-shadow)]" role="radiogroup" aria-label="What the map is drawn on">
+            {[
+              ['map', 'Map'],
+              ['satellite', 'Satellite'],
+            ].map(([id, words]) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={layer === id}
+                onClick={() => setLayer(id)}
+                className={`min-h-[34px] rounded-[10px] px-3 text-[13px] font-bold leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${layer === id ? 'bg-[var(--mc-ink)] text-[var(--mc-surface)]' : 'text-[var(--mc-soft)] hover:text-[var(--mc-ink)]'}`}
+              >
                 {words}
-              </span>
+              </button>
             ))}
           </div>
-          {street && !ground && (
-            // Bottom left, clear of the zoom buttons and the map's credit in the other corner.
-            <div className="absolute bottom-7 left-3 z-[450] w-[min(460px,calc(100%-96px))]">
-              <StreetCard street={street} picture={picture} unit={unit} now={now} leads={leads} busy={busy} problem={problem} free={free} onSteer={steer} onGive={(handle) => give(handle, street.id)} onUnask={takeBack} onClose={() => pick(null)} />
-            </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSelected(null);
+              setFocused(null);
+              setRefit((n) => n + 1);
+            }}
+            className={`${CONTROL} shadow-[var(--mc-shadow)]`}
+          >
+            <Maximize2 size={15} aria-hidden="true" /> The whole search
+          </button>
+          {canWiden && (
+            <button type="button" onClick={widen} disabled={widening} className={`${CONTROL} shadow-[var(--mc-shadow)] disabled:opacity-60`}>
+              {widening ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Maximize size={15} aria-hidden="true" />} Widen to {circle.wide} m
+            </button>
           )}
         </div>
+        {picking && (
+          // What a click does right now, said on the map itself.
+          <p className={`pointer-events-none absolute top-[60px] z-[400] rounded-full bg-[var(--mc-seen)] px-3.5 py-1.5 text-[14px] font-bold leading-5 text-[var(--mc-on-seen)] shadow-[var(--mc-shadow)] ${inset}`}>
+            {pin ? 'Drag the pin, or click again, to move it' : `Click where you saw ${name}`}
+          </p>
+        )}
+        <div
+          // The key is the map's own, so it is light on the light map: its samples are the colours drawn on it.
+          className={`${night ? 'mc-dark' : 'mc-light'} pointer-events-none absolute bottom-7 z-[400] flex-wrap items-center gap-x-3.5 gap-y-1 rounded-xl border border-[var(--mc-line)] bg-[color-mix(in_srgb,var(--mc-surface)_94%,transparent)] px-3 py-2 text-[13px] font-semibold text-[var(--mc-soft)] shadow-[var(--mc-shadow)] backdrop-blur-md ${inset} ${roomy ? 'max-w-[calc(100%-880px)]' : 'max-w-[calc(100%-470px)]'} ${street && !ground ? 'hidden' : 'flex'}`}
+        >
+          {key.map(([kind, color, words]) => (
+            <span key={words} className="flex items-center gap-1.5">
+              {kind === 'edge' || kind === 'open' ? (
+                <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `${kind === 'edge' ? 3 : 1.5}px solid ${color}` }} aria-hidden="true" />
+              ) : kind === 'dash' ? (
+                <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `2.5px dashed ${color}` }} aria-hidden="true" />
+              ) : kind === 'again' ? (
+                <span className="relative h-3.5 w-5 overflow-hidden rounded-[3px]" style={{ border: `2px solid ${look.ink}` }} aria-hidden="true">
+                  <span className="absolute inset-0" style={{ background: color, opacity: 0.45 }} />
+                </span>
+              ) : kind === 'once' || kind === 'twice' ? (
+                <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `1.5px solid ${color}`, background: color, opacity: kind === 'twice' ? 0.95 : 0.55 }} aria-hidden="true" />
+              ) : kind === 'seen' ? (
+                <span className="h-3.5 w-3.5 rounded-full" style={{ border: `2px dashed ${color}` }} aria-hidden="true" />
+              ) : kind === 'dots' ? (
+                <span className="w-5 border-t-[5px] border-dotted" style={{ borderColor: color }} aria-hidden="true" />
+              ) : kind === 'kept' ? (
+                <span className="flex h-[6px] w-5 items-center rounded-full" style={{ background: color }} aria-hidden="true">
+                  <span className="w-full border-t-[3px] border-dashed border-flash-400" />
+                </span>
+              ) : (
+                <span className="w-5 rounded-full" style={{ background: color, height: kind === 'thick' ? 6 : kind === 'thin' ? 3 : 5 }} aria-hidden="true" />
+              )}
+              {words}
+            </span>
+          ))}
+        </div>
+        {street && !ground && (
+          // Bottom left, clear of the zoom buttons and the map's credit in the other corner.
+          <div className={`absolute bottom-7 z-[450] w-[min(460px,calc(100%-500px))] ${inset}`}>
+            <StreetCard street={street} picture={picture} unit={unit} now={now} leads={leads} busy={busy} problem={problem} free={free} onSteer={steer} onGive={(handle) => give(handle, street.id)} onUnask={takeBack} onClose={() => pick(null)} />
+          </div>
+        )}
 
-        <aside className={`${roomy ? 'w-[380px]' : 'order-first w-[372px] border-r border-[var(--mc-line)]'} shrink-0 bg-[var(--mc-surface)]`} aria-label={`The search for ${name}`}>
+        <aside className={`absolute top-3 z-[450] max-h-[calc(100%-24px)] ${roomy ? 'right-3 w-[388px]' : 'left-3 w-[372px]'} ${PANEL}`} aria-label={`The search for ${name}`}>
           <Board
             next={next}
             overview={roomy ? null : overview}
