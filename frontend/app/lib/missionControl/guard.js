@@ -46,6 +46,25 @@ export async function mayKnowThePeople(request, caseId) {
   return { allowed: staff, status: staff ? 200 : searcher ? 403 : 401, staff, searcher };
 }
 
+/**
+ * The door of the older routes that hang off one force's assignment to a
+ * pet (/api/assignments/[id]/...): the assignment the address names, and
+ * whether this request may know the people on that pet's search.
+ * { assignment, who, status }: `status` is 404 for no such assignment, 401
+ * for nobody at all, 403 for someone who is not the owner, in a force
+ * looking for the pet, or staff, and 200 otherwise. `who.searcher.isOwner`
+ * and `who.staff` say who may also be told where a helper is.
+ */
+export async function assignmentDoor(request, assignmentId) {
+  const assignment =
+    typeof assignmentId === 'string' && assignmentId
+      ? await prisma.caseAssignment.findUnique({ where: { id: assignmentId }, select: { id: true, missionId: true, rescueSquadId: true } })
+      : null;
+  if (!assignment) return { assignment: null, who: null, status: 404 };
+  const who = await mayKnowThePeople(request, assignment.missionId);
+  return { assignment, who, status: who.allowed ? 200 : who.status };
+}
+
 /** Whether this account reported the pet. */
 export async function ownsPet(userId, caseId) {
   if (!userId || !caseId) return false;

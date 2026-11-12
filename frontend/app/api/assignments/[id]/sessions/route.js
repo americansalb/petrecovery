@@ -9,35 +9,57 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { assignmentDoor } from '@/app/lib/missionControl/guard';
+import { firstWord } from '@/app/lib/searchText';
 
 export const dynamic = 'force-dynamic';
 
 // GET all sessions for this assignment
 export async function GET(request, { params }) {
   try {
-    const { id: assignmentId } = params;
+    // The walks on one force's search for a pet: for the owner, the forces looking for the pet and staff. It took
+    // no sign-in, and sent every walk whole, with where each helper set off from and is now, their notes, their
+    // account id and last name. A walker is a first name here. Where a walker is goes to the owner and staff.
+    const { id: assignmentId } = await params;
+    const door = await assignmentDoor(request, assignmentId);
+    if (door.status !== 200) {
+      return NextResponse.json({ error: door.status === 404 ? 'Assignment not found' : 'Only the owner and the forces looking for this pet can see this.', code: door.status === 404 ? 'NOT_FOUND' : 'NOT_ALLOWED' }, { status: door.status });
+    }
+    const viewerId = door.who.searcher?.userId || null;
+    const seesPlaces = Boolean(door.who.searcher?.isOwner || door.who.staff);
 
-    const sessions = await prisma.searchSession.findMany({
+    const rows = await prisma.searchSession.findMany({
       where: {
         participant: {
-          assignmentId,
+          assignmentId: door.assignment.id,
         },
       },
-      include: {
-        participant: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        endedAt: true,
+        pausedAt: true,
+        totalMinutes: true,
+        distanceMiles: true,
+        gridCellId: true,
+        divisionId: true,
+        lastLocationUpdate: true,
+        startLocation: true,
+        currentLocation: true,
+        userId: true,
+        participant: { select: { userId: true, user: { select: { firstName: true } } } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
+
+    const sessions = rows.map(({ userId, participant, startLocation, currentLocation, ...walk }) => ({
+      ...walk,
+      mine: Boolean(viewerId && (userId === viewerId || participant?.userId === viewerId)),
+      walker: firstWord(participant?.user?.firstName) || 'A helper',
+      ...(seesPlaces ? { startLocation, currentLocation } : {}),
+    }));
 
     return NextResponse.json({ sessions });
   } catch (error) {

@@ -77,10 +77,16 @@ export async function quickJoinCase(missionId, volunteerInfo) {
     return { success: false, error: 'Unable to identify volunteer' };
   }
 
+  // No force is on this pet: there is nothing to join. Looked up with no assignment, the question below
+  // matched this person's place on any search at all.
+  if (!assignment?.id) {
+    return { success: false, error: 'No rescue force is looking for this pet yet' };
+  }
+
   // Check if already participating
   const existing = await prisma.caseParticipant.findFirst({
     where: {
-      assignmentId: assignment?.id,
+      assignmentId: assignment.id,
       userId: finalUserId,
       isActive: true,
     }
@@ -116,21 +122,13 @@ export async function quickJoinCase(missionId, volunteerInfo) {
     location
   );
 
-  // Create search session
-  const searchSession = await prisma.searchSession.create({
-    data: {
-      odpaticipantId: participant.id,
-      missionId,
-      divisionId: suggestedDivision?.id,
-      status: 'READY',
-      startLocation: location ? JSON.stringify(location) : null,
-    }
-  });
-
+  // No walk is made here. This wrote one under a field name the schema does not have, so it failed every time
+  // after the person had already been added, and the caller was told the join had failed. A walk starts when
+  // the person starts one (/api/mission/[missionId]/search).
   return {
     success: true,
     participantId: participant.id,
-    sessionId: searchSession.id,
+    sessionId: null,
     assignmentId: assignment.id,
     squadName: assignment.rescueSquad?.name,
     divisionName: suggestedDivision?.name,

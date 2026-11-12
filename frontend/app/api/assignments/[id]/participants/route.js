@@ -2,33 +2,51 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { assignmentDoor } from '@/app/lib/missionControl/guard';
+import { firstWord } from '@/app/lib/searchText';
 
-// GET /api/assignments/[id]/participants - Get all participants for an assignment
+// GET /api/assignments/[id]/participants - Who is on one force's search for a pet
+//
+// For the owner, the forces looking for the pet and staff (`assignmentDoor`). It took no sign-in: anyone with an
+// assignment's id read each helper's account id and last name and the newest open walk whole, with where the
+// helper was. A helper is a first name here. Where a helper is goes to the owner and staff only.
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
+    const door = await assignmentDoor(request, id);
+    if (door.status !== 200) {
+      return NextResponse.json({ error: door.status === 404 ? 'Assignment not found' : 'Only the owner and the forces looking for this pet can see this.', code: door.status === 404 ? 'NOT_FOUND' : 'NOT_ALLOWED' }, { status: door.status });
+    }
+    const viewerId = door.who.searcher?.userId || null;
+    const seesPlaces = Boolean(door.who.searcher?.isOwner || door.who.staff);
 
-    const participants = await prisma.caseParticipant.findMany({
-      where: { assignmentId: id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            rescueLevel: true,
-          },
-        },
+    const rows = await prisma.caseParticipant.findMany({
+      where: { assignmentId: door.assignment.id },
+      select: {
+        id: true,
+        userId: true,
+        isActive: true,
+        optedInAt: true,
+        user: { select: { firstName: true, rescueLevel: true } },
         searchSessions: {
           where: {
             status: { in: ['READY', 'ACTIVE', 'PAUSED'] },
           },
           orderBy: { createdAt: 'desc' },
           take: 1,
+          select: { id: true, status: true, startedAt: true, lastLocationUpdate: true, currentLocation: true },
         },
       },
       orderBy: { optedInAt: 'asc' },
+      take: 500,
     });
+
+    const participants = rows.map(({ userId, user, searchSessions, ...row }) => ({
+      ...row,
+      mine: Boolean(viewerId && userId === viewerId),
+      user: { firstName: firstWord(user?.firstName) || 'A helper', rescueLevel: user?.rescueLevel || null },
+      searchSessions: searchSessions.map(({ currentLocation, ...walk }) => (seesPlaces ? { ...walk, currentLocation } : walk)),
+    }));
 
     return NextResponse.json({ participants });
   } catch (error) {
