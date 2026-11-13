@@ -32,6 +32,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Share2, TriangleAlert } from 'lucide-react';
 import Sarama, { Paws, Trail } from '../components/Sarama';
+import Gear from '../components/Gear';
 import { SARAMA } from '../lib/sarama';
 import { PAWS } from '@/app/lib/trail';
 import { SAFETY_RULES, SAFETY_AGREEMENT, searchTraining } from '@/app/lib/safetyRules';
@@ -229,7 +230,34 @@ function Debrief({ onSend }) {
  * (`asked`), the same card says which street and whose ask it is, and its
  * one button starts it.
  */
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, doneAtSighting = false, onDebrief = null, trail = null, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
+/**
+ * The tasks anyone can help with besides searching ground: flyers, posts and door to door, once whoever runs
+ * the search has put them on the list (app/lib/searchTasks.js). Each comes with what the site made for it, so
+ * someone going door to door has the half sheets to hand out (founder, 2026-11-13: "Door to door people need
+ * to give the flyer, no?"). The wording is app/lib/searchPlan.js's.
+ */
+function Ways({ ways = [], owner, className = '' }) {
+  if (!ways.length) return null;
+  return (
+    <div className={`rounded-2xl border border-[var(--mc-line)] px-3.5 py-3 ${className}`} role="group" aria-label="Other ways to help">
+      <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">{owner?.firstName || 'The owner'} also asks for</p>
+      <ul className="mt-1.5 flex flex-col gap-3">
+        {ways.map((way, i) => (
+          <li key={`${way.kind}|${i}`}>
+            <p className="break-words text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">
+              {way.title}
+              {way.place ? `: ${way.place}` : ''}
+            </p>
+            <p className="text-[14px] font-medium leading-5 text-[var(--mc-soft)]">{way.what}</p>
+            <Gear items={way.gear} className="mt-2" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, doneAtSighting = false, onDebrief = null, trail = null, ways = [], instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
@@ -305,6 +333,8 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       )}
       {/* The game: their own paw prints and rank, the team's, and the goal everyone shares. Not on a desk, which is handed no ground. */}
       {ground && !desk && <Trail trail={trail} items={items} name={name} now={now} className="mt-3" />}
+      {/* What else whoever runs the search has put on the list that needs no ground, each with the file the site made for it. */}
+      {!desk && !ask && <Ways ways={ways} owner={owner} className="mt-3" />}
       {/* With an ask on the card too: a word written to this person is always where they can read it. */}
       <Said said={said} line={saidLine} picture={picture} now={now} onSay={onSay} onShown={onShown} onPutAway={onPutAway} also={ask?.id || null} />
       {/* On a phone the buttons stay on the screen, whatever was said above them. */}

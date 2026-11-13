@@ -12,6 +12,7 @@
  */
 import { NEEDS_SHOWN } from '../lib/needs';
 import { SaramaPose } from '../components/Sarama';
+import Gear from '../components/Gear';
 
 const MAIN =
   'inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl px-4 text-[14px] font-extrabold leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mc-ink)] disabled:opacity-60';
@@ -45,6 +46,8 @@ export default function Needs({ cards = [], quiet = '', guide = null, onTasks = 
                 <>
                   <p className="mt-2.5 text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">{guide.next.lead}</p>
                   <p className="text-[15px] font-medium leading-[21px] text-[var(--mc-soft)]">{guide.next.what}</p>
+                  {/* What the site already made for that step, here to use at once: the flyers to print, the numbers to call. */}
+                  <Gear items={guide.next.gear || []} className="mt-2.5" />
                   {onTasks && (
                     <button type="button" onClick={onTasks} className={`${MAIN} mt-2.5 border border-flash-600 bg-flash-400 text-[var(--mc-on-flash)] hover:bg-flash-300`}>
                       Set it up in Tasks
