@@ -129,6 +129,25 @@ files with its source, never written into a screen, and no tactic is said
 to work. Enforced by `frontend/__tests__/lib/searchPlan.test.js` and
 `frontend/__tests__/lib/jobs.test.js`.
 
+### Sarama guides, and helping is a game
+
+Founder, 2026-11-13: "one of the things we are missing is our mascot
+Sarama, beautifully guiding everyone. This has to feel like a fun game and
+drive engagement, not feel like a chore." Sarama, the search dog, is on
+every card a helper sees and is the one voice on the search screen that
+speaks as "I" (the rule against a talking product does not cover her). Her
+lines are all in `frontend/app/mission-control/lib/sarama.js`: short, warm
+and plain, no puns, no promise that a search works, nobody hurried. How to
+search stays the brief's and the training's. The game is
+`frontend/app/lib/trail.js`: paw prints for an area searched and for its
+debrief, ranks, and one goal the whole team sees, keeping the map green.
+It pays only for what helps a search: nothing for speed, for the answer
+given in a debrief, or for going near the animal, and there is no board of
+who has the most. To the person running the search she is calm and nothing
+cheers, because their pet is missing. Only one drawing of her exists
+(`frontend/public/brand/sarama-480.png`); new poses are art the founder
+supplies. Enforced by `frontend/__tests__/lib/trail.test.js`.
+
 ### The search never sends anyone into danger without saying so
 
 Founder rule, 2026-11-12: "Are we inadvertantly telling people to search in

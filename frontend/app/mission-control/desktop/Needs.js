@@ -11,6 +11,7 @@
  * screen that failed to load.
  */
 import { NEEDS_SHOWN } from '../lib/needs';
+import { SaramaFace } from '../components/Sarama';
 
 const MAIN =
   'inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl px-4 text-[14px] font-extrabold leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mc-ink)] disabled:opacity-60';
@@ -22,6 +23,8 @@ export default function Needs({ cards = [], quiet = '', busy = null, problem = '
     <section aria-label="Needs you">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="flex items-center gap-2 text-[17px] font-extrabold leading-6 text-[var(--mc-ink)]">
+          {/* Sarama is on the search with whoever runs it: calm here, with no cheering. Their pet is missing. */}
+          <SaramaFace size={30} />
           Needs you
           {cards.length > 0 && <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-[var(--mc-ink)] px-1.5 text-[14px] font-extrabold tabular-nums text-[var(--mc-surface)]">{cards.length}</span>}
         </h2>
