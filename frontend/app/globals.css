@@ -1194,41 +1194,6 @@ img {
   --mc-shadow: 0 12px 40px rgba(15, 23, 42, 0.2);
 }
 
-/* The desk as a control room (app/mission-control/desktop/Command.js, class mc-console on its root).
-   Founder, 2026-11-13, on the desk: "Something about this interface feels cartoonish and clunky. The color scheme,
-   the vibe, it does not scream professional S&R interface mission control." What read as a toy was the round
-   corners, the heavy type, the blue-grey panels and the thick lines. So on the desk only: a neutral near-black
-   ground with hairline edges, corners of a few pixels, type one step lighter, and figures that line up in columns.
-   The phone's cards keep the palette above. Meaning keeps its colours: red lost, orange seen, green searched. */
-.mc-console,
-.mc-console .mc-dark {
-  --mc-ground: #07090c;
-  --mc-surface: #0d1014;
-  --mc-raised: #161a20;
-  --mc-ink: #e9edf2;
-  --mc-soft: #b7c0cc;
-  --mc-muted: #8d98a6;
-  --mc-line: rgba(255, 255, 255, 0.1);
-  --mc-line-strong: rgba(255, 255, 255, 0.24);
-  --mc-pick: #2a2718;
-  --mc-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 28px rgba(0, 0, 0, 0.6);
-}
-.mc-console {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.003em;
-}
-.mc-console .rounded-3xl,
-.mc-console .rounded-2xl { border-radius: 6px; }
-.mc-console .rounded-xl { border-radius: 5px; }
-.mc-console .rounded-lg { border-radius: 4px; }
-.mc-console .font-extrabold { font-weight: 700; }
-.mc-console .font-bold { font-weight: 600; }
-/* The map's own zoom buttons, in the desk's ink instead of the map library's white. */
-.mc-console .leaflet-bar { border: 1px solid var(--mc-line-strong); border-radius: 4px; box-shadow: var(--mc-shadow); overflow: hidden; }
-.mc-console .leaflet-bar a,
-.mc-console .leaflet-bar a.leaflet-disabled { background: var(--mc-surface); color: var(--mc-ink); border-bottom-color: var(--mc-line); }
-.mc-console .leaflet-bar a:hover { background: var(--mc-raised); color: var(--mc-ink); }
-
 /* Sarama on the search screen (app/mission-control/components/Sarama.js, drawn in lib/saramaArt.js): her tail
    wags, she blinks, her lamp glows, she nods when she sniffs and hops when something is done. Her words pop in
    and paw prints land one after another. All of it stops for anyone who has asked their device for less motion. */

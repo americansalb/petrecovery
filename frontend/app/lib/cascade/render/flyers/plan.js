@@ -76,109 +76,6 @@ export function fitInter(text, maxW, base, min) {
 }
 
 /**
- * A line that has to be read whole (a phone number, an email, a link) has no smallest size.
- *
- * Founder, 2026-11-13, holding a flyer whose email ran across the QR code: "do I need to individually inspect
- * every PDF this should not even be possible". It was possible because every fitted size had a floor: a long
- * email shrank to the floor, was still wider than its box, and an email is one word, so it could not wrap or be
- * cut either. These two have no floor. They give the largest size up to `base` at which the line fits `maxW`,
- * whatever the text, and __tests__/lib/flyer-fit.test.js measures the real fonts to hold them to it.
- */
-export function wholeUnbounded(text, maxW, base) {
-  return Math.min(base, maxW / (unboundedEm(text) || 1));
-}
-export function wholeInter(text, maxW, base) {
-  return Math.min(base, maxW / (interBoldEm(text) || 1));
-}
-
-/**
- * Inter Bold's own letter widths, in thousandths of an em, for the characters from the space to the tilde, read
- * from Inter-Bold.ttf. `interEm` above sorts letters into a few classes and comes out up to 3% narrow in bold,
- * which is enough to push a fitted email past its box. A line that has to be read whole is measured with these.
- * Letters set side by side are never wider than their widths added up: kerning only draws them closer.
- */
-const INTER_BOLD_W = [
-  232, 325, 393, 650, 655, 860, 675, 209, 410, 410, 565, 680, 303, 469, 298, 390, 689, 490, 630, 660, 678, 645, 661, 595, 661, 661, 298, 303, 680, 680, 680, 563,
-  1031, 748, 661, 753, 728, 613, 585, 761, 747, 281, 570, 690, 568, 915, 736, 782, 648, 783, 657, 655, 669, 730, 748, 1036, 715, 725, 667, 410, 390, 410, 488, 477,
-  498, 581, 636, 588, 636, 598, 386, 634, 625, 273, 273, 582, 273, 912, 622, 614, 633, 633, 409, 562, 389, 622, 586, 851, 574, 586, 572, 410, 374, 410, 680,
-];
-
-/** The width of `text` in Inter Bold, in ems, never narrower than the font sets it. Lighter weights are narrower still. */
-export function interBoldEm(text) {
-  let thousandths = 0;
-  for (const ch of String(text || '')) {
-    let code = ch.codePointAt(0);
-    // An accented letter is as wide as its letter. Anything else outside the table is counted as a full em.
-    if (code > 126) code = ch.normalize('NFD').codePointAt(0);
-    thousandths += code >= 32 && code <= 126 ? INTER_BOLD_W[code - 32] : 1000;
-  }
-  return (thousandths / 1000) * 1.01;
-}
-
-/** Under this size (at k = 1) the wide display face is not worth its width, and the line is set in Inter Bold. */
-export const DISPLAY_MIN = 15;
-
-/**
- * The main contact line: the display face when it comes out large enough, otherwise Inter Bold, which sets the
- * same email a third narrower and so a third larger. { face, size }, and the line fits `maxW` either way.
- */
-export function wholeLine(text, maxW, base, k = 1) {
-  const display = wholeUnbounded(text, maxW, base);
-  const plain = wholeInter(text, maxW, base * 0.82);
-  return display >= DISPLAY_MIN * k || display >= plain ? { face: 'Unbounded', size: display } : { face: 'Inter', size: plain };
-}
-
-/**
- * The contact panel, measured once for the sheets and the share pictures: the eyebrow, the main line (the phone,
- * or without one the email, or the short link), "or email" under a phone, then the QR code and the short link.
- * Everything in the left column is fitted to `leftW` with no floor. `round` is Math.round for the pictures,
- * which are drawn in whole pixels.
- */
-export function planContact({ data, w, kBase, scale = 1, stacked = false, phoneBase = 34.5, eyebrow = '', linkEyebrow = '', round = (n) => n }) {
-  // Given more height (a thin report, the poster), the type grows with `scale` and the tile, link and padding
-  // at half that rate, so the phone number gets the room.
-  const k = kBase * scale;
-  const kq = kBase * (1 + (scale - 1) * 0.5);
-  const padX = round(18 * kq);
-  const innerW = w - padX * 2;
-  // The link block is left out when the short link is already the main line.
-  const link = !data.hasPhone && !data.email ? '' : data.caseUrlLabel;
-  const aside = (f) => {
-    const qr = data.qrDataUrl ? round((stacked ? 40 : 58) * kq * f) : 0;
-    const linkSize = round(10 * kq * f);
-    const linkEye = 7.5 * kq * f;
-    const linkW = link ? Math.ceil(Math.max(interBoldEm(link) * linkSize, eyebrowW(linkEyebrow, linkEye))) : 0;
-    const qrGap = qr ? round(12 * kq * f) : 0;
-    const linkGap = link ? round((qr ? 9 : 12) * kq * f) : 0;
-    return { qr, linkSize, linkEye, linkW, qrGap, linkGap, w: qr + qrGap + linkW + linkGap };
-  };
-  // The QR code and the link never take more than 60% of the panel: on a panel too narrow for them at full
-  // size they are drawn smaller, so the column beside them always has room.
-  let side = aside(1);
-  if (!stacked && side.w > innerW * 0.6) side = aside(Math.max(0.05, ((innerW * 0.6) / side.w) * 0.97));
-  const { qr, linkSize, linkEye, linkW, qrGap, linkGap } = side;
-  const leftW = Math.max(1, stacked ? innerW : innerW - side.w);
-  const emailLine = data.hasPhone && data.email ? `or email ${data.email}` : '';
-  return {
-    k,
-    kq,
-    padX,
-    qr,
-    qrGap,
-    link,
-    linkSize,
-    linkEye,
-    linkW,
-    linkGap,
-    leftW,
-    main: wholeLine(data.contactValue, leftW, phoneBase * k, k),
-    emailLine,
-    emailSize: emailLine ? wholeInter(emailLine, leftW, 9.75 * k) : 0,
-    eyebrowSize: Math.min(9 * k, (leftW / eyebrowW(eyebrow, 1)) * 0.98),
-  };
-}
-
-/**
  * The lines `text` takes set in Inter at `size` across `width`: a greedy
  * word wrap on interEm's padded widths, so never fewer than the real
  * count. The sheet is planned on this, so no box is too small for its
@@ -209,8 +106,7 @@ export function lookForLine(data) {
 /** The width of an eyebrow (Inter 700, uppercase, tracked 0.14 em) set at `size`. */
 export function eyebrowW(text, size) {
   const t = String(text || '').toUpperCase();
-  // An eyebrow is Inter Bold in capitals: measured by the font's own widths, so one fitted to a column fits it.
-  return (interBoldEm(t) + t.length * 0.14) * size;
+  return (interEm(t) + t.length * 0.14) * size;
 }
 
 /**
