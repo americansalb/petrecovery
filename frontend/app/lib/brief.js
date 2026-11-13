@@ -31,6 +31,45 @@ export function onSeeing(pet) {
   return isDog(pet) ? `If you see ${nameOf(pet)}, don't chase or call out.` : `If you see ${nameOf(pet)}, don't chase.`;
 }
 
+const TEMPERAMENTS = ['FRIENDLY', 'SHY', 'SCARED', 'DEFENSIVE'];
+
+/**
+ * How the owner said the pet is with people, from the report: on the row
+ * itself, or inside its details (app/lib/caseDetails.js). 'UNKNOWN' where
+ * they did not say.
+ */
+export function temperamentOf(pet) {
+  const direct = String(pet?.temperament || '').toUpperCase();
+  if (TEMPERAMENTS.includes(direct)) return direct;
+  try {
+    const details = typeof pet?.details === 'string' ? JSON.parse(pet.details) : pet?.details;
+    const said = String(details?.temperament || '').toUpperCase();
+    return TEMPERAMENTS.includes(said) ? said : 'UNKNOWN';
+  } catch {
+    return 'UNKNOWN';
+  }
+}
+
+/**
+ * Whether a stranger calls a lost dog, by what the owner said the dog is
+ * like. The brief told every helper to call the dog's name once a minute,
+ * whatever the report said, and for a dog the owner had marked as scared
+ * that works against the search: published lost-dog guidance is that
+ * strangers do not call or chase, because a frightened dog runs from them,
+ * and that the owner's voice is the one the dog knows (Maddie's Fund, "What
+ * you don't know about lost pets can hurt them"; Humane World, "How to find
+ * a lost dog"). So only a dog the owner calls friendly is called by name,
+ * and where the owner did not say, the helper does not call (founder,
+ * 2026-11-13: "put yourselves in the shoes of the complex S&R team").
+ */
+const DOG_CALL = {
+  FRIENDLY: (name) => `Say "${name}" in a calm voice now and then, then listen. ${name} is friendly with people.`,
+  SHY: (name) => `Do not call out for ${name}. A shy dog moves away from a stranger's voice. Look and listen.`,
+  SCARED: (name) => `Do not call ${name}, walk toward ${name} or stare. A scared dog runs from strangers. Look, listen and note where.`,
+  DEFENSIVE: (name) => `Do not call ${name} or go close. ${name} may snap when frightened. Look, listen and keep your distance.`,
+  UNKNOWN: (name) => `Do not call out for ${name}. A lost dog can run from a stranger's voice. Look and listen.`,
+};
+
 export function briefFor({ way, pet }) {
   const name = nameOf(pet);
   const dog = isDog(pet);
@@ -39,7 +78,7 @@ export function briefFor({ way, pet }) {
     ? 'Look low and close from the sidewalk: under parked cars, under porches and decks, behind bins. Ask at the door before you look in a yard, shed or garage. A scared cat hides within a few houses and goes quiet.'
     : 'Look low from the sidewalk or a path: under parked cars, under porches and decks, along fences and hedges. Ask at the door before you look in a yard, shed or garage. A scared pet hides and goes quiet.';
   const call = dog
-    ? `Call "${name}" once a minute in a calm voice, then listen.`
+    ? DOG_CALL[temperamentOf(pet)](name)
     : cat
       ? `Say ${name}'s name softly now and then, and shake a treat bag. Listen more than you call.`
       : `Say ${name}'s name now and then, then listen.`;

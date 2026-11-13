@@ -226,11 +226,28 @@ describe('rankJobs: ground', () => {
 });
 
 describe('briefFor', () => {
-  test('a dog on foot: walk, look low, call once a minute, never chase', () => {
+  test('a dog on foot: walk, look low, never chase, and a stranger does not call a dog the owner has not called friendly', () => {
     const lines = briefFor({ way: 'foot', pet: { petName: 'Max', petSpecies: 'DOG' } });
     expect(lines).toHaveLength(4);
-    expect(lines[2]).toMatch(/Call "Max" once a minute/);
+    expect(lines[2]).toBe("Do not call out for Max. A lost dog can run from a stranger's voice. Look and listen.");
     expect(lines[3]).toMatch(/don't chase/);
+  });
+
+  test('the brief follows what the owner said the dog is like (founder, 2026-11-13: think as the search team)', () => {
+    const call = (pet) => briefFor({ way: 'foot', pet: { petName: 'Max', petSpecies: 'DOG', ...pet } })[2];
+    expect(call({ temperament: 'SCARED' })).toBe('Do not call Max, walk toward Max or stare. A scared dog runs from strangers. Look, listen and note where.');
+    expect(call({ temperament: 'SHY' })).toMatch(/^Do not call out for Max\. A shy dog/);
+    expect(call({ temperament: 'DEFENSIVE' })).toMatch(/^Do not call Max or go close\. Max may snap/);
+    expect(call({ temperament: 'FRIENDLY' })).toBe('Say "Max" in a calm voice now and then, then listen. Max is friendly with people.');
+    // Read from the report's own details where the row carries them, as text or as an object.
+    expect(call({ details: JSON.stringify({ temperament: 'SCARED' }) })).toMatch(/^Do not call Max, walk toward Max or stare/);
+    expect(call({ details: { temperament: 'FRIENDLY' } })).toMatch(/^Say "Max"/);
+    expect(call({ details: 'not json' })).toMatch(/^Do not call out for Max/);
+    // No helper is ever told to call a dog once a minute.
+    for (const temperament of ['FRIENDLY', 'SHY', 'SCARED', 'DEFENSIVE', 'UNKNOWN', undefined]) {
+      expect(briefFor({ way: 'foot', pet: { petName: 'Max', petSpecies: 'DOG', temperament } }).join(' ')).not.toMatch(/once a minute/);
+      expect(briefFor({ way: 'car', pet: { petName: 'Max', petSpecies: 'DOG', temperament } }).join(' ')).not.toMatch(/once a minute/);
+    }
   });
 
   test('a cat is hunted close and quiet', () => {

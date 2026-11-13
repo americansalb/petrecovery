@@ -8,7 +8,7 @@ import { briefFor, onSeeing } from '@/app/lib/brief';
 
 export function searcherBrief(picture, way = 'foot') {
   const pet = picture?.pet || {};
-  const of = { petName: pet.name, petSpecies: pet.species, petColor: pet.color, petBreed: pet.breed };
+  const of = { petName: pet.name, petSpecies: pet.species, petColor: pet.color, petBreed: pet.breed, temperament: pet.temperament };
   const lines = briefFor({ way, pet: of });
   if (way !== 'foot') return { lines };
   const [walk, look, call, never] = lines;
