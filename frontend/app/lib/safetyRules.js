@@ -50,7 +50,7 @@ export const WAIVER_IN_SHORT = [
 export function searchTraining(name = 'the pet') {
   return [
     { title: 'Search from public ground', text: 'Sidewalks, paths and parks. Ask at the door before you look in a yard, shed or garage.' },
-    { title: 'Stay out of roads, water and rail lines', text: `Never follow ${name} into traffic. Your card names a main road, rail line or water that the map shows in your area.` },
+    { title: 'Stay out of roads, water and rail lines', text: `Never follow ${name} into traffic. Your card names a main road, rail line or water that the map shows in your area. The map can leave things out.` },
     { title: 'Phone away while you move', text: 'Stop walking, then look at the screen. Pull over first if you are driving.' },
     { title: 'Do not chase or grab', text: `A scared pet runs from strangers, often into the road. Stop, crouch, look away, and tap "I've seen ${name}". The owner is told at once.` },
     { title: 'Keep away from an animal that growls, snaps or looks sick', text: 'Send the sighting and stay back.' },

@@ -9,7 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { hazardOf, hazardQuery, hazardsFrom, hazardsIn, trimHazards, fetchHazards, parseHazards } from '@/app/lib/searchHazards';
-import { hazardLines, CARE_LINE, areaFacts } from '@/app/mission-control/lib/ground';
+import { hazardLines, CARE_LINE, MAP_LIMITS_LINE, areaFacts } from '@/app/mission-control/lib/ground';
 import { briefFor } from '@/app/lib/brief';
 import { SAFETY_RULES } from '@/app/lib/safetyRules';
 
@@ -260,3 +260,36 @@ describe('the rest of the site says the same', () => {
     expect(read('app/lib/missionControl/taskPriority.js')).not.toMatch(/'Sheds, garages, under decks, in bushes'/);
   });
 });
+
+describe('what the map shows is said to be the map\'s, where it is read', () => {
+  // Founder, 2026-11-13: "Now we are liable for having accurate info?"
+  const helper = read('app/mission-control/steps/Helper.js');
+
+  test('the list on a helper\'s card says it is from a public map that can be wrong or leave things out', () => {
+    expect(MAP_LIMITS_LINE).toBe('This is read from a public map, which can be wrong or leave things out.');
+    const box = helper.slice(helper.indexOf('aria-label="Take care in this area"'), helper.indexOf('<Note>{CARE_LINE}</Note>'));
+    expect(box).toMatch(/\{MAP_LIMITS_LINE\}/);
+  });
+
+  test('every card, with a list or without one, says the site checks no ground', () => {
+    expect(CARE_LINE).toMatch(/ReunitePets does not check any ground, so watch for danger yourself\.$/);
+    expect(helper).toMatch(/<Note>\{CARE_LINE\}<\/Note>/);
+  });
+
+  test('the desk says the same under the facts it lists, and nothing about the map where it lists none', () => {
+    const area = { name: 'East side', ring: 1, reach: '150 m to 400 m east', minutes: 45, landmarks: [], status: 'UNSEARCHED', searchCount: 0, on: [], asked: [] };
+    const options = { picture: { pet: { name: 'Max' }, sightings: [] }, circle: null };
+    const withRoad = areaFacts({ ...area, hazards: [{ kind: 'road', name: 'Calzada de Tlalpan' }] }, options);
+    expect(withRoad.indexOf(MAP_LIMITS_LINE)).toBe(withRoad.indexOf('Calzada de Tlalpan is a main road in this area.') + 1);
+    const bare = areaFacts({ ...area, hazards: [] }, options).join(' ');
+    expect(bare).not.toContain(MAP_LIMITS_LINE);
+    // Never "the map shows nothing here": that reads as "this ground is clear".
+    expect(bare).not.toMatch(/map shows (no|nothing)|no main road|nothing on the map/i);
+  });
+
+  test('the training says the map can leave things out', () => {
+    const { searchTraining } = require('@/app/lib/safetyRules');
+    expect(searchTraining('Max').map((p) => p.text).join(' ')).toMatch(/that the map shows in your area\. The map can leave things out\./);
+  });
+});
+

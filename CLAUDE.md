@@ -106,8 +106,11 @@ area. Words that say where to look send people to public ground: the
 sidewalk, a path, and a yard, shed or garage only after asking at the door.
 Never write copy that sends a stranger onto private property, into water,
 onto a road or a rail line, or that asks them to look at the phone while
-moving. Never say or imply that ground is safe: the map can be wrong. Do
-not rate neighbourhoods. Enforced by
+moving. Never say or imply that ground is safe: the map can be wrong. Wherever
+the site lists what the map shows, it says there that the list is from a
+public map and can be wrong or leave things out, and it never says the map
+shows nothing in an area (founder, 2026-11-13: "Now we are liable for
+having accurate info?"). Do not rate neighbourhoods. Enforced by
 `frontend/__tests__/lib/searchHazards.test.js`.
 
 ### The waiver is asked for the text as it reads today, and the training is never called optional
