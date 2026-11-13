@@ -36,7 +36,7 @@ import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, B
 import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
-import { areaName, isSeenCircle, whereWords, hazardLines, CARE_LINE } from '../lib/ground';
+import { areaName, isSeenCircle, whereWords, hazardLines, CARE_LINE, MAP_LIMITS_LINE } from '../lib/ground';
 import { whenWords } from '../lib/insight';
 
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '';
@@ -140,6 +140,8 @@ function Care({ area, className = '' }) {
               {line}
             </p>
           ))}
+          {/* Where the list comes from, and that it can be wrong: said where the list is read. */}
+          <p className="mt-2 text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{MAP_LIMITS_LINE}</p>
         </div>
       )}
       <Note>{CARE_LINE}</Note>
