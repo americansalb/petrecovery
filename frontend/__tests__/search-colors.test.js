@@ -135,26 +135,12 @@ describe('the desk\'s panels are the dark palette, day or night is the map\'s, a
   test('the panels are dark like the phone, and the map is light unless this person chose night on this computer', () => {
     // Founder, 2026-11-12, on the white desk: "The white is super boring and seems incomplete". The panels and the
     // top bar are the phone's own dark palette, on the map like instruments on a table. The switch is the map's.
-    // Founder, 2026-11-13, on that dark desk: "Something about this interface feels cartoonish and clucky. The color
-    // scheme, the vibe, it does not scream professional S&R interface mission control. Sattelite maps would be nice
-    // too". So the desk alone carries mc-console: a neutral near-black ground, hairline edges, corners of a few
-    // pixels, type a step lighter, figures in columns. The phone keeps its palette.
-    expect(desk).toMatch(/<div className="mc-dark mc-console flex h-\[100dvh\] flex-col overflow-hidden bg-\[var\(--mc-ground\)\]">/);
-    const css = read('app/globals.css');
-    expect(css).toMatch(/\.mc-console,\n\.mc-console \.mc-dark \{\n  --mc-ground: #07090c;/);
-    expect(css).toMatch(/\.mc-console \.rounded-3xl,\n\.mc-console \.rounded-2xl \{ border-radius: 6px; \}/);
-    expect(css).toMatch(/\.mc-console \{\n  font-variant-numeric: tabular-nums;/);
-    // The map opens on the photo from above, unless this person chose the street map here before, and on the photo
-    // the search is drawn in light ink as it is at night.
-    expect(desk).toMatch(/const \[layer, setLayer\] = useState\('satellite'\);/);
-    expect(desk).toMatch(/const dim = night \|\| layer === 'satellite';/);
-    // No mascot on the desk.
-    expect(read('app/mission-control/desktop/Needs.js')).not.toMatch(/SaramaPose|<Sarama/);
+    expect(desk).toMatch(/<div className="mc-dark flex h-\[100dvh\] flex-col overflow-hidden bg-\[var\(--mc-ground\)\]">/);
     expect(desk).toMatch(/const \[night, setNight\] = useState\(false\);/);
     expect(desk).toMatch(/window\.localStorage\.getItem\(NIGHT_KEY\) === '1'/);
-    expect(desk).toMatch(/theme=\{dim \? 'dark' : 'light'\}/);
+    expect(desk).toMatch(/theme=\{night \? 'dark' : 'light'\}/);
     // The key under the map shows the map's own colours, so it alone follows the map.
-    expect(desk.match(/\$\{dim \? 'mc-dark' : 'mc-light'\}/g)).toHaveLength(1);
+    expect(desk.match(/\$\{night \? 'mc-dark' : 'mc-light'\}/g)).toHaveLength(1);
     // The two panels float over a map that fills the screen, and stand clear of its own controls.
     expect(desk.match(/\$\{PANEL\}/g)).toHaveLength(2);
     expect(css).toMatch(/\.mc-stage-wide \.leaflet-right \{\s*right: 400px;/);
@@ -194,8 +180,7 @@ describe('the desk\'s panels are the dark palette, day or night is the map\'s, a
     // Searched and put up for another look is open again: an ink edge too, lighter than what is given out next.
     expect(map).toMatch(/const again = area\.status === 'NEEDS_REVISIT';/);
     // Every area's edge is ink, so the circle reads as one shape: full strength and heavy where it is given out next.
-    // On the desk the lines are thin, as on a chart; on a phone held in the street they stay heavy.
-    expect(map).toMatch(/\? \{ color: look\.ink, opacity: area\.next \|\| again \? 1 : 0\.55, weight: area\.next \? \(desk \? 2\.5 : 4\) : again \? \(desk \? 1\.75 : 2\.5\) : desk \? 1 : 1\.75, \.\.\.\(again \? \{ dashArray: '3 6' \} : \{\}\) \}/);
+    expect(map).toMatch(/\? \{ color: look\.ink, opacity: area\.next \|\| again \? 1 : 0\.55, weight: area\.next \? 4 : again \? 2\.5 : 1\.75, \.\.\.\(again \? \{ dashArray: '3 6' \} : \{\}\) \}/);
     // Searched is the map's own green, deeper for a second search; someone on it is the map's own teal, dashed.
     // The green is as strong as the area counts as searched right now: a search fades over a day (founder,
     // 2026-11-13: "does it not fade over time?").
@@ -204,7 +189,7 @@ describe('the desk\'s panels are the dark palette, day or night is the map\'s, a
     expect(map).toMatch(/L\.polygon\(\[world, hole\], \{ stroke: false, fillColor: dark \? '#020617' : '#0f172a', fillOpacity: dark \? 0\.5 : 0\.28, interactive: false \}\)/);
     expect(map).toMatch(/\? \{ color: look\.walking, weight: desk \? 3\.5 : 3, dashArray: '2 9', lineCap: 'round' \}/);
     // Yellow is the area in hand, as it is the street in hand: the one this person is on, or the one that is picked.
-    expect(map).toMatch(/const edge = lit\s*\? \{ color: FLASH, weight: desk \? 2\.5 : 4,/);
+    expect(map).toMatch(/const edge = lit\s*\? \{ color: FLASH, weight: 4,/);
     expect(map).not.toMatch(/area\.first|area\.priority/);
     // The key beside the map uses the palette and the map's own values, and no colour of its own.
     expect(desk).toMatch(/\['seen', 'var\(--mc-seen\)', 'Round a sighting'\]/);

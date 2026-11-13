@@ -157,11 +157,8 @@ describe('Sarama', () => {
     expect(SARAMA.nextArea('the west side')).toBe('When a neighbor offers to search, they are sent to the west side first.');
   });
 
-  test('to the person running the search she is words, not a picture, and nothing cheers', () => {
-    // Founder, 2026-11-13, on the desk: "feels cartoonish ... does not scream professional S&R interface mission
-    // control". Her next step from the plan is still said there. Her picture is for the people helping.
-    expect(needs).not.toMatch(/SaramaPose|<Sarama /);
-    expect(needs).toMatch(/guide\.next\.lead/);
+  test('to the person running the search she is calm: she is there, her tail is still, and nothing cheers', () => {
+    expect(needs).toMatch(/<SaramaPose size=\{40\} still \/>/);
     expect(needs).not.toMatch(/pose=|<Paws/);
     expect(read('app/globals.css')).toMatch(/\.sarama-still \.sarama-tail \{ animation: none; \}/);
   });
