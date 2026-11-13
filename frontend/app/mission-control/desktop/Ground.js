@@ -314,6 +314,7 @@ export function AreaCard({ area, picture, circle, now, leads, busy, problem, fre
             {free.length === 0 && <span className="text-[14px] font-medium leading-5 text-[var(--mc-soft)]">Nobody is free right now.</span>}
           </div>
           {next && <p className="mt-1.5 text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">Whoever asks for ground next is given {areaName(area)}.</p>}
+          {area.first && <p className="mt-1.5 text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">Helpers who offer to search are sent here before any other area, until it is searched.</p>}
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
@@ -322,7 +323,7 @@ export function AreaCard({ area, picture, circle, now, leads, busy, problem, fre
             <ExternalLink size={15} aria-hidden="true" /> Open in Google Maps
           </a>
         )}
-        {leads && !area.first && !taken && act('first', 'Send people here first', Flag)}
+        {leads && !area.first && !taken && act('first', 'Send the next helpers here first', Flag)}
         {leads && area.first && act('normal', 'Back to its place in the order', RotateCcw)}
         {leads && !searching && (area.searchCount === 0 || area.status === 'NEEDS_REVISIT') && act('walked', sighting ? 'Mark as checked' : 'Mark searched', Check)}
         {leads && !searching && area.status === 'SEARCHED' && act('again', 'Needs another look', RotateCcw)}

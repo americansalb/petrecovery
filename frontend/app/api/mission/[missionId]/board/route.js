@@ -72,6 +72,7 @@ import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
 import { WAIVER_CODE } from '@/app/lib/waiver';
 import { broadcast } from '@/app/lib/sse/missionStream';
 import { forcesOf } from '@/app/lib/forceFeed';
+import { sharedTasks } from '@/app/lib/searchTasks';
 import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 import { logEvent } from '@/lib/logging';
 
@@ -148,6 +149,10 @@ export async function GET(request, { params }) {
       circle,
       // The paw prints on this search, the team's and the reader's own: counts, and nobody's name.
       trail: read.trail || null,
+      // What else whoever runs the search has set up that anyone can help with (flyers, posts, door to door),
+      // each with the files the site made for it.
+      // A list that will not load never takes the board down with it.
+      ways: await sharedTasks(pet.id, pet.petName || 'the pet').catch(() => []),
       // The named streets near the search: for naming a place, never for walking.
       around: streetsStatus === 'READY' ? await streetNames(pet.id) : [],
       streets: [],

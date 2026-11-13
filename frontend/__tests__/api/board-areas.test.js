@@ -19,6 +19,9 @@ jest.mock('@/app/lib/prisma', () => ({
   default: { case: { findFirst: jest.fn() }, notification: { create: jest.fn(async () => ({})) } },
 }));
 jest.mock('@/app/lib/searcher', () => ({ __esModule: true, searcherFor: jest.fn(async () => null) }));
+// The tasks anyone can help with (flyers, posts, door to door), each with the files the site made for it.
+const WAYS = [{ kind: 'DOORS', title: 'Door to door', what: 'The nearest neighbors handed a flyer.', place: 'Sinclair Ave', gear: [{ type: 'print', label: 'Print half sheets to hand out, two to a page', href: 'https://cdn.example/half.pdf' }] }];
+jest.mock('@/app/lib/searchTasks', () => ({ __esModule: true, sharedTasks: jest.fn(async () => WAYS) }));
 jest.mock('@/app/lib/searchZones', () => ({
   __esModule: true,
   ZONE_ACTIONS: ['claim', 'release', 'searched'],
@@ -108,6 +111,8 @@ describe('GET: ground for anyone, people for the few', () => {
     const body = await res.json();
     expect(body).toMatchObject({ caseId: CASE, open: true, unit: 'area', circle: CIRCLE, streets: [], cells: [], streetsStatus: 'READY', viewer: null });
     expect(body.areas.map((a) => a.key)).toEqual(['seen-s1', 'middle', 'north', 'east', 'south', 'west']);
+    // With the link alone: what else has been asked for, and the flyer to hand out with it.
+    expect(body.ways).toEqual(WAYS);
     expect(body.around).toEqual([{ name: 'Ramsey Ave', fromName: null, toName: null, path: [[30.31, -97.74], [30.315, -97.741]] }]);
     // Ground, not people.
     expect(body).not.toHaveProperty('people');

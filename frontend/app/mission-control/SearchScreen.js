@@ -731,7 +731,7 @@ function Screen({ mission }) {
   } else if (view === 'join' && !desk) {
     step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} doneAtSighting={doneAtSighting} onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null} trail={search.trail} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} doneAtSighting={doneAtSighting} onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null} trail={search.trail} ways={search.ways} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   }
 
   const overlays = (

@@ -10,7 +10,8 @@
  * force looking for the pet.
  */
 import prisma from '@/app/lib/prisma';
-import { TASK_KINDS, KEPT_KINDS } from '@/app/lib/searchPlan';
+import { TASK_KINDS, KEPT_KINDS, SHARED_KINDS, gearFor, taskOf } from '@/app/lib/searchPlan';
+import { readKit } from '@/app/lib/searchKit';
 
 const NOTE_CHARS = 280;
 const PLACE_CHARS = 120;
@@ -39,6 +40,23 @@ export function taskForScreen(row) {
 export async function listTasks(caseId) {
   const rows = await prisma.searchTask.findMany({ where: { caseId, status: { in: ['OPEN', 'DONE'] } }, orderBy: [{ status: 'desc' }, { createdAt: 'desc' }], take: 80 });
   return rows.map(taskForScreen);
+}
+
+/**
+ * The tasks the people helping are shown: the open ones anyone can do from public ground (flyers, posts, door
+ * to door), each with what the site made for it. [{ kind, title, what, place, gear }]: no id, no name, and
+ * never the note, which is for the people running the search.
+ */
+export async function sharedTasks(caseId, name = 'the pet') {
+  const rows = await prisma.searchTask
+    .findMany({ where: { caseId, status: 'OPEN', kind: { in: SHARED_KINDS } }, orderBy: { createdAt: 'asc' }, take: 6, select: { kind: true, place: true } })
+    .catch(() => []);
+  if (!rows.length) return [];
+  const kit = await readKit(caseId);
+  return rows.map((row) => {
+    const { kind, title, what } = taskOf(row.kind, name);
+    return { kind, title, what, place: row.place || '', gear: gearFor(kind, kit) };
+  });
 }
 
 /** Set a task up. Resolves to { task } or { error: 'BAD_KIND' | 'TOO_MANY' }. */

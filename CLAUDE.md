@@ -126,7 +126,16 @@ a camera, a trap, few people on foot; a cat: the nearest yards). Tasks are
 Where a station or a trap is goes only to whoever runs the search and a
 force looking for the pet. New advice for a search is added to those two
 files with its source, never written into a screen, and no tactic is said
-to work. Enforced by `frontend/__tests__/lib/searchPlan.test.js` and
+to work. A task comes with what the site already made for the pet
+(founder, 2026-11-13: "Door to door people need to give the flyer, no? Why
+are we acting as though all these assets cannot assist in the mission
+control"): `gearFor` in `searchPlan.js` puts the kit's flyers, share
+pictures, post words, shelters and local groups (`frontend/app/lib/searchKit.js`)
+on the task that uses them, and the place is asked in the task's own words
+("Which streets", never "Where it is" for door to door). Before adding a
+task or a step to Mission Control, look for what the site already has for
+it and put it on the task. Flyers, posts and door to door are shown to the
+people helping, with the same files, once they are on the list. Enforced by `frontend/__tests__/lib/searchPlan.test.js` and
 `frontend/__tests__/lib/jobs.test.js`.
 
 ### Sarama guides, and helping is a game

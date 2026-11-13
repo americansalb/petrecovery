@@ -177,7 +177,7 @@ function StreetCard({ street, picture, unit, now, leads, busy, problem, free = [
             <ExternalLink size={15} aria-hidden="true" /> Open in Google Maps
           </a>
         )}
-        {leads && open && !kept && !street.first && act('first', 'Send people here first', Flag)}
+        {leads && open && !kept && !street.first && act('first', 'Send the next helpers here first', Flag)}
         {leads && street.first && act('normal', 'Back to its place in the order', RotateCcw)}
         {leads && kept && street.askedOfHandle && (
           <button type="button" onClick={() => onUnask(street)} disabled={Boolean(busy)} className={`${CONTROL} disabled:opacity-60`}>
@@ -424,7 +424,7 @@ export default function Command({ picture, items, unit, circle = null, now, line
     const first = ground ? givenNextAreas(items)[0] : null;
     return {
       about: plan.plan.about,
-      next: next ? { lead: SARAMA.next(next.title), what: next.what } : null,
+      next: next ? { lead: SARAMA.next(next.title), what: next.what, gear: next.gear || [] } : null,
       lines: [out === 0 ? SARAMA.nobodyOut(name) : null, first ? SARAMA.nextArea(areaName(first)) : null].filter(Boolean),
     };
   }, [plan, picture.pet?.name, people, ground, items]);
