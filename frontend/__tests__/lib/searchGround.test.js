@@ -117,9 +117,9 @@ describe('what has happened on an area', () => {
 
   test('searched: how many times, when last, and by whom', () => {
     expect(areaState(area('north', searched(1, ago(105))))).toBe('Searched once');
-    expect(areaLine(area('north', searched(1, ago(105), 'Mike')), { timeZone: ZONE, now: NOW })).toBe('Searched once, at 8:15 pm, by Mike.');
-    expect(areaLine(area('middle', searched(2, ago(80), 'Sarah')), { timeZone: ZONE, now: NOW })).toBe('Searched twice. Last at 8:40 pm, by Sarah.');
-    expect(areaLine(area('middle', searched(3, ago(80))), { timeZone: ZONE, now: NOW })).toBe('Searched 3 times. Last at 8:40 pm.');
+    expect(areaLine(area('north', searched(1, ago(105), 'Mike')), { timeZone: ZONE, now: NOW })).toBe('Searched once, 2 hours ago at 8:15 pm, by Mike.');
+    expect(areaLine(area('middle', searched(2, ago(80), 'Sarah')), { timeZone: ZONE, now: NOW })).toBe('Searched twice. Last 1 hour ago at 8:40 pm, by Sarah.');
+    expect(areaLine(area('middle', searched(3, ago(80))), { timeZone: ZONE, now: NOW })).toBe('Searched 3 times. Last 1 hour ago at 8:40 pm.');
   });
 
   test('being searched again says it was searched before: an area is never "done"', () => {
@@ -132,13 +132,13 @@ describe('what has happened on an area', () => {
 
   test('ground put down from the desk is said as that, never as that person having searched it', () => {
     const marked = area('east', { ...searched(1, ago(30), 'Avery'), marked: true });
-    expect(areaLine(marked, { timeZone: ZONE, now: NOW })).toBe('Searched once, at 9:30 pm, put down by Avery.');
+    expect(areaLine(marked, { timeZone: ZONE, now: NOW })).toBe('Searched once, 30 minutes ago at 9:30 pm, put down by Avery.');
   });
 
   test('up for another look', () => {
     const again = area('north', { ...searched(1, ago(105), 'Mike'), status: 'NEEDS_REVISIT' });
     expect(areaState(again)).toBe('Another look');
-    expect(areaLine(again, { timeZone: ZONE, now: NOW })).toBe('Searched once, at 8:15 pm, by Mike. Down for another look.');
+    expect(areaLine(again, { timeZone: ZONE, now: NOW })).toBe('Searched once, 2 hours ago at 8:15 pm, by Mike. Down for another look.');
   });
 
   test('the circle round a sighting: who is there, or that the owner set off for it', () => {
@@ -181,7 +181,7 @@ describe('the ground in numbers and sentences', () => {
 
   test('some searched, one being searched: what is left is what nobody has searched or is on', () => {
     const areas = five({ middle: searched(2, ago(80)), north: searched(1, ago(105)), east: onIt(['Sarah'], ago(25)) });
-    expect(groundCoverage(areas)).toEqual({ total: 5, searched: 2, done: 2, searching: 1, again: 0, left: 2, minutesLeft: 90, people: 1 });
+    expect(groundCoverage(areas, NOW)).toEqual({ total: 5, searched: 2, done: 2, searching: 1, again: 0, faded: 0, left: 2, minutesLeft: 90, people: 1 });
     expect(groundLines({ areas, circle: CIRCLE, name: 'Max' })).toEqual(['2 of the 5 areas within 400 m have been searched, and 1 is being searched now.', 'Searching the 2 left takes one person about an hour and a half.']);
   });
 

@@ -52,7 +52,7 @@ import { clockTime, dayAndTime, HOT_SIGHTING_MS } from '../lib/words';
 import { givenNext, researchFor, stateWords, streetFacts } from '../lib/insight';
 import { needsYou, quietLine } from '../lib/needs';
 import { unanswered } from '../lib/team';
-import { areaState, givenNextAreas, mapLabel, needsForGround, quietGround } from '../lib/ground';
+import { agoShort, areaState, givenNextAreas, mapLabel, needsForGround, quietGround, searchStrength } from '../lib/ground';
 import { Advice, Know, Numbers } from './Know';
 import Board from './Board';
 import Needs from './Needs';
@@ -395,6 +395,8 @@ export default function Command({ picture, items, unit, circle = null, now, line
     [unit, items, next]
   );
   const mapCells = useMemo(() => (unit === 'block' ? items.map((i) => ({ ...i, mine: false, next: next.has(i.id), words: `${stateWords(i)} · about ${i.minutes} min` })) : []), [unit, items, next]);
+  // A search fades over a day, so the map is drawn again as time passes: every ten minutes, not with every tick.
+  const clock = Math.floor(now / 600000) * 600000;
   // The ground, area by area: each with its name on it and, for the people who may know, who is on it.
   const mapAreas = useMemo(
     () =>
@@ -414,10 +416,14 @@ export default function Command({ picture, items, unit, circle = null, now, line
             label: mapLabel(i),
             who: (i.who || []).map((w) => w.name).join(', ') || null,
             title: i.name,
-            words: `${areaState(i)} · about ${i.minutes} min`,
+            words: `${areaState(i, clock)} · about ${i.minutes} min`,
+            // How strongly it counts as searched right now, and how long ago the last search was: the green and the
+            // line under its name.
+            strength: i.searchCount > 0 ? searchStrength(i, clock) : 0,
+            age: i.searchCount > 0 && i.status !== 'IN_PROGRESS' && i.searchedAt ? agoShort(i.searchedAt, clock) : null,
           }))
         : [],
-    [ground, items, next]
+    [ground, items, next, clock]
   );
   const lastSeenTag = useMemo(() => {
     const at = picture.lastSeen;
@@ -449,8 +455,8 @@ export default function Command({ picture, items, unit, circle = null, now, line
         ['edge', look.ink, 'Given out next'],
         ['open', look.later, 'Not searched'],
         ['dash', look.walking, 'Being searched'],
-        ['once', look.walked, 'Searched once'],
-        ['twice', look.walked, 'Twice or more'],
+        ['fresh', look.walked, 'Searched just now'],
+        ['faded', look.walked, 'Fades over a day'],
         ...(items.some((i) => i.status === 'NEEDS_REVISIT') ? [['again', look.walked, 'Another look']] : []),
         ...(items.some((i) => i.ring === 3) ? [['seen', 'var(--mc-seen)', 'Round a sighting']] : []),
       ]
@@ -624,8 +630,11 @@ export default function Command({ picture, items, unit, circle = null, now, line
                 <span className="relative h-3.5 w-5 overflow-hidden rounded-[3px]" style={{ border: `2px solid ${look.ink}` }} aria-hidden="true">
                   <span className="absolute inset-0" style={{ background: color, opacity: 0.45 }} />
                 </span>
-              ) : kind === 'once' || kind === 'twice' ? (
-                <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `1.5px solid ${color}`, background: color, opacity: kind === 'twice' ? 0.95 : 0.55 }} aria-hidden="true" />
+              ) : kind === 'fresh' ? (
+                <span className="h-3.5 w-5 rounded-[3px]" style={{ border: `1.5px solid ${color}`, background: color, opacity: 0.95 }} aria-hidden="true" />
+              ) : kind === 'faded' ? (
+                // The same green going from full to almost none: what a day does to a search.
+                <span className="h-3.5 w-9 rounded-[3px]" style={{ border: `1.5px solid ${color}`, background: `linear-gradient(90deg, ${color}, transparent)`, opacity: 0.95 }} aria-hidden="true" />
               ) : kind === 'seen' ? (
                 <span className="h-3.5 w-3.5 rounded-full" style={{ border: `2px dashed ${color}` }} aria-hidden="true" />
               ) : kind === 'dots' ? (

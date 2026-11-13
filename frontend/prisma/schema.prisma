@@ -3667,6 +3667,15 @@ model SearchZoneVisit {
   endedAt   DateTime?
   outcome   String?
 
+  // The debrief: what the person who searched says about their own search
+  // of the area. `covered` is how much of it they got to (ALL, MOST, PART);
+  // `debrief` is their own words on what they could not reach. A search the
+  // person running it put down from the desk is a row with outcome MARKED
+  // and no start: nobody on the site was on it, so there is nothing to time.
+  covered   String?
+  debrief   String?
+  debriefAt DateTime?
+
   @@index([caseId])
   @@index([zoneId])
   @@index([caseId, searcherId])

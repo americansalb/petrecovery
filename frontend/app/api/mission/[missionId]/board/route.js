@@ -66,7 +66,7 @@ import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/l
 import { searcherFor } from '@/app/lib/searcher';
 import { ensureStreets, actOnBoard, BOARD_ACTIONS, STEER_ACTIONS } from '@/app/lib/searchBoard';
 import { RING } from '@/app/lib/searchCircle';
-import { readZones, ensureHazards, actOnZone, zoneForBoard, askZone, unaskZonePerson, cannotSearch, streetNames, ZONE_ACTIONS, ZONE_STEER_ACTIONS } from '@/app/lib/searchZones';
+import { readZones, ensureHazards, debriefZone, actOnZone, zoneForBoard, askZone, unaskZonePerson, cannotSearch, streetNames, ZONE_ACTIONS, ZONE_STEER_ACTIONS } from '@/app/lib/searchZones';
 import { teamOf, personByHandle, forDesk } from '@/app/lib/searchTeam';
 import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
 import { WAIVER_CODE } from '@/app/lib/waiver';
@@ -219,7 +219,7 @@ export async function PATCH(request, { params }) {
     const { id, action } = body;
     const steering = (area ? ZONE_STEER_ACTIONS : STEER_ACTIONS).includes(action);
     const asking = ASK_ACTIONS.includes(action);
-    const known = area ? AREA_ACTIONS : [...BOARD_ACTIONS, ...STEER_ACTIONS];
+    const known = area ? [...AREA_ACTIONS, 'debrief'] : [...BOARD_ACTIONS, ...STEER_ACTIONS];
     // An id is a short piece of text: anything else is refused here, before it is read as one.
     if (!(asking || (known.includes(action) && (isText(id) || (area && WHOLE_SEARCH.includes(action)))))) {
       return NextResponse.json({ error: `Send an id and one of: ${known.join(', ')}.` }, { status: 400 });
@@ -231,6 +231,19 @@ export async function PATCH(request, { params }) {
     if (!searcher) return NextResponse.json({ error: 'Join the search first.', code: 'NOT_JOINED' }, { status: 401 });
     // An ask is always for ground: nobody is asked to walk a street any more, whatever an older screen says it is on.
     if (asking) return askOrAnswerArea({ pet, searcher, body, correlationId });
+    // The debrief on a search already made: how much of the area the person covered, and what they could not
+    // get to. It is about their own search and takes nobody out, so it needs no waiver and no open search.
+    if (area && action === 'debrief') {
+      const said = await debriefZone({ caseId: pet.id, zoneId: id, searcher, covered: body.covered, note: typeof body.note === 'string' ? body.note : '' });
+      if (said.error === 'BAD_DEBRIEF') return NextResponse.json({ error: 'Say how much of it you covered.', code: said.error }, { status: 400 });
+      if (said.error) return NextResponse.json({ error: 'There is no search of yours on that area to add to.', code: said.error }, { status: 404 });
+      try {
+        broadcast(pet.id, { type: 'AREA_UPDATED', unit: 'area' });
+      } catch {
+        // Nobody listening is not a failure to record it.
+      }
+      return NextResponse.json({ success: true });
+    }
     // Steering is for whoever runs the search, which is the owner: where the next helpers go, and ground
     // covered off the site. A role in a Rescue Force is not enough to redirect a search (app/lib/searcher.js).
     if (steering && !searcher.leads) return NextResponse.json({ error: WORDS.NOT_ALLOWED(), code: 'NOT_ALLOWED' }, { status: 403 });

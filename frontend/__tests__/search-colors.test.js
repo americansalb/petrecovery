@@ -182,7 +182,9 @@ describe('the desk\'s panels are the dark palette, day or night is the map\'s, a
     // Every area's edge is ink, so the circle reads as one shape: full strength and heavy where it is given out next.
     expect(map).toMatch(/\? \{ color: look\.ink, opacity: area\.next \|\| again \? 1 : 0\.55, weight: area\.next \? 4 : again \? 2\.5 : 1\.75, \.\.\.\(again \? \{ dashArray: '3 6' \} : \{\}\) \}/);
     // Searched is the map's own green, deeper for a second search; someone on it is the map's own teal, dashed.
-    expect(map).toMatch(/const fill = searched\s*\? \{ fillColor: look\.walked, fillOpacity: area\.searchCount > 1 \? 0\.62 : 0\.36 \}/);
+    // The green is as strong as the area counts as searched right now: a search fades over a day (founder,
+    // 2026-11-13: "does it not fade over time?").
+    expect(map).toMatch(/\{ fillColor: look\.walked, fillOpacity: 0\.06 \+ 0\.6 \* \(typeof area\.strength === 'number' \? area\.strength : 0\.55\) \}/);
     // The town outside the circle is dimmed, so the search stands out from it.
     expect(map).toMatch(/L\.polygon\(\[world, hole\], \{ stroke: false, fillColor: dark \? '#020617' : '#0f172a', fillOpacity: dark \? 0\.5 : 0\.28, interactive: false \}\)/);
     expect(map).toMatch(/\? \{ color: look\.walking, weight: desk \? 3\.5 : 3, dashArray: '2 9', lineCap: 'round' \}/);

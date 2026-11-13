@@ -144,13 +144,87 @@ function Care({ area, className = '' }) {
   );
 }
 
+const COVER_CHOICES = [
+  ['ALL', 'All of it'],
+  ['MOST', 'Most of it'],
+  ['PART', 'Part of it'],
+];
+
+/**
+ * The debrief, asked once on the card that says thank you: how much of the
+ * area they covered, then anything they could not get to, in their own
+ * words. It is what a search team asks of everyone who comes back, because
+ * "searched" by itself says nothing the next decision can be made on
+ * (founder, 2026-11-13: "A real search and rescue team would find this
+ * superficial and comical"). One tap answers it; nothing waits on it.
+ */
+function Debrief({ onSend }) {
+  const [covered, setCovered] = useState(null);
+  const [note, setNote] = useState('');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  async function send(value, words) {
+    if (busy) return;
+    setBusy(true);
+    setProblem('');
+    const result = await onSend(value, words);
+    setBusy(false);
+    if (result?.error) return setProblem(result.error);
+    setCovered(value);
+    if (words) setSent(true);
+    return undefined;
+  }
+  if (sent) return <Note className="mt-3">Noted. Thank you.</Note>;
+  return (
+    <div className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3" role="group" aria-label="About your search">
+      <p className="text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">How much of it did you cover?</p>
+      <div className="mt-2 flex gap-2">
+        {COVER_CHOICES.map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => send(value, '')}
+            aria-pressed={covered === value}
+            disabled={busy}
+            className={`min-h-[44px] flex-1 rounded-xl border px-2 text-[15px] font-bold leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${covered === value ? 'border-[var(--mc-ink)] bg-[var(--mc-ink)] text-[var(--mc-ground)]' : 'border-[var(--mc-line-strong)] text-[var(--mc-ink)]'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {covered && (
+        <>
+          <label htmlFor="mc-debrief" className="mt-3 block text-[13px] font-semibold leading-5 text-[var(--mc-soft)]">
+            Anything you could not get to?
+          </label>
+          <div className="mt-1 flex gap-2">
+            <input
+              id="mc-debrief"
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={280}
+              className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--mc-line-strong)] !bg-[var(--mc-ground)] px-3 text-[15px] font-medium !text-[var(--mc-ink)] focus:border-flash-400 focus:outline-none focus:ring-2 focus:ring-flash-400/40"
+            />
+            <button type="button" onClick={() => note.trim() && send(covered, note.trim())} disabled={busy || !note.trim()} className="min-h-[44px] shrink-0 rounded-xl border border-[var(--mc-line-strong)] px-3.5 text-[15px] font-bold text-[var(--mc-ink)] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
+              Add
+            </button>
+          </div>
+        </>
+      )}
+      <Problem className="mt-2">{problem}</Problem>
+    </div>
+  );
+}
+
 /**
  * What anyone with the link sees: the streets, and two buttons. For
  * someone the person running the search has asked to walk a street
  * (`asked`), the same card says which street and whose ask it is, and its
  * one button starts it.
  */
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, doneAtSighting = false, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, doneAtSighting = false, onDebrief = null, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
@@ -181,10 +255,14 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
           {ground && <Care area={ask} className="mt-3" />}
         </>
       ) : done && ground ? (
+        <>
         <Lead className="mt-1.5">
           {/* The count is of the circle's own areas. The circle round a sighting is not one of them, so it is not counted after one. */}
           {done} is searched. Thank you.{doneAtSighting ? '' : ` ${counts.searched} of the ${counts.total} areas ${counts.searched === 1 ? 'has' : 'have'} been searched so far.`}
         </Lead>
+        {/* The debrief: what a search is worth depends on how much of the ground was covered. */}
+        {onDebrief && <Debrief key={done} onSend={onDebrief} />}
+        </>
       ) : done ? (
         <Lead className="mt-1.5">
           {done} is searched. Thank you. {counts.searched} of {counts.total} {thing}s {counts.searched === 1 ? 'is' : 'are'} searched so far.
