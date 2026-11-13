@@ -151,9 +151,15 @@ debrief, ranks, and one goal the whole team sees, keeping the map green.
 It pays only for what helps a search: nothing for speed, for the answer
 given in a debrief, or for going near the animal, and there is no board of
 who has the most. To the person running the search she is calm and nothing
-cheers, because their pet is missing. Only one drawing of her exists
-(`frontend/public/brand/sarama-480.png`); new poses are art the founder
-supplies. Enforced by `frontend/__tests__/lib/trail.test.js`.
+cheers, because their pet is missing. She is drawn in poses, one for each thing she does
+(`frontend/app/mission-control/lib/saramaArt.js`; founder, 2026-11-13: "You
+can redraw her using claude design and make dynamic images"): sitting when
+she talks, head tilted when she asks, a paw lifted when she sends someone
+somewhere, nose down when she says where to look, paws up when something is
+done. A new pose is added there and to the canvas "Sarama, redrawn", with
+the same vest and headlamp. The brand picture on the rest of the site is
+still `frontend/public/brand/sarama-480.png`. Enforced by
+`frontend/__tests__/lib/trail.test.js`.
 
 ### The search never sends anyone into danger without saying so
 

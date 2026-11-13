@@ -248,7 +248,7 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       {!desk && (
         <Sarama
           className="mb-3"
-          mood={done && ground ? 'cheer' : 'guide'}
+          pose={done && ground ? 'cheer' : ask ? 'point' : 'sit'}
           say={
             done && ground
               ? SARAMA.done(PAWS.SEARCH)
@@ -398,7 +398,7 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
 
   return (
     <>
-      <Sarama className="mb-3" say={SARAMA.join()} />
+      <Sarama className="mb-3" pose="ask" say={SARAMA.join()} />
       <div className="flex items-start justify-between gap-3">
         <Heading>Join the search</Heading>
         <QuietLink onClick={onBack} className="!min-h-[28px] shrink-0">
@@ -542,7 +542,7 @@ export function Area({ picture, name, mine, instrument, gps, onSearched, onOther
       <Care area={mine} className="mt-3" />
       <Said said={said} line={saidLine} picture={picture} now={now} onSay={onSay} onShown={onShown} onPutAway={onPutAway} also={asked?.id || null} />
       {/* Sarama says the searcher's brief, word for word: where to look, and whether to call. */}
-      <Sarama className="mt-3" say={advice} />
+      <Sarama className="mt-3" pose={sighting ? 'point' : 'sniff'} say={advice} />
       {/* On a phone the buttons stay on the screen, whatever was said above them. */}
       <Pinned on={!desk}>
         <Problem className={desk ? 'mt-2' : 'pb-2'}>{problem}</Problem>
