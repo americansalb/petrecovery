@@ -3,41 +3,49 @@
 /**
  * Sarama, the site's search dog, guiding the person on the card.
  *
- * Her face in a round frame, and what she says in a bubble beside it
- * (her lines are app/mission-control/lib/sarama.js). She bobs a little
- * while she waits and hops when something is done; both stop for anyone
- * who has asked their device for less motion (app/globals.css).
+ * Her picture and what she says in a bubble beside it (her lines are
+ * app/mission-control/lib/sarama.js). The picture is one of the poses
+ * drawn in app/mission-control/lib/saramaArt.js: sitting when she talks,
+ * head tilted when she asks, a paw lifted when she sends someone
+ * somewhere, nose down when she says where to look, paws up when
+ * something is done. Her tail, eyes and lamp move a little; all of it
+ * stops for anyone who has asked their device for less motion
+ * (app/globals.css).
  *
  * `Paws` is the row of paw prints an action leaves, and `Trail` is the
  * line under a card that says where the reader and the team stand: the
  * game is app/lib/trail.js.
  */
 import { PawPrint } from 'lucide-react';
-import { SARAMA_AVATAR_PNG } from '@/lib/brandAssets';
+import { SARAMA_BOX, saramaArt } from '../lib/saramaArt';
 import { freshAreas, nextRank, rankOf, FRESH_HOURS } from '@/app/lib/trail';
 
-/** Her face: the standing drawing, framed on the head and the vest. */
-export function SaramaFace({ size = 52, mood = 'guide' }) {
+/**
+ * Sarama herself, in one pose. The drawing is the site's own fixed markup, never anything a person typed.
+ * `still` keeps her tail quiet, for whoever runs the search.
+ */
+export function SaramaPose({ pose = 'sit', size = 64, still = false, className = '' }) {
   return (
-    <span
+    <svg
       aria-hidden="true"
-      className={`relative block shrink-0 overflow-hidden rounded-full bg-white ring-2 ring-[var(--mc-line-strong)] ${mood === 'cheer' ? 'mc-sarama-cheer' : 'mc-sarama-idle'}`}
-      style={{ width: size, height: size }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={SARAMA_AVATAR_PNG} alt="" className="absolute max-w-none select-none" draggable={false} style={{ width: size * 2.3, left: -size * 0.65, top: -size * 0.06 }} />
-    </span>
+      viewBox={SARAMA_BOX}
+      width={size}
+      height={size}
+      className={`block shrink-0 select-none overflow-visible ${still ? 'sarama-still' : ''} ${className}`}
+      dangerouslySetInnerHTML={{ __html: saramaArt(pose) }}
+    />
   );
 }
 
-export default function Sarama({ say = '', mood = 'guide', size = 52, className = '' }) {
+export default function Sarama({ say = '', pose = 'sit', size = 64, className = '' }) {
   // One thing or several: each is a line of its own in the bubble.
   const said = (Array.isArray(say) ? say : [say]).filter(Boolean);
   return (
-    <div className={`flex items-start gap-2.5 ${className}`}>
-      <SaramaFace size={size} mood={mood} />
+    <div className={`flex items-start gap-2 ${className}`}>
+      {/* A new pose is a new picture, so a hop starts again each time something is done. */}
+      <SaramaPose key={pose} pose={pose} size={size} />
       {said.length > 0 && (
-        <div key={said.join('|')} className="mc-sarama-says flex min-w-0 flex-col gap-1.5 rounded-2xl rounded-bl-md bg-[var(--mc-raised)] px-3.5 py-2.5">
+        <div key={said.join('|')} className="mc-sarama-says mt-1.5 flex min-w-0 flex-col gap-1.5 rounded-2xl rounded-tl-md bg-[var(--mc-raised)] px-3.5 py-2.5">
           <span className="sr-only">Sarama says: </span>
           {said.map((line, i) => (
             <p key={line} className={`text-[15px] leading-[21px] text-[var(--mc-ink)] ${i === 0 ? 'font-semibold' : 'font-medium'}`}>

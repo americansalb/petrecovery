@@ -127,13 +127,13 @@ describe('Sarama', () => {
 
   test('on a helper\'s area she says where to look and whether to call, in the brief\'s own words', () => {
     expect(helper).toMatch(/const advice = sighting \? \[brief\.never, brief\.look, brief\.call\] : \[brief\.look, brief\.call\];/);
-    expect(helper).toMatch(/<Sarama className="mt-3" say=\{advice\} \/>/);
+    expect(helper).toMatch(/<Sarama className="mt-3" pose=\{sighting \? 'point' : 'sniff'\} say=\{advice\} \/>/);
     // Nothing of her own about how to search: that is the brief's.
     for (const line of lines) expect(line).not.toMatch(/look low|under |call out|chase|sidewalk|garage|shed/i);
   });
 
   test('she cheers only an area searched, and its paw prints land with her', () => {
-    expect(helper).toMatch(/mood=\{done && ground \? 'cheer' : 'guide'\}/);
+    expect(helper).toMatch(/pose=\{done && ground \? 'cheer' : ask \? 'point' : 'sit'\}/);
     expect(helper).toMatch(/\{done && ground && <Paws count=\{PAWS\.SEARCH\} className="mb-2" \/>\}/);
     expect(helper).toMatch(/\{told && <Paws count=\{PAWS\.DEBRIEF\} className="mt-1\.5" \/>\}/);
   });
@@ -157,13 +157,65 @@ describe('Sarama', () => {
     expect(SARAMA.nextArea('the west side')).toBe('When a neighbor offers to search, they are sent to the west side first.');
   });
 
-  test('to the person running the search she is calm: her face is there, and nothing cheers', () => {
-    expect(needs).toMatch(/<SaramaFace size=\{30\} \/>/);
-    expect(needs).not.toMatch(/mood=|<Paws/);
+  test('to the person running the search she is calm: she is there, her tail is still, and nothing cheers', () => {
+    expect(needs).toMatch(/<SaramaPose size=\{40\} still \/>/);
+    expect(needs).not.toMatch(/pose=|<Paws/);
+    expect(read('app/globals.css')).toMatch(/\.sarama-still \.sarama-tail \{ animation: none; \}/);
   });
 
   test('she and the paw prints hold still for anyone who asked their device for less motion', () => {
     const css = read('app/globals.css');
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s+\.mc-sarama-idle, \.mc-sarama-cheer, \.mc-sarama-says, \.mc-paw \{ animation: none; \}/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s+\.sarama-tail, \.sarama-tail\.sarama-quick, \.sarama-eyes, \.sarama-glow, \.sarama-nod, \.sarama-hop, \.mc-sarama-says, \.mc-paw \{ animation: none; \}/);
+  });
+});
+
+/**
+ * Founder, 2026-11-13: "You can redraw her using claude design and make
+ * dynamic images". She is drawn in poses, one for each thing she does.
+ */
+describe('Sarama, drawn', () => {
+  const { SARAMA_POSES, SARAMA_BOX, saramaArt } = require('@/app/mission-control/lib/saramaArt');
+  const helper = read('app/mission-control/steps/Helper.js');
+  const component = read('app/mission-control/components/Sarama.js');
+  const css = read('app/globals.css');
+
+  test('five poses, each a drawing of its own in the same box', () => {
+    expect(SARAMA_POSES).toEqual(['sit', 'ask', 'point', 'sniff', 'cheer']);
+    expect(SARAMA_BOX).toBe('0 0 160 160');
+    const drawn = SARAMA_POSES.map((pose) => saramaArt(pose));
+    expect(new Set(drawn).size).toBe(SARAMA_POSES.length);
+    // A pose nobody drew is her sitting, never an empty box.
+    expect(saramaArt('flying')).toBe(saramaArt('sit'));
+  });
+
+  test('every pose has the vest, the headlamp and its light, so she is the same dog in each', () => {
+    for (const pose of SARAMA_POSES) {
+      const art = saramaArt(pose);
+      expect(art).toContain('fill="#f1ee1f"'); // the vest and the strap of the lamp
+      expect(art).toContain('fill="#4b5563"'); // the lamp
+      expect(art).toContain('class="sarama-glow"');
+      expect(art).toContain('class="sarama-tail');
+    }
+  });
+
+  test('the drawing is fixed markup: no script, no link out, nothing of a person\'s', () => {
+    for (const pose of SARAMA_POSES) {
+      expect(saramaArt(pose)).not.toMatch(/<script|<a |href=|http|on[a-z]+=|<image|<foreignObject/i);
+    }
+    expect(component).toMatch(/dangerouslySetInnerHTML=\{\{ __html: saramaArt\(pose\) \}\}/);
+  });
+
+  test('each moving part named in the drawing is moved by the stylesheet', () => {
+    const classes = new Set(SARAMA_POSES.flatMap((pose) => [...saramaArt(pose).matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(' '))));
+    expect([...classes].sort()).toEqual(['sarama-eyes', 'sarama-glow', 'sarama-hop', 'sarama-nod', 'sarama-quick', 'sarama-tail']);
+    for (const name of ['sarama-tail', 'sarama-eyes', 'sarama-glow', 'sarama-nod', 'sarama-hop']) {
+      expect(css).toMatch(new RegExp(`\\.${name} \\{ animation: `));
+    }
+  });
+
+  test('the pose says what she is doing: asking, sending, searching, cheering', () => {
+    expect(helper).toMatch(/pose=\{done && ground \? 'cheer' : ask \? 'point' : 'sit'\}/);
+    expect(helper).toMatch(/<Sarama className="mb-3" pose="ask" say=\{SARAMA\.join\(\)\} \/>/);
+    expect(helper).toMatch(/pose=\{sighting \? 'point' : 'sniff'\}/);
   });
 });

@@ -706,7 +706,7 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
     // A helper's street (on a search from before it was on areas), the owner's sighting, and what the witness
     // reads once it is sent. A helper's area is the fourth, and there Sarama says the same lines, word for word.
     expect(blocks).toBe(3);
-    expect(helper).toMatch(/<Sarama className="mt-3" say=\{advice\} \/>/);
+    expect(helper).toMatch(/<Sarama className="mt-3" pose=\{sighting \? 'point' : 'sniff'\} say=\{advice\} \/>/);
   });
 
   test('the lines come from the three places the site already keeps them', () => {
@@ -716,10 +716,10 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
     // On ground the same line; round a sighting, the brief's own line on seeing the pet comes first.
     // With whether to call: it follows what the owner said the pet is like, and Sarama says the lines as written.
     expect(helper).toMatch(/const advice = sighting \? \[brief\.never, brief\.look, brief\.call\] : \[brief\.look, brief\.call\];/);
-    expect(helper).toMatch(/<Sarama className="mt-3" say=\{advice\} \/>/);
+    expect(helper).toMatch(/<Sarama className="mt-3" pose=\{sighting \? 'point' : 'sniff'\} say=\{advice\} \/>/);
     // On a helper's area Sarama says the brief's own lines (founder, 2026-11-13: "make the text actually useful and
     // teaches people where to look"). Nothing is typed for her there: `advice` is values from the brief.
-    expect(helper).toMatch(/<Sarama className="mt-3" say=\{advice\} \/>/);
+    expect(helper).toMatch(/<Sarama className="mt-3" pose=\{sighting \? 'point' : 'sniff'\} say=\{advice\} \/>/);
     // The desk shows the person running the search the very lines a helper is given, as values.
     expect(read('app/mission-control/desktop/Ground.js')).toMatch(/\{\(sighting \? \[brief\.never, brief\.look\] : \[brief\.look\]\)\.filter\(Boolean\)\.map\(\(line\) => \(/);
     expect(owner).toMatch(/import \{ adviceFor \} from '@\/app\/lib\/adviceFor';/);
