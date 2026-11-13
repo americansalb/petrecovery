@@ -170,6 +170,22 @@ the same vest and headlamp. The brand picture on the rest of the site is
 still `frontend/public/brand/sarama-480.png`. Enforced by
 `frontend/__tests__/lib/trail.test.js`.
 
+### The desk is a control room
+
+Founder, 2026-11-13, on the desk: "Something about this interface feels
+cartoonish and clucky. The color scheme, the vibe, it does not scream
+professional S&R interface mission control. Sattelite maps would be nice
+too". The desk (`frontend/app/mission-control/desktop/*`) carries
+`mc-console` on its root, and `frontend/app/globals.css` gives that class
+its look in one place: a neutral near-black ground, hairline edges, corners
+of a few pixels, type a step lighter, figures in columns. On the desk the
+map opens on the photo from above and its lines are thin; the case number
+and the lost point's coordinates are in the top bar. Do not bring back
+large round corners, heavy type, thick outlines or a mascot's picture
+there: Sarama's picture is for the people helping, and on the desk her
+next step is words. The phone's cards keep their own palette. Enforced by
+`frontend/__tests__/search-colors.test.js`.
+
 ### The search never sends anyone into danger without saying so
 
 Founder rule, 2026-11-12: "Are we inadvertantly telling people to search in
@@ -209,6 +225,21 @@ through: no "optional", "skip" or "later" on it, and nothing on the server
 refuses a search for want of it. No wording here has been reviewed by a
 lawyer; do not tell anyone it removes liability. Enforced by
 `frontend/__tests__/lib/waiver-strength.test.js`.
+
+### On a flyer, a line that has to be read whole always fits its box
+
+Founder, 2026-11-13, holding a flyer whose email ran across the QR code:
+"do I need to individually inspect every PDF this should not even be
+possible". Nobody inspects each PDF, so the layout has to make it
+impossible. A phone number, an email or a link is one word: it cannot wrap
+and must not be cut, so its size has no floor (`wholeInter`,
+`wholeUnbounded`, `wholeLine` and `planContact` in
+`frontend/app/lib/cascade/render/flyers/plan.js`, used by the sheets and
+the share pictures alike). Never give such a line a minimum size, and never
+size one from a guessed letter width: the widths come from the font files.
+Bump `RENDERER_VERSION` when the drawing changes, so open searches are
+redrawn. Enforced by `frontend/__tests__/lib/flyer-fit.test.js`, which
+measures the real fonts.
 
 ### The site's address is built in, never configured
 

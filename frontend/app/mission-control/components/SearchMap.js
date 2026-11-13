@@ -102,7 +102,7 @@ function tagged(L, { dot = null, text, tone = 'plain', theme = 'dark', side = 'r
             : 'top:-13px;left:16px;';
     const words = node(
       'span',
-      `position:absolute;${place}white-space:nowrap;padding:3px 8px;border-radius:8px;font:700 13px/19px Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(2,6,23,0.35);${TAG_TONES[tone][theme]}`,
+      `position:absolute;${place}white-space:nowrap;padding:2px 7px;border-radius:4px;font:600 13px/19px Inter,system-ui,sans-serif;box-shadow:0 1px 3px rgba(2,6,23,0.3);${TAG_TONES[tone][theme]}`,
       text
     );
     if (cls) words.className = cls;
@@ -307,7 +307,7 @@ export default function SearchMap({
         }
         L.polygon([world, hole], { stroke: false, fillColor: dark ? '#020617' : '#0f172a', fillOpacity: dark ? 0.5 : 0.28, interactive: false }).addTo(layers);
         // And its edge, drawn once and firmly, under the areas' own lines.
-        L.polygon(hole, { color: look.ink, weight: 3, opacity: 0.9, fill: false, interactive: false }).addTo(layers);
+        L.polygon(hole, { color: look.ink, weight: desk ? 1.5 : 3, opacity: 0.9, fill: false, interactive: false }).addTo(layers);
       }
       for (const area of drawn) {
         if (!Array.isArray(area.outline) || area.outline.length < 4) continue;
@@ -327,15 +327,15 @@ export default function SearchMap({
               ? { fillColor: look.walking, fillOpacity: 0.14 }
               : { fillOpacity: 0 };
         const edge = lit
-          ? { color: FLASH, weight: 4, fillColor: FLASH, fillOpacity: searched ? 0.3 : 0.2 }
+          ? { color: FLASH, weight: desk ? 2.5 : 4, fillColor: FLASH, fillOpacity: searched ? 0.3 : 0.2 }
           : busy
             ? { color: look.walking, weight: desk ? 3.5 : 3, dashArray: '2 9', lineCap: 'round' }
             : sightingCircle
               ? { color: seenLine, weight: 2.5, dashArray: '6 6' }
               : desk
-                ? { color: look.ink, opacity: area.next || again ? 1 : 0.55, weight: area.next ? 4 : again ? 2.5 : 1.75, ...(again ? { dashArray: '3 6' } : {}) }
+                ? { color: look.ink, opacity: area.next || again ? 1 : 0.55, weight: area.next ? (desk ? 2.5 : 4) : again ? (desk ? 1.75 : 2.5) : desk ? 1 : 1.75, ...(again ? { dashArray: '3 6' } : {}) }
                 : { color: dark ? 'rgba(203,213,225,0.55)' : 'rgba(51,65,85,0.5)', weight: 1.5 };
-        if (lit) L.polygon(area.outline, { color: casing, weight: 8, opacity: 0.9, fill: false, lineJoin: 'round', interactive: false }).addTo(layers);
+        if (lit) L.polygon(area.outline, { color: casing, weight: desk ? 4.5 : 8, opacity: 0.9, fill: false, lineJoin: 'round', interactive: false }).addTo(layers);
         const shape = L.polygon(area.outline, { lineJoin: 'round', ...fill, ...edge, interactive: desk }).addTo(layers);
         if (desk) answer(shape, area);
         if (area.center && Number.isFinite(area.center.lat)) {
@@ -494,8 +494,8 @@ export default function SearchMap({
       const picked = selected ? shape(selected) : null;
       if (picked?.outline) {
         // Yellow inside a ring of ink: the one yellow edge on the map is the area that is picked.
-        L.polygon(picked.outline, { color: ring, weight: 8, opacity: 1, fill: false, lineJoin: 'round', interactive: false }).addTo(focus);
-        L.polygon(picked.outline, { color: FLASH, weight: 4.5, opacity: 1, fillColor: FLASH, fillOpacity: 0.2, lineJoin: 'round', interactive: false }).addTo(focus);
+        L.polygon(picked.outline, { color: ring, weight: desk ? 4.5 : 8, opacity: 1, fill: false, lineJoin: 'round', interactive: false }).addTo(focus);
+        L.polygon(picked.outline, { color: FLASH, weight: desk ? 2.5 : 4.5, opacity: 1, fillColor: FLASH, fillOpacity: 0.2, lineJoin: 'round', interactive: false }).addTo(focus);
       } else if (picked?.path) {
         // Yellow inside a ring of ink: the one yellow line on the map is the street that is picked.
         L.polyline(picked.path, { color: casing, weight: 18, opacity: 0.9, lineCap: 'round', lineJoin: 'round', interactive: false }).addTo(focus);
