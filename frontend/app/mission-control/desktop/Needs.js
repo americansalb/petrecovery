@@ -16,7 +16,7 @@ import { SaramaFace } from '../components/Sarama';
 const MAIN =
   'inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl px-4 text-[14px] font-extrabold leading-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mc-ink)] disabled:opacity-60';
 
-export default function Needs({ cards = [], quiet = '', busy = null, problem = '', onDo, all = false, onAll }) {
+export default function Needs({ cards = [], quiet = '', guide = null, onTasks = null, busy = null, problem = '', onDo, all = false, onAll }) {
   const shown = all ? cards : cards.slice(0, NEEDS_SHOWN);
   const hidden = cards.length - shown.length;
   return (
@@ -34,10 +34,34 @@ export default function Needs({ cards = [], quiet = '', busy = null, problem = '
           </button>
         )}
       </div>
+      {/* No decision is waiting. That is never said as "nothing is waiting for you": their pet is still missing.
+          Sarama says what kind of search this is and the next thing to do in it (app/lib/searchPlan.js). */}
       {cards.length === 0 && (
-        <p className="mt-2 rounded-2xl bg-[var(--mc-raised)] px-4 py-3 text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">
-          <span className="font-bold text-[var(--mc-ink)]">Nothing is waiting for you.</span> {quiet}
-        </p>
+        <div className="mt-2 rounded-2xl bg-[var(--mc-raised)] px-4 py-3">
+          {guide ? (
+            <>
+              <p className="text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">{guide.about}</p>
+              {guide.next && (
+                <>
+                  <p className="mt-2.5 text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">{guide.next.lead}</p>
+                  <p className="text-[15px] font-medium leading-[21px] text-[var(--mc-soft)]">{guide.next.what}</p>
+                  {onTasks && (
+                    <button type="button" onClick={onTasks} className={`${MAIN} mt-2.5 border border-flash-600 bg-flash-400 text-[var(--mc-on-flash)] hover:bg-flash-300`}>
+                      Set it up in Tasks
+                    </button>
+                  )}
+                </>
+              )}
+              {guide.lines.map((line) => (
+                <p key={line} className="mt-2.5 text-[14px] font-medium leading-5 text-[var(--mc-soft)]">
+                  {line}
+                </p>
+              ))}
+            </>
+          ) : (
+            <p className="text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">{quiet}</p>
+          )}
+        </div>
       )}
       <ul className="mt-2 flex flex-col gap-2.5">
         {shown.map((card, index) => {

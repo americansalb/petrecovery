@@ -97,12 +97,11 @@ describe('what the game never pays for', () => {
 
 describe('Sarama', () => {
   const helper = read('app/mission-control/steps/Helper.js');
-  const lines = [SARAMA.hello('Max', 0), SARAMA.hello('Max', 1), SARAMA.hello('Max', 3), SARAMA.back('Max'), SARAMA.join(), SARAMA.training(), SARAMA.area(), SARAMA.asked('Avery'), SARAMA.asked(null), SARAMA.done(3), SARAMA.debriefed(), SARAMA.owner('Max')];
+  const needs = read('app/mission-control/desktop/Needs.js');
+  const lines = [SARAMA.hello('Max', '5 days'), SARAMA.hello('Max', ''), SARAMA.back('Max'), SARAMA.join(), SARAMA.training(), SARAMA.asked('Avery'), SARAMA.asked(null), SARAMA.done(3), SARAMA.next('Flyers'), SARAMA.nobodyOut('Max'), SARAMA.nextArea('the west side')];
 
   test('she speaks as herself, short and plain', () => {
-    expect(SARAMA.hello('Max', 0)).toBe("I'm Sarama. Max is still missing, and nobody is out looking right now. Come and look with me.");
-    expect(SARAMA.hello('Max', 1)).toBe("I'm Sarama. 1 person is out looking for Max right now. Come and look with us.");
-    expect(SARAMA.hello('Max', 3)).toMatch(/3 people are out looking for Max right now/);
+    expect(SARAMA.hello('Max', '5 days')).toBe("I'm Sarama, and I'm looking for Max, missing 5 days. Here is how to help right now.");
     expect(SARAMA.done(3)).toBe('Well done. That is 3 paw prints on this search.');
     for (const line of lines) {
       expect(line.length).toBeLessThanOrEqual(130);
@@ -114,19 +113,51 @@ describe('Sarama', () => {
     for (const line of lines) {
       expect(line).not.toMatch(/paw-?some|pawsome|fur-?ever|woof|bark|sniff|tail-?wag|good boy|good girl|hooman|\bpup\b|!/i);
       expect(line).not.toMatch(/will find|we'll find|guarantee|sure to|quick|hurry|fast|race|stop\b/i);
-      expect(line).not.toMatch(/—/);
+      expect(line).not.toMatch(/\u2014/);
     }
   });
 
-  test('she is on every card a helper sees, and cheers only an area searched', () => {
-    expect(helper.match(/<Sarama\b/g)).toHaveLength(4); // Main, Join, Training, Area
+  test('what she says is useful: to someone new, their own home first and what to do on seeing the pet', () => {
+    // Founder, 2026-11-13: "make the text actually useful and teaches people where to look".
+    expect(helper).toMatch(/\[trail\?\.mine\?\.paws > 0 \? SARAMA\.back\(name\) : SARAMA\.hello\(name, missingFor\(picture\.lastSeen\?\.at, now\)\), brief\.own, brief\.never\]/);
+    const { briefFor } = require('@/app/lib/brief');
+    expect(briefFor({ way: 'own', pet: { petName: 'Max', petSpecies: 'DOG' } })).toEqual(['First look around your own home: your yard, under your porch or deck, your shed and your garage.']);
+    expect(briefFor({ way: 'own', pet: { petName: 'Milo', petSpecies: 'CAT' } })[0]).toMatch(/under your porch or deck, in your shed and garage, and in thick bushes\. A scared cat hides within a few houses\./);
+  });
+
+  test('on a helper\'s area she says where to look and whether to call, in the brief\'s own words', () => {
+    expect(helper).toMatch(/const advice = sighting \? \[brief\.never, brief\.look, brief\.call\] : \[brief\.look, brief\.call\];/);
+    expect(helper).toMatch(/<Sarama className="mt-3" say=\{advice\} \/>/);
+    // Nothing of her own about how to search: that is the brief's.
+    for (const line of lines) expect(line).not.toMatch(/look low|under |call out|chase|sidewalk|garage|shed/i);
+  });
+
+  test('she cheers only an area searched, and its paw prints land with her', () => {
     expect(helper).toMatch(/mood=\{done && ground \? 'cheer' : 'guide'\}/);
     expect(helper).toMatch(/\{done && ground && <Paws count=\{PAWS\.SEARCH\} className="mb-2" \/>\}/);
     expect(helper).toMatch(/\{told && <Paws count=\{PAWS\.DEBRIEF\} className="mt-1\.5" \/>\}/);
   });
 
+  test('she does not greet a desk: whoever runs the search is not asked to come and look', () => {
+    expect(helper).toMatch(/\{!desk && \(\s+<Sarama/);
+  });
+
+  test('the person running the search is never told nothing is waiting: she says the next thing to do', () => {
+    // Founder, 2026-11-13: "Nothing is waiting for you ... What does this mean? so confusing. My pet is waiting
+    // for me, he is still lost".
+    expect(needs).not.toMatch(/Nothing is waiting/);
+    expect(read('app/mission-control/lib/ground.js')).not.toMatch(/Nothing is waiting/);
+    expect(needs).toMatch(/\{guide\.about\}/);
+    expect(needs).toMatch(/\{guide\.next\.lead\}/);
+    expect(needs).toMatch(/Set it up in Tasks/);
+    const command = read('app/mission-control/desktop/Command.js');
+    expect(command).toMatch(/const next = \(plan\.kinds \|\| \[\]\)\.find\(\(k\) => k\.kind !== 'OTHER' && !have\.has\(k\.kind\)\) \|\| null;/);
+    expect(command).toMatch(/onTasks=\{guide\?\.next \? \(\) => setTab\('tasks'\) : null\}/);
+    expect(SARAMA.nobodyOut('Max')).toBe('Nobody is searching right now. Text the link to neighbors so more people are watching for Max.');
+    expect(SARAMA.nextArea('the west side')).toBe('When a neighbor offers to search, they are sent to the west side first.');
+  });
+
   test('to the person running the search she is calm: her face is there, and nothing cheers', () => {
-    const needs = read('app/mission-control/desktop/Needs.js');
     expect(needs).toMatch(/<SaramaFace size=\{30\} \/>/);
     expect(needs).not.toMatch(/mood=|<Paws/);
   });
@@ -134,9 +165,5 @@ describe('Sarama', () => {
   test('she and the paw prints hold still for anyone who asked their device for less motion', () => {
     const css = read('app/globals.css');
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s+\.mc-sarama-idle, \.mc-sarama-cheer, \.mc-sarama-says, \.mc-paw \{ animation: none; \}/);
-  });
-
-  test('how to search stays the brief\'s and the training\'s: her lines carry no technique', () => {
-    for (const line of lines) expect(line).not.toMatch(/look low|under|call |chase|sidewalk|yard|garage|shed/i);
   });
 });

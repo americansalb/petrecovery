@@ -137,8 +137,15 @@ drive engagement, not feel like a chore." Sarama, the search dog, is on
 every card a helper sees and is the one voice on the search screen that
 speaks as "I" (the rule against a talking product does not cover her). Her
 lines are all in `frontend/app/mission-control/lib/sarama.js`: short, warm
-and plain, no puns, no promise that a search works, nobody hurried. How to
-search stays the brief's and the training's. The game is
+and plain, no puns, no promise that a search works, nobody hurried. What
+she says must be useful (founder, 2026-11-13: "seems like you designed her
+to get in the way ... make the text actually useful and teaches people
+where to look"): to a newcomer their own home first and what to do on
+seeing the pet, to a helper on an area where to look and whether to call,
+all of it the brief's own words. To whoever runs the search she says the
+next step from the plan, and never "nothing is waiting for you": their pet
+is still missing. She does not greet a desk. How to search stays the
+brief's and the training's. The game is
 `frontend/app/lib/trail.js`: paw prints for an area searched and for its
 debrief, ranks, and one goal the whole team sees, keeping the map green.
 It pays only for what helps a search: nothing for speed, for the answer

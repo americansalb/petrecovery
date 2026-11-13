@@ -85,6 +85,13 @@ export function briefFor({ way, pet }) {
   const never = dog
     ? `${onSeeing(pet)} Sit down, look away, tap "I've seen ${name}". The owner's voice is what ${name} comes to.`
     : `${onSeeing(pet)} Note where and which way, tap "I've seen ${name}", and keep your distance.`;
+  // For someone who lives near where the pet was lost: their own home is ground only they can search, and it
+  // is the first place to look (Humane World, "How to find a lost dog": neighbors asked to check their own
+  // sheds and garages).
+  const own = cat
+    ? `First look around your own home: under your porch or deck, in your shed and garage, and in thick bushes. A scared cat hides within a few houses.`
+    : `First look around your own home: your yard, under your porch or deck, your shed and your garage.`;
+  if (way === 'own') return [own];
   if (way === 'home') {
     return [
       `Say you are calling about a lost ${speciesLabel(pet?.petSpecies).toLowerCase()} named ${name}${pet?.petColor ? `, ${String(pet.petColor).toLowerCase()}` : ''}${pet?.petBreed ? `, ${pet.petBreed}` : ''}.`,

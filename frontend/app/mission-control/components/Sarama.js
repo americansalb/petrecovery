@@ -31,14 +31,20 @@ export function SaramaFace({ size = 52, mood = 'guide' }) {
 }
 
 export default function Sarama({ say = '', mood = 'guide', size = 52, className = '' }) {
+  // One thing or several: each is a line of its own in the bubble.
+  const said = (Array.isArray(say) ? say : [say]).filter(Boolean);
   return (
-    <div className={`flex items-end gap-2.5 ${className}`}>
+    <div className={`flex items-start gap-2.5 ${className}`}>
       <SaramaFace size={size} mood={mood} />
-      {say && (
-        <p key={say} className="mc-sarama-says min-w-0 rounded-2xl rounded-bl-md bg-[var(--mc-raised)] px-3.5 py-2.5 text-[15px] font-semibold leading-[21px] text-[var(--mc-ink)]">
+      {said.length > 0 && (
+        <div key={said.join('|')} className="mc-sarama-says flex min-w-0 flex-col gap-1.5 rounded-2xl rounded-bl-md bg-[var(--mc-raised)] px-3.5 py-2.5">
           <span className="sr-only">Sarama says: </span>
-          {say}
-        </p>
+          {said.map((line, i) => (
+            <p key={line} className={`text-[15px] leading-[21px] text-[var(--mc-ink)] ${i === 0 ? 'font-semibold' : 'font-medium'}`}>
+              {line}
+            </p>
+          ))}
+        </div>
       )}
     </div>
   );

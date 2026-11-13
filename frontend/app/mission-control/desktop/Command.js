@@ -52,7 +52,8 @@ import { clockTime, dayAndTime, HOT_SIGHTING_MS } from '../lib/words';
 import { givenNext, researchFor, stateWords, streetFacts } from '../lib/insight';
 import { needsYou, quietLine } from '../lib/needs';
 import { unanswered } from '../lib/team';
-import { agoShort, areaState, givenNextAreas, mapLabel, needsForGround, quietGround, searchStrength } from '../lib/ground';
+import { agoShort, areaName, areaState, givenNextAreas, mapLabel, needsForGround, quietGround, searchStrength } from '../lib/ground';
+import { SARAMA } from '../lib/sarama';
 import { Advice, Know, Numbers } from './Know';
 import Board from './Board';
 import Needs from './Needs';
@@ -395,6 +396,39 @@ export default function Command({ picture, items, unit, circle = null, now, line
     [unit, items, next]
   );
   const mapCells = useMemo(() => (unit === 'block' ? items.map((i) => ({ ...i, mine: false, next: next.has(i.id), words: `${stateWords(i)} · about ${i.minutes} min` })) : []), [unit, items, next]);
+  // The plan for this animal and the tasks set up so far, for whoever runs the search: what Sarama says to do next
+  // when no decision is waiting. Read through the screen's one sender, now and every minute.
+  const [plan, setPlan] = useState(null);
+  const runs = Boolean(picture.viewer?.leads);
+  const readPlan = search.readPlan;
+  useEffect(() => {
+    if (!runs || !readPlan) return undefined;
+    let live = true;
+    const load = async () => {
+      const got = await readPlan();
+      if (live && got && !got.error) setPlan(got);
+    };
+    load();
+    const timer = setInterval(load, 60000);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [runs, readPlan, tab]);
+  const guide = useMemo(() => {
+    if (!plan?.plan) return null;
+    const name = picture.pet?.name || 'the pet';
+    const have = new Set((plan.tasks || []).map((t) => t.kind));
+    const next = (plan.kinds || []).find((k) => k.kind !== 'OTHER' && !have.has(k.kind)) || null;
+    const out = people.filter((p) => p.state === 'walking').length;
+    const first = ground ? givenNextAreas(items)[0] : null;
+    return {
+      about: plan.plan.about,
+      next: next ? { lead: SARAMA.next(next.title), what: next.what } : null,
+      lines: [out === 0 ? SARAMA.nobodyOut(name) : null, first ? SARAMA.nextArea(areaName(first)) : null].filter(Boolean),
+    };
+  }, [plan, picture.pet?.name, people, ground, items]);
+
   // A search fades over a day, so the map is drawn again as time passes: every ten minutes, not with every tick.
   const clock = Math.floor(now / 600000) * 600000;
   // The ground, area by area: each with its name on it and, for the people who may know, who is on it.
@@ -495,7 +529,7 @@ export default function Command({ picture, items, unit, circle = null, now, line
       )}
       {leads && !full && (
         <div className="border-t border-[var(--mc-line)] px-4 py-4">
-          <Needs cards={cards} quiet={ground ? quietGround({ areas: items, people }) : quietLine({ unit, items, people })} busy={needBusy} problem={needProblem} onDo={doNeed} all={allNeeds} onAll={() => setAllNeeds((v) => !v)} />
+          <Needs cards={cards} quiet={ground ? quietGround({ areas: items, people }) : quietLine({ unit, items, people })} guide={guide} onTasks={guide?.next ? () => setTab('tasks') : null} busy={needBusy} problem={needProblem} onDo={doNeed} all={allNeeds} onAll={() => setAllNeeds((v) => !v)} />
         </div>
       )}
       <section aria-label="Your step" className={`border-t border-[var(--mc-line)] ${full ? 'overflow-hidden pb-2' : 'p-4'}`}>
