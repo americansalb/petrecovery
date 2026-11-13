@@ -43,13 +43,21 @@ export async function register() {
   // an older renderer version, a minute and a half after boot, one case at
   // a time (app/lib/cascade/refresh.js, started over loopback by
   // refreshBoot.js because the renderers cannot be bundled for the edge
-  // runtime this file is also compiled for). CASCADE_REFRESH_ON_BOOT=0
-  // turns it off; POST /api/cascade/regenerate?stale=1 does it by hand.
+  // runtime this file is also compiled for).
+  //
+  // It is OFF unless CASCADE_REFRESH_ON_BOOT=1. Redrawing every open case
+  // back to back ran the 512 MB instance out of memory on 2026-11-05, and
+  // again on 2026-11-13: the server was killed a few minutes after each
+  // boot, came back, started the redraw again and was killed again, for as
+  // long as stale cases were left. The site answered 502 on and off for
+  // that whole time. A job that starts by itself at boot and can take the
+  // server down is not worth what it saves. POST
+  // /api/cascade/regenerate?stale=1 still does it by hand, a few at a time.
   if (
     process.env.NODE_ENV === 'production' &&
     process.env.NEXT_PHASE !== 'phase-production-build' &&
     process.env.DATABASE_URL &&
-    process.env.CASCADE_REFRESH_ON_BOOT !== '0'
+    process.env.CASCADE_REFRESH_ON_BOOT === '1'
   ) {
     const { scheduleStaleKitRefresh } = await import('./app/lib/cascade/refreshBoot');
     scheduleStaleKitRefresh();

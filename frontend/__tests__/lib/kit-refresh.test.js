@@ -202,6 +202,10 @@ test('the server schedules the redraw at boot, in production only', () => {
   expect(src).toContain("process.env.NODE_ENV === 'production'");
   expect(src).toContain("process.env.NEXT_PHASE !== 'phase-production-build'");
   expect(src).toContain('scheduleStaleKitRefresh()');
+  // Only when asked for. Started by itself, it ran the instance out of memory and took the site down twice
+  // (2026-11-05, 2026-11-13): killed a few minutes after each boot, restarted, killed again.
+  expect(src).toContain("process.env.CASCADE_REFRESH_ON_BOOT === '1'");
+  expect(src).not.toContain("process.env.CASCADE_REFRESH_ON_BOOT !== '0'");
   // The renderers cannot be bundled for the edge runtime this file is also
   // compiled for (the build died on sharp's child_process), so the boot
   // hook imports the light module that asks the route over loopback.
