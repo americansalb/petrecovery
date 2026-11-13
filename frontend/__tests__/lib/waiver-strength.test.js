@@ -10,7 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { LIABILITY_WAIVER_DOC } from '@/prisma/legal/liability-waiver';
 import { WAIVER_VERSION, waiverIsCurrent } from '@/app/lib/waiverVersion';
-import { SAFETY_AGREEMENT, WAIVER_IN_SHORT, searchTraining } from '@/app/lib/safetyRules';
+import { SAFETY_AGREEMENT, searchTraining } from '@/app/lib/safetyRules';
 
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', '..', file), 'utf8');
 const text = LIABILITY_WAIVER_DOC.content;
@@ -122,16 +122,20 @@ describe('the record of an agreement', () => {
 describe('the join screen', () => {
   const helper = read('app/mission-control/steps/Helper.js');
 
-  test('what the waiver does is in plain view above the tick', () => {
-    expect(WAIVER_IN_SHORT.join(' ')).toMatch(/at your own risk/);
-    expect(WAIVER_IN_SHORT.join(' ')).toMatch(/does not check any ground/);
-    expect(WAIVER_IN_SHORT.join(' ')).toMatch(/give up the right to sue/);
-    const box = helper.indexOf('{WAIVER_IN_SHORT.map(');
+  test('the card has the tick, the text one tap away and the button, and does not print the release', () => {
+    // Founder, 2026-11-13: "If you put too many warnings you are putting the idea in people's heads. That is
+    // part of the reason you put it kinda tucked away in waiver no one reads".
     const tick = helper.indexOf('{SAFETY_AGREEMENT}');
     const toggle = helper.indexOf("'Read them'");
-    expect(box).toBeGreaterThan(-1);
-    expect(box).toBeLessThan(tick);
+    const button = helper.indexOf('I agree', toggle);
+    expect(tick).toBeGreaterThan(-1);
     expect(tick).toBeLessThan(toggle);
+    expect(toggle).toBeLessThan(button);
+    expect(helper).toMatch(/\{waiver\?\.content \|\| 'Loading the waiver\.'\}/);
+    expect(helper).not.toMatch(/WAIVER_IN_SHORT|right to sue|at your own risk/);
+    // The release itself is in the waiver, in capitals, where it belongs.
+    expect(text).toMatch(/INCLUDING WHERE IT IS CAUSED BY THE NEGLIGENCE OF A RELEASED PARTY/);
+    expect(text).toMatch(/You search at your own risk\./);
   });
 
   test('the tick says the person is an adult', () => {

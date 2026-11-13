@@ -57,24 +57,6 @@ export function whereWords(area) {
   return `${area.reach}${marks.length ? `, around ${listWords(marks)}` : ''}.`;
 }
 
-/**
- * Said on every card that gives someone ground, whatever the map shows:
- * the two things that get people hurt or into trouble on a search. Never
- * a claim that the ground is safe (founder, 2026-11-12: "We need to be
- * careful about that").
- */
-export const CARE_LINE = 'Look at your phone only when you are standing still. Ask before you go into a yard, garage or shed. ReunitePets does not check any ground, so watch for danger yourself.';
-
-/**
- * Said wherever the site lists what the map shows in an area: where the
- * list comes from, and that it can be wrong. Founder, 2026-11-13: "Now we
- * are liable for having accurate info?" Naming some hazards can lead a
- * person to take an area with none named as clear, so the limit is said
- * on the card where the list is read, not only in the waiver, and the
- * care line on every card says the site checks no ground.
- */
-export const MAP_LIMITS_LINE = 'This is read from a public map, which can be wrong or leave things out.';
-
 const WATER_WORDS = { river: 'a river', canal: 'a canal', stream: 'a stream', pond: 'a pond or lake' };
 
 /**
@@ -83,6 +65,14 @@ const WATER_WORDS = { river: 'a river', canal: 'a canal', stream: 'a stream', po
  * With `advice`, each says what to do about it, for the person going. The
  * list is the map's, so an empty one means the map shows none, not that
  * there is none.
+ *
+ * This is the only caution a card carries, and only where the map shows
+ * something. Founder, 2026-11-13: "If you put too many warnings you are
+ * putting the idea in people's heads. That is part of the reason you put
+ * it kinda tucked away in waiver no one reads". So no card repeats a
+ * general caution, and the limits (the map can be wrong, the site checks
+ * no ground, no warning does not mean safe) are said in the waiver
+ * (prisma/legal/liability-waiver.js, section 2) and not on a card.
  */
 export function hazardLines(area, { advice = true } = {}) {
   const held = Array.isArray(area?.hazards) ? area.hazards : [];
@@ -163,9 +153,7 @@ export function areaFacts(area, { picture = null, circle = null, now = Date.now(
     if (seen) facts.push(`${name} was seen in it ${whenWords(seen.at, zone, now)}.`);
   }
   // What the map shows in it that someone on foot should know of, so the person asking knows before they ask.
-  const onMap = hazardLines(area, { advice: false });
-  facts.push(...onMap);
-  if (onMap.length) facts.push(MAP_LIMITS_LINE);
+  facts.push(...hazardLines(area, { advice: false }));
   facts.push(areaLine(area, { timeZone: zone, now, owner: picture?.owner?.firstName || null, isOwner: Boolean(picture?.viewer?.isOwner) }));
   for (const ask of area.asked || []) {
     facts.push(`${ask.name} was asked to ${isSeenCircle(area) ? 'go' : 'search it'} at ${clockTime(ask.at, zone)}${ask.seenAt ? ' and has seen that' : ''}.`);
