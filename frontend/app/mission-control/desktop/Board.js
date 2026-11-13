@@ -29,6 +29,7 @@ import { distanceMeters } from '@/app/lib/searchGrid';
 import People from './People';
 import Messages from './Messages';
 import Ground from './Ground';
+import Tasks from './Tasks';
 
 const TABS = [
   ['people', 'People'],
@@ -200,7 +201,7 @@ function Sightings({ picture, now, focused, onFocus, onAdd }) {
   );
 }
 
-export default function Board({ picture, items, unit, circle = null, onWiden = null, widening = false, onSteer = null, areaCard = null, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null, people = [], talk = [], waiting = 0, person = null, onPerson, to = null, onTo, onAsk, onUnask, onWord, onPick, onShare }) {
+export default function Board({ picture, items, unit, circle = null, onWiden = null, widening = false, onSteer = null, areaCard = null, now, tab, onTab, next, selected, hovered, onSelect, onHover, focused, onFocus, onAdd, onTell, overview = null, people = [], talk = [], waiting = 0, person = null, onPerson, to = null, onTo, onAsk, onUnask, onWord, onPick, onShare, onPlanRead = null, onPlanWrite = null }) {
   const names = Boolean(picture.viewer?.seesNames);
   const ground = unit === 'area';
   // How many are on the search where this person may know; otherwise how many are out, which anyone may. Ground
@@ -211,7 +212,10 @@ export default function Board({ picture, items, unit, circle = null, onWiden = n
   // Where the search is on squares, that tab says so.
   const named = TABS.map(([id, words]) => [id, id === 'streets' ? (ground ? 'Ground' : unit === 'block' ? 'Blocks' : words) : words]);
   // On a narrower screen the left column's cards are the first tab here, and the map keeps the room.
-  const tabs = overview ? [['overview', 'Overview'], ...named] : named;
+  // Tasks are for the people running the search and a force looking for the pet: where a feeding station or a
+  // trap is does not go to everyone with the link.
+  const withTasks = names ? [...named.slice(0, 2), ['tasks', 'Tasks'], ...named.slice(2)] : named;
+  const tabs = overview ? [['overview', 'Overview'], ...withTasks] : withTasks;
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="m-2.5 mb-0 flex shrink-0 gap-0.5 rounded-xl bg-[var(--mc-ground)] p-1" role="tablist" aria-label="The search">
@@ -243,6 +247,7 @@ export default function Board({ picture, items, unit, circle = null, onWiden = n
         {tab === 'people' && <People picture={picture} people={people} items={items} unit={unit} now={now} selected={selected} words={talk} open={person} onOpen={onPerson} onAsk={onAsk} onUnask={onUnask} onWord={onWord} onPick={onPick} onShare={onShare} />}
         {tab === 'streets' && ground && (areaCard || <Ground picture={picture} items={items} circle={circle} next={next} now={now} leads={Boolean(picture.viewer?.leads)} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} onWiden={onWiden} widening={widening} onSteer={onSteer} />)}
         {tab === 'streets' && !ground && <Streets picture={picture} items={items} unit={unit} next={next} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} />}
+        {tab === 'tasks' && names && onPlanRead && <Tasks now={now} onRead={onPlanRead} onWrite={onPlanWrite} />}
         {tab === 'sightings' && <Sightings picture={picture} now={now} focused={focused} onFocus={onFocus} onAdd={onAdd} />}
         {tab === 'messages' && <Messages picture={picture} items={items} unit={unit} now={now} people={people} words={talk} to={to} onTo={onTo} onSelect={onSelect} onFocus={onFocus} onTell={onTell} onWord={onWord} onAdd={onAdd} />}
       </div>
