@@ -31,12 +31,12 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Share2, TriangleAlert } from 'lucide-react';
-import { SAFETY_RULES, SAFETY_AGREEMENT, WAIVER_IN_SHORT, searchTraining } from '@/app/lib/safetyRules';
+import { SAFETY_RULES, SAFETY_AGREEMENT, searchTraining } from '@/app/lib/safetyRules';
 import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Pinned, Stamp } from '../components/kit';
 import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
-import { areaName, isSeenCircle, whereWords, hazardLines, CARE_LINE, MAP_LIMITS_LINE } from '../lib/ground';
+import { areaName, isSeenCircle, whereWords, hazardLines } from '../lib/ground';
 import { whenWords } from '../lib/insight';
 
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '';
@@ -117,34 +117,29 @@ function ShareLink({ onShare }) {
 }
 
 /**
- * Said with every area someone is given: what the map shows in it that a
- * person on foot should know of (a main road, a rail line, water), and
- * the care line that goes with any ground. Founder, 2026-11-12: "Are we
- * inadvertantly telling people to search in ponds, or dangerous
- * neighborhoods, near the highway, distracting them from traffic? We need
- * to be careful about that". It names what is there and how to be near
- * it. It does not tell anyone to stop searching.
+ * What the map shows in an area that a person on foot should know of (a
+ * main road, a rail line, water), with what to do about it. Shown only
+ * where the map shows something: a card with nothing to name carries no
+ * caution at all. Founder, 2026-11-12: "Are we inadvertantly telling
+ * people to search ... near the highway"; and 2026-11-13: "If you put too
+ * many warnings you are putting the idea in people's heads", so this is
+ * the one caution on the card, and the limits of the map are said in the
+ * waiver. It does not tell anyone to stop searching.
  */
 function Care({ area, className = '' }) {
   const lines = hazardLines(area);
+  if (!lines.length) return null;
   return (
-    <div className={className}>
-      {lines.length > 0 && (
-        <div role="note" aria-label="Take care in this area" className="mb-2 rounded-2xl border-2 border-[var(--mc-line-strong)] bg-[var(--mc-raised)] px-3.5 py-3">
-          <p className="flex items-center gap-1.5 text-[13px] font-extrabold leading-[18px] text-[var(--mc-ink)]">
-            <TriangleAlert size={15} aria-hidden="true" />
-            Take care in this area
-          </p>
-          {lines.map((line) => (
-            <p key={line} className="mt-1.5 text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">
-              {line}
-            </p>
-          ))}
-          {/* Where the list comes from, and that it can be wrong: said where the list is read. */}
-          <p className="mt-2 text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{MAP_LIMITS_LINE}</p>
-        </div>
-      )}
-      <Note>{CARE_LINE}</Note>
+    <div role="note" aria-label="Take care in this area" className={`rounded-2xl border-2 border-[var(--mc-line-strong)] bg-[var(--mc-raised)] px-3.5 py-3 ${className}`}>
+      <p className="flex items-center gap-1.5 text-[13px] font-extrabold leading-[18px] text-[var(--mc-ink)]">
+        <TriangleAlert size={15} aria-hidden="true" />
+        Take care in this area
+      </p>
+      {lines.map((line) => (
+        <p key={line} className="mt-1.5 text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">
+          {line}
+        </p>
+      ))}
     </div>
   );
 }
@@ -237,7 +232,10 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
 
 /**
  * Asked once, and again when the waiver changes: a first name and the
- * safety tick, with what the waiver does said in plain view above it.
+ * safety tick, with the rules and the waiver one tap away under "Read
+ * them". The card does not print the release itself (founder, 2026-11-13:
+ * "If you put too many warnings you are putting the idea in people's
+ * heads").
  * Then "Before you go out", the short training, whose one button gives
  * them their area. The screen never calls the training optional, and the
  * server refuses nobody for want of it (founder, 2026-11-12).
@@ -319,14 +317,6 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
           />
         </>
       )}
-      {/* What the waiver does, where nobody agreeing can miss it. The full text is behind "Read them". */}
-      <ul role="note" aria-label="What you are agreeing to" className="mt-3.5 flex flex-col gap-1 rounded-2xl border-2 border-[var(--mc-line-strong)] bg-[var(--mc-raised)] px-3.5 py-3">
-        {WAIVER_IN_SHORT.map((line) => (
-          <li key={line} className="text-[15px] font-semibold leading-[21px] text-[var(--mc-ink)]">
-            {line}
-          </li>
-        ))}
-      </ul>
       <label className="mt-3.5 flex cursor-pointer items-start gap-3">
         <span className="relative mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-2 border-[var(--mc-check)]" style={agreed ? { background: 'var(--mc-check)' } : undefined}>
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="absolute -inset-2.5 h-11 w-11 cursor-pointer opacity-0" />
@@ -393,7 +383,7 @@ export function Training({ name, unit, instrument, busy, onGo }) {
             </span>
             <span className="min-w-0">
               <span className="block text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">{point.title}</span>
-              <span className="block text-[15px] font-medium leading-[21px] text-[var(--mc-soft)]">{point.text}</span>
+              {point.text && <span className="block text-[15px] font-medium leading-[21px] text-[var(--mc-soft)]">{point.text}</span>}
             </span>
           </li>
         ))}

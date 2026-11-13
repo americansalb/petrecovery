@@ -101,16 +101,20 @@ traffic? We need to be careful about that". An area is cut by distance and
 direction, so it can hold a highway, a rail line or a creek. The site reads
 main roads, rail lines and water from the map
 (`frontend/app/lib/searchHazards.js`) and the card that gives someone an
-area names them with what to do, beside one care line that goes with every
-area. Words that say where to look send people to public ground: the
+area names them with what to do. That is the only caution a card carries,
+and only where the map shows something (founder, 2026-11-13: "If you put
+too many warnings you are putting the idea in people's heads. That is part
+of the reason you put it kinda tucked away in waiver no one reads"). Do not
+add a standing caution or a disclaimer to a card: how to search is said
+once in the training, and what the site is not is said in the waiver.
+Words that say where to look send people to public ground: the
 sidewalk, a path, and a yard, shed or garage only after asking at the door.
 Never write copy that sends a stranger onto private property, into water,
 onto a road or a rail line, or that asks them to look at the phone while
-moving. Never say or imply that ground is safe: the map can be wrong. Wherever
-the site lists what the map shows, it says there that the list is from a
-public map and can be wrong or leave things out, and it never says the map
-shows nothing in an area (founder, 2026-11-13: "Now we are liable for
-having accurate info?"). Do not rate neighbourhoods. Enforced by
+moving. Never say or imply that ground is safe, and never say the map shows
+nothing in an area: the map can be wrong, and the waiver is where that is
+said (founder, 2026-11-13: "Now we are liable for having accurate info?").
+Do not rate neighbourhoods. Enforced by
 `frontend/__tests__/lib/searchHazards.test.js`.
 
 ### The waiver is asked for the text as it reads today, and the training is never called optional
@@ -121,8 +125,9 @@ rescue? but not say its optional". The waiver is
 `frontend/prisma/legal/liability-waiver.js`; change its text only with a
 version bump, which asks everyone again (`frontend/app/lib/waiverVersion.js`).
 Every agreement writes a `WaiverAcceptance` row and that table is proof:
-never edit or delete rows. What the waiver does stays in plain view above
-the tick. "Before you go out" follows the tick as a step everyone passes
+never edit or delete rows. The join card carries the tick, the text one
+tap away and the button; it does not print the release on the card
+(founder, 2026-11-13, the words above). "Before you go out" follows the tick as a step everyone passes
 through: no "optional", "skip" or "later" on it, and nothing on the server
 refuses a search for want of it. No wording here has been reviewed by a
 lawyer; do not tell anyone it removes liability. Enforced by

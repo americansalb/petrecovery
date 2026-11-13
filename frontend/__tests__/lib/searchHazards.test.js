@@ -9,7 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { hazardOf, hazardQuery, hazardsFrom, hazardsIn, trimHazards, fetchHazards, parseHazards } from '@/app/lib/searchHazards';
-import { hazardLines, CARE_LINE, MAP_LIMITS_LINE, areaFacts } from '@/app/mission-control/lib/ground';
+import { hazardLines, areaFacts } from '@/app/mission-control/lib/ground';
 import { briefFor } from '@/app/lib/brief';
 import { SAFETY_RULES } from '@/app/lib/safetyRules';
 
@@ -179,16 +179,13 @@ describe('what the card says', () => {
   test('nothing on the map is nothing said, and never a claim that the ground is safe', () => {
     expect(hazardLines({ hazards: [] })).toEqual([]);
     expect(hazardLines({})).toEqual([]);
-    expect(`${CARE_LINE} ${hazardLines({ hazards: [{ kind: 'road', name: 'X' }] }).join(' ')}`).not.toMatch(/\bsafe\b/i);
+    expect(hazardLines({ hazards: [{ kind: 'road', name: 'X' }, { kind: 'rail', name: '' }, { kind: 'water', name: '', what: 'pond' }] }).join(' ')).not.toMatch(/\bsafe\b/i);
   });
 
-  test('the care line is on the card with every area, and before someone asked says yes', () => {
+  test('the card names what the map shows, and someone asked sees it before they say yes', () => {
     const helper = read('app/mission-control/steps/Helper.js');
-    expect(CARE_LINE).toMatch(/phone only when you are standing still/);
-    expect(CARE_LINE).toMatch(/Ask before you go into a yard, garage or shed/);
     expect(helper).toMatch(/<Care area=\{mine\}/);
     expect(helper).toMatch(/\{ground && <Care area=\{ask\}/);
-    expect(helper).toMatch(/<Note>\{CARE_LINE\}<\/Note>/);
   });
 
   test('the person running the search reads the same facts on the area before asking anyone to go', () => {
@@ -260,36 +257,47 @@ describe('the rest of the site says the same', () => {
     expect(read('app/lib/missionControl/taskPriority.js')).not.toMatch(/'Sheds, garages, under decks, in bushes'/);
   });
 });
-
-describe('what the map shows is said to be the map\'s, where it is read', () => {
-  // Founder, 2026-11-13: "Now we are liable for having accurate info?"
+describe('one caution on a card, and the limits in the waiver', () => {
+  // Founder, 2026-11-13: "If you put too many warnings you are putting the idea in people's heads. That is part
+  // of the reason you put it kinda tucked away in waiver no one reads".
   const helper = read('app/mission-control/steps/Helper.js');
+  const ground = read('app/mission-control/lib/ground.js');
+  const waiver = require('@/prisma/legal/liability-waiver').LIABILITY_WAIVER_DOC.content;
 
-  test('the list on a helper\'s card says it is from a public map that can be wrong or leave things out', () => {
-    expect(MAP_LIMITS_LINE).toBe('This is read from a public map, which can be wrong or leave things out.');
-    const box = helper.slice(helper.indexOf('aria-label="Take care in this area"'), helper.indexOf('<Note>{CARE_LINE}</Note>'));
-    expect(box).toMatch(/\{MAP_LIMITS_LINE\}/);
+  test('a card with nothing to name carries no caution at all', () => {
+    const care = helper.slice(helper.indexOf('function Care('), helper.indexOf('/**', helper.indexOf('function Care(')));
+    expect(care).toMatch(/if \(!lines\.length\) return null;/);
+    expect(care).not.toMatch(/<Note>/);
   });
 
-  test('every card, with a list or without one, says the site checks no ground', () => {
-    expect(CARE_LINE).toMatch(/ReunitePets does not check any ground, so watch for danger yourself\.$/);
-    expect(helper).toMatch(/<Note>\{CARE_LINE\}<\/Note>/);
+  test('no card repeats a general caution or prints a disclaimer', () => {
+    for (const source of [helper, ground]) {
+      expect(source).not.toMatch(/CARE_LINE|MAP_LIMITS_LINE|WAIVER_IN_SHORT/);
+      expect(source).not.toMatch(/['"`>][^'"`<]*(does not check any ground|public map, which can be wrong|at your own risk|right to sue)/);
+    }
   });
 
-  test('the desk says the same under the facts it lists, and nothing about the map where it lists none', () => {
+  test('the desk lists what the map shows in an area and adds no disclaimer under it', () => {
     const area = { name: 'East side', ring: 1, reach: '150 m to 400 m east', minutes: 45, landmarks: [], status: 'UNSEARCHED', searchCount: 0, on: [], asked: [] };
     const options = { picture: { pet: { name: 'Max' }, sightings: [] }, circle: null };
-    const withRoad = areaFacts({ ...area, hazards: [{ kind: 'road', name: 'Calzada de Tlalpan' }] }, options);
-    expect(withRoad.indexOf(MAP_LIMITS_LINE)).toBe(withRoad.indexOf('Calzada de Tlalpan is a main road in this area.') + 1);
-    const bare = areaFacts({ ...area, hazards: [] }, options).join(' ');
-    expect(bare).not.toContain(MAP_LIMITS_LINE);
+    const facts = areaFacts({ ...area, hazards: [{ kind: 'road', name: 'Calzada de Tlalpan' }] }, options).join(' ');
+    expect(facts).toContain('Calzada de Tlalpan is a main road in this area.');
+    expect(facts).not.toMatch(/public map|can be wrong/);
     // Never "the map shows nothing here": that reads as "this ground is clear".
-    expect(bare).not.toMatch(/map shows (no|nothing)|no main road|nothing on the map/i);
+    expect(areaFacts({ ...area, hazards: [] }, options).join(' ')).not.toMatch(/map shows (no|nothing)|no main road|nothing on the map/i);
   });
 
-  test('the training says the map can leave things out', () => {
+  test('the limits are said in the waiver: the map can be wrong, the list is never complete, no warning is not safe', () => {
+    expect(waiver).toMatch(/can be wrong, out of date or incomplete/);
+    expect(waiver).toMatch(/A list of things to take care near is never a complete list\./);
+    expect(waiver).toMatch(/An area with no warning on it is not safe ground\./);
+    expect(waiver).toMatch(/does not inspect, visit or know the condition of any place/);
+  });
+
+  test('the training is how to search, with nothing about what the site is not', () => {
     const { searchTraining } = require('@/app/lib/safetyRules');
-    expect(searchTraining('Max').map((p) => p.text).join(' ')).toMatch(/that the map shows in your area\. The map can leave things out\./);
+    const said = searchTraining('Max').map((p) => `${p.title} ${p.text}`).join(' ');
+    expect(said).not.toMatch(/not an emergency service|map can leave things out|does not check/);
+    expect(said).toMatch(/In an emergency, call your local emergency number/);
   });
 });
-

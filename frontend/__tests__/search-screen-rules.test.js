@@ -751,7 +751,7 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
   });
 
   test('the safety rules a helper agrees to are the patrol\'s own list, in one file', () => {
-    expect(helper).toMatch(/import \{ SAFETY_RULES, SAFETY_AGREEMENT, WAIVER_IN_SHORT, searchTraining \} from '@\/app\/lib\/safetyRules';/);
+    expect(helper).toMatch(/import \{ SAFETY_RULES, SAFETY_AGREEMENT, searchTraining \} from '@\/app\/lib\/safetyRules';/);
     expect(read('app/patrol/join/page.js')).toMatch(/from '@\/app\/lib\/safetyRules'/);
   });
 });
