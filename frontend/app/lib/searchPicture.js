@@ -22,6 +22,7 @@
  * everything else.
  */
 import prisma from '@/app/lib/prisma';
+import { temperamentOf } from '@/app/lib/brief';
 import { missionWhere } from '@/app/lib/shareMetadata';
 import { isCaseOpen } from '@/app/lib/caseStatus';
 import { casePhone } from '@/app/lib/caseLabels';
@@ -260,6 +261,8 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
       photoUrl: normalizePhotoUrl(pet.petPhotoUrl),
       description: pet.petDescription,
       howOut: pet.escapeScenario,
+      // How the owner said the pet is with people: the brief a helper reads follows it (app/lib/brief.js).
+      temperament: temperamentOf(pet),
     },
     // What the owner said about approaching this pet, as the pet's page words it (app/lib/caseDetails.js).
     approach: guide.approach || '',
