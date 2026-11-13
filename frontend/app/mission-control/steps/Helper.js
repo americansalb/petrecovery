@@ -40,7 +40,7 @@ import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 import { areaName, isSeenCircle, whereWords, hazardLines } from '../lib/ground';
-import { whenWords } from '../lib/insight';
+import { missingFor, whenWords } from '../lib/insight';
 
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '';
 // What the button says is what the people running the search are told in this person's name (app/lib/searchAsk.js, CANNOT_WORDS).
@@ -236,6 +236,7 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
   const desk = instrument === 'command';
   // A desk is never handed a street, so an ask is shown on the phone it was made to.
   const ask = !desk && asked ? asked : null;
+  const brief = searcherBrief(picture);
   const asker = ask?.askedBy || 'The people running the search';
   // The card says when it has shown the ask, which is what the desk reads as "seen": a phone that only fetched
   // it, or a computer that does not show it, says nothing.
@@ -243,11 +244,21 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
   return (
     <>
       {/* Sarama guides: she cheers an area searched, says who asked, and greets anyone who has just opened the link. */}
-      <Sarama
-        className="mb-3"
-        mood={done && ground ? 'cheer' : 'guide'}
-        say={done && ground ? SARAMA.done(PAWS.SEARCH) : ask ? SARAMA.asked(ask.askedBy) : trail?.mine?.paws > 0 ? SARAMA.back(name) : SARAMA.hello(name, picture.looking?.helpers || 0)}
-      />
+      {/* Not on a desk: a desk is handed no ground, and whoever runs the search has their own guidance there. */}
+      {!desk && (
+        <Sarama
+          className="mb-3"
+          mood={done && ground ? 'cheer' : 'guide'}
+          say={
+            done && ground
+              ? SARAMA.done(PAWS.SEARCH)
+              : ask
+                ? SARAMA.asked(ask.askedBy)
+                : // Who she is, then the brief word for word: their own home first, and what to do on seeing the pet.
+                  [trail?.mine?.paws > 0 ? SARAMA.back(name) : SARAMA.hello(name, missingFor(picture.lastSeen?.at, now)), brief.own, brief.never]
+          }
+        />
+      )}
       {done && ground && <Paws count={PAWS.SEARCH} className="mb-2" />}
       <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
       <Heading className="mt-1">{ask ? (ground ? `Search ${areaName(ask)}` : `Walk ${ask.name}`) : `Help look for ${name}`}</Heading>
@@ -508,10 +519,11 @@ export function Area({ picture, name, mine, instrument, gps, onSearched, onOther
   // With its day when it was not today: a sighting keeps its circle for three days.
   const seenWhen = sighting && mine.sightingAt ? whenWords(mine.sightingAt, picture.timeZone, now) : '';
   // The site's own brief, word for word. At a sighting, what to do on seeing the pet comes first.
-  const advice = sighting ? [brief.never, brief.look] : [brief.look];
+  // With how to call, or not to: it follows what the owner said the pet is like (app/lib/brief.js), and the card
+  // left it out until 2026-11-13.
+  const advice = sighting ? [brief.never, brief.look, brief.call] : [brief.look, brief.call];
   return (
     <>
-      <Sarama className="mb-3" say={SARAMA.area()} />
       <Eyebrow>Your area</Eyebrow>
       <Heading className="mt-1">Search {areaName(mine)}</Heading>
       <Lead className="mt-1.5">
@@ -529,7 +541,8 @@ export function Area({ picture, name, mine, instrument, gps, onSearched, onOther
       )}
       <Care area={mine} className="mt-3" />
       <Said said={said} line={saidLine} picture={picture} now={now} onSay={onSay} onShown={onShown} onPutAway={onPutAway} also={asked?.id || null} />
-      <AdviceBlock source="The searcher's brief" lines={advice} className="mt-3" />
+      {/* Sarama says the searcher's brief, word for word: where to look, and whether to call. */}
+      <Sarama className="mt-3" say={advice} />
       {/* On a phone the buttons stay on the screen, whatever was said above them. */}
       <Pinned on={!desk}>
         <Problem className={desk ? 'mt-2' : 'pb-2'}>{problem}</Problem>

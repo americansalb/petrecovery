@@ -12,25 +12,29 @@
  * How to search is not hers to say: that is the brief and the training,
  * word for word (app/lib/brief.js, app/lib/safetyRules.js).
  *
- * To the owner she is calm and does not cheer: their pet is missing.
+ * To the owner she is calm and does not cheer: their pet is missing. She
+ * never tells them nothing is waiting: she says the next thing to do
+ * (founder, 2026-11-13, on "Nothing is waiting for you": "What does this
+ * mean? so confusing. My pet is waiting for me, he is still lost ... make
+ * the text actually useful and teaches people where to look").
  */
 
-const people = (n) => (n === 1 ? '1 person is' : `${n} people are`);
-
 export const SARAMA = {
-  /** To someone who has opened the link and not joined. */
-  hello: (name, out = 0) => (out > 0 ? `I'm Sarama. ${people(out)} out looking for ${name} right now. Come and look with us.` : `I'm Sarama. ${name} is still missing, and nobody is out looking right now. Come and look with me.`),
+  /**
+   * To someone who has opened the link: who she is and how long the pet has been gone. What follows it on the card
+   * is the brief, word for word: their own home first, and what to do on seeing the pet.
+   */
+  hello: (name, missing = '') => (missing ? `I'm Sarama, and I'm looking for ${name}, missing ${missing}. Here is how to help right now.` : `I'm Sarama, and I'm looking for ${name}. Here is how to help right now.`),
   /** Back again, with prints already on this search. */
   back: (name) => `Good to see you again. ${name} still needs us.`,
   join: () => 'Tell me your name and read the rules. Then I will give you some ground.',
   training: () => 'Seven things I want you to know before we go out.',
-  /** Handing someone their area. */
-  area: () => 'This ground is yours. Take your time with it.',
   /** Someone the owner asked by name. */
   asked: (owner) => `${owner || 'The owner'} asked for you by name.`,
   /** An area searched. */
   done: (paws) => `Well done. That is ${paws} paw prints on this search.`,
-  debriefed: () => 'Thank you. One more paw print for telling me how it went.',
-  /** To the person running the search, on the desk. */
-  owner: (name) => `I am on ${name}'s search with you. Here is what needs you first.`,
+  /** To the person running the search, when nothing is waiting on a decision: what to do next. */
+  next: (title) => `Next: ${title}.`,
+  nobodyOut: (name) => `Nobody is searching right now. Text the link to neighbors so more people are watching for ${name}.`,
+  nextArea: (area) => `When a neighbor offers to search, they are sent to ${area} first.`,
 };

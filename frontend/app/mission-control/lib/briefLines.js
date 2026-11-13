@@ -15,5 +15,6 @@ export function searcherBrief(picture, way = 'foot') {
   // "Walk every street in the block. Your path records as you go.": the second sentence stands alone where a path is recorded.
   const records = walk.slice(walk.indexOf('. ') + 2);
   // The first sentence of the last line is the brief's own: a name with a full stop in it would break a cut.
-  return { lines: [walk, look, call, never], records, look, call, never, neverFirst: onSeeing(of) };
+  // `own`: for someone near where the pet was lost, their own home first.
+  return { lines: [walk, look, call, never], records, look, call, never, neverFirst: onSeeing(of), own: briefFor({ way: 'own', pet: of })[0] };
 }
