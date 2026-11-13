@@ -499,6 +499,8 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     items,
     // The circle the areas are cut from: { center, inner, edge, wide, radius, widened }.
     circle: board?.circle || null,
+    // The paw prints on this search: { paws, helpers, mine: { searches, debriefs, paws, rank } | null }.
+    trail: board?.trail || null,
     // Named streets near the search, for naming a place or a direction. Nobody is sent to walk one.
     around: board?.around || NO_ITEMS,
     mine,

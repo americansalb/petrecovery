@@ -33,6 +33,7 @@ import { RING, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, rea
 export { rankAreas };
 import { ensureGrid } from '@/app/lib/searchBoard';
 import { fetchHazards, hazardsIn, parseHazards, HAZARD_MARGIN_METERS } from '@/app/lib/searchHazards';
+import { trailOf } from '@/app/lib/trail';
 import { handleFor, askHolds } from '@/app/lib/searchTeam';
 import { cleanWord } from '@/app/lib/searchTalk';
 import { cut } from '@/app/lib/searchText';
@@ -543,7 +544,7 @@ export async function readZones(caseId, { viewer = null, withNames = false, owne
       where: { caseId, outcome: { in: ['SEARCHED', 'MARKED'] }, endedAt: { not: null } },
       orderBy: { endedAt: 'desc' },
       take: 240,
-      select: { zoneId: true, searcherName: true, startedAt: true, endedAt: true, outcome: true, covered: true, debrief: true },
+      select: { zoneId: true, searcherId: true, searcherName: true, startedAt: true, endedAt: true, outcome: true, covered: true, debrief: true },
     })
     .catch(() => []);
   const history = new Map();
@@ -584,6 +585,8 @@ export async function readZones(caseId, { viewer = null, withNames = false, owne
     areas,
     streetsStatus: made.streetsStatus,
     hazardsStatus: made.hazardsStatus,
+    // The paw prints on this search: the team's, and the reader's own (app/lib/trail.js). Counts only.
+    trail: trailOf(finished || [], viewer),
   };
 }
 

@@ -146,6 +146,8 @@ export async function GET(request, { params }) {
       unit: 'area',
       areas,
       circle,
+      // The paw prints on this search, the team's and the reader's own: counts, and nobody's name.
+      trail: read.trail || null,
       // The named streets near the search: for naming a place, never for walking.
       around: streetsStatus === 'READY' ? await streetNames(pet.id) : [],
       streets: [],

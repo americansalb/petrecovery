@@ -31,6 +31,9 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Share2, TriangleAlert } from 'lucide-react';
+import Sarama, { Paws, Trail } from '../components/Sarama';
+import { SARAMA } from '../lib/sarama';
+import { PAWS } from '@/app/lib/trail';
 import { SAFETY_RULES, SAFETY_AGREEMENT, searchTraining } from '@/app/lib/safetyRules';
 import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Pinned, Stamp } from '../components/kit';
 import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
@@ -176,9 +179,11 @@ function Debrief({ onSend }) {
     return undefined;
   }
   if (sent) return <Note className="mt-3">Noted. Thank you.</Note>;
+  const told = Boolean(covered);
   return (
     <div className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3" role="group" aria-label="About your search">
       <p className="text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">How much of it did you cover?</p>
+      {told && <Paws count={PAWS.DEBRIEF} className="mt-1.5" />}
       <div className="mt-2 flex gap-2">
         {COVER_CHOICES.map(([value, label]) => (
           <button
@@ -224,7 +229,7 @@ function Debrief({ onSend }) {
  * (`asked`), the same card says which street and whose ask it is, and its
  * one button starts it.
  */
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, doneAtSighting = false, onDebrief = null, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, doneAtSighting = false, onDebrief = null, trail = null, instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
@@ -237,6 +242,13 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
   useShown(ask && ask.askedSeen === false ? ask.id : null, onAskShown, beatOf(now));
   return (
     <>
+      {/* Sarama guides: she cheers an area searched, says who asked, and greets anyone who has just opened the link. */}
+      <Sarama
+        className="mb-3"
+        mood={done && ground ? 'cheer' : 'guide'}
+        say={done && ground ? SARAMA.done(PAWS.SEARCH) : ask ? SARAMA.asked(ask.askedBy) : trail?.mine?.paws > 0 ? SARAMA.back(name) : SARAMA.hello(name, picture.looking?.helpers || 0)}
+      />
+      {done && ground && <Paws count={PAWS.SEARCH} className="mb-2" />}
       <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
       <Heading className="mt-1">{ask ? (ground ? `Search ${areaName(ask)}` : `Walk ${ask.name}`) : `Help look for ${name}`}</Heading>
       {ask ? (
@@ -280,6 +292,8 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       ) : (
         <Lead className="mt-1.5">If you see {name}, send where. It reaches {owner?.firstName || 'the owner'} at once.</Lead>
       )}
+      {/* The game: their own paw prints and rank, the team's, and the goal everyone shares. Not on a desk, which is handed no ground. */}
+      {ground && !desk && <Trail trail={trail} items={items} name={name} now={now} className="mt-3" />}
       {/* With an ask on the card too: a word written to this person is always where they can read it. */}
       <Said said={said} line={saidLine} picture={picture} now={now} onSay={onSay} onShown={onShown} onPutAway={onPutAway} also={ask?.id || null} />
       {/* On a phone the buttons stay on the screen, whatever was said above them. */}
@@ -373,6 +387,7 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
 
   return (
     <>
+      <Sarama className="mb-3" say={SARAMA.join()} />
       <div className="flex items-start justify-between gap-3">
         <Heading>Join the search</Heading>
         <QuietLink onClick={onBack} className="!min-h-[28px] shrink-0">
@@ -452,6 +467,7 @@ export function Training({ name, unit, instrument, busy, onGo }) {
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   return (
     <>
+      <Sarama className="mb-3" say={SARAMA.training()} />
       <Heading>Before you go out</Heading>
       <ol className="mt-3 flex flex-col gap-3">
         {searchTraining(name).map((point, i) => (
@@ -495,6 +511,7 @@ export function Area({ picture, name, mine, instrument, gps, onSearched, onOther
   const advice = sighting ? [brief.never, brief.look] : [brief.look];
   return (
     <>
+      <Sarama className="mb-3" say={SARAMA.area()} />
       <Eyebrow>Your area</Eyebrow>
       <Heading className="mt-1">Search {areaName(mine)}</Heading>
       <Lead className="mt-1.5">
