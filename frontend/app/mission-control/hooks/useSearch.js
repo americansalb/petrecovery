@@ -325,6 +325,25 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     [missionParam, headers]
   );
 
+  /** The plan of the search and its tasks other than searching ground (app/lib/searchPlan.js), for the desk's Tasks tab. */
+  const readPlan = useCallback(async () => {
+    const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/plan`, { cache: 'no-store' });
+    if (!res) return { error: NO_SIGNAL };
+    const data = await readJson(res);
+    return res.ok ? data : { error: data.error || 'The tasks did not load. Try again in a moment.' };
+  }, [missionParam]);
+
+  /** Set a task up (POST), or keep one: looked at, done, removed (PATCH). */
+  const writePlan = useCallback(
+    async (method, body) => {
+      const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/plan`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res) return { error: NO_SIGNAL };
+      const data = await readJson(res);
+      return res.ok ? { ok: true } : { error: data.error || 'That did not go through. Try again in a moment.' };
+    },
+    [missionParam]
+  );
+
   /** One change to the board, and the board read again after it. */
   const change = useCallback(
     async (body) => {
@@ -501,6 +520,8 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     trained,
     act,
     debrief,
+    readPlan,
+    writePlan,
     sendSighting,
     answer,
     tell,

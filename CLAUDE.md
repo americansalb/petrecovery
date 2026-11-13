@@ -113,6 +113,22 @@ feature to Mission Control, ask what a search manager would need to decide
 the next move, not what looks complete. Enforced by
 `frontend/__tests__/lib/searchRecord.test.js`.
 
+### The plan follows the animal
+
+Founder, 2026-11-13: "put yourselves in the shoes of the complex S&R team".
+A team does not run the same search for every subject. The report asks the
+species and how the pet is with people, and the search uses the answer:
+`frontend/app/lib/brief.js` tells a helper not to call a dog unless the
+owner called it friendly, and `frontend/app/lib/searchPlan.js` puts the
+tasks that suit the animal first (a wary dog: sightings, a feeding station,
+a camera, a trap, few people on foot; a cat: the nearest yards). Tasks are
+`SearchTask` rows of the search itself, shown on the desk's Tasks tab.
+Where a station or a trap is goes only to whoever runs the search and a
+force looking for the pet. New advice for a search is added to those two
+files with its source, never written into a screen, and no tactic is said
+to work. Enforced by `frontend/__tests__/lib/searchPlan.test.js` and
+`frontend/__tests__/lib/jobs.test.js`.
+
 ### The search never sends anyone into danger without saying so
 
 Founder rule, 2026-11-12: "Are we inadvertantly telling people to search in

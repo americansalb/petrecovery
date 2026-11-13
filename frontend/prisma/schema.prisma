@@ -3643,6 +3643,36 @@ model SearchZone {
 //   on it     startedAt set, endedAt null
 //   over      endedAt set, and `outcome` says how:
 //             SEARCHED, GAVE_BACK, CANNOT, TAKEN_BACK or LAPSED
+// One task of a search that is not searching ground: flyers, calls to
+// shelters, door to door, a scent item, a feeding station, a camera, a
+// trap (app/lib/searchPlan.js says which of them suit which animal). It
+// belongs to the search itself, so an owner with no Rescue Force can run
+// them. Set up and kept by whoever runs the search; where a station or a
+// trap is goes only to them and to a force looking for the pet.
+model SearchTask {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  caseId String
+
+  kind  String // FLYERS, CALLS, DOORS, SCENT, STATION, CAMERA, TRAP, OTHER
+  // The words of whoever set it up: where it is, what was done.
+  note  String?
+  place String?
+
+  status String @default("OPEN") // OPEN, DONE, DROPPED
+
+  createdById   String
+  createdByName String?
+
+  // A station, a camera or a trap is looked at again and again: when it last was.
+  checkedAt DateTime?
+  doneAt    DateTime?
+
+  @@index([caseId])
+}
+
 model SearchZoneVisit {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())

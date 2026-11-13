@@ -688,6 +688,8 @@ export default function Command({ picture, items, unit, circle = null, now, line
               if (!roomy) setTab('overview');
             }}
             onTell={search.tell}
+            onPlanRead={search.readPlan}
+            onPlanWrite={search.writePlan}
             people={people}
             talk={talk}
             waiting={waiting}

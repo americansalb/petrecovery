@@ -214,8 +214,9 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     expect(code(hook).match(/\bfetch\(/g)).toHaveLength(3); // the one sender, and the two readers
     // Joining, the waiver, a change to the board (a street taken, an ask), a sighting, the owner's answer, the
     // owner's word to everyone helping, a word between one person and the desk, and a card saying what it showed.
-    expect(code(hook).match(/await send\(/g)).toHaveLength(8);
-    expect(code(hook).match(/if \(!res\) return \{ error: NO_SIGNAL/g)).toHaveLength(8);
+    // And the plan: reading the search's tasks, and setting one up or keeping it.
+    expect(code(hook).match(/await send\(/g)).toHaveLength(10);
+    expect(code(hook).match(/if \(!res\) return \{ error: NO_SIGNAL/g)).toHaveLength(10);
     // Everything that changes the board goes through the one function that reads it again afterwards.
     expect(code(hook)).toMatch(/const act = useCallback\(\(unit, id, action\) => change\(\{ unit, id, action \}\), \[change\]\);/);
     expect(code(hook)).toMatch(/const ask = useCallback\(\(person, id, note = ''\) => change\(\{ unit: unitNow\.current, id, action: 'ask', person, note \}\), \[change\]\);/);
@@ -436,7 +437,7 @@ describe('three instruments: a desk is never asked where it is and is never hand
   });
 
   test('a desk is a view of its own, and the screen switches to it in one place', () => {
-    expect(fs.readdirSync(path.join(SCREEN, 'desktop')).sort()).toEqual(['Board.js', 'Command.js', 'Dial.js', 'Ground.js', 'Know.js', 'Messages.js', 'Needs.js', 'People.js']);
+    expect(fs.readdirSync(path.join(SCREEN, 'desktop')).sort()).toEqual(['Board.js', 'Command.js', 'Dial.js', 'Ground.js', 'Know.js', 'Messages.js', 'Needs.js', 'People.js', 'Tasks.js']);
     expect(code(shell).match(/<Command\b/g)).toHaveLength(1);
     expect(code(shell)).toMatch(/if \(desk\) \{\s*return \(\s*<Command\b/);
     // It is given this person's own card as it is, so a desk and a phone never say different things about a step.
