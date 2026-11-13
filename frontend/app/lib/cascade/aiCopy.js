@@ -89,12 +89,23 @@ function cleanHashtags(arr, fallback) {
   return out.length >= 3 ? out.slice(0, 8) : fallback;
 }
 
-/** City-ish token for hashtags/captions from the last-seen address. */
-function cityToken(address) {
+/** The city from the last-seen address, as people write it: "Ciudad de México". */
+export function cityName(address) {
   if (!address) return '';
-  const parts = address.split(',').map((p) => p.trim()).filter(Boolean);
-  const city = parts.length >= 3 ? parts[parts.length - 3] : parts[0] || '';
-  return city.replace(/[^a-zA-Z]/g, '');
+  const parts = String(address).split(',').map((p) => p.trim()).filter(Boolean);
+  return (parts.length >= 3 ? parts[parts.length - 3] : parts[0] || '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * The same city as one word for a hashtag: no spaces, and an accented letter keeps its letter. Dropping the
+ * letter gave "#CiudaddeMxico", and the Nextdoor post used this word in a sentence ("last seen near
+ * CiudaddeMxico", found on a live search, 2026-11-13).
+ */
+export function cityToken(address) {
+  return cityName(address)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z]/g, '');
 }
 
 /** Full deterministic copy - the fallback AND the shape the AI must match. */
@@ -104,6 +115,7 @@ export function fallbackCopy(caseData) {
   const speciesWord = SPECIES_WORD[caseData.petSpecies] || 'pet';
   const stamp = caseData.reportType === 'FOUND' ? 'FOUND' : 'LOST';
   const area = cityToken(caseData.lastSeenAddress);
+  const place = cityName(caseData.lastSeenAddress);
   const url = caseUrl(caseData.caseNumber);
 
   const descriptionBits = [
@@ -142,7 +154,7 @@ export function fallbackCopy(caseData) {
       `${caseData.hasReward ? 'A reward is offered. ' : ''}Please share. One post could reach the person who finds ${name}. ` +
       `Details & how to help: ${url}`,
     nextdoor:
-      `Neighbors: ${base.headline} ${name} was last seen near ${area || 'our neighborhood'}. ${base.approachLine} ` +
+      `Neighbors: ${base.headline} ${name} was last seen near ${place || 'our neighborhood'}. ${base.approachLine} ` +
       `If you've seen ${name} or have a camera that might have caught them, please check and report a sighting here: ${url}`,
     instagram: `${base.headline} ${base.plea} Link in bio / ${url} ${hashtags.join(' ')}`,
   };
