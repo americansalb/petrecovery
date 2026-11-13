@@ -210,6 +210,21 @@ refuses a search for want of it. No wording here has been reviewed by a
 lawyer; do not tell anyone it removes liability. Enforced by
 `frontend/__tests__/lib/waiver-strength.test.js`.
 
+### On a flyer, a line that has to be read whole always fits its box
+
+Founder, 2026-11-13, holding a flyer whose email ran across the QR code:
+"do I need to individually inspect every PDF this should not even be
+possible". Nobody inspects each PDF, so the layout has to make it
+impossible. A phone number, an email or a link is one word: it cannot wrap
+and must not be cut, so its size has no floor (`wholeInter`,
+`wholeUnbounded`, `wholeLine` and `planContact` in
+`frontend/app/lib/cascade/render/flyers/plan.js`, used by the sheets and
+the share pictures alike). Never give such a line a minimum size, and never
+size one from a guessed letter width: the widths come from the font files.
+Bump `RENDERER_VERSION` when the drawing changes, so open searches are
+redrawn. Enforced by `frontend/__tests__/lib/flyer-fit.test.js`, which
+measures the real fonts.
+
 ### The site's address is built in, never configured
 
 Every absolute URL the pet site produces (email and SMS links, flyer QR

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fitUnbounded, fitInter, interEm, eyebrowW, PRINT, BAND, COLUMN, ADVICE, bandBox, printInner, planSocial, lookForLine } from '../flyers/plan';
+import { planContact, wholeLine, wholeInter, fitUnbounded, fitInter, interEm, eyebrowW, PRINT, BAND, COLUMN, ADVICE, bandBox, printInner, planSocial, lookForLine } from '../flyers/plan';
 import { grainDataUrl, GRAIN_TILE } from '../textures';
 import { GROUND, LIGHT } from '../ground';
 
@@ -132,11 +132,11 @@ function Print({ data, src, w, h }) {
 /** The navy pill: the eyebrow in yellow, the phone in cream, centred. The link preview's contact block. */
 function Pill({ data, w, phoneMax, eye, align = 'center' }) {
   const padX = Math.round(phoneMax * 0.9);
-  const phone = fitUnbounded(data.contactValue, w - padX * 2, phoneMax, phoneMax * 0.3);
+  const line = wholeLine(data.contactValue, w - padX * 2, phoneMax, phoneMax / 34.5);
   return (
     <Col style={{ width: w, backgroundColor: NAVY, borderRadius: 999, padding: `${Math.round(phoneMax * 0.42)}px ${padX}px`, alignItems: align }}>
       <Txt style={eyebrow(eye, YEL)}>{contactEyebrow(data)}</Txt>
-      <Txt style={{ ...disp(phone, CREAM), marginTop: Math.round(eye * 0.5) }}>{data.contactValue}</Txt>
+      <Txt style={{ ...(line.face === 'Unbounded' ? disp(line.size, CREAM) : { ...body(line.size, CREAM, 700), lineHeight: 1.15, whiteSpace: 'nowrap' }), marginTop: Math.round(eye * 0.5) }}>{data.contactValue}</Txt>
     </Col>
   );
 }
@@ -158,36 +158,24 @@ function QrTile({ data, size }) {
  * story keep the sheet's proportions.
  */
 function ContactPanel({ data, w, k: kBase, scale = 1 }) {
-  // Given more height (a thin report), the type grows with `scale` and the tile, link and padding at half that rate (see Flyer.jsx).
-  const k = kBase * scale;
-  const kq = kBase * (1 + (scale - 1) * 0.5);
-  const padX = Math.round(18 * kq);
-  const qr = data.qrDataUrl ? Math.round(58 * kq) : 0;
-  const mainIsLink = !data.hasPhone && !data.email;
-  const link = mainIsLink ? '' : data.caseUrlLabel;
-  const linkSize = Math.round(10 * kq);
-  const linkW = link ? Math.ceil(Math.max(interEm(link) * linkSize, eyebrowW(LINK_EYEBROW, 7.5 * kq))) : 0;
-  const leftW = w - padX * 2 - (qr ? qr + Math.round(12 * kq) : 0) - (linkW ? linkW + Math.round(9 * kq) : 0);
-  const phone = fitUnbounded(data.contactValue, leftW, 34.5 * k, 10 * k);
-  const emailLine = data.hasPhone && data.email ? `or email ${data.email}` : '';
-  const emailSize = emailLine ? fitInter(emailLine, leftW, 9.75 * k, 7 * k) : 0;
   const eyebrowText = contactEyebrow(data);
-  const eyebrowSize = Math.max(6.5 * kBase, Math.min(9 * k, (leftW / eyebrowW(eyebrowText, 1)) * 0.98));
+  // The same measurements as the sheet's panel (plan.js): no line that has to be read whole is wider than its column.
+  const { k, kq, padX, qr, qrGap, link, linkSize, linkEye, linkW, linkGap, leftW, main, emailLine, emailSize, eyebrowSize } = planContact({ data, w, kBase, scale, eyebrow: eyebrowText, linkEyebrow: LINK_EYEBROW, round: Math.round });
   return (
     <Row style={{ width: w, height: Math.round(84 * k), backgroundColor: NAVY, borderRadius: Math.round(20 * k), padding: `0 ${padX}px`, alignItems: 'center' }}>
       <Col style={{ width: leftW }}>
         <Txt style={{ ...eyebrow(eyebrowSize, YEL), whiteSpace: 'nowrap' }}>{eyebrowText}</Txt>
-        <Txt style={{ ...disp(phone, CREAM), marginTop: Math.round(6 * k) }}>{data.contactValue}</Txt>
+        <Txt style={{ ...(main.face === 'Unbounded' ? disp(main.size, CREAM) : { ...body(main.size, CREAM, 700), lineHeight: 1.15, whiteSpace: 'nowrap' }), marginTop: Math.round(6 * k) }}>{data.contactValue}</Txt>
         {emailLine ? <Txt style={{ ...body(emailSize, CREAM, 500), marginTop: Math.round(6 * k), lineHeight: 1.2, whiteSpace: 'nowrap' }}>{emailLine}</Txt> : null}
       </Col>
       {qr ? (
-        <Col style={{ marginLeft: Math.round(12 * kq) }}>
+        <Col style={{ marginLeft: qrGap }}>
           <QrTile data={data} size={qr} />
         </Col>
       ) : null}
       {link ? (
-        <Col style={{ marginLeft: Math.round(qr ? 9 * kq : 12 * kq), width: linkW }}>
-          <Txt style={eyebrow(7.5 * kq, YEL)}>{LINK_EYEBROW}</Txt>
+        <Col style={{ marginLeft: linkGap, width: linkW }}>
+          <Txt style={eyebrow(linkEye, YEL)}>{LINK_EYEBROW}</Txt>
           <Txt style={{ ...body(linkSize, CREAM, 700), marginTop: Math.round(3 * kq), lineHeight: 1.2, whiteSpace: 'nowrap' }}>{link}</Txt>
         </Col>
       ) : null}
@@ -199,7 +187,7 @@ function ContactPanel({ data, w, k: kBase, scale = 1 }) {
 function LinkCard({ data, w, h, radius, k = 1.5 }) {
   const pad = Math.round(8 * k);
   const eye = 7 * k;
-  const link = fitInter(data.caseUrlLabel, w - pad * 2, 9 * k, 6 * k);
+  const link = wholeInter(data.caseUrlLabel, w - pad * 2, 9 * k);
   const words = eye * 1.3 + 3 + link * 1.2;
   const qr = data.qrDataUrl ? Math.floor(Math.min(w - pad * 2, h - pad * 2 - words - 8)) : 0;
   const big = qr >= 40 * k;

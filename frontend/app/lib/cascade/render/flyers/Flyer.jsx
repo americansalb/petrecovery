@@ -3,7 +3,7 @@
 /** @jsxFrag Fragment */
 import { h, Fragment } from './pdfReact';
 import { Document, Font, Page, View, Text, Image, Svg, Circle, Defs, RadialGradient, Stop, Rect, Polygon } from '@react-pdf/renderer';
-import { PAGES, planSheet, planHalf, planAdvice, fitUnbounded, fitInter, interEm, eyebrowW, unboundedEm, UNBOUNDED, PRINT, BAND, COLUMN, ADVICE, bandBox, printInner, lookForLine } from './plan';
+import { PAGES, planSheet, planHalf, planAdvice, planContact, wholeInter, fitUnbounded, fitInter, interEm, eyebrowW, unboundedEm, UNBOUNDED, PRINT, BAND, COLUMN, ADVICE, bandBox, printInner, lookForLine } from './plan';
 import { grainDataUrl, GRAIN_TILE } from '../textures';
 import { GROUND, LIGHT, rayPolygons, stripePolygons, bands } from '../ground';
 
@@ -225,11 +225,11 @@ function QrTile({ data, size }) {
 }
 
 /** "Report a sighting" over the short link, in cream on navy. */
-function LinkBlock({ data, k, w }) {
+function LinkBlock({ data, k, w, size = 10 * k, eye = 7.5 * k }) {
   return (
     <View style={{ width: w }}>
-      <Text style={{ ...EYEBROW(7.5 * k, C.yellow), ...CLAMP(1) }}>{LINK_EYEBROW}</Text>
-      <Text style={{ ...CLAMP(1), ...BODY(10 * k, C.cream, 700), marginTop: 3 * k, lineHeight: 1.2 }}>{data.caseUrlLabel}</Text>
+      <Text style={{ ...EYEBROW(eye, C.yellow), ...CLAMP(1) }}>{LINK_EYEBROW}</Text>
+      <Text style={{ ...BODY(size, C.cream, 700), marginTop: 3 * k, lineHeight: 1.2 }}>{data.caseUrlLabel}</Text>
     </View>
   );
 }
@@ -243,38 +243,30 @@ function LinkBlock({ data, k, w }) {
  * link is already the main line.
  */
 function ContactPanel({ data, w, h, k: kBase, scale = 1, stacked = false, phoneBase = 34.5 }) {
-  // When the panel is given more height (a thin report, the poster), its type grows with `scale`
-  // and its tile, link and padding at half that rate, so the phone number gets the room.
-  const k = kBase * scale;
-  const kq = kBase * (1 + (scale - 1) * 0.5);
-  const padX = 18 * kq;
-  const qr = data.qrDataUrl ? (stacked ? 40 : 58) * kq : 0;
-  const mainIsLink = !data.hasPhone && !data.email;
-  const link = mainIsLink ? '' : data.caseUrlLabel;
-  const linkW = link ? Math.ceil(Math.max(interEm(link) * 10 * kq, eyebrowW(LINK_EYEBROW, 7.5 * kq))) : 0;
-  const innerW = w - padX * 2;
-  const leftW = stacked ? innerW : innerW - (qr ? qr + 12 * kq : 0) - (linkW ? linkW + 9 * kq : 0);
-  const phone = fitUnbounded(data.contactValue, leftW, phoneBase * k, 10 * k);
-  const emailLine = data.hasPhone && data.email ? `or email ${data.email}` : '';
-  const emailSize = emailLine ? fitInter(emailLine, leftW, 9.75 * k, 7 * k) : 0;
   const eyebrowText = contactEyebrow(data);
-  const eyebrowSize = Math.max(6.5 * kBase, Math.min(9 * k, (leftW / eyebrowW(eyebrowText, 1)) * 0.98));
+  // Measured in plan.js, with no floor on a line that has to be read whole: a long email gets smaller, or is
+  // set in Inter, and is never drawn across the QR code.
+  const { k, kq, padX, qr, qrGap, link, linkSize, linkEye, linkW, linkGap, leftW, main: line, emailLine, emailSize, eyebrowSize } = planContact({ data, w, kBase, scale, stacked, phoneBase, eyebrow: eyebrowText, linkEyebrow: LINK_EYEBROW });
 
   const main = (
     <View style={{ width: leftW }}>
       <Text style={{ ...EYEBROW(eyebrowSize, C.yellow), ...CLAMP(1) }}>{eyebrowText}</Text>
       <View style={{ marginTop: 6 * k }}>
-        <TightLine size={phone} color={C.cream}>{data.contactValue}</TightLine>
+        {line.face === 'Unbounded' ? (
+          <TightLine size={line.size} color={C.cream}>{data.contactValue}</TightLine>
+        ) : (
+          <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: line.size, lineHeight: 1.15, color: C.cream }}>{data.contactValue}</Text>
+        )}
       </View>
-      {emailLine ? <Text style={{ ...CLAMP(1), ...BODY(emailSize, C.cream, 500), marginTop: 6 * k, lineHeight: 1.2 }}>{emailLine}</Text> : null}
+      {emailLine ? <Text style={{ ...BODY(emailSize, C.cream, 500), marginTop: 6 * k, lineHeight: 1.2 }}>{emailLine}</Text> : null}
     </View>
   );
   const aside = qr || link ? (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: stacked ? 9 * k : 0, marginLeft: stacked ? 0 : 12 * kq }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: stacked ? 9 * k : 0, marginLeft: stacked ? 0 : qr ? qrGap : linkGap }}>
       {qr ? <QrTile data={data} size={qr} /> : null}
       {link ? (
-        <View style={{ marginLeft: qr ? 9 * kq : 0 }}>
-          <LinkBlock data={data} k={kq} w={linkW} />
+        <View style={{ marginLeft: qr ? (stacked ? 9 * kq : linkGap) : 0 }}>
+          <LinkBlock data={data} k={kq} w={linkW} size={linkSize} eye={linkEye} />
         </View>
       ) : null}
     </View>
@@ -303,7 +295,7 @@ function ContactPanel({ data, w, h, k: kBase, scale = 1, stacked = false, phoneB
  */
 function LinkCard({ data, w, h, k, radius }) {
   const pad = 8 * k;
-  const link = fitInter(data.caseUrlLabel, w - pad * 2, 9 * k, 6 * k);
+  const link = wholeInter(data.caseUrlLabel, w - pad * 2, 9 * k);
   const words = 7 * k * 1.3 + 2 * k + link * 1.2;
   const qr = data.qrDataUrl ? Math.min(w - pad * 2, h - pad * 2 - words - 6 * k) : 0;
   return (
@@ -469,8 +461,8 @@ function TearTabs({ data, w, h }) {
     <View style={{ width: w, flexDirection: 'row', height: h, backgroundColor: C.cream, borderRadius: 9, borderTopWidth: 0.75, borderTopColor: C.dash, borderTopStyle: 'dashed' }}>
       {Array.from({ length: count }).map((_, i) => (
         <View key={i} style={{ width: tabW, height: h, borderLeftWidth: i ? 0.75 : 0, borderLeftColor: C.dash, borderLeftStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: fitInter(first, tabW - 8, 7.5, 5), color: C.navy }}>{first}</Text>
-          <Text style={{ fontFamily: 'Inter', fontWeight: 500, fontSize: fitInter(second, tabW - 8, 6, 4.5), color: C.soft, marginTop: 2 }}>{second}</Text>
+          <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: wholeInter(first, tabW - 8, 7.5), color: C.navy }}>{first}</Text>
+          <Text style={{ fontFamily: 'Inter', fontWeight: 500, fontSize: wholeInter(second, tabW - 8, 6), color: C.soft, marginTop: 2 }}>{second}</Text>
         </View>
       ))}
     </View>
