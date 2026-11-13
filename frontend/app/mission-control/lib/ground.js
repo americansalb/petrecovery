@@ -90,8 +90,88 @@ export function hazardLines(area, { advice = true } = {}) {
   return lines;
 }
 
-/** An area's state in two or three words, for the map's label and a row's edge. */
-export function areaState(area) {
+/**
+ * How long a search goes on counting. A lost pet moves, so ground that was
+ * searched yesterday is not ground that is searched: each search of an
+ * area fades to nothing over this many hours (founder, 2026-11-13: "does
+ * it not fade over time?").
+ */
+export const FADE_HOURS = 24;
+const HOUR_MS = 60 * 60 * 1000;
+/** What a search counts for by how much of the area the person says they covered. Nobody saying is taken as a little under most. */
+const COVER_WEIGHT = { ALL: 1, MOST: 0.75, PART: 0.4 };
+const COVER_UNSAID = 0.6;
+const COVER_WORDS = { ALL: 'all of it', MOST: 'most of it', PART: 'part of it' };
+/** A search that took this share of the time an area takes one person counts in full: the estimate is a generous one. */
+const FULL_TIME_SHARE = 0.6;
+/** What one full, fresh search counts for. Never the whole: one pass misses a pet that is hiding. */
+const ONE_SEARCH = 0.8;
+
+/** "just now", "12 min ago", "3 h ago", "yesterday", "2 days ago": short enough to sit under an area's name on the map. */
+export function agoShort(at, now = Date.now()) {
+  if (!at) return '';
+  const ms = Math.max(0, now - new Date(at).getTime());
+  if (ms < 2 * 60 * 1000) return 'just now';
+  if (ms < HOUR_MS) return `${Math.round(ms / 60000)} min ago`;
+  if (ms < 24 * HOUR_MS) return `${Math.round(ms / HOUR_MS)} h ago`;
+  const days = Math.floor(ms / (24 * HOUR_MS));
+  return days === 1 ? 'yesterday' : `${days} days ago`;
+}
+
+/** The searches of an area, newest first. An area from before each search was kept has its last one. */
+const searchesOf = (area) => (Array.isArray(area?.history) && area.history.length ? area.history : area?.searchedAt ? [{ at: area.searchedAt, marked: Boolean(area.marked), minutes: null, covered: null, by: area.searchedByName || null }] : []);
+
+/**
+ * How strongly an area counts as searched right now, from 0 to 1, out of
+ * every search of it: how much of it each covered, how long each took
+ * against what the area takes, and how long ago each was. It is what the
+ * green on the map, the dial and the list is drawn from, so ground
+ * searched an hour ago by someone who covered all of it is deep green and
+ * ground somebody passed through yesterday is nearly bare. An estimate
+ * for shading and for the order ground is offered in. It is never shown
+ * as a number: nobody can say how likely a search was to find a pet.
+ */
+export function searchStrength(area, now = Date.now()) {
+  let missed = 1;
+  for (const one of searchesOf(area)) {
+    const hours = Math.max(0, now - new Date(one.at).getTime()) / HOUR_MS;
+    const fresh = Math.max(0, 1 - hours / FADE_HOURS);
+    const cover = COVER_WEIGHT[one.covered] || COVER_UNSAID;
+    const time = one.minutes && area.minutes ? Math.min(1, one.minutes / (area.minutes * FULL_TIME_SHARE)) : 1;
+    missed *= 1 - ONE_SEARCH * fresh * cover * time;
+  }
+  return Math.max(0, Math.min(1, 1 - missed));
+}
+
+/** Searched, nobody on it, and the last search a day or more ago: it has faded to nothing. */
+export function isFaded(area, now = Date.now()) {
+  return Boolean(area?.searchCount > 0 && area.status !== 'IN_PROGRESS' && area.searchedAt && now - new Date(area.searchedAt).getTime() >= FADE_HOURS * HOUR_MS);
+}
+
+/**
+ * The record of an area, one sentence to a search, newest first: when, who
+ * (where names go), how long, how much of it they say they covered, and in
+ * their own words what they could not get to. A search far shorter than
+ * the area takes says so.
+ */
+export function searchLog(area, { timeZone, now = Date.now() } = {}) {
+  return searchesOf(area).map((one) => {
+    const when = `${capital(agoWords(one.at, now))}, ${whenWords(one.at, timeZone, now)}`;
+    if (one.marked) return `${when}: put down as searched${one.by ? ` by ${one.by}` : ''}. Nobody on the site was on it, so how long and how fully is not known.`;
+    const parts = [one.by || 'A helper'];
+    if (one.minutes) parts.push(`${one.minutes} ${one.minutes === 1 ? 'minute' : 'minutes'}`);
+    if (one.covered) parts.push(`covered ${COVER_WORDS[one.covered]}`);
+    const quick = one.minutes && area.minutes && one.minutes < area.minutes / 3 ? ` The area takes about ${area.minutes}.` : '';
+    const missed = one.note ? ` Could not get to: "${one.note}"` : '';
+    return `${when}: ${parts.join(', ')}.${quick}${missed}`;
+  });
+}
+
+/**
+ * An area's state in two or three words, for the map's label and a row's
+ * edge. With `now`, a searched area says how long ago: "Searched 3 h ago".
+ */
+export function areaState(area, now = null) {
   if (!area) return '';
   if (area.status === 'IN_PROGRESS') {
     const names = (area.who || []).map((w) => w.name);
@@ -100,6 +180,7 @@ export function areaState(area) {
     return area.on > 1 ? `${area.on} people on it` : isSeenCircle(area) ? 'Someone is there' : 'Being searched';
   }
   if (area.status === 'NEEDS_REVISIT') return 'Another look';
+  if (area.searchCount > 0 && now != null && area.searchedAt) return `Searched ${agoShort(area.searchedAt, now)}`;
   if (area.searchCount > 0) return `Searched ${timesWords(area.searchCount)}`;
   return 'Not searched';
 }
@@ -129,7 +210,8 @@ export function areaLine(area, { timeZone, now = Date.now(), owner = null, isOwn
   }
   if (area.searchCount > 0) {
     const by = area.searchedByName ? (area.marked ? `, put down by ${area.searchedByName}` : `, by ${area.searchedByName}`) : '';
-    const when = whenWords(area.searchedAt, timeZone, now);
+    // How long ago first, then the clock: the age is what a search is run on.
+    const when = `${agoWords(area.searchedAt, now)} ${whenWords(area.searchedAt, timeZone, now)}`;
     const last = area.searchCount === 1 ? `Searched once, ${when}${by}.` : `Searched ${timesWords(area.searchCount)}. Last ${when}${by}.`;
     return area.status === 'NEEDS_REVISIT' ? `${last} Down for another look.` : last;
   }
@@ -170,7 +252,7 @@ export function areaFacts(area, { picture = null, circle = null, now = Date.now(
  * and how long that takes one person. `people` is everyone on any area
  * now, a sighting's circle included.
  */
-export function groundCoverage(areas = []) {
+export function groundCoverage(areas = [], now = Date.now()) {
   const own = circleAreas(areas);
   const left = own.filter((a) => !(a.searchCount > 0) && a.status !== 'IN_PROGRESS');
   return {
@@ -179,6 +261,8 @@ export function groundCoverage(areas = []) {
     done: own.filter((a) => a.searchCount > 0 && a.status !== 'IN_PROGRESS').length,
     searching: own.filter((a) => a.status === 'IN_PROGRESS').length,
     again: own.filter((a) => a.status === 'NEEDS_REVISIT').length,
+    // Searched a day or more ago: the search has faded, and the ground is as good as unsearched again.
+    faded: own.filter((a) => isFaded(a, now)).length,
     left: left.length,
     minutesLeft: left.reduce((sum, a) => sum + (Number(a.minutes) || 0), 0),
     people: areas.reduce((sum, a) => sum + (Number(a.on) || 0), 0),

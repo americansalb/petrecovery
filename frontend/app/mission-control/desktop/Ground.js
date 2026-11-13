@@ -32,7 +32,7 @@ import { ArrowLeft, Check, ExternalLink, Flag, Loader2, Maximize, RotateCcw } fr
 import { metersWords } from '../lib/insight';
 import { clockTime } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
-import { areaFacts, areaLine, areaName, areaState, circleAreas, isSeenCircle } from '../lib/ground';
+import { areaFacts, areaLine, areaName, areaState, circleAreas, isSeenCircle, searchLog, searchStrength } from '../lib/ground';
 
 const CONTROL =
   'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] px-3 text-[13px] font-bold leading-5 text-[var(--mc-ink)] shadow-sm hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
@@ -78,7 +78,7 @@ function wedge(area, wide) {
  * circle round a sighting is an orange ring. It is a picture and never a
  * box to tick: what can be done to an area is a button with words on it.
  */
-export function Glyph({ area, next = false, wide = false, size = 26 }) {
+export function Glyph({ area, next = false, wide = false, size = 26, now = Date.now() }) {
   if (isSeenCircle(area)) {
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" className="shrink-0" aria-hidden="true">
@@ -91,7 +91,8 @@ export function Glyph({ area, next = false, wide = false, size = 26 }) {
   const busy = area.status === 'IN_PROGRESS';
   const again = area.status === 'NEEDS_REVISIT';
   const fill = busy ? 'var(--mc-teal)' : searched ? 'var(--mc-done)' : 'var(--mc-ink)';
-  const strength = busy ? 0.3 : searched ? (area.searchCount > 1 ? 0.9 : 0.55) : next || area.first ? 0.85 : 0.22;
+  // Green as strong as the area counts as searched right now: a search fades over a day.
+  const strength = busy ? 0.3 : searched ? 0.12 + 0.8 * searchStrength(area, now) : next || area.first ? 0.85 : 0.22;
   const edge = busy ? 'var(--mc-teal)' : again || next || area.first ? 'var(--mc-ink)' : searched ? 'var(--mc-done)' : 'var(--mc-muted)';
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className="shrink-0" aria-hidden="true">
@@ -173,7 +174,7 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
                 aria-pressed={on}
                 className="flex w-full items-start gap-3 rounded-xl px-2.5 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400"
               >
-                <Glyph area={area} next={soon} wide={wide} />
+                <Glyph area={area} next={soon} wide={wide} now={now} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{area.name}</span>
@@ -236,6 +237,7 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
 export function AreaCard({ area, picture, circle, now, leads, busy, problem, free = [], next = false, onSteer, onAsk, onUnask, onClose }) {
   const zone = picture.timeZone;
   const facts = areaFacts(area, { picture, circle, now });
+  const log = searchLog(area, { timeZone: picture.timeZone, now });
   const brief = searcherBrief(picture);
   const sighting = isSeenCircle(area);
   const searching = area.status === 'IN_PROGRESS';
@@ -253,11 +255,11 @@ export function AreaCard({ area, picture, circle, now, leads, busy, problem, fre
         <ArrowLeft size={16} aria-hidden="true" /> All the ground
       </button>
       <div className="mt-2 flex items-start gap-3">
-        <Glyph area={area} next={next} wide={Boolean(circle?.widened)} size={30} />
+        <Glyph area={area} next={next} wide={Boolean(circle?.widened)} size={30} now={now} />
         <div className="min-w-0">
           <h2 className="text-[19px] font-extrabold leading-[25px] text-[var(--mc-ink)]">{area.name}</h2>
           <p className="text-[13px] font-bold leading-[19px] text-[var(--mc-muted)]">
-            {areaState(area)}
+            {areaState(area, now)}
             {area.first ? ' · asked for first' : next ? ' · given out next' : ''}
           </p>
         </div>
@@ -270,6 +272,20 @@ export function AreaCard({ area, picture, circle, now, leads, busy, problem, fre
         ))}
         {sighting && <li className="text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">One person goes to a sighting, never a group.</li>}
       </ul>
+      {/* The record: every search of this area, newest first. When, who, how long, how much of it, what was missed. */}
+      {log.length > 0 && (
+        <div className="mt-3 rounded-xl bg-[var(--mc-raised)] px-3 py-2.5" aria-label="Searches of this area">
+          <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">{log.length === 1 ? 'The search of this area' : `The last ${log.length} searches of this area`}</p>
+          <ol className="mt-1 flex flex-col gap-1.5">
+            {log.map((line) => (
+              <li key={line} className="break-words text-[14px] font-medium leading-5 text-[var(--mc-ink)]">
+                {line}
+              </li>
+            ))}
+          </ol>
+          <p className="mt-1.5 text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">A search counts for less as the hours pass, and for nothing after a day.</p>
+        </div>
+      )}
       {/* The site's own brief, word for word: what whoever is given this area reads on their phone. */}
       <div className="mt-3 rounded-xl bg-[var(--mc-raised)] px-3 py-2.5">
         <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">What the helper is told, in the site&apos;s own words</p>

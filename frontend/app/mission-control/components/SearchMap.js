@@ -318,7 +318,9 @@ export default function SearchMap({
         // Searched, and put up for another look: it keeps its green and gets an ink edge, since it is open again.
         const again = area.status === 'NEEDS_REVISIT';
         const fill = searched
-          ? { fillColor: look.walked, fillOpacity: area.searchCount > 1 ? 0.62 : 0.36 }
+          ? // How strongly it counts as searched right now: a search fades over a day, and a short or partial one
+            // counts for less (lib/ground.js, searchStrength). An area sent without it is drawn mid-green.
+            { fillColor: look.walked, fillOpacity: 0.06 + 0.6 * (typeof area.strength === 'number' ? area.strength : 0.55) }
           : sightingCircle
             ? { fillColor: seenLine, fillOpacity: 0.14 }
             : busy && desk
@@ -343,6 +345,8 @@ export default function SearchMap({
           if (area.label && !sightingCircle) L.marker(at, { icon: tagged(L, { text: area.label, tone: lit ? 'flash' : 'bare', theme, side: area.ring === 0 ? 'below' : 'center', cls: 'mc-area-name' }), interactive: false, keyboard: false, zIndexOffset: 100 }).addTo(layers);
           // Who is on it, for the people who may know: first names, under the area's own.
           if (area.who && !lit) L.marker(at, { icon: tagged(L, { text: area.who, tone: 'on', theme, side: sightingCircle ? 'below' : 'under', cls: 'mc-area-name' }), interactive: false, keyboard: false, zIndexOffset: 150 }).addTo(layers);
+          // When it was last searched, under its name: the age is what the search is run on.
+          else if (area.age && !sightingCircle && area.ring !== 0) L.marker(at, { icon: tagged(L, { text: area.age, tone: 'bare', theme, side: 'under', cls: 'mc-area-name mc-area-age' }), interactive: false, keyboard: false, zIndexOffset: 90 }).addTo(layers);
         }
       }
 

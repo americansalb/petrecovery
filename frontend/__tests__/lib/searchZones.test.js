@@ -669,7 +669,12 @@ describe('actOnZone: the board\'s verbs on ground', () => {
       data: { searchCount: { increment: 1 }, searchedAt: new Date(NOW), searchedById: 'm:u-avery', searchedByName: 'Avery', againAt: null },
     });
     // No visit is written: nobody went out through the site.
-    expect(prisma.searchZoneVisit.create).not.toHaveBeenCalled();
+    // Kept as a search of its own, with no start: a record of the search, and nobody counted as out on the area.
+    expect(prisma.searchZoneVisit.create).toHaveBeenCalledTimes(1);
+    const kept = prisma.searchZoneVisit.create.mock.calls[0][0].data;
+    expect(kept).toMatchObject({ zoneId: 'z-east', outcome: 'MARKED', endedAt: expect.any(Date) });
+    expect(kept.searcherId).toMatch(/^m:/);
+    expect(kept).not.toHaveProperty('startedAt');
   });
 
   test('and it settles whoever the site had stopped counting there: their card comes off, so one search is not counted twice', async () => {

@@ -151,6 +151,8 @@ function Screen({ mission }) {
   const [done, setDone] = useState(null);
   // Whether what they just searched was the circle round a sighting, which is not one of the areas the card counts.
   const [doneAtSighting, setDoneAtSighting] = useState(false);
+  // The area just searched, so the card that says thank you can take its debrief.
+  const [doneId, setDoneId] = useState(null);
   const [busy, setBusy] = useState(null);
   const [problem, setProblem] = useState('');
   const [photo, setPhoto] = useState(false);
@@ -387,6 +389,7 @@ function Screen({ mission }) {
     setBusy('walk');
     setProblem('');
     setDone(null);
+    setDoneId(null);
     try {
       const here = await locate();
       // Passing on a street lasts for one round of "Different street". A fresh ask starts clean, so the
@@ -450,6 +453,7 @@ function Screen({ mission }) {
       if (result.error) return setProblem(result.error);
       if (gps?.recording) gps.stop().catch(() => {});
       setDone(title);
+      setDoneId(unit === 'area' ? mineRaw.id : null);
       setDoneAtSighting(unit === 'area' && isSeenCircle(mineRaw));
       return go('main');
     } finally {
@@ -727,7 +731,7 @@ function Screen({ mission }) {
   } else if (view === 'join' && !desk) {
     step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} doneAtSighting={doneAtSighting} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} doneAtSighting={doneAtSighting} onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   }
 
   const overlays = (

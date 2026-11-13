@@ -217,7 +217,7 @@ describe('PATCH: searching an area', () => {
     for (const body of [{}, { unit: 'area', action: 'claim' }, { unit: 'area', id: { not: null }, action: 'claim' }, { unit: 'area', id: 'x'.repeat(201), action: 'claim' }, { unit: 'area', id: 'z-west', action: 'dance' }, { unit: 'area', id: 'z-west' }, 'not json', []]) {
       const out = await patch(body);
       expect(out.status).toBe(400);
-      expect(out.body.error).toBe('Send an id and one of: claim, release, searched, first, normal, walked, again, againAll, widen.');
+      expect(out.body.error).toBe('Send an id and one of: claim, release, searched, first, normal, walked, again, againAll, widen, debrief.');
     }
     expect(prisma.case.findFirst).not.toHaveBeenCalled();
     expect(actOnZone).not.toHaveBeenCalled();

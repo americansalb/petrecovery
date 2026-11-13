@@ -93,6 +93,26 @@ search one area; the one exception is the circle round a sighting, which
 one person goes to. Full description: `docs/APP_MAP.md`, the
 `/mission-control` row and the board route.
 
+### "Searched" is a record, and it fades
+
+Founder, 2026-11-13: "You can mark an area as searched but never know when
+it was searched etc? does it not fade over time?" and "A real search and
+rescue team would find this superficial and comical ... You are not trying
+hard enough to put yourselves in the shoes of the complex S&R team". Think
+as the person running the search: for every search of every area they need
+when, who, how long, how much of it was covered and what could not be
+reached, and ground a pet can walk back onto does not stay searched. So
+every search is kept (`SearchZoneVisit`, outcome SEARCHED or MARKED), the
+helper is asked for a debrief on the card that says thank you, the area's
+card lists its searches, and the green everywhere is drawn from
+`searchStrength` in `frontend/app/mission-control/lib/ground.js`: it falls
+to nothing over 24 hours and is less for a short or partial search. Never
+show a bare "searched" without its age, never draw a search as permanent,
+and never show the estimate as a number or a probability. Before adding a
+feature to Mission Control, ask what a search manager would need to decide
+the next move, not what looks complete. Enforced by
+`frontend/__tests__/lib/searchRecord.test.js`.
+
 ### The search never sends anyone into danger without saying so
 
 Founder rule, 2026-11-12: "Are we inadvertantly telling people to search in

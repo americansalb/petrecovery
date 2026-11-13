@@ -18,7 +18,7 @@
  * sighting, red for where the pet was lost.
  */
 import { missingFor } from '../lib/insight';
-import { areaName, areaState, circleAreas, groundCoverage, isSeenCircle } from '../lib/ground';
+import { areaName, areaState, circleAreas, groundCoverage, isSeenCircle, searchStrength } from '../lib/ground';
 
 const SIZE = 200;
 const MID = SIZE / 2;
@@ -61,13 +61,14 @@ function spot(point, circle, r) {
 }
 
 /** How an area is painted: its fill, how strong, and its edge. */
-function paint(area, { next, lit }) {
+function paint(area, { next, lit, now }) {
   const searched = area.searchCount > 0;
   const busy = area.status === 'IN_PROGRESS';
   const again = area.status === 'NEEDS_REVISIT';
   return {
     fill: busy ? 'var(--mc-teal)' : searched ? 'var(--mc-done)' : 'var(--mc-ink)',
-    strength: busy ? 0.32 : searched ? (area.searchCount > 1 ? 0.92 : 0.6) : next || area.first ? 0.2 : 0.07,
+    // Green as strong as the area counts as searched right now: a search fades over a day.
+    strength: busy ? 0.32 : searched ? 0.1 + 0.82 * searchStrength(area, now) : next || area.first ? 0.2 : 0.07,
     edge: lit ? 'var(--mc-ink)' : busy ? 'var(--mc-teal)' : again || next || area.first ? 'var(--mc-ink)' : searched ? 'var(--mc-done)' : 'var(--mc-line-strong)',
     weight: lit ? 3 : next || area.first || again ? 2.4 : 1.4,
     dash: busy ? '5 4' : again ? '2 3' : undefined,
@@ -76,7 +77,7 @@ function paint(area, { next, lit }) {
 
 const LETTER = { north: 'N', east: 'E', south: 'S', west: 'W' };
 
-export function Dial({ items = [], circle = null, next = null, selected = null, hovered = null, onSelect = null, onHover = null, lost = null, size = 132 }) {
+export function Dial({ items = [], circle = null, next = null, selected = null, hovered = null, onSelect = null, onHover = null, lost = null, size = 132, now = Date.now() }) {
   const r = radii(circle);
   const own = circleAreas(items);
   const seen = items.filter(isSeenCircle);
@@ -92,7 +93,7 @@ export function Dial({ items = [], circle = null, next = null, selected = null, 
       <circle cx={MID} cy={MID} r={r.far + 5} fill="var(--mc-ground)" />
       {order.map((area) => {
         const lit = area.id === hovered || area.id === selected;
-        const p = paint(area, { next: Boolean(next?.has(area.id)), lit });
+        const p = paint(area, { next: Boolean(next?.has(area.id)), lit, now });
         return (
           <path
             key={area.id}
@@ -105,7 +106,7 @@ export function Dial({ items = [], circle = null, next = null, selected = null, 
             strokeLinejoin="round"
             role="button"
             tabIndex={0}
-            aria-label={`${area.name}: ${areaState(area)}`}
+            aria-label={`${area.name}: ${areaState(area, now)}`}
             aria-pressed={area.id === selected}
             className="cursor-pointer outline-none transition-[fill-opacity] focus-visible:stroke-flash-400"
             onMouseEnter={() => onHover?.(area.id)}
@@ -170,12 +171,12 @@ function Figure({ value, label, tone = 'plain' }) {
  * been searched, and how long, how many people and how many sightings.
  */
 export default function Summary({ picture, items, circle, next, now, selected, hovered, onSelect, onHover }) {
-  const g = groundCoverage(items);
+  const g = groundCoverage(items, now);
   const seen = picture.sightings.length;
   return (
     <section aria-label="Where the search stands">
       <div className="flex items-center gap-4">
-        <Dial items={items} circle={circle} next={next} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} lost={picture.lastSeen} />
+        <Dial items={items} circle={circle} next={next} selected={selected} hovered={hovered} onSelect={onSelect} onHover={onHover} lost={picture.lastSeen} now={now} />
         <div className="min-w-0 flex-1">
           <p className="flex items-baseline gap-2" role="img" aria-label={`${g.searched} of ${g.total} areas searched, ${g.searching} being searched now`}>
             <span className="text-[52px] font-extrabold leading-[52px] tracking-tight tabular-nums text-[var(--mc-ink)]">{g.total ? g.searched : '-'}</span>
@@ -183,6 +184,7 @@ export default function Summary({ picture, items, circle, next, now, selected, h
           </p>
           <p className="mt-1 text-[15px] font-semibold leading-5 text-[var(--mc-soft)]">areas searched</p>
           {g.again > 0 && <p className="text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">{g.again === 1 ? '1 is' : `${g.again} are`} down for another look</p>}
+          {g.faded > 0 && <p className="text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">{g.faded === 1 ? '1 was' : `${g.faded} were`} last searched over a day ago</p>}
         </div>
       </div>
       <div className="mt-4 flex divide-x divide-[var(--mc-line)] rounded-xl bg-[var(--mc-raised)] px-3.5 py-2.5">

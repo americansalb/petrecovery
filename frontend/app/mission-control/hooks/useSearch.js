@@ -345,6 +345,8 @@ export default function useSearch(missionParam, { desk = false } = {}) {
 
   /** Start an area, stop, or say it is searched. From the desk of whoever runs the search, also the steering actions. */
   const act = useCallback((unit, id, action) => change({ unit, id, action }), [change]);
+  /** The debrief on an area just searched: how much of it was covered and, in their own words, what could not be reached. */
+  const debrief = useCallback((id, covered, note = '') => change({ unit: 'area', id, action: 'debrief', covered, note }), [change]);
   /** Whoever runs the search asks one person (a handle from `people`) to search an area, with a note if they have one. */
   const ask = useCallback((person, id, note = '') => change({ unit: unitNow.current, id, action: 'ask', person, note }), [change]);
   /** Take back what a person was asked to search. */
@@ -498,6 +500,7 @@ export default function useSearch(missionParam, { desk = false } = {}) {
     acceptWaiver,
     trained,
     act,
+    debrief,
     sendSighting,
     answer,
     tell,

@@ -58,6 +58,29 @@ const MARK = 'm:';
 const isMark = (id) => typeof id === 'string' && id.startsWith(MARK);
 
 export const ZONE_ACTIONS = ['claim', 'release', 'searched'];
+
+/**
+ * The record of a search (founder, 2026-11-13: "You can mark an area as
+ * searched but never know when it was searched etc? ... A real search and
+ * rescue team would find this superficial and comical").
+ *
+ * "Searched" by itself says nothing a search can be run on. What a search
+ * manager asks of every search of every area is: when, by whom, for how
+ * long, how much of it was covered, and what could not be reached. So each
+ * search of an area is a SearchZoneVisit that is kept: one a helper made
+ * (outcome SEARCHED, timed from when they took the area to when they said
+ * so, with their debrief), or one the person running the search put down
+ * from the desk (outcome MARKED, untimed). An area's `history` is its last
+ * few, newest first, and the screen works out from them how much a search
+ * still counts for (app/mission-control/lib/ground.js, searchStrength).
+ */
+export const COVERED = ['ALL', 'MOST', 'PART'];
+/** How many searches of one area the board sends. */
+const HISTORY_MAX = 6;
+/** How long after a search its own debrief can still be given or changed. */
+const DEBRIEF_MS = 24 * 60 * 60 * 1000;
+/** How long a debrief's own words may be. */
+const DEBRIEF_CHARS = 280;
 /**
  * Steering, from the desk, for whoever runs the search (the owner):
  *
@@ -278,6 +301,25 @@ export async function ensureZones(caseId, { now = Date.now() } = {}) {
 }
 
 /**
+ * The debrief: someone who has searched an area says how much of it they
+ * covered and, in their own words, what they could not get to. It goes on
+ * their own last search of that area and on nothing else. Resolves to
+ * { ok } or { error: 'BAD_DEBRIEF' | 'NOT_FOUND' }.
+ */
+export async function debriefZone({ caseId, zoneId, searcher, covered, note = '', now = Date.now() }) {
+  if (!COVERED.includes(covered)) return { error: 'BAD_DEBRIEF' };
+  const last = await prisma.searchZoneVisit.findFirst({
+    where: { caseId, zoneId: String(zoneId), searcherId: searcher.id, outcome: 'SEARCHED', endedAt: { gte: new Date(now - DEBRIEF_MS) } },
+    orderBy: { endedAt: 'desc' },
+    select: { id: true },
+  });
+  if (!last) return { error: 'NOT_FOUND' };
+  const words = String(note || '').replace(/\s+/g, ' ').trim().slice(0, DEBRIEF_CHARS);
+  await prisma.searchZoneVisit.update({ where: { id: last.id }, data: { covered, debrief: words || null, debriefAt: new Date(now) } });
+  return { ok: true };
+}
+
+/**
  * Someone who started an area and has not been heard from in two hours
  * (longer for a large area: holdFor) is no longer counted as on it, and an
  * ask nobody started in half a day is over. Returns how many were closed.
@@ -355,6 +397,31 @@ function oneAtATime(zoneId, work) {
  * knows: { viewer, withNames, ownerId, ownerName, caseId, name, sightings, now }.
  * The row carries its open visits (asked, or on it).
  */
+/**
+ * The searches of an area, newest first: [{ at, marked, minutes, covered }],
+ * with who and their own words where names go. `minutes` is how long a
+ * helper had the area, left out where it says nothing (put down from the
+ * desk, or far longer than the area takes: they forgot to say).
+ */
+function historyOf(row, { history = null, withNames = false } = {}) {
+  const past = (history?.get(row.id) || []).map((v) => {
+    const marked = v.outcome === 'MARKED';
+    const spent = !marked && v.startedAt && v.endedAt ? Math.round((new Date(v.endedAt) - new Date(v.startedAt)) / 60000) : null;
+    return {
+      at: v.endedAt,
+      marked,
+      minutes: spent != null && spent >= 1 && spent <= 3 * (row.minutes || 60) ? spent : null,
+      covered: COVERED.includes(v.covered) ? v.covered : null,
+      ...(withNames ? { by: v.searcherName || null, note: v.debrief || null } : {}),
+    };
+  });
+  // A search from before each one was kept: the area's own last search stands in for it.
+  if (row.searchedAt && !past.some((p) => Math.abs(new Date(p.at) - new Date(row.searchedAt)) < 2000)) {
+    past.push({ at: row.searchedAt, marked: isMark(row.searchedById), minutes: null, covered: null, ...(withNames ? { by: row.searchedByName || null, note: null } : {}) });
+  }
+  return past.sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, HISTORY_MAX);
+}
+
 export function zoneForBoard(row, ctx = {}) {
   const { viewer = null, withNames = false, ownerId = null, ownerName = null, caseId = row.caseId, name = 'the pet', sightings = [], now = Date.now() } = ctx;
   const area = areaOf(row);
@@ -407,6 +474,7 @@ export function zoneForBoard(row, ctx = {}) {
     searchCount: row.searchCount,
     // Put down as searched from the desk, for someone who searched it without the site.
     marked: isMark(row.searchedById),
+    history: historyOf(row, ctx),
     mine,
     ...(row.ring === RING.SEEN ? { sightingId: row.sightingId, sightingAt: sighting?.at || null, ...(going ? { going } : {}) } : {}),
   };
@@ -469,7 +537,22 @@ export async function readZones(caseId, { viewer = null, withNames = false, owne
   if (!made) return null;
   await sweepStaleVisits(caseId, now);
   const rows = await prisma.searchZone.findMany({ where: { caseId }, include: { visits: OPEN_VISITS } });
-  const ctx = { viewer, withNames, ownerId, ownerName, caseId, name: made.name, sightings: made.sightings, now };
+  // Every finished search of every area, newest first: the record the board is run on.
+  const finished = await prisma.searchZoneVisit
+    .findMany({
+      where: { caseId, outcome: { in: ['SEARCHED', 'MARKED'] }, endedAt: { not: null } },
+      orderBy: { endedAt: 'desc' },
+      take: 240,
+      select: { zoneId: true, searcherName: true, startedAt: true, endedAt: true, outcome: true, covered: true, debrief: true },
+    })
+    .catch(() => []);
+  const history = new Map();
+  for (const visit of finished || []) {
+    const list = history.get(visit.zoneId) || [];
+    if (list.length < HISTORY_MAX) list.push(visit);
+    history.set(visit.zoneId, list);
+  }
+  const ctx = { viewer, withNames, ownerId, ownerName, caseId, name: made.name, sightings: made.sightings, now, history };
   const fresh = new Set(made.sightings.slice(0, SEEN_CIRCLES_MAX).map((s) => s.id));
   // A sighting's circle is on the board while the sighting is fresh, or while someone is still there.
   const shown = (row) => row.ring !== RING.SEEN || fresh.has(row.sightingId) || row.visits.some(onIt);
@@ -595,6 +678,10 @@ export async function actOnZone({ caseId, id, action, searcher, ownerId = null, 
       data: { searchCount: { increment: 1 }, searchedAt: when, searchedById: `${MARK}${searcher.userId}`, searchedByName: searcher.firstName, againAt: null },
     });
     if (marked.count === 0) return { error: 'ALREADY_WALKED', title };
+    // Kept as a search of its own, so the area's record shows every search and not only the last.
+    await prisma.searchZoneVisit
+      .create({ data: { zoneId: before.id, caseId, searcherId: `${MARK}${searcher.userId}`, searcherName: searcher.firstName, endedAt: when, outcome: 'MARKED' } })
+      .catch(() => {});
     // Someone the site had stopped counting as there, who had not yet said what happened: the area is down as
     // searched now, so the card comes off their screen and their search is not counted a second time from it.
     await prisma.searchZoneVisit.updateMany({ where: { zoneId: before.id, outcome: 'LAPSED', startedAt: { not: null } }, data: { outcome: 'PUT_DOWN' } }).catch(() => {});
