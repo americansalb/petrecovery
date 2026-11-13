@@ -43,6 +43,18 @@ const PERIOD_WORDS = {
   more_than_two_weeks: 'after two weeks',
 };
 
+/** The periods that are true of each length of time, keyed by the first period tried for it. */
+const FITS = {
+  less_than_day: ['less_than_day', 'just_now', 'immediate', 'hours_ago'],
+  one_to_three_days: ['one_to_three_days', 'yesterday', 'days_ago'],
+  three_to_seven_days: ['three_to_seven_days', 'days_ago'],
+  one_to_two_weeks: ['one_to_two_weeks'],
+  more_than_two_weeks: ['more_than_two_weeks'],
+};
+
+/** The dog scenario whose later days the engine wrote out in full. */
+const DOG_LATER = 'jumped_fence';
+
 /** The engine's period keys to try, best first, for how long the pet has been gone. */
 function periodOrder(hours) {
   if (hours < 24) return ['less_than_day', 'just_now', 'immediate', 'hours_ago'];
@@ -99,8 +111,18 @@ export function sectionFor(pet, now = Date.now()) {
   if (!periods) return null;
   const lost = pet?.lastSeenAt ? new Date(pet.lastSeenAt).getTime() : now;
   const hours = Math.max(0, (now - lost) / 3600000);
-  const period = periodOrder(hours).find((key) => periods[key]) || Object.keys(periods)[0];
-  return period ? { species, scenario, period } : null;
+  const order = periodOrder(hours);
+  // The engine writes a dog's later days once, under the fence scenario, and those sections are about a dog
+  // that has been gone that long, not about fences. A dog that ran out a door or that nobody saw leave has
+  // only a first day written, and was being shown "first hours" advice five days in.
+  if (species === 'dog' && hours >= 24 && !FITS[order[0]].some((key) => periods[key])) {
+    const later = FITS[order[0]].find((key) => tree[DOG_LATER]?.[key]);
+    if (later) return { species, scenario: DOG_LATER, period: later, general: true };
+  }
+  const period = order.find((key) => periods[key]) || Object.keys(periods)[0];
+  if (!period) return null;
+  // `stale` says the section found was written for an earlier time than the pet has been gone.
+  return FITS[order[0]].includes(period) ? { species, scenario, period } : { species, scenario, period, stale: true };
 }
 
 /**
@@ -121,9 +143,11 @@ export function adviceFor(pet, now = Date.now()) {
   }
   const body = PetRecoveryAdvice[section.species].scenarios[section.scenario][section.period];
   const more = body.immediate_checklist || body.search_pattern || body.critical_info || body.patterns || body.search_zones || [];
-  const words = CASE_WORDS[`${section.species}.${section.scenario}`];
+  const words = section.general ? 'a dog' : CASE_WORDS[`${section.species}.${section.scenario}`];
+  // The line above the advice says the time only when the section was written for that time.
+  const when = section.stale ? '' : `, ${PERIOD_WORDS[section.period] || 'first day'}`;
   return {
-    source: words ? `ReunitePets advice: ${words}, ${PERIOD_WORDS[section.period] || 'first day'}` : 'ReunitePets advice',
+    source: words ? `ReunitePets advice: ${words}${when}` : 'ReunitePets advice',
     section,
     steps: (body.priority_actions || []).map(splitAdvice),
     more: more.map(splitAdvice),

@@ -34,10 +34,27 @@ describe('sectionFor', () => {
     }
   });
 
-  test('a section with no entry for this long uses the nearest earlier one it has', () => {
-    // An open door has only a first-day section: day five still gets it.
-    expect(sectionFor({ petSpecies: 'DOG', escapeScenario: 'door_dashed', lastSeenAt: ago(120) }, NOW)).toMatchObject({ scenario: 'door_left_open', period: 'less_than_day' });
-    expect(sectionFor({ petSpecies: 'DOG', escapeScenario: 'jumped_fence', lastSeenAt: ago(24 * 30) }, NOW)).toMatchObject({ period: 'more_than_two_weeks' });
+  test('a dog gone for days gets the advice written for that long, however it got out', () => {
+    // An open door and "nobody saw" have only a first day written. On day five they were shown first-hours
+    // advice (found on a live search five days old, 2026-11-13). The engine's later days for a dog are
+    // written once, under the fence scenario, and are about the time gone, not about fences.
+    expect(sectionFor({ petSpecies: 'DOG', escapeScenario: 'door_dashed', lastSeenAt: ago(120) }, NOW)).toEqual({ species: 'dog', scenario: 'jumped_fence', period: 'three_to_seven_days', general: true });
+    expect(sectionFor({ petSpecies: 'DOG', lastSeenAt: ago(30) }, NOW)).toMatchObject({ period: 'one_to_three_days', general: true });
+    expect(sectionFor({ petSpecies: 'DOG', escapeScenario: 'spooked', lastSeenAt: ago(24 * 10) }, NOW)).toMatchObject({ period: 'one_to_two_weeks', general: true });
+    expect(sectionFor({ petSpecies: 'DOG', escapeScenario: 'jumped_fence', lastSeenAt: ago(24 * 30) }, NOW)).toEqual({ species: 'dog', scenario: 'jumped_fence', period: 'more_than_two_weeks' });
+    // The first day is still the scenario's own.
+    expect(sectionFor({ petSpecies: 'DOG', lastSeenAt: ago(20) }, NOW)).toEqual({ species: 'dog', scenario: 'unknown', period: 'just_now' });
+    // The line above the advice does not say a fence was jumped.
+    const advice = adviceFor({ petSpecies: 'DOG', lastSeenAt: ago(120) }, NOW);
+    expect(advice.source).toBe('ReunitePets advice: a dog, days 3 to 7');
+    expect(advice.steps[0].full).toMatch(/^VISIT EVERY SHELTER IN PERSON/);
+  });
+
+  test('where nothing is written for this long, the nearest earlier section is used and the line does not name a time', () => {
+    const cat = { petSpecies: 'CAT', lastSeenAt: ago(24 * 9) };
+    expect(sectionFor(cat, NOW)).toEqual({ species: 'cat', scenario: 'indoor_cat_escaped', period: 'one_to_three_days', stale: true });
+    expect(adviceFor(cat, NOW).source).toBe('ReunitePets advice: an indoor cat that got out');
+    expect(adviceFor({ petSpecies: 'CAT', lastSeenAt: ago(30) }, NOW).source).toBe('ReunitePets advice: an indoor cat that got out, days 1 to 3');
   });
 
   test('a cat is indoor unless the report says it goes out', () => {
