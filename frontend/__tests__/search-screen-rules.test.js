@@ -801,3 +801,31 @@ describe('the screen keeps the house rules', () => {
     expect(helper).toMatch(/\{records \? 'The app records your path while you walk it\.' : 'Nobody sees where you are\.'\}/);
   });
 });
+
+describe('the phone screen fits the phone', () => {
+  // 2026-11-14, from an iPhone: a helper in the US given an area in Coyoacán got a map of the whole continent,
+  // and the top bar sat under the phone's clock with white bands above and below the screen.
+  test('the first view of an area is the area: where the phone is joins it only when it is near', () => {
+    const fit = code(shell).slice(code(shell).indexOf('const fit = useMemo('));
+    const body = fit.slice(0, fit.indexOf('}, [hot,'));
+    expect(code(shell)).toMatch(/const SELF_IN_VIEW_METERS = \d+;/);
+    expect(body).toMatch(/distanceMeters\(me, place\) <= SELF_IN_VIEW_METERS/);
+    // Nowhere is the phone's place put in view without that check.
+    expect(body).not.toMatch(/\.\.\.self\b/);
+    expect(body).toMatch(/\.\.\.selfNear\(hot\)/);
+    expect(body).toMatch(/\.\.\.selfNear\(middle\)/);
+  });
+
+  test('the screen is pinned to the window, only the card scrolls, and the page around it is the screen\'s own dark', () => {
+    expect(code(shell)).toMatch(/const pinned = 'mc-dark mc-screen fixed inset-0 /);
+    expect(code(shell)).toMatch(/max-h-\[78%\] overflow-y-auto overscroll-contain/);
+    const css = read('app/globals.css');
+    expect(css).toMatch(/html:has\(\.mc-screen\),\s*html:has\(\.mc-screen\) body \{\s*background-color: #0f172a;/);
+  });
+
+  test('the safe-area insets the screen pads with are switched on, for this route only', () => {
+    expect(code(read('app/mission-control/page.js'))).toMatch(/export const viewport = \{ viewportFit: 'cover' \};/);
+    expect(code(read('app/layout.js'))).not.toMatch(/viewportFit/);
+    expect(read('app/mission-control/components/TopBar.js')).toMatch(/pt-\[env\(safe-area-inset-top\)\]/);
+  });
+});

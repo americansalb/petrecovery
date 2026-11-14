@@ -84,12 +84,18 @@ const SIGHTING_ACCURACY_METERS = 150;
 const SIGHTING_IN_VIEW_METERS = 1200;
 /** One reading says where the phone was, not where it is: the "You" dot is dropped after this long. */
 const POSITION_FRESH_MS = 2 * 60 * 1000;
+/**
+ * Where the phone is joins the first view of someone's area, or of a sighting, only this close to it. Further
+ * off, the map shows the ground and not the way there: a phone in the US given an area in Coyoacán opened on a
+ * map of the whole continent, with the area a dot (2026-11-14).
+ */
+const SELF_IN_VIEW_METERS = 2000;
 const NO_TRACK = [];
 const NO_WORDS = [];
 
 function Centered({ children }) {
   return (
-    <div className="mc-dark flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)] px-5">
+    <div className="mc-dark mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)] px-5">
       <div className="w-full max-w-md text-center">{children}</div>
     </div>
   );
@@ -612,10 +618,15 @@ function Screen({ mission }) {
   }, [lit, unit]);
   const hotNear = Boolean(hot && lit?.center && distanceMeters(lit.center, hot) <= SIGHTING_IN_VIEW_METERS);
   const fit = useMemo(() => {
-    const self = me ? [[me.lat, me.lng]] : [];
-    if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 180), ...self];
+    // The phone's own place is in view only when it is near what the map is for.
+    const selfNear = (place) => (me && place && distanceMeters(me, place) <= SELF_IN_VIEW_METERS ? [[me.lat, me.lng]] : []);
+    if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 180), ...selfNear(hot)];
     // A helper keeps their street in view, with a fresh sighting beside it when it is near enough to share a map.
-    if (lit) return [...pointsOf(lit, unit), ...self, ...(hotNear ? [[hot.lat, hot.lng]] : [])];
+    if (lit) {
+      const edge = pointsOf(lit, unit);
+      const middle = lit.center || (edge.length ? { lat: edge[0][0], lng: edge[0][1] } : null);
+      return [...edge, ...selfNear(middle), ...(hotNear ? [[hot.lat, hot.lng]] : [])];
+    }
     // With nothing lit, the whole circle of the search, and where the pet was seen with it.
     if (unit === 'area' && search.circle?.center) return [...around(search.circle.center.lat, search.circle.center.lng, search.circle.radius), ...(hot ? [[hot.lat, hot.lng]] : []), ...mapSightings.slice(0, 3).map((s) => [s.lat, s.lng])];
     if (hot) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 220), ...(lastSeenTag ? [[lastSeenTag.lat, lastSeenTag.lng]] : [])];
@@ -699,7 +710,7 @@ function Screen({ mission }) {
   // The search is over: one screen for everyone.
   if (!picture.open) {
     return (
-      <div className="mc-dark flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
+      <div className="mc-dark mc-screen flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
           <Home picture={picture} name={name} owner={owner} petHref={petHref} />
         </div>
@@ -828,29 +839,36 @@ function Screen({ mission }) {
     </div>
   );
 
+  // A phone screen is pinned to the window and never scrolls as a page: only the card scrolls, and reaching its end
+  // does not drag the page. The page moving under it is what put the top bar under the phone's clock and showed the
+  // site's pale background beneath the buttons (2026-11-14, iOS Safari). The insets keep the bar and the buttons
+  // clear of the clock, the notch and the browser's own bars (viewportFit in page.js).
+  const pinned = 'mc-dark mc-screen fixed inset-0 flex flex-col overflow-hidden pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]';
   if (full) {
     return (
-      <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-surface)]">
-        <header className="flex h-[60px] shrink-0 items-center gap-2 border-b border-[var(--mc-line)] px-2 pt-[env(safe-area-inset-top)]">
-          <button type="button" onClick={() => go('main')} aria-label="Back to the map" className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--mc-ink)] hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
-            <ArrowLeft size={22} aria-hidden="true" />
-          </button>
-          <div className="min-w-0">
-            <p className="flex items-center gap-2">
-              <span className="truncate text-[17px] font-bold leading-6 text-[var(--mc-ink)]">{name}</span>
-              <Stamp kind="lost" />
-            </p>
-            <p className="truncate text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{petSub({ owner: owner?.firstName, species: picture.pet?.species, color: picture.pet?.color, breed: picture.pet?.breed })}</p>
+      <div className={`${pinned} bg-[var(--mc-surface)]`}>
+        <header className="shrink-0 border-b border-[var(--mc-line)] px-2 pt-[env(safe-area-inset-top)]">
+          <div className="flex h-[60px] items-center gap-2">
+            <button type="button" onClick={() => go('main')} aria-label="Back to the map" className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--mc-ink)] hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
+              <ArrowLeft size={22} aria-hidden="true" />
+            </button>
+            <div className="min-w-0">
+              <p className="flex items-center gap-2">
+                <span className="truncate text-[17px] font-bold leading-6 text-[var(--mc-ink)]">{name}</span>
+                <Stamp kind="lost" />
+              </p>
+              <p className="truncate text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{petSub({ owner: owner?.firstName, species: picture.pet?.species, color: picture.pet?.color, breed: picture.pet?.breed })}</p>
+            </div>
           </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto">{step}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{step}</div>
         {overlays}
       </div>
     );
   }
 
   return (
-    <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]">
+    <div className={`${pinned} bg-[var(--mc-ground)]`}>
       <TopBar picture={picture} line={line} backHref={petHref} onPhoto={() => setPhoto(true)} />
       <div className="relative min-h-0 flex-1">
         <div className="absolute inset-0 z-0">{map}</div>
@@ -868,7 +886,7 @@ function Screen({ mission }) {
           ref={sheetRef}
           aria-label="Your step"
           data-sheet={sheetHeight}
-          className="absolute inset-x-0 bottom-0 z-[450] max-h-[78%] overflow-y-auto rounded-t-3xl bg-[var(--mc-surface)] px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 shadow-[0_-8px_30px_rgba(2,6,23,0.5)]"
+          className="absolute inset-x-0 bottom-0 z-[450] max-h-[78%] overflow-y-auto overscroll-contain rounded-t-3xl bg-[var(--mc-surface)] px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 shadow-[0_-8px_30px_rgba(2,6,23,0.5)]"
         >
           {step}
         </section>
@@ -882,7 +900,7 @@ export default function SearchScreen({ mission = null }) {
   return (
     <Suspense
       fallback={
-        <div className="mc-dark flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)]">
+        <div className="mc-dark mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)]">
           <Loader2 size={36} className="animate-spin text-flash-400" aria-hidden="true" />
         </div>
       }
