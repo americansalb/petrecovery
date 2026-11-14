@@ -22,6 +22,7 @@ import { isCaseOpen } from '@/app/lib/caseStatus';
 import { temperamentOf } from '@/app/lib/brief';
 import { planFor, taskOf, gearFor, TASK_KINDS } from '@/app/lib/searchPlan';
 import { readKit } from '@/app/lib/searchKit';
+import { redrawOnOpen } from '@/app/lib/cascade/redrawOnOpen';
 import { listTasks, addTask, actOnTask } from '@/app/lib/searchTasks';
 import { withRateLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
 
@@ -53,6 +54,9 @@ export async function GET(request, { params }) {
     if (!searcher || !searcher.seesNames) return NextResponse.json({ error: 'The tasks of a search are for the people running it.', code: 'NOT_ALLOWED' }, { status: 403 });
     const name = pet.petName || 'the pet';
     const plan = planFor({ species: pet.petSpecies, temperament: temperamentOf(pet), name });
+    // Flyers drawn by an older renderer are drawn again now, for this one search, because the person running it
+    // has opened it. Not waited for: the files change under the same links a minute later.
+    if (searcher.leads && isCaseOpen(pet.status)) redrawOnOpen(pet.id).catch(() => {});
     // Each task comes with what the site already made for this pet: its flyers, its share pictures, the shelters to call.
     const kit = await readKit(pet.id);
     return NextResponse.json({ plan, kinds: plan.order.map((kind) => ({ ...taskOf(kind, name), gear: gearFor(kind, kit) })), tasks: await listTasks(pet.id), leads: Boolean(searcher.leads) });

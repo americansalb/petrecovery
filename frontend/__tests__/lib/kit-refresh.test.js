@@ -212,3 +212,42 @@ test('the server schedules the redraw at boot, in production only', () => {
   expect(src).toContain("import('./app/lib/cascade/refreshBoot')");
   expect(src).not.toContain("import('./app/lib/cascade/refresh')");
 });
+
+/**
+ * A redraw that fails must not take away a flyer that was there. When the
+ * letter flyer failed to redraw on 2026-11-13, the stored file was marked
+ * failed and five open searches were left with no letter flyer, though the
+ * old file was still in the store.
+ */
+describe('a failed redraw keeps the flyer that was there', () => {
+  const { keepOrFail } = require('@/app/lib/cascade/refresh');
+  const activation = { id: 'act-keep', caseId: 'case-keep', caseNumber: 'AUS-2026-KEEP01' };
+
+  afterEach(() => {
+    delete mockPrisma.caseAsset;
+  });
+
+  test('a file that was ready stays ready, with the failure noted and its old version kept', async () => {
+    mockPrisma.caseAsset = { findUnique: jest.fn().mockResolvedValue({ status: 'ready', url: 'https://cdn.example/letter.pdf', meta: { rendererVersion: '2026-11-06.8' } }) };
+    upsertAsset.mockClear();
+    await keepOrFail(activation, 'FLYER_LETTER', { status: 'failed', error: 'dash([null], {}) invalid', meta: { rendererVersion: 'new' } });
+    expect(upsertAsset).toHaveBeenCalledTimes(1);
+    const patch = upsertAsset.mock.calls[0][2];
+    expect(patch).not.toHaveProperty('status');
+    expect(patch.meta.rendererVersion).toBe('2026-11-06.8');
+    expect(patch.meta.redrawFailed.error).toMatch(/dash/);
+  });
+
+  test('a file that was never drawn is marked failed, as before', async () => {
+    mockPrisma.caseAsset = { findUnique: jest.fn().mockResolvedValue(null) };
+    upsertAsset.mockClear();
+    await keepOrFail(activation, 'FLYER_POSTER', { status: 'failed', error: 'x', meta: { rendererVersion: 'new' } });
+    expect(upsertAsset).toHaveBeenCalledWith(activation, 'FLYER_POSTER', expect.objectContaining({ status: 'failed' }));
+  });
+
+  test('a file that drew is stored as drawn', async () => {
+    upsertAsset.mockClear();
+    await keepOrFail(activation, 'FLYER_HALF', { status: 'ready', url: 'https://cdn.example/half.pdf' });
+    expect(upsertAsset).toHaveBeenCalledWith(activation, 'FLYER_HALF', { status: 'ready', url: 'https://cdn.example/half.pdf' });
+  });
+});

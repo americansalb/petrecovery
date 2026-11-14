@@ -226,6 +226,37 @@ refuses a search for want of it. No wording here has been reviewed by a
 lawyer; do not tell anyone it removes liability. Enforced by
 `frontend/__tests__/lib/waiver-strength.test.js`.
 
+### On a flyer, a line that has to be read whole always fits its box
+
+Founder, 2026-11-13, holding a flyer whose email ran across the QR code:
+"do I need to individually inspect every PDF this should not even be
+possible". Nobody inspects each PDF, so the layout has to make it
+impossible. A phone number, an email or a link is one word: it cannot wrap
+and must not be cut, so its size has no floor (`wholeInter`,
+`wholeUnbounded`, `wholeLine` and `planContact` in
+`frontend/app/lib/cascade/render/flyers/plan.js`, used by the sheets and
+the share pictures alike). Never give such a line a minimum size, and never
+size one from a guessed letter width: the widths come from the font files.
+Enforced by `frontend/__tests__/lib/flyer-fit.test.js`, which
+measures the real fonts.
+
+### Flyers are never redrawn all at once
+
+Redrawing every open search's flyers back to back ran the 512 MB server
+out of memory and took the site down on 2026-11-05 and again for most of an
+hour on 2026-11-13 (founder: "I got badgateway a couple times ... now blank
+white", "Fix asap"). The job that did it at boot is off unless
+`CASCADE_REFRESH_ON_BOOT=1`, and must stay off. Bump `RENDERER_VERSION`
+when the drawing changes; a search is then redrawn when the person running
+it opens it (`frontend/app/lib/cascade/redrawOnOpen.js`): one search at a
+time, with a rest between two, only with memory to spare, and once per
+version, with the attempt written down before the drawing starts so a
+redraw that kills the server is not started again. Do not add anything
+that draws kits in a loop, at boot, on a timer, or from a route a visitor
+or a crawler can reach. Enforced by
+`frontend/__tests__/lib/redraw-on-open.test.js` and
+`frontend/__tests__/lib/kit-refresh.test.js`.
+
 ### The site's address is built in, never configured
 
 Every absolute URL the pet site produces (email and SMS links, flyer QR
