@@ -11,7 +11,6 @@
  * screen that failed to load.
  */
 import { NEEDS_SHOWN } from '../lib/needs';
-import { SaramaPose } from '../components/Sarama';
 import Gear from '../components/Gear';
 
 const MAIN =
@@ -24,8 +23,7 @@ export default function Needs({ cards = [], quiet = '', guide = null, onTasks = 
     <section aria-label="Needs you">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="flex items-center gap-2 text-[17px] font-extrabold leading-6 text-[var(--mc-ink)]">
-          {/* Sarama is on the search with whoever runs it: calm here, with no cheering. Their pet is missing. */}
-          <SaramaPose size={40} still />
+          {/* No picture of Sarama here: the desk is a control room (founder, 2026-11-13: "feels cartoonish"). Her next step is below, in words. */}
           Needs you
           {cards.length > 0 && <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-[var(--mc-ink)] px-1.5 text-[14px] font-extrabold tabular-nums text-[var(--mc-surface)]">{cards.length}</span>}
         </h2>
