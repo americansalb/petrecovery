@@ -73,9 +73,36 @@ const PANEL =
   'flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--mc-line)] bg-[color-mix(in_srgb,var(--mc-surface)_95%,transparent)] shadow-[var(--mc-shadow)] backdrop-blur-md';
 
 const NIGHT_KEY = 'rp_mc_night';
+const LAYER_KEY = 'rp_mc_layer';
 const NO_RINGS = [];
 
 /** Day or night for the desk. Day, unless this person chose night on this computer before. */
+/**
+ * What the desk's map is drawn on. The photo from above, unless this person chose the street map on this
+ * computer before: a search is run on the ground as it is, with its yards, sheds and tree cover (founder,
+ * 2026-11-13: "Satellite maps would be nice too").
+ */
+function useLayer() {
+  const [layer, setLayer] = useState('satellite');
+  useEffect(() => {
+    try {
+      const kept = window.localStorage.getItem(LAYER_KEY);
+      if (kept === 'map' || kept === 'satellite') setLayer(kept);
+    } catch {
+      // A browser that keeps nothing still gets the photo.
+    }
+  }, []);
+  const pick = (id) => {
+    setLayer(id);
+    try {
+      window.localStorage.setItem(LAYER_KEY, id);
+    } catch {
+      // Not kept: the choice still holds until the page is closed.
+    }
+  };
+  return [layer, pick];
+}
+
 function useNight() {
   const [night, setNight] = useState(false);
   useEffect(() => {
@@ -220,7 +247,10 @@ export default function Command({ picture, items, unit, circle = null, now, line
   const zone = picture.timeZone;
   const roomy = useRoomy();
   const [night, flipNight] = useNight();
-  const look = DESK_MAP[night ? 'dark' : 'light'];
+  const [layer, setLayer] = useLayer();
+  // On the photo the search is drawn in light ink, as it is at night: dark lines are lost on roofs and trees.
+  const dim = night || layer === 'satellite';
+  const look = DESK_MAP[dim ? 'dark' : 'light'];
   const [tabPicked, setTab] = useState(null);
   // With three columns the list opens on the people, for someone who may see them, and on the streets for anyone
   // else. With two, on the overview, which is where this person's own card is.
@@ -230,7 +260,6 @@ export default function Command({ picture, items, unit, circle = null, now, line
   const [selected, setSelected] = useState(null);
   const [hovered, setHovered] = useState(null);
   const [focused, setFocused] = useState(null); // a sighting picked from the list or the log
-  const [layer, setLayer] = useState('map');
   const [rings, setRings] = useState(false);
   const [busy, setBusy] = useState(null);
   const [problem, setProblem] = useState('');
@@ -550,7 +579,7 @@ export default function Command({ picture, items, unit, circle = null, now, line
   return (
     // The desk's panels and top bar are always the dark palette, the phone's own: they sit on the map like
     // instruments on a table. Day and night are the map's: light streets by day, dark by its switch.
-    <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]">
+    <div className="mc-dark mc-console flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]">
       <TopBar
         picture={picture}
         line={line}
@@ -559,22 +588,30 @@ export default function Command({ picture, items, unit, circle = null, now, line
         wide
         right={
           <>
+            {/* For the record and for anyone who has to be told where: the pet's number and the point it was lost at. */}
+            <span className="ml-3 hidden shrink-0 font-mono text-[13px] font-medium leading-5 text-[var(--mc-muted)] 2xl:inline" aria-label="Case number and where the pet was lost">
+              {picture.caseNumber}
+              {Number.isFinite(picture.lastSeen?.lat) && Number.isFinite(picture.lastSeen?.lng) ? ` · ${picture.lastSeen.lat.toFixed(5)}, ${picture.lastSeen.lng.toFixed(5)}` : ''}
+            </span>
             {leads && (
               // Who is running it, said once: the owner, or the site's own admin standing in.
               <span className="ml-2 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--mc-raised)] px-3 py-1.5 text-[13px] font-bold leading-5 text-[var(--mc-ink)]">
                 <ShieldCheck size={15} className="text-[var(--mc-home)]" aria-hidden="true" /> {viewer?.isOwner ? 'You run this search' : 'Running it as site admin'}
               </span>
             )}
-            <button type="button" onClick={flipNight} aria-pressed={night} className={`${CONTROL} ml-2 shrink-0`}>
-              {night ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />} {night ? 'Day map' : 'Night map'}
-            </button>
+            {/* Day and night are the street map's. The photo has neither. */}
+            {layer === 'map' && (
+              <button type="button" onClick={flipNight} aria-pressed={night} className={`${CONTROL} ml-2 shrink-0`}>
+                {night ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />} {night ? 'Day map' : 'Night map'}
+              </button>
+            )}
           </>
         }
       />
       <div className={`relative min-h-0 flex-1 ${roomy ? 'mc-stage-wide' : ''}`}>
         <div className="absolute inset-0 z-0">
           <SearchMap
-            theme={night ? 'dark' : 'light'}
+            theme={dim ? 'dark' : 'light'}
             desk
             layer={layer}
             lastSeen={lastSeenTag}
@@ -652,7 +689,7 @@ export default function Command({ picture, items, unit, circle = null, now, line
         )}
         <div
           // The key is the map's own, so it is light on the light map: its samples are the colours drawn on it.
-          className={`${night ? 'mc-dark' : 'mc-light'} pointer-events-none absolute bottom-7 z-[400] flex-wrap items-center gap-x-3.5 gap-y-1 rounded-xl border border-[var(--mc-line)] bg-[color-mix(in_srgb,var(--mc-surface)_94%,transparent)] px-3 py-2 text-[13px] font-semibold text-[var(--mc-soft)] shadow-[var(--mc-shadow)] backdrop-blur-md ${inset} ${roomy ? 'max-w-[calc(100%-880px)]' : 'max-w-[calc(100%-470px)]'} ${street && !ground ? 'hidden' : 'flex'}`}
+          className={`${dim ? 'mc-dark' : 'mc-light'} pointer-events-none absolute bottom-7 z-[400] flex-wrap items-center gap-x-3.5 gap-y-1 rounded-xl border border-[var(--mc-line)] bg-[color-mix(in_srgb,var(--mc-surface)_94%,transparent)] px-3 py-2 text-[13px] font-semibold text-[var(--mc-soft)] shadow-[var(--mc-shadow)] backdrop-blur-md ${inset} ${roomy ? 'max-w-[calc(100%-880px)]' : 'max-w-[calc(100%-470px)]'} ${street && !ground ? 'hidden' : 'flex'}`}
         >
           {key.map(([kind, color, words]) => (
             <span key={words} className="flex items-center gap-1.5">

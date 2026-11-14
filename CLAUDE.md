@@ -170,6 +170,22 @@ the same vest and headlamp. The brand picture on the rest of the site is
 still `frontend/public/brand/sarama-480.png`. Enforced by
 `frontend/__tests__/lib/trail.test.js`.
 
+### The desk is a control room
+
+Founder, 2026-11-13, on the desk: "Something about this interface feels
+cartoonish and clucky. The color scheme, the vibe, it does not scream
+professional S&R interface mission control. Sattelite maps would be nice
+too". The desk (`frontend/app/mission-control/desktop/*`) carries
+`mc-console` on its root, and `frontend/app/globals.css` gives that class
+its look in one place: a neutral near-black ground, hairline edges, corners
+of a few pixels, type a step lighter, figures in columns. On the desk the
+map opens on the photo from above and its lines are thin; the case number
+and the lost point's coordinates are in the top bar. Do not bring back
+large round corners, heavy type, thick outlines or a mascot's picture
+there: Sarama's picture is for the people helping, and on the desk her
+next step is words. The phone's cards keep their own palette. Enforced by
+`frontend/__tests__/search-colors.test.js`.
+
 ### The search never sends anyone into danger without saying so
 
 Founder rule, 2026-11-12: "Are we inadvertantly telling people to search in
