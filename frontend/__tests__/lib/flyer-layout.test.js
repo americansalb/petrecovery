@@ -481,3 +481,30 @@ describe('the questionnaire on the flyer (app/lib/caseDetails.js)', () => {
     expect(d.factsLine).toBe('Golden Retriever · Large · 4 years old · Microchipped');
   });
 });
+
+/**
+ * The PDF library reads a dash pattern only with commas: it splits
+ * strokeDasharray on ',' and nothing else (@react-pdf/render, setLineDash).
+ * "4 3" became one number, NaN, and the whole flyer failed to draw with
+ * "dash([null], {}) invalid". The map's distance ring is drawn only when it
+ * fits the map, so the letter flyer and the poster failed for some places
+ * and not others: five open searches near Chicago had no letter flyer
+ * (found in the server log, 2026-11-13).
+ */
+describe('a dash pattern on a flyer is written the way the PDF library reads it', () => {
+  test('every strokeDasharray in the flyer code is numbers separated by commas', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const dir = path.join(process.cwd(), 'app/lib/cascade/render/flyers');
+    const found = [];
+    for (const file of fs.readdirSync(dir)) {
+      const text = fs.readFileSync(path.join(dir, file), 'utf8');
+      for (const m of text.matchAll(/strokeDasharray=\{?["'`]([^"'`]*)["'`]\}?/g)) found.push(m[1]);
+    }
+    expect(found.length).toBeGreaterThan(0);
+    for (const pattern of found) {
+      expect(pattern).toMatch(/^\d+(\.\d+)?(,\d+(\.\d+)?)*$/);
+      expect(pattern.split(',').map(Number).every((n) => Number.isFinite(n) && n >= 0)).toBe(true);
+    }
+  });
+});
