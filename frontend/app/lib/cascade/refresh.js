@@ -81,6 +81,32 @@ export async function countStaleCases(version = RENDERER_VERSION) {
  * @param {{correlationId?: string}} [opts]
  * @returns {Promise<{aiCopy:string, flyers:string, social:string, shareTargets?:string}>}
  */
+/**
+ * A redraw that fails must not take away a flyer that was there.
+ *
+ * A failed draw used to mark the stored file "failed", and every reader
+ * shows only files that are ready: so when the letter flyer failed to
+ * redraw on 2026-11-13, five open searches were left with no letter flyer
+ * at all, though the old file was still in the store. Now a file that was
+ * ready stays ready, with the failure noted on it, and only a file that
+ * was never drawn is marked failed. Its renderer version is left as it
+ * was, so it still counts as stale.
+ */
+export async function keepOrFail(activation, kind, patch = {}) {
+  if (patch.status !== 'failed') return upsertAsset(activation, kind, patch);
+  let had = null;
+  try {
+    had = await prisma.caseAsset.findUnique({ where: { caseId_kind: { caseId: activation.caseId, kind } }, select: { status: true, url: true, meta: true } });
+  } catch {
+    // Not readable: treat it as never drawn, which is what was done before.
+  }
+  if (had?.status === 'ready' && had.url) {
+    const meta = had.meta && typeof had.meta === 'object' ? had.meta : {};
+    return upsertAsset(activation, kind, { meta: { ...meta, redrawFailed: { version: RENDERER_VERSION, error: String(patch.error || '').slice(0, 160) } } });
+  }
+  return upsertAsset(activation, kind, patch);
+}
+
 export async function regenerateCaseAssets(caseData, { correlationId } = {}) {
   const cid = correlationId || `regen-${caseData.caseNumber}`;
   const activation = await seedActivation(caseData, cid);
@@ -93,7 +119,7 @@ export async function regenerateCaseAssets(caseData, { correlationId } = {}) {
     results: {},
     getShared: makeGetShared(caseData),
     upsertStep: (key, patch) => upsertStep(activation, key, patch),
-    upsertAsset: (kind, patch) => upsertAsset(activation, kind, patch),
+    upsertAsset: (kind, patch) => keepOrFail(activation, kind, patch),
   };
 
   const outcome = { aiCopy: 'skipped', flyers: 'failed', social: 'failed' };
@@ -119,7 +145,7 @@ export async function regenerateCaseAssets(caseData, { correlationId } = {}) {
     await upsertStep(activation, 'flyers', { status: 'FAILED', error: errText(err), finishedAt: new Date() }).catch(() => {});
     // The stamp is what says "this version was tried". Without it a case
     // whose photo cannot be read would be redrawn on every boot.
-    await upsertAsset(activation, 'FLYER_LETTER', { status: 'failed', error: errText(err), meta: stamp }).catch(() => {});
+    await keepOrFail(activation, 'FLYER_LETTER', { status: 'failed', error: errText(err), meta: stamp }).catch(() => {});
   }
 
   try {
@@ -130,7 +156,7 @@ export async function regenerateCaseAssets(caseData, { correlationId } = {}) {
     outcome.social = `failed: ${errText(err)}`;
     await upsertStep(activation, 'social', { status: 'FAILED', error: errText(err), finishedAt: new Date() }).catch(() => {});
     // Stamp the story so the case is tried once per version, not once per boot (see staleKitWhere).
-    await upsertAsset(activation, 'SOCIAL_STORY', { status: 'failed', error: errText(err), meta: stamp }).catch(() => {});
+    await keepOrFail(activation, 'SOCIAL_STORY', { status: 'failed', error: errText(err), meta: stamp }).catch(() => {});
   }
 
   try {
