@@ -134,13 +134,13 @@ function Care({ area, className = '' }) {
   const lines = hazardLines(area);
   if (!lines.length) return null;
   return (
-    <div role="note" aria-label="Take care in this area" className={`rounded-2xl border-2 border-[var(--mc-line-strong)] bg-[var(--mc-raised)] px-3.5 py-3 ${className}`}>
+    <div role="note" aria-label="Take care in this area" className={`rounded-xl border border-[var(--mc-line-strong)] bg-[var(--mc-raised)] px-3 py-2.5 ${className}`}>
       <p className="flex items-center gap-1.5 text-[13px] font-extrabold leading-[18px] text-[var(--mc-ink)]">
         <TriangleAlert size={15} aria-hidden="true" />
         Take care in this area
       </p>
       {lines.map((line) => (
-        <p key={line} className="mt-1.5 text-[15px] font-medium leading-[22px] text-[var(--mc-ink)]">
+        <p key={line} className="mt-1 text-[15px] font-medium leading-[21px] text-[var(--mc-ink)]">
           {line}
         </p>
       ))}
