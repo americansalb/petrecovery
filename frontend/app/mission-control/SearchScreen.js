@@ -37,7 +37,7 @@
  * stop or not to search, and its advice is the advice engine's, the
  * searcher's brief's and the owner's own answers, word for word.
  */
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -82,14 +82,28 @@ const SearchMap = dynamic(() => import('./components/SearchMap'), {
 const SIGHTING_ACCURACY_METERS = 150;
 /** A fresh sighting this close to a helper's street is drawn on the same map as the street. Further off, the top line says where. */
 const SIGHTING_IN_VIEW_METERS = 1200;
+/**
+ * How tall a phone's card may be, closed and open. Closed, the map keeps about two fifths of what is above the
+ * browser's own bar: the card had up to 78% and a helper's area was a strip of map with the area cut off at its
+ * top (founder, 2026-11-14: "Bad interface"). What does not fit scrolls under the buttons, or the handle opens
+ * the card. Open, a strip of map stays under the top bar, so the way back to it shows.
+ */
+const SHEET_CLOSED = 'calc(62% + 0.38 * env(safe-area-inset-bottom))';
+const SHEET_OPEN = 'calc(100% - 72px)';
 /** One reading says where the phone was, not where it is: the "You" dot is dropped after this long. */
 const POSITION_FRESH_MS = 2 * 60 * 1000;
+/**
+ * Where the phone is joins the first view of someone's area, or of a sighting, only this close to it. Further
+ * off, the map shows the ground and not the way there: a phone in the US given an area in Coyoacán opened on a
+ * map of the whole continent, with the area a dot (2026-11-14).
+ */
+const SELF_IN_VIEW_METERS = 2000;
 const NO_TRACK = [];
 const NO_WORDS = [];
 
 function Centered({ children }) {
   return (
-    <div className="mc-dark flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)] px-5">
+    <div className="mc-dark mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)] px-5">
       <div className="w-full max-w-md text-center">{children}</div>
     </div>
   );
@@ -170,6 +184,15 @@ function Screen({ mission }) {
   const [qr, setQr] = useState(null);
   const [sheetHeight, setSheetHeight] = useState(280);
   const sheetWatch = useRef(null);
+  // On a phone the card leaves the map room (SHEET_CLOSED), and its handle opens it to read all of it.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // The card's height when it was last closed: the map is fitted above that, so opening the card to read it
+  // does not move the map.
+  const closedSheet = useRef(280);
+  // Where a finger came down on the card's handle, to tell a swipe from a tap.
+  const handleFrom = useRef(null);
+  // The part of the card that scrolls.
+  const sheetScroll = useRef(null);
   const [keyHeight, setKeyHeight] = useState(0);
   const keyWatch = useRef(null);
 
@@ -265,6 +288,18 @@ function Screen({ mission }) {
   useEffect(() => {
     if (caseId) setWalkFrom(readNote(caseId, 'walk_from'));
   }, [caseId]);
+
+  // Each new card starts closed over the map, except joining: the rules and "Before you go out" are read in
+  // full, and the map has nothing to show for them. And it is read from its top: the sheet is one element for
+  // every card, and kept the place the last card was scrolled to, so an area's card opened at its advice with
+  // its name and its caution scrolled out of sight. Before the card's own effects run, so a word that moves the
+  // sheet to show itself (components/Word.js) still can.
+  // A sighting changes the owner's card; a helper's stays as it is, and is not moved while they read it.
+  const ownerCard = isOwner && hot ? hot.id : null;
+  useLayoutEffect(() => {
+    setSheetOpen(view === 'join');
+    if (sheetScroll.current) sheetScroll.current.scrollTop = 0;
+  }, [view, mineRaw?.id, ownerCard]);
 
   // A witness coming back to the page finds what they sent, and what the owner did about it.
   const resumed = useRef(false);
@@ -612,17 +647,25 @@ function Screen({ mission }) {
   }, [lit, unit]);
   const hotNear = Boolean(hot && lit?.center && distanceMeters(lit.center, hot) <= SIGHTING_IN_VIEW_METERS);
   const fit = useMemo(() => {
-    const self = me ? [[me.lat, me.lng]] : [];
-    if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 180), ...self];
+    // The phone's own place is in view only when it is near what the map is for.
+    const selfNear = (place) => (me && place && distanceMeters(me, place) <= SELF_IN_VIEW_METERS ? [[me.lat, me.lng]] : []);
+    if (hot && isOwner) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 180), ...selfNear(hot)];
     // A helper keeps their street in view, with a fresh sighting beside it when it is near enough to share a map.
-    if (lit) return [...pointsOf(lit, unit), ...self, ...(hotNear ? [[hot.lat, hot.lng]] : [])];
+    if (lit) {
+      const edge = pointsOf(lit, unit);
+      const middle = lit.center || (edge.length ? { lat: edge[0][0], lng: edge[0][1] } : null);
+      return [...edge, ...selfNear(middle), ...(hotNear ? [[hot.lat, hot.lng]] : [])];
+    }
     // With nothing lit, the whole circle of the search, and where the pet was seen with it.
     if (unit === 'area' && search.circle?.center) return [...around(search.circle.center.lat, search.circle.center.lng, search.circle.radius), ...(hot ? [[hot.lat, hot.lng]] : []), ...mapSightings.slice(0, 3).map((s) => [s.lat, s.lng])];
     if (hot) return [[hot.lat, hot.lng], ...around(hot.lat, hot.lng, 220), ...(lastSeenTag ? [[lastSeenTag.lat, lastSeenTag.lng]] : [])];
     if (lastSeenTag) return [...around(lastSeenTag.lat, lastSeenTag.lng, 330), ...mapSightings.slice(0, 3).map((s) => [s.lat, s.lng])];
     return [];
   }, [hot, hotNear, isOwner, lit, unit, me, lastSeenTag, mapSightings, search.circle]);
-  const fitKey = `${lit ? `lit:${lit.id}:${hotNear ? hot.id : ''}` : hot ? `seen:${hot.id}` : `home:${search.circle?.radius || 0}`}|${lastSeenTag ? 1 : 0}|${Math.round(sheetHeight / 40)}`;
+  // The map is fitted above the card as it is when closed, so opening the card to read it leaves the map still.
+  if (!sheetOpen) closedSheet.current = sheetHeight;
+  const fitSheet = sheetOpen ? closedSheet.current : sheetHeight;
+  const fitKey = `${lit ? `lit:${lit.id}:${hotNear ? hot.id : ''}` : hot ? `seen:${hot.id}` : `home:${search.circle?.radius || 0}`}|${lastSeenTag ? 1 : 0}|${Math.round(fitSheet / 40)}`;
 
   // The sheet's height, so the map keeps what matters above it.
   const sheetRef = useCallback((el) => {
@@ -699,7 +742,7 @@ function Screen({ mission }) {
   // The search is over: one screen for everyone.
   if (!picture.open) {
     return (
-      <div className="mc-dark flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
+      <div className="mc-dark mc-screen flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
           <Home picture={picture} name={name} owner={owner} petHref={petHref} />
         </div>
@@ -725,7 +768,7 @@ function Screen({ mission }) {
   } else if (isOwner) {
     step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (mine && ground) {
-    step = <Area picture={picture} name={name} mine={mine} instrument={instrument} gps={gps} onSearched={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Area picture={picture} name={name} mine={mine} instrument={instrument} gps={gps} open={sheetOpen} onOpen={() => setSheetOpen(true)} onSearched={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (mine) {
     step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (view === 'join' && !desk) {
@@ -784,7 +827,10 @@ function Screen({ mission }) {
 
   // ----- A phone, in a browser or in the app -----
   const brief = searcherBrief(picture);
-  const showChip = !isOwner && view === 'main' && !mine;
+  // What to do on seeing the pet, in the brief's own first sentence, on the map for everyone helping: holding an
+  // area too, since the card closed over the map says the area and not how to search it. Hidden while the card is
+  // open and the map is a strip; the map is fitted as if it shows, so opening the card does not move the map.
+  const showChip = !isOwner && view === 'main';
   const keyBits = [
     counts.searched > 0 ? [ground ? 'fill' : 'bar', 'Already searched'] : null,
     // Their own area is one of those in progress only while the site counts them as on it.
@@ -804,7 +850,7 @@ function Screen({ mission }) {
       tags={mapTags}
       fit={fit}
       fitKey={fitKey}
-      padding={{ top: showChip ? 60 : sheetHeight > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: sheetHeight + (sheetHeight > 460 ? 30 : 44), left: 64 }}
+      padding={{ top: showChip ? 60 : fitSheet > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: fitSheet + (fitSheet > 460 ? 30 : 44), left: 64 }}
       creditBottom={sheetHeight + KEY_GAP + (keyHeight ? keyHeight + 6 : 0)}
       label={`Map of the search for ${name}`}
     />
@@ -828,38 +874,45 @@ function Screen({ mission }) {
     </div>
   );
 
+  // A phone screen is pinned to the window and never scrolls as a page: only the card scrolls, and reaching its end
+  // does not drag the page. The page moving under it is what put the top bar under the phone's clock and showed the
+  // site's pale background beneath the buttons (2026-11-14, iOS Safari). The insets keep the bar and the buttons
+  // clear of the clock, the notch and the browser's own bars (viewportFit in page.js).
+  const pinned = 'mc-dark mc-screen fixed inset-0 flex flex-col overflow-hidden pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]';
   if (full) {
     return (
-      <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-surface)]">
-        <header className="flex h-[60px] shrink-0 items-center gap-2 border-b border-[var(--mc-line)] px-2 pt-[env(safe-area-inset-top)]">
-          <button type="button" onClick={() => go('main')} aria-label="Back to the map" className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--mc-ink)] hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
-            <ArrowLeft size={22} aria-hidden="true" />
-          </button>
-          <div className="min-w-0">
-            <p className="flex items-center gap-2">
-              <span className="truncate text-[17px] font-bold leading-6 text-[var(--mc-ink)]">{name}</span>
-              <Stamp kind="lost" />
-            </p>
-            <p className="truncate text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{petSub({ owner: owner?.firstName, species: picture.pet?.species, color: picture.pet?.color, breed: picture.pet?.breed })}</p>
+      <div className={`${pinned} bg-[var(--mc-surface)]`}>
+        <header className="shrink-0 border-b border-[var(--mc-line)] px-2 pt-[env(safe-area-inset-top)]">
+          <div className="flex h-[60px] items-center gap-2">
+            <button type="button" onClick={() => go('main')} aria-label="Back to the map" className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--mc-ink)] hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
+              <ArrowLeft size={22} aria-hidden="true" />
+            </button>
+            <div className="min-w-0">
+              <p className="flex items-center gap-2">
+                <span className="truncate text-[17px] font-bold leading-6 text-[var(--mc-ink)]">{name}</span>
+                <Stamp kind="lost" />
+              </p>
+              <p className="truncate text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{petSub({ owner: owner?.firstName, species: picture.pet?.species, color: picture.pet?.color, breed: picture.pet?.breed })}</p>
+            </div>
           </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto">{step}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{step}</div>
         {overlays}
       </div>
     );
   }
 
   return (
-    <div className="mc-dark flex h-[100dvh] flex-col overflow-hidden bg-[var(--mc-ground)]">
+    <div className={`${pinned} bg-[var(--mc-ground)]`}>
       <TopBar picture={picture} line={line} backHref={petHref} onPhoto={() => setPhoto(true)} />
       <div className="relative min-h-0 flex-1">
         <div className="absolute inset-0 z-0">{map}</div>
-        {showChip && (
+        {showChip && !sheetOpen && (
           <p className="absolute left-3 top-3 z-[400] max-w-[calc(100%-24px)] rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3.5 py-2 text-[13px] font-bold leading-[18px] text-[var(--mc-ink)] shadow-lg">
             {brief.neverFirst}
           </p>
         )}
-        {mapKey && (
+        {mapKey && !sheetOpen && (
           <div ref={keyRef} className="pointer-events-none absolute left-3 right-3 z-[400]" style={{ bottom: sheetHeight + KEY_GAP }}>
             {mapKey}
           </div>
@@ -867,10 +920,35 @@ function Screen({ mission }) {
         <section
           ref={sheetRef}
           aria-label="Your step"
-          data-sheet={sheetHeight}
-          className="absolute inset-x-0 bottom-0 z-[450] max-h-[78%] overflow-y-auto rounded-t-3xl bg-[var(--mc-surface)] px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4 shadow-[0_-8px_30px_rgba(2,6,23,0.5)]"
+          className="absolute inset-x-0 bottom-0 z-[450] flex flex-col rounded-t-3xl bg-[var(--mc-surface)] shadow-[0_-8px_30px_rgba(2,6,23,0.5)]"
+          style={{ maxHeight: sheetOpen ? SHEET_OPEN : SHEET_CLOSED }}
         >
-          {step}
+          {/* The handle: a tap, or a swipe up or down, opens or closes the card. */}
+          <button
+            type="button"
+            aria-expanded={sheetOpen}
+            aria-label={sheetOpen ? 'Show the map' : 'Show all of the card'}
+            onPointerDown={(e) => {
+              handleFrom.current = e.clientY;
+              // So the swipe ends here wherever the finger or the mouse is let go.
+              e.currentTarget.setPointerCapture?.(e.pointerId);
+            }}
+            onPointerUp={(e) => {
+              const moved = handleFrom.current === null ? 0 : e.clientY - handleFrom.current;
+              handleFrom.current = null;
+              setSheetOpen((open) => (moved < -16 ? true : moved > 16 ? false : !open));
+            }}
+            onClick={(e) => {
+              // A key press. A finger or a mouse was answered on the way up.
+              if (e.detail === 0) setSheetOpen((open) => !open);
+            }}
+            className="flex h-7 w-full shrink-0 touch-none items-center justify-center rounded-t-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-flash-400"
+          >
+            <span className="h-1.5 w-10 rounded-full bg-[var(--mc-line-strong)]" aria-hidden="true" />
+          </button>
+          <div ref={sheetScroll} data-sheet={sheetHeight} className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-1">
+            {step}
+          </div>
         </section>
       </div>
       {overlays}
@@ -882,7 +960,7 @@ export default function SearchScreen({ mission = null }) {
   return (
     <Suspense
       fallback={
-        <div className="mc-dark flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)]">
+        <div className="mc-dark mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)]">
           <Loader2 size={36} className="animate-spin text-flash-400" aria-hidden="true" />
         </div>
       }

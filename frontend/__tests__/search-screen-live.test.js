@@ -428,3 +428,51 @@ describe('on the desk, "Answer" writes to the person answered and never to every
     expect(view.getByPlaceholderText('Write to everyone helping')).toBeTruthy();
   });
 });
+
+describe('a phone holding an area', () => {
+  // Founder, 2026-11-14, on the area card: "Text takes up 80% of screen".
+  const ground = (over = {}) => ({
+    id: 'z-east', key: 'east', ring: 1, name: 'East side', title: 'East side',
+    reach: '150 m to 400 m east of where Max was lost', landmarks: ['Elm St', 'Oak Ave'],
+    center: { lat: 30.3148, lng: -97.743 }, outline: [[30.316, -97.744], [30.313, -97.744], [30.3148, -97.741]],
+    minutes: 45, priority: 6, status: 'IN_PROGRESS', on: 1, searchCount: 0, mine: true, ...over,
+  });
+  const onArea = () => {
+    const items = [ground()];
+    return { ...hook({ items }), unit: 'area', board: { unit: 'area' }, circle: { center: { lat: 30.3148, lng: -97.7459 }, radius: 400 } };
+  };
+
+  test('closed over the map, the card is the area and how long, and Sarama\'s row opens the rest', async () => {
+    const { searcherBrief } = require('@/app/mission-control/lib/briefLines');
+    const brief = searcherBrief(picture());
+    useSearch.mockReturnValue(onArea());
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const card = () => view.container.querySelector('[aria-label="Your step"]').textContent;
+    expect(card()).toMatch(/Search the east side/);
+    expect(card()).toMatch(/Around Elm St and Oak Ave\. About 45 minutes\./);
+    expect(card()).not.toContain(brief.look);
+    expect(card()).not.toMatch(/150 m to 400 m east/);
+    // What to do on seeing the pet is on the map meanwhile, in the brief's own words.
+    expect(view.container.textContent).toContain(brief.neverFirst);
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'How to search here' })));
+    expect(card()).toContain(brief.look);
+    expect(card()).toContain(brief.call);
+    expect(card()).toMatch(/150 m to 400 m east of where Max was lost, around Elm St and Oak Ave\./);
+    expect(view.getByRole('button', { name: 'Show the map' }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  test('the handle closes it again, and the buttons are there either way', async () => {
+    useSearch.mockReturnValue(onArea());
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const pinned = () => view.container.querySelector('[data-pinned]').textContent;
+    expect(pinned()).toMatch(/I searched it/);
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'How to search here' })));
+    expect(pinned()).toMatch(/I searched it/);
+    // A key press on the handle (a finger is answered on the way up, a key by the click).
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'Show the map' }), { detail: 0 }));
+    expect(view.getByRole('button', { name: 'Show all of the card' }).getAttribute('aria-expanded')).toBe('false');
+    expect(view.getByRole('button', { name: 'How to search here' })).toBeTruthy();
+  });
+});

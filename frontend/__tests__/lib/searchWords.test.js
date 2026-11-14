@@ -63,6 +63,14 @@ describe('who and where', () => {
     expect(petSub({ species: 'DOG' })).toBe('Lost dog');
   });
 
+  test('a list of colours is said the way a person says it', () => {
+    // As the report stores it: this read "Kevin's dog, dark brown, brown" (2026-11-14).
+    expect(petSub({ owner: 'Kevin', species: 'DOG', color: 'Dark brown, Brown' })).toBe("Kevin's dog, dark brown and brown");
+    expect(petSub({ owner: 'Kevin', species: 'DOG', color: 'Black, white, tan' })).toBe("Kevin's dog, black, white and tan");
+    expect(petSub({ owner: 'Kevin', species: 'DOG', color: 'Brown, brown' })).toBe("Kevin's dog, brown");
+    expect(petSub({ owner: 'Kevin', species: 'DOG', color: 'Black/White', breed: 'Border collie' })).toBe("Kevin's dog, black and white border collie");
+  });
+
   test('a corner is "at", a street is "on", anything else is "near"', () => {
     expect(placeWords('W 40th St and Ramsey Ave')).toBe('at W 40th St and Ramsey Ave');
     expect(placeWords('Ramsey Ave')).toBe('on Ramsey Ave');

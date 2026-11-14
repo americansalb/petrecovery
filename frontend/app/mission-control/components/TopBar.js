@@ -74,7 +74,7 @@ export default function TopBar({ picture, line, backHref, onPhoto, right = null,
         )}
       </div>
       <p
-        className={`px-4 pb-3 text-[17px] font-semibold leading-6 ${wide ? 'lg:hidden' : ''} ${seen ? 'text-[var(--mc-seen)]' : 'text-[var(--mc-ink)]'}`}
+        className={`px-4 pb-2.5 text-[15px] font-semibold leading-[21px] ${wide ? 'lg:hidden' : ''} ${seen ? 'text-[var(--mc-seen)]' : 'text-[var(--mc-ink)]'}`}
         aria-live="polite"
       >
         {seen && <span className="mr-2 inline-block h-3 w-3 rounded-full bg-[var(--mc-seen)] align-baseline" aria-hidden="true" />}

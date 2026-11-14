@@ -8,7 +8,7 @@
  * do anything: the actions are the owner asking or writing in their own name.
  */
 import {
-  isSeenCircle, circleAreas, areaName, AreaName, mapLabel, timesWords, listWords, whereWords, areaState, areaLine, areaFacts,
+  isSeenCircle, circleAreas, areaName, AreaName, mapLabel, timesWords, listWords, whereWords, whereShort, areaState, areaLine, areaFacts,
   groundCoverage, groundLines, givenNextAreas, minutesRange, quietGround, coveredWords, needsForGround, groundActivity, forAnyoneElse, whyThisArea,
 } from '@/app/mission-control/lib/ground';
 
@@ -85,6 +85,10 @@ describe('where an area is', () => {
 
   test('ground with no named street in it is still somewhere', () => {
     expect(whereWords(area('middle'))).toBe('Within 150 m of where Max was lost.');
+    // Under a heading that says which way, a phone's closed card names the streets to find it by, or how far it reaches.
+    expect(whereShort(area('west', { landmarks: ['Jefferson St', 'Shoal Creek Blvd'] }))).toBe('Around Jefferson St and Shoal Creek Blvd.');
+    expect(whereShort(area('west'))).toBe('150 m to 400 m west of where Max was lost.');
+    expect(whereShort(null)).toBe('');
   });
 
   test('nobody is told to walk a street', () => {

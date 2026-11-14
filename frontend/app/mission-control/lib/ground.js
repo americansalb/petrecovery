@@ -57,6 +57,18 @@ export function whereWords(area) {
   return `${area.reach}${marks.length ? `, around ${listWords(marks)}` : ''}.`;
 }
 
+/**
+ * Where an area is, in a few words, under a heading that already says
+ * which way ("Search the far north-east"): the streets to find it by, or,
+ * where none is named, how far it reaches. For a phone's card while it is
+ * closed over the map; opened, the card says `whereWords`.
+ */
+export function whereShort(area) {
+  if (!area) return '';
+  const marks = (area.landmarks || []).slice(0, 2);
+  return marks.length ? `Around ${listWords(marks)}.` : `${area.reach}.`;
+}
+
 const WATER_WORDS = { river: 'a river', canal: 'a canal', stream: 'a stream', pond: 'a pond or lake' };
 
 /**

@@ -15,6 +15,16 @@ import prisma from '@/app/lib/prisma';
 import { missionWhere, missionShareSelect, missionShareMetadata, genericShareMetadata } from '@/app/lib/shareMetadata';
 import SearchScreen from './SearchScreen';
 
+/**
+ * The search screen takes the whole phone, edge to edge, and keeps its own
+ * bar and buttons clear of the clock, the notch and the browser's bars with
+ * env(safe-area-inset-*) (SearchScreen.js, TopBar.js, PhotoView.js). Those
+ * read 0 unless the page asks for the whole screen, which only this route
+ * does: the rest of the site does not pad for a notch. Merged with the root
+ * layout's viewport.
+ */
+export const viewport = { viewportFit: 'cover' };
+
 export async function generateMetadata({ searchParams }) {
   const param = searchParams?.mission || searchParams?.caseId;
   if (!param || typeof param !== 'string') return genericShareMetadata();

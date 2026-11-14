@@ -1139,6 +1139,15 @@ img {
 .mc-far .mc-area-name {
   display: none;
 }
+/* Around a dark search screen the page itself is dark too. A phone browser shows the page's own
+   background behind its toolbar and under the clock (iOS Safari's floating bar), and the site's
+   pale one there drew white bands above and below the screen (2026-11-14). Same as --mc-surface.
+   .mc-screen marks the phone screen's own root, not every .mc-dark (the pet page borrows that
+   palette for a dialog, and its page must stay as it is). */
+html:has(.mc-screen),
+html:has(.mc-screen) body {
+  background-color: #0f172a;
+}
 .mc-dark {
   --mc-ground: #0b1220;
   --mc-surface: #0f172a;

@@ -72,10 +72,25 @@ export function searchDay(lostAt, now = Date.now()) {
 export function petSub({ owner = null, species, color = '', breed = '' } = {}) {
   const kind = speciesLabel(species).toLowerCase();
   const whose = owner ? `${owner}'s ${kind}` : `Lost ${kind}`;
-  const looks = [String(color || '').trim().toLowerCase(), breed && !/^unknown$/i.test(breed) ? String(breed).trim().toLowerCase() : '']
+  const looks = [colorWords(color), breed && !/^unknown$/i.test(breed) ? String(breed).trim().toLowerCase() : '']
     .filter(Boolean)
     .join(' ');
   return looks ? `${whose}, ${looks}` : whose;
+}
+
+/**
+ * A pet's colours as a person says them. The report keeps a list ("Dark brown, Brown"), which after
+ * "Kevin's dog," read as a sentence that had lost its way: "Kevin's dog, dark brown, brown". The last
+ * two are joined with "and", a colour named twice is said once.
+ */
+function colorWords(color) {
+  const seen = new Set();
+  const list = String(color || '')
+    .split(/\s*[,;/]\s*/)
+    .map((c) => c.trim().toLowerCase())
+    .filter((c) => c && !seen.has(c) && seen.add(c));
+  if (list.length < 2) return list[0] || '';
+  return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
 }
 
 /** "at W 40th St and Ramsey Ave", "on Ramsey Ave", "near Zilker Park", or ''. */
