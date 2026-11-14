@@ -768,7 +768,7 @@ function Screen({ mission }) {
   } else if (isOwner) {
     step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (mine && ground) {
-    step = <Area picture={picture} name={name} mine={mine} instrument={instrument} gps={gps} onSearched={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Area picture={picture} name={name} mine={mine} instrument={instrument} gps={gps} open={sheetOpen} onOpen={() => setSheetOpen(true)} onSearched={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (mine) {
     step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (view === 'join' && !desk) {
@@ -827,7 +827,10 @@ function Screen({ mission }) {
 
   // ----- A phone, in a browser or in the app -----
   const brief = searcherBrief(picture);
-  const showChip = !isOwner && view === 'main' && !mine;
+  // What to do on seeing the pet, in the brief's own first sentence, on the map for everyone helping: holding an
+  // area too, since the card closed over the map says the area and not how to search it. Hidden while the card is
+  // open and the map is a strip; the map is fitted as if it shows, so opening the card does not move the map.
+  const showChip = !isOwner && view === 'main';
   const keyBits = [
     counts.searched > 0 ? [ground ? 'fill' : 'bar', 'Already searched'] : null,
     // Their own area is one of those in progress only while the site counts them as on it.
@@ -904,7 +907,7 @@ function Screen({ mission }) {
       <TopBar picture={picture} line={line} backHref={petHref} onPhoto={() => setPhoto(true)} />
       <div className="relative min-h-0 flex-1">
         <div className="absolute inset-0 z-0">{map}</div>
-        {showChip && (
+        {showChip && !sheetOpen && (
           <p className="absolute left-3 top-3 z-[400] max-w-[calc(100%-24px)] rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3.5 py-2 text-[13px] font-bold leading-[18px] text-[var(--mc-ink)] shadow-lg">
             {brief.neverFirst}
           </p>

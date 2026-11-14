@@ -30,8 +30,8 @@
  * that is what the desk reads as "seen".
  */
 import { useEffect, useRef, useState } from 'react';
-import { Share2, TriangleAlert } from 'lucide-react';
-import Sarama, { Paws, Trail } from '../components/Sarama';
+import { ChevronUp, Share2, TriangleAlert } from 'lucide-react';
+import Sarama, { Paws, Trail, SaramaPose } from '../components/Sarama';
 import Gear from '../components/Gear';
 import { SARAMA } from '../lib/sarama';
 import { PAWS } from '@/app/lib/trail';
@@ -40,7 +40,7 @@ import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, B
 import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
 import { clockTime, lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
-import { areaName, isSeenCircle, whereWords, hazardLines } from '../lib/ground';
+import { areaName, isSeenCircle, whereWords, whereShort, hazardLines } from '../lib/ground';
 import { missingFor, whenWords } from '../lib/insight';
 
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '';
@@ -538,7 +538,7 @@ export function Training({ name, unit, instrument, busy, onGo }) {
  * The circle round a sighting is the same card, with the brief's line on
  * what to do on seeing the pet first.
  */
-export function Area({ picture, name, mine, instrument, gps, onSearched, onOther, onStop, onSeen, busy, problem, canOther, asked = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
+export function Area({ picture, name, mine, instrument, gps, onSearched, onOther, onStop, onSeen, busy, problem, canOther, asked = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, open = true, onOpen = null, now }) {
   const brief = searcherBrief(picture);
   // This card shows the ask too, so it says so: the desk is not left reading "asked" until this area is done.
   const askBox = useRef(null);
@@ -552,12 +552,16 @@ export function Area({ picture, name, mine, instrument, gps, onSearched, onOther
   // With how to call, or not to: it follows what the owner said the pet is like (app/lib/brief.js), and the card
   // left it out until 2026-11-13.
   const advice = sighting ? [brief.never, brief.look, brief.call] : [brief.look, brief.call];
+  // On a phone, closed over the map, the card is the area, how long, and what the map shows to take care of. The
+  // rest is under the card's handle, and Sarama's row opens it (founder, 2026-11-14: "Text takes up 80% of
+  // screen"). What to do on seeing the pet stays on the map above (SearchScreen.js, brief.neverFirst).
+  const short = !desk && !open && Boolean(onOpen);
   return (
     <>
-      <Eyebrow>Your area</Eyebrow>
-      <Heading className="mt-1">Search {areaName(mine)}</Heading>
+      {!short && <Eyebrow>Your area</Eyebrow>}
+      <Heading className={short ? '' : 'mt-1'}>Search {areaName(mine)}</Heading>
       <Lead className="mt-1.5">
-        {whereWords(mine)}
+        {short ? whereShort(mine) : whereWords(mine)}
         {seenWhen ? ` Seen ${seenWhen}.` : ''} About {mine.minutes} minutes.{recording ? ` ${brief.records}` : ''}
       </Lead>
       {asked && (
@@ -572,7 +576,19 @@ export function Area({ picture, name, mine, instrument, gps, onSearched, onOther
       <Care area={mine} className="mt-3" />
       <Said said={said} line={saidLine} picture={picture} now={now} onSay={onSay} onShown={onShown} onPutAway={onPutAway} also={asked?.id || null} />
       {/* Sarama says the searcher's brief, word for word: where to look, and whether to call. */}
-      <Sarama className="mt-3" pose={sighting ? 'point' : 'sniff'} say={advice} />
+      {short ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-[var(--mc-raised)] py-1.5 pl-1.5 pr-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400"
+        >
+          <SaramaPose pose={sighting ? 'point' : 'sniff'} size={44} />
+          <span className="min-w-0 flex-1 text-[15px] font-bold leading-5 text-[var(--mc-ink)]">How to search here</span>
+          <ChevronUp size={18} className="shrink-0 text-[var(--mc-soft)]" aria-hidden="true" />
+        </button>
+      ) : (
+        <Sarama className="mt-3" pose={sighting ? 'point' : 'sniff'} say={advice} />
+      )}
       {/* On a phone the buttons stay on the screen, whatever was said above them. */}
       <Pinned on={!desk}>
         <Problem className={desk ? 'mt-2' : 'pb-2'}>{problem}</Problem>
