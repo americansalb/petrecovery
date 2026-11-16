@@ -1013,25 +1013,31 @@ describe('what the picture reads', () => {
     expect(await zoneSearchersSince(CASE, ago(30))).toEqual(['u-mike', 'u-sarah']);
   });
 
-  test('the ground that was covered, and by whom', async () => {
-    prisma.searchZone.count.mockResolvedValue(4);
-    prisma.searchZoneVisit.findMany.mockResolvedValue([{ searcherId: 'v:vol-1' }, { searcherId: 'v:vol-1' }]);
-    expect(await zoneGroundCovered(CASE)).toEqual({ areas: 4, people: ['v:vol-1', 'v:vol-1'] });
-  });
-
-  test('everyone who went out on an area counts, not only who pressed "I searched it" before the pet came home', async () => {
-    // Testing found eight helpers on areas when the owner marked the pet home and a thank-you that said
-    // "1 person searched 1 area". Someone still on an area then (the search's end closes it as ENDED), or who
-    // stopped part way, searched it as far as they got; an ask nobody started is not a search.
-    await zoneGroundCovered(CASE);
-    expect(prisma.searchZoneVisit.findMany.mock.calls[0][0]).toEqual({ where: { caseId: CASE, startedAt: { not: null } }, select: { searcherId: true } });
-    // An area counts once anyone went out on it, or once it was put down as searched from the desk.
-    expect(prisma.searchZone.count.mock.calls[0][0]).toEqual({ where: { caseId: CASE, OR: [{ searchCount: { gt: 0 } }, { visits: { some: { startedAt: { not: null } } } }] } });
+  test('the ground that was covered, and by whom: a visit counts when it holds a search', async () => {
+    // 2026-11-16: "9 people helped you search 12 areas" for a record of 2 searches. Every area anyone had started
+    // was counted, some handed back after five seconds.
+    prisma.searchZoneVisit.findMany.mockResolvedValue([
+      { searcherId: 'v:vol-1', zoneId: 'z-west', outcome: 'SEARCHED', startedAt: ago(60), endedAt: ago(20) },
+      { searcherId: 'u-mike', zoneId: 'z-west', outcome: 'SEARCHED', startedAt: ago(30), endedAt: ago(29) },
+      // Out on it when the pet came home, for 40 minutes: searched as far as they got.
+      { searcherId: 'u-sarah', zoneId: 'z-east', outcome: 'ENDED', startedAt: ago(45), endedAt: ago(5) },
+      // Stopped after 2 minutes, handed back for another, let lapse, out of reach: not searches.
+      { searcherId: 'u-ben', zoneId: 'z-south', outcome: 'STOPPED', startedAt: ago(10), endedAt: ago(8) },
+      { searcherId: 'u-carl', zoneId: 'z-middle', outcome: 'GAVE_BACK', startedAt: ago(10), endedAt: ago(10) },
+      { searcherId: 'u-dora', zoneId: 'z-far', outcome: 'LAPSED', startedAt: ago(300), endedAt: ago(100) },
+      { searcherId: 'u-eve', zoneId: 'z-far2', outcome: 'CANNOT', startedAt: ago(20), endedAt: ago(19) },
+    ]);
+    // The areas with a search on their record (west, and north put down as searched from the desk), and east.
+    prisma.searchZone.findMany.mockResolvedValueOnce([{ id: 'z-west' }, { id: 'z-north' }]);
+    expect(await zoneGroundCovered(CASE)).toEqual({ areas: 3, people: ['v:vol-1', 'u-mike', 'u-sarah'] });
+    expect(prisma.searchZoneVisit.findMany.mock.calls[0][0].where).toEqual({ caseId: CASE, startedAt: { not: null } });
+    expect(prisma.searchZone.findMany.mock.calls[0][0]).toEqual({ where: { caseId: CASE, searchCount: { gt: 0 } }, select: { id: true } });
   });
 
   test('a table that cannot be read counts nobody, and never fails the picture', async () => {
     prisma.searchZoneVisit.findMany.mockRejectedValue(new Error('down'));
     prisma.searchZone.count.mockRejectedValue(new Error('down'));
+    prisma.searchZone.findMany.mockRejectedValue(new Error('down'));
     expect(await zoneSearchersSince(CASE, ago(30))).toEqual([]);
     expect(await zoneGroundCovered(CASE)).toEqual({ areas: 0, people: [] });
   });

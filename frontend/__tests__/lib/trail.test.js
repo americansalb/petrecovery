@@ -121,7 +121,9 @@ describe('what the game never pays for', () => {
   });
 
   test('the shared goal is a count anyone can check, never a percentage or a likelihood', () => {
-    expect(component).toMatch(/Keep the map green: \{goal\.fresh\} of \{goal\.total\} areas searched in the last \{FRESH_HOURS\} hours\./);
+    // The count holds the areas someone is on now (freshAreas), so the sentence says so: a helper read "5 of 13 areas
+    // searched in the last 12 hours" for five areas being searched at that moment (2026-11-16).
+    expect(component).toMatch(/Keep the map green: \{goal\.fresh\} of \{goal\.total\} areas searched in the last \{FRESH_HOURS\} hours or being searched now\./);
     expect(component).not.toMatch(/%|percent|probab|likely/i);
   });
 });

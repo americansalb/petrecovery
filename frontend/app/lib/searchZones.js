@@ -999,19 +999,33 @@ export async function zoneSearchersSince(caseId, since) {
     .map((r) => r.searcherId);
 }
 
+/** How long someone must have been out on an area, before they stopped or the search ended, for it to count as a search of it. */
+export const OUT_COUNTS_MS = 10 * 60 * 1000;
+
 /**
  * For the thank-you screen: how many areas were searched, and by whom. { areas, people: [searcher id] }
  *
- * Everyone who went out on an area searched it as far as they got: someone who said "I searched it", and
- * someone still on it when the pet came home (the search's end closes that visit as ENDED, app/lib/searchEnd.js),
- * or who stopped part way. An area counts once anyone went out on it, or once it was put down as searched from
- * the desk. An ask nobody started is not a search.
+ * A visit counts when it holds a search: someone said "I searched it" (SEARCHED), or the area was put down as
+ * searched from the desk (MARKED), or someone was out on it at least OUT_COUNTS_MS before they stopped or the
+ * pet came home (STOPPED, ENDED: they searched it as far as they got). An area handed back for another, let
+ * lapse, taken back or said to be out of reach was not searched, and neither was an ask nobody started.
+ * (2026-11-16: the screen said "9 people helped you search 12 areas" for a record of 2 searches, counting every
+ * area anyone had started, some for five seconds.)
  */
 export async function zoneGroundCovered(caseId) {
-  const went = { startedAt: { not: null } };
-  const [areas, visits] = await Promise.all([
-    prisma.searchZone.count({ where: { caseId, OR: [{ searchCount: { gt: 0 } }, { visits: { some: went } }] } }).catch(() => 0),
-    prisma.searchZoneVisit.findMany({ where: { caseId, ...went }, select: { searcherId: true } }).catch(() => []),
+  const [zones, visits] = await Promise.all([
+    // Every area with a search on its record: said searched by someone on it, or put down as searched from the desk.
+    prisma.searchZone.findMany({ where: { caseId, searchCount: { gt: 0 } }, select: { id: true } }).catch(() => []),
+    prisma.searchZoneVisit
+      .findMany({ where: { caseId, startedAt: { not: null } }, select: { searcherId: true, zoneId: true, outcome: true, startedAt: true, endedAt: true } })
+      .catch(() => []),
   ]);
-  return { areas, people: (visits || []).map((v) => v.searcherId) };
+  const searched = (visits || []).filter((v) => {
+    if (v.outcome === 'SEARCHED') return true;
+    if (v.outcome !== 'STOPPED' && v.outcome !== 'ENDED') return false;
+    const out = v.endedAt && v.startedAt ? new Date(v.endedAt).getTime() - new Date(v.startedAt).getTime() : 0;
+    return out >= OUT_COUNTS_MS;
+  });
+  // Ground put down as searched from the desk counts as ground, and adds nobody to the people who searched.
+  return { areas: new Set([...(zones || []).map((z) => z.id), ...searched.map((v) => v.zoneId)]).size, people: searched.map((v) => v.searcherId) };
 }
