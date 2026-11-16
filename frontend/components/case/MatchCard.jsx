@@ -77,7 +77,7 @@ function MatchPhoto({ photo, name, species }) {
  * @param {function} openRelay   async (matchId) => {threadId, antiScamBanner, counterpartyHandle, coarseArea}. Defaults to the live endpoint.
  * @param {function} sendMessage async (threadId, body) => void. Defaults to the live endpoint.
  */
-export function MatchCard({ match, onEvent, openRelay, sendMessage, connectAvailable = true }) {
+export function MatchCard({ match, onEvent, openRelay, sendMessage, connectAvailable = true, replyNote = null, lostPageUrl = null }) {
   const {
     matchId,
     petPhoto,
@@ -211,10 +211,10 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage, connectAvail
               {error && <BrokerError kind={error} />}
             </>
           ) : (
-            // Relay broker not active yet: the owner is already alerted server-side
-            // (owner-notify fires for actionable matches), so tell the truth rather
-            // than show a Confirm CTA that can't open a thread.
-            <OwnerAlerted />
+            // No thread here: the owner was sent a link to the found report
+            // server-side (owner-notify fires for actionable matches), so say
+            // that, where a message from them comes, and where their pet's page is.
+            <OwnerAlerted petName={petName} ownerTold={match?.ownerTold !== false} replyNote={replyNote} lostPageUrl={lostPageUrl} />
           )}
         </div>
       ) : (
@@ -225,16 +225,31 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage, connectAvail
   );
 }
 
-/** Interim actionable state when the relay broker isn't live yet. Truthful: the
- *  owner-notify already fired server-side, so we say so instead of a dead CTA. */
-function OwnerAlerted() {
+/**
+ * The words on a strong match for the finder, when there is no thread to open.
+ * Only what happened and what will: the owner was sent a link to the found
+ * report (found-pet route), a message from them comes where the finder asked
+ * to be reached (/api/reports/[id]/message), and the lost pet's own page is
+ * where the finder can reach the owner.
+ */
+export function ownerAlertedWords({ petName, ownerTold = true, replyNote }) {
+  const owner = petName ? `${petName}'s owner` : 'the owner';
+  const sent = ownerTold ? `We sent ${owner} a link to your report.` : `We could not reach ${owner} just now. Open their page to see how to reach them.`;
+  return [sent, ownerTold ? replyNote : null].filter(Boolean).join(' ');
+}
+
+function OwnerAlerted({ petName, ownerTold, replyNote, lostPageUrl }) {
   return (
     <div className="flex items-start gap-2 rounded-xl bg-green-50 border border-green-200 p-3 text-sm text-green-800">
       <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" aria-hidden="true" />
-      <p>
-        The owner has been alerted about your found report and may reach out to you directly.
-        In-app messaging is rolling out soon.
-      </p>
+      <div className="space-y-1.5">
+        <p>{ownerAlertedWords({ petName, ownerTold, replyNote })}</p>
+        {lostPageUrl && (
+          <a href={lostPageUrl} className="inline-block font-semibold text-green-900 underline underline-offset-4">
+            {petName ? `Open ${petName}'s page` : 'Open the lost report'}
+          </a>
+        )}
+      </div>
     </div>
   );
 }

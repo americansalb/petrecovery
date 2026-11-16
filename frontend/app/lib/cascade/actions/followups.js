@@ -21,6 +21,11 @@ export async function runFollowups(ctx) {
   }
 
   const channel = followUpChannel(c);
+  if (!channel) {
+    const skip = new Error('no email or phone to send reminders to');
+    skip.skip = true;
+    throw skip;
+  }
   const base = c.createdAt ? new Date(c.createdAt).getTime() : Date.now();
 
   await Promise.all(

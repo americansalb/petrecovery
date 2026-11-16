@@ -10,7 +10,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
-import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
+import { isDeliverableEmail } from '@/app/lib/placeholderEmail';
 import { getEmailBaseUrl } from '@/app/lib/config';
 
 const SPECIES_WORD = { DOG: 'dog', CAT: 'cat', BIRD: 'bird', RABBIT: 'rabbit', OTHER: 'pet' };
@@ -37,8 +37,9 @@ export async function runRecoveryEmail(ctx) {
   const c = ctx.case;
   const email = c.ownerEmail;
 
-  if (!email || isPlaceholderEmail(email)) {
-    const skip = new Error('phone-only reporter - case link already sent via SMS at intake');
+  // Phone-only reports store "Not provided" here, which is not an address either.
+  if (!isDeliverableEmail(email)) {
+    const skip = new Error('no email address on the report: phone-only reporters get the link by text at intake');
     skip.skip = true;
     throw skip;
   }
@@ -92,12 +93,18 @@ export async function runRecoveryEmail(ctx) {
     footnote: `Case ${c.caseNumber}`,
   });
 
-  await sendEmail({
+  const sent = await sendEmail({
     to: email,
     subject: `Your recovery kit for ${petName} is ready`,
     html,
     attachments: attachment ? [attachment] : undefined,
   });
+  // Recorded as sent only when it went. Not configured is not a failure of this report: skipped, with the reason.
+  if (!sent?.success) {
+    const err = new Error(`recovery email not sent: ${sent?.error || 'unknown'}`);
+    if (sent?.skipped) err.skip = true;
+    throw err;
+  }
 
   return { count: 1, result: { sent: true, attachedFlyer: Boolean(attachment) } };
 }

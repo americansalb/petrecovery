@@ -17,10 +17,10 @@
  * payoff, then what to do with the animal.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  Check, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Loader2, MapPin, Phone, Printer, Share2,
+  Check, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Loader2, MapPin, Phone, Printer, RefreshCw, Share2,
 } from 'lucide-react';
 import { MatchCard } from '@/components/case/MatchCard';
 import { bandLabel, matchIsActionable } from '@/components/case/matchGating';
@@ -31,6 +31,79 @@ import DetailsHub from './lost/DetailsHub';
 import ScamNote from './ScamNote';
 import useRecoveryKit from './recoveryKit/useRecoveryKit';
 import { CopyButton } from './recoveryKit/RecoveryKit';
+import { captchaHeaders } from '@/app/lib/captchaClient';
+import {
+  lostLinkLine, lostForceLine, lostNeighborsLine, foundLines, finderReplyNote, KIT_WORDS,
+} from './successWords';
+
+/** A line from successWords: strings, and the address or number in bold. */
+function Parts({ parts }) {
+  return parts.map((p, i) =>
+    typeof p === 'string' ? <Fragment key={i}>{p}</Fragment> : <strong key={i} className="font-semibold text-white">{p.strong}</strong>
+  );
+}
+
+/** How long a second drawing is waited for before the page says it did not come out. */
+const REDRAW_WAIT_MS = 3 * 60 * 1000;
+
+/**
+ * Drawing the kit again when the first try did not make the flyer or the
+ * share image (POST /api/reports/[id]/redraw), and waiting for it. Only
+ * for the owner: the details token, or a session.
+ */
+function useRedraw({ caseId, detailsToken, isLoggedIn, refetch, drawn }) {
+  const [state, setState] = useState('idle'); // idle | asking | drawing | missing
+  const allowed = Boolean(caseId && (detailsToken || isLoggedIn));
+
+  const start = useCallback(async () => {
+    setState('asking');
+    try {
+      // The bot check middleware asks for on every POST to /api/reports when CAPTCHA is on.
+      const res = await fetch(`/api/reports/${encodeURIComponent(caseId)}/redraw`, {
+        method: 'POST',
+        headers: { ...(detailsToken ? { 'x-details-token': detailsToken } : {}), ...(await captchaHeaders('kit_redraw')) },
+      });
+      if (res.status === 202) setState('drawing');
+      else if (res.ok) {
+        refetch();
+        setState('idle');
+      } else setState('missing');
+    } catch {
+      setState('missing');
+    }
+  }, [caseId, detailsToken, refetch]);
+
+  useEffect(() => {
+    if (state !== 'drawing') return undefined;
+    if (drawn) {
+      setState('idle');
+      return undefined;
+    }
+    const poll = setInterval(refetch, 5000);
+    const give = setTimeout(() => setState('missing'), REDRAW_WAIT_MS);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(give);
+    };
+  }, [state, drawn, refetch]);
+
+  return { allowed, state, start };
+}
+
+/** The button that draws the kit again, or what became of the last try. */
+function RedrawButton({ redraw }) {
+  if (!redraw.allowed) return null;
+  if (redraw.state === 'drawing') return null;
+  return (
+    <>
+      <button type="button" onClick={redraw.start} disabled={redraw.state === 'asking'} className={`${OUTLINE} w-full`}>
+        {redraw.state === 'asking' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+        {KIT_WORDS.tryAgain}
+      </button>
+      {redraw.state === 'missing' && <p className="text-[13px] text-midnight-500">{KIT_WORDS.stillMissing}</p>}
+    </>
+  );
+}
 
 const CARD = 'rounded-2xl border border-midnight-200 bg-white p-4 lg:p-5';
 const EYEBROW = 'text-[11px] font-bold uppercase tracking-[0.08em] text-midnight-500';
@@ -126,7 +199,7 @@ function StepCard({ n, title, children, className = '' }) {
   );
 }
 
-function SocialTile({ asset, working, petName }) {
+function SocialTile({ asset, working, redrawing, petName }) {
   if (asset?.url) {
     return (
       <div className="flex w-[150px] flex-col gap-1.5">
@@ -143,10 +216,10 @@ function SocialTile({ asset, working, petName }) {
     <div className="flex w-[150px] flex-col gap-1.5">
       <div className="flex h-[150px] w-[150px] items-center justify-center rounded-lg border border-dashed border-midnight-300 bg-midnight-50 p-3 text-center">
         <span className="text-[13px] font-semibold leading-snug text-midnight-500">
-          {working ? 'Drawing the share image' : 'The share image is on the page when it is ready'}
+          {working || redrawing ? KIT_WORDS.shareDrawing : KIT_WORDS.shareMissing}
         </span>
       </div>
-      {working && <span className="text-center text-[13px] text-midnight-500">about a minute</span>}
+      {(working || redrawing) && <span className="text-center text-[13px] text-midnight-500">about a minute</span>}
     </div>
   );
 }
@@ -283,7 +356,7 @@ function Footer({ caseUrl, label, note, isLoggedIn }) {
 function LostBody({
   caseNumber, caseId, name, word, species, breed, details, detailsToken, isLoggedIn, activation, flyer, link,
 }) {
-  const { kit, working } = useRecoveryKit(caseNumber, { initialStatus: activation?.status || 'PENDING' });
+  const { kit, working, refetch } = useRecoveryKit(caseNumber, { initialStatus: activation?.status || 'PENDING' });
   const [allShelters, setAllShelters] = useState(false);
   const caseUrl = `/cases/${caseNumber}`;
   const social = kit?.assets?.social || [];
@@ -291,6 +364,9 @@ function LostBody({
   const square = social.find((s) => s.kind === 'SOCIAL_SQUARE');
   const story = social.find((s) => s.kind === 'SOCIAL_STORY');
   const letter = flyers.find((f) => f.kind === 'FLYER_LETTER');
+  // The first drawing finished without the flyer or the share image: say so, and offer to draw them again.
+  const redraw = useRedraw({ caseId, detailsToken, isLoggedIn, refetch, drawn: Boolean(letter && square?.url) });
+  const redrawing = redraw.state === 'drawing';
   const caption = kit?.copy?.captions?.facebook || '';
   const matches = kit?.matches || [];
   const shelters = kit?.shelters || [];
@@ -305,7 +381,7 @@ function LostBody({
         <StepCard n={1} title="Post it where neighbors look">
           <p className={BODY}>Facebook, Nextdoor, the neighborhood group chat. One share often reaches the person who sees {name}.</p>
           <div className="flex items-start gap-3">
-            <SocialTile asset={square} working={working} petName={name} />
+            <SocialTile asset={square} working={working} redrawing={redrawing} petName={name} />
             {story?.url && (
               <a href={story.url} target="_blank" rel="noopener noreferrer" download className="block w-[84px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -314,6 +390,7 @@ function LostBody({
               </a>
             )}
           </div>
+          {!working && !square?.url && letter && <RedrawButton redraw={redraw} />}
           {caption && (
             <div className="min-w-0 space-y-2 rounded-xl bg-midnight-50 p-3">
               <p className={EYEBROW}>Your post</p>
@@ -357,10 +434,13 @@ function LostBody({
               Open the flyer (PDF)
             </a>
           ) : (
-            <p className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-midnight-50 px-4 text-[14px] font-semibold text-midnight-500">
-              {working && <Loader2 size={16} className="animate-spin" />}
-              {working ? 'Drawing the flyer, about a minute' : 'The flyer is on the page when it is ready'}
-            </p>
+            <>
+              <p className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-midnight-50 px-4 text-[14px] font-semibold text-midnight-500">
+                {(working || redrawing) && <Loader2 size={16} className="animate-spin" />}
+                {working ? KIT_WORDS.flyerDrawing : redrawing ? KIT_WORDS.flyerRedrawing : KIT_WORDS.flyerMissing}
+              </p>
+              {!working && <RedrawButton redraw={redraw} />}
+            </>
           )}
         </StepCard>
 
@@ -400,7 +480,7 @@ function LostBody({
           ) : (
             <p className="flex items-center gap-2 text-[14px] text-midnight-500">
               {working && <Loader2 size={16} className="animate-spin" />}
-              {working ? 'Finding the shelters near the spot' : 'The shelter list is on the page when it is ready.'}
+              {working ? KIT_WORDS.sheltersFinding : KIT_WORDS.sheltersMissing}
             </p>
           )}
         </StepCard>
@@ -431,7 +511,7 @@ function LostBody({
   );
 }
 
-function FoundBody({ caseNumber, word, matches, isLoggedIn, link }) {
+function FoundBody({ caseNumber, word, matches, isLoggedIn, link, replyNote }) {
   const caseUrl = `/cases/${caseNumber}`;
   const facebook = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`;
   const shown = matches.slice(0, 5);
@@ -451,6 +531,8 @@ function FoundBody({ caseNumber, word, matches, isLoggedIn, link }) {
                 <MatchCard
                   key={match.reportId}
                   connectAvailable={false}
+                  replyNote={replyNote}
+                  lostPageUrl={match.reportId ? `/cases/${encodeURIComponent(match.reportId)}` : null}
                   match={{
                     matchId: match.reportId,
                     petPhoto: match.petPhoto,
@@ -461,6 +543,7 @@ function FoundBody({ caseNumber, word, matches, isLoggedIn, link }) {
                     matchSource: match.matchSource,
                     band: match.band,
                     canConnect: match.canConnect,
+                    ownerTold: match.ownerTold,
                   }}
                 />
               ))}
@@ -500,7 +583,7 @@ function FoundBody({ caseNumber, word, matches, isLoggedIn, link }) {
         </StepCard>
       </div>
 
-      <Footer caseUrl={caseUrl} label="Open the report page" note="Messages from owners land there." isLoggedIn={isLoggedIn} />
+      <Footer caseUrl={caseUrl} label="Open the report page" note={replyNote || ''} isLoggedIn={isLoggedIn} />
     </>
   );
 }
@@ -514,6 +597,7 @@ export default function SuccessScreen({
   accountCreated = false,
   contactEmail,
   contactPhone, // phone-only guests: where the case-link SMS went
+  told, // from the create response: what went, and to whom (app/components/report/successWords.js)
   // lost
   squadsNotified = 0,
   assignedSquad,
@@ -525,64 +609,43 @@ export default function SuccessScreen({
   flyer = {}, // FlyerPreview props, from the answers
   // found
   matches = [],
+  matchesNotified = 0,
 }) {
   const link = useShareLink(caseNumber);
   const word = SPECIES_WORD[String(species || 'OTHER').toUpperCase()] || 'pet';
   const name = (petName || '').trim() || `the ${word}`;
   const lost = variant === 'lost';
+  const phoneLabel = contactPhone ? formatPhone(contactPhone) : '';
 
+  // Only what the create route says happened (successWords.js).
   const lines = useMemo(() => {
     const out = [];
     if (lost) {
-      if (!contactEmail && contactPhone) {
-        out.push(
-          <>
-            We texted this link to <strong className="font-semibold text-white">{formatPhone(contactPhone)}</strong>. Sightings come by text too.
-          </>
-        );
-      } else if (contactEmail && (accountCreated || !isLoggedIn)) {
-        out.push(
-          <>
-            We emailed this link to <strong className="font-semibold text-white">{contactEmail}</strong>. Sightings land there too.
-            {/* A password chosen here signs in once the address is confirmed, like every new account. */}
-            {accountCreated ? ' Confirm your email from the message we sent, then sign in with your password.' : ''}
-          </>
-        );
-      } else if (contactEmail) {
-        out.push(
-          <>
-            Sightings and messages go to <strong className="font-semibold text-white">{contactEmail}</strong>.
-          </>
-        );
-      }
-      if (assignedSquad?.name) {
-        out.push(
-          <>
-            Sent to {assignedSquad.name}, which covers the spot where {name} was last seen.
-            {assignedSquad.id && (
-              <>
-                {' '}
-                <Link href={`/rescue-forces/${assignedSquad.id}`} className="font-semibold text-white underline underline-offset-4 decoration-midnight-500">
-                  See the force
-                </Link>
-              </>
-            )}
-          </>
-        );
-      } else if (squadsNotified > 0) {
-        out.push(<>Sent to the {squadsNotified} Rescue Forces that cover the spot where {name} was last seen.</>);
-      } else {
-        out.push(<>Neighbors near the spot where {name} was last seen can see the report.</>);
-      }
-    } else if (contactEmail) {
+      const linkLine = lostLinkLine({ contactEmail, contactPhone, phoneLabel, accountCreated, isLoggedIn, told, name });
+      if (linkLine) out.push(<Parts parts={linkLine} />);
       out.push(
         <>
-          We emailed this link to <strong className="font-semibold text-white">{contactEmail}</strong>. Owners whose lost report matches get an email too.
+          {lostForceLine({ assignedSquad, squadsNotified, name })}
+          {assignedSquad?.id && (
+            <>
+              {' '}
+              <Link href={`/rescue-forces/${assignedSquad.id}`} className="font-semibold text-white underline underline-offset-4 decoration-midnight-500">
+                See the force
+              </Link>
+            </>
+          )}
         </>
       );
+      const neighbors = lostNeighborsLine({ told });
+      if (neighbors) out.push(<>{neighbors}</>);
+    } else {
+      for (const line of foundLines({ contactEmail, contactPhone, phoneLabel, told, matchesNotified, word })) {
+        out.push(<Parts parts={line} />);
+      }
     }
     return out;
-  }, [lost, contactEmail, contactPhone, accountCreated, isLoggedIn, assignedSquad, squadsNotified, name]);
+  }, [lost, contactEmail, contactPhone, phoneLabel, accountCreated, isLoggedIn, told, assignedSquad, squadsNotified, name, matchesNotified, word]);
+  const replyNote = lost ? null : finderReplyNote({ contactEmail, contactPhone, phoneLabel });
 
   if (!caseNumber) {
     return (
@@ -622,7 +685,7 @@ export default function SuccessScreen({
             link={link}
           />
         ) : (
-          <FoundBody caseNumber={caseNumber} word={word} matches={matches} isLoggedIn={isLoggedIn} link={link} />
+          <FoundBody caseNumber={caseNumber} word={word} matches={matches} isLoggedIn={isLoggedIn} link={link} replyNote={replyNote} />
         )}
       </div>
     </div>

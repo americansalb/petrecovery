@@ -6,6 +6,8 @@
 
 import twilio from 'twilio';
 import prisma from '@/app/lib/prisma';
+import { isDeliverableEmail } from '@/app/lib/placeholderEmail';
+import { getEmailBaseUrl } from '@/app/lib/config';
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -15,6 +17,11 @@ const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 let twilioClient = null;
 if (accountSid && authToken) {
   twilioClient = twilio(accountSid, authToken);
+}
+
+/** True when a text can be sent at all: an account, its token and a number to send from. */
+export function smsConfigured() {
+  return Boolean(twilioClient && twilioPhone);
 }
 
 /**
@@ -31,6 +38,9 @@ export async function sendSms(to, message, options = {}) {
     return { success: false, error: 'SMS service not configured' };
   }
 
+  // userId and messageType are for the log below, not for Twilio: they used to be sent to it as message fields.
+  const { userId, messageType, ...twilioOptions } = options;
+
   try {
     // Format phone number if needed
     const formattedPhone = formatPhoneNumber(to);
@@ -42,7 +52,7 @@ export async function sendSms(to, message, options = {}) {
       body: message,
       from: twilioPhone,
       to: formattedPhone,
-      ...options,
+      ...twilioOptions,
     });
 
     // Log the SMS
@@ -56,7 +66,7 @@ export async function sendSms(to, message, options = {}) {
           status: 'SENT',
           twilioSid: result.sid,
         },
-      });
+      }).catch(() => {}); // the text went: a log that could not be written does not make it a failure
     }
 
     return { success: true, sid: result.sid };
@@ -223,15 +233,100 @@ export async function sendUrgentAlert(userId, phoneNumber, { petName, missionNum
 }
 
 /**
+ * The words of a sighting text: what the owner's bell says, where, and the
+ * link to the map. `title` is "Max was just seen" or "Max was seen 2 hours
+ * ago"; `place` a corner or a landmark, never a house number.
+ */
+export function sightingText({ title, place, link }) {
+  return `ReunitePets: ${title}${place ? ` near ${place}` : ''}. See where on the map: ${link}`;
+}
+
+/**
  * Send sighting notification SMS
  */
-export async function sendSightingAlert(userId, phoneNumber, { petName, location, confidence }) {
-  const alertMessage = `ReunitePets: Someone reported seeing ${petName} near ${location}. Confidence: ${confidence}/10. Check your notifications for details.`;
-
-  return sendSms(phoneNumber, alertMessage, {
+export async function sendSightingAlert(userId, phoneNumber, { title, place, link }) {
+  return sendSms(phoneNumber, sightingText({ title, place, link }), {
     userId,
     messageType: 'SIGHTING',
   });
+}
+
+/* ------------------------------------------------- texts to the owner */
+
+/**
+ * How many texts of one kind (a sighting, a found pet that may be theirs)
+ * an owner gets in an hour. Each text costs money and a busy hour can bring
+ * many sightings; the bell, the push and the email still carry every one
+ * (app/lib/sightingLimits.js caps the email).
+ */
+export const OWNER_TEXTS_PER_HOUR = 4;
+
+/**
+ * The number to text the owner of a lost report on, or null when they did
+ * not ask for texts. Pure.
+ *
+ * An owner asks for texts in one of two ways: they reported with "Text me"
+ * (the wizard's default), which leaves the report with a phone and no email
+ * that mail can reach; or they turned on sighting texts for a phone they
+ * confirmed in their settings (SmsPreference). `c` is the case with its
+ * reporter and the reporter's smsPreferences.
+ */
+export function ownerTextNumber(c, { kind = 'SIGHTING' } = {}) {
+  if (!c) return null;
+  const reporter = c.reporter || {};
+  const pref = reporter.smsPreferences;
+  if (pref?.verified && formatPhoneNumber(pref.phoneNumber)) {
+    const wants = kind === 'SIGHTING' ? pref.sightingAlerts : pref.urgentAlerts;
+    if (wants) return formatPhoneNumber(pref.phoneNumber);
+  }
+  const choseText = !isDeliverableEmail(c.ownerEmail) && !isDeliverableEmail(reporter.email);
+  if (!choseText) return null;
+  return formatPhoneNumber(c.ownerPhone) || formatPhoneNumber(reporter.phone) || null;
+}
+
+/**
+ * Text the owner of a case, when they asked for texts and a text can go.
+ * Returns { sent: true } only when Twilio took the message; otherwise
+ * { sent: false, reason }. Never throws.
+ *
+ * kind: 'SIGHTING' or 'FOUND_MATCH', the SmsLog messageType, which is what
+ * the hourly count is kept by.
+ */
+export async function textCaseOwner({ caseId, body, kind = 'SIGHTING', now = new Date() }) {
+  try {
+    if (!smsConfigured()) return { sent: false, reason: 'SMS_NOT_CONFIGURED' };
+    const c = await prisma.case.findUnique({
+      where: { id: caseId },
+      select: {
+        ownerEmail: true,
+        ownerPhone: true,
+        reporter: { select: { id: true, email: true, phone: true, smsPreferences: { select: { phoneNumber: true, verified: true, sightingAlerts: true, urgentAlerts: true } } } },
+      },
+    });
+    const to = ownerTextNumber(c, { kind });
+    if (!to) return { sent: false, reason: 'NOT_ASKED' };
+    const userId = c.reporter?.id;
+    const lastHour = await prisma.smsLog.count({
+      where: { userId, messageType: kind, status: 'SENT', createdAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) } },
+    });
+    if (lastHour >= OWNER_TEXTS_PER_HOUR) return { sent: false, reason: 'HOURLY_LIMIT' };
+    const res = await sendSms(to, body, { userId, messageType: kind });
+    return res?.success ? { sent: true } : { sent: false, reason: res?.error || 'SEND_FAILED' };
+  } catch (error) {
+    console.error('[sms] owner text failed:', error?.message);
+    return { sent: false, reason: 'ERROR' };
+  }
+}
+
+/**
+ * A sighting, texted to the owner who asked for texts. For the routes that
+ * tell the owner about a sighting (app/lib/witness.js), beside the bell, the
+ * push and the email. `url` is the site path the bell links to.
+ */
+export async function textOwnerAboutSighting({ caseId, title, place = null, url, now = new Date() }) {
+  if (!smsConfigured()) return { sent: false, reason: 'SMS_NOT_CONFIGURED' };
+  const link = `${getEmailBaseUrl()}${url || ''}`;
+  return textCaseOwner({ caseId, kind: 'SIGHTING', body: sightingText({ title, place, link }), now });
 }
 
 /**

@@ -18,6 +18,9 @@ import { placeName } from '@/app/lib/needOptions';
 import { caseTitle } from '@/app/lib/caseLabels';
 import { speciesLabel } from '@/app/lib/species';
 import { feedPost } from '@/app/lib/forceFeed';
+import { isOnDuty } from '@/app/lib/duty';
+import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
+import { parsePlace } from '@/app/lib/placeLabel';
 
 // No town outline reaches farther than this from its force's center
 // (app/lib/maps/townOutline.js), so farther forces are not read.
@@ -74,15 +77,21 @@ export async function forcesCovering(point, { forces = null } = {}) {
 
 /**
  * Tell the active members of these forces about a pet just reported in
- * their area, in the notification bell: a lost pet to look for, or a found
- * pet that may be one of theirs. Each person hears once, however many of
- * their forces cover the place, and never about their own report.
+ * their area: a lost pet to look for, or a found pet that may be one of
+ * theirs. Everyone gets it in the notification bell. Members on duty
+ * (app/lib/duty.js) also get it on their phone, the rule the force's
+ * other wake-ups follow (app/lib/wake.js); before, nobody did. Each
+ * person hears once, however many of their forces cover the place, and
+ * never about their own report.
+ *
+ * Returns { bell, pushed }: how many people got the bell, and how many
+ * of them a push reached.
  */
-export async function alertForceMembers({ forces, pet, exceptUserId = null }) {
-  if (!forces.length) return 0;
+export async function alertForceMembers({ forces, pet, exceptUserId = null, now = new Date() }) {
+  if (!forces.length) return { bell: 0, pushed: 0 };
   const members = await prisma.rescueForceMember.findMany({
     where: { rescueSquadId: { in: forces.map((f) => f.id) }, isActive: true },
-    select: { userId: true, rescueSquadId: true },
+    select: { userId: true, rescueSquadId: true, onDutyUntil: true },
   });
   const forceOf = new Map(forces.map((f) => [f.id, f]));
   const seen = new Set(exceptUserId ? [exceptUserId] : []);
@@ -93,7 +102,9 @@ export async function alertForceMembers({ forces, pet, exceptUserId = null }) {
   const name = caseTitle(pet);
 
   const rows = [];
+  const onDuty = new Set();
   for (const m of members) {
+    if (isOnDuty(m, now)) onDuty.add(m.userId);
     if (seen.has(m.userId)) continue;
     seen.add(m.userId);
     const force = forceOf.get(m.rescueSquadId);
@@ -108,8 +119,53 @@ export async function alertForceMembers({ forces, pet, exceptUserId = null }) {
       data: JSON.stringify({ caseId: pet.id, forceId: force.id }),
     });
   }
-  if (rows.length) await prisma.notification.createMany({ data: rows });
-  return rows.length;
+  if (!rows.length) return { bell: 0, pushed: 0 };
+  await prisma.notification.createMany({ data: rows });
+
+  let pushed = 0;
+  const toPush = rows.filter((r) => onDuty.has(r.userId));
+  if (toPush.length && isPushConfigured()) {
+    const results = await Promise.all(
+      toPush.map((r) =>
+        sendPushToUser(prisma, r.userId, { title: r.title, body: r.message, url: r.actionUrl, data: { caseId: pet.id } }).catch(() => null)
+      )
+    );
+    pushed = results.filter((res) => res && res.sent > 0).length;
+  }
+  return { bell: rows.length, pushed };
+}
+
+/**
+ * A country's two-letter code from its name as addresses spell it. Only the
+ * names reports come in with; anything else is kept as written.
+ */
+const COUNTRY_CODES = {
+  'united states': 'US', usa: 'US',
+  mexico: 'MX', 'méxico': 'MX', canada: 'CA', 'canadá': 'CA',
+  guatemala: 'GT', belize: 'BZ', honduras: 'HN', 'el salvador': 'SV', nicaragua: 'NI',
+  'costa rica': 'CR', panama: 'PA', 'panamá': 'PA', colombia: 'CO', cuba: 'CU', jamaica: 'JM',
+  haiti: 'HT', 'dominican republic': 'DO', 'república dominicana': 'DO', 'puerto rico': 'PR',
+  'united kingdom': 'GB', ireland: 'IE', france: 'FR', spain: 'ES', 'españa': 'ES',
+  germany: 'DE', deutschland: 'DE', italy: 'IT', italia: 'IT', portugal: 'PT',
+  australia: 'AU', 'new zealand': 'NZ', india: 'IN', nepal: 'NP', brazil: 'BR', brasil: 'BR',
+  argentina: 'AR', chile: 'CL', peru: 'PE', 'perú': 'PE', ecuador: 'EC', venezuela: 'VE',
+};
+
+/**
+ * The country a place is in, for a force a report sets up there: a
+ * two-letter code where the address names a country on the list above,
+ * the name as written where it names another, and '' where it names
+ * none. Forces set up by a report used to be written down as US wherever
+ * they were, Mexico City Pet Rescue among them.
+ */
+export function countryOfPlace(address) {
+  const place = parsePlace(address);
+  if (!place) return '';
+  if (place.country === 'US') return 'US';
+  const name = String(place.country || '').trim();
+  if (!name) return '';
+  if (/^[A-Za-z]{2}$/.test(name)) return name.toUpperCase();
+  return COUNTRY_CODES[name.toLowerCase()] || name;
 }
 
 /**

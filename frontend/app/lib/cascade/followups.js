@@ -12,8 +12,8 @@
 
 import prisma from '@/app/lib/prisma';
 import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
-import { sendSms } from '@/app/lib/sms';
-import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
+import { sendSms, formatPhoneNumber } from '@/app/lib/sms';
+import { isDeliverableEmail } from '@/app/lib/placeholderEmail';
 import { getEmailBaseUrl } from '@/app/lib/config';
 
 export const FOLLOWUP_DAYS = [1, 3, 7];
@@ -29,9 +29,17 @@ export function isResolved(c) {
   );
 }
 
-/** The right channel for a case: phone-only reporters get SMS, everyone else email. */
+/**
+ * The right channel for a case: email when the owner gave an address mail
+ * can reach, a text when they gave only a phone, and null when there is
+ * neither. A phone-only report stores "Not provided" as its owner email,
+ * which used to count as an address: its reminders were queued as email to
+ * "Not provided".
+ */
 export function followUpChannel(c) {
-  return isPlaceholderEmail(c?.ownerEmail) ? 'sms' : 'email';
+  if (isDeliverableEmail(c?.ownerEmail)) return 'email';
+  if (formatPhoneNumber(c?.ownerPhone || '')) return 'sms';
+  return null;
 }
 
 /** Day-specific, encouraging copy. Never clinical - this is a hard week. */
@@ -78,12 +86,16 @@ async function deliverFollowUp(fu, c) {
   const url = `${baseUrl}/cases/${c.caseNumber}`;
   const msg = followUpMessage(fu.day, c);
 
-  if (fu.channel === 'sms') {
-    if (!c.ownerPhone) throw new Error('no phone on file for SMS follow-up');
-    await sendSms(c.ownerPhone, `${msg.smsText} ${url}`);
+  // The case as it is now decides the channel, so a reminder queued as email to "Not provided" before the fix
+  // goes by text. A send that did not go is a failure, recorded on the row: it used to say SUCCESS whatever happened.
+  const channel = followUpChannel(c) || fu.channel;
+  if (channel === 'sms') {
+    if (!formatPhoneNumber(c.ownerPhone || '')) throw new Error('no phone on file for SMS follow-up');
+    const sent = await sendSms(c.ownerPhone, `${msg.smsText} ${url}`, { userId: c.reporterId, messageType: 'FOLLOW_UP' });
+    if (!sent?.success) throw new Error(`text not sent: ${sent?.error || 'unknown'}`);
     return;
   }
-  if (!c.ownerEmail || isPlaceholderEmail(c.ownerEmail)) {
+  if (!isDeliverableEmail(c.ownerEmail)) {
     throw new Error('no deliverable email for follow-up');
   }
   const html = renderBrandedEmail({
@@ -94,7 +106,8 @@ async function deliverFollowUp(fu, c) {
     ctaUrl: url,
     footnote: `You're getting this because you reported ${c.petName || 'a pet'} lost. It stops automatically once they're home.`,
   });
-  await sendEmail({ to: c.ownerEmail, subject: msg.subject, html });
+  const sent = await sendEmail({ to: c.ownerEmail, subject: msg.subject, html });
+  if (!sent?.success) throw new Error(`email not sent: ${sent?.error || 'unknown'}`);
 }
 
 /**
