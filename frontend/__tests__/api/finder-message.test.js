@@ -141,3 +141,12 @@ test('the finder cannot write to their own report', async () => {
   getServerSession.mockResolvedValue({ user: { id: 'u-finder' } });
   expect((await send({ message: 'Test', replyTo: 'dana@example.com' })).status).toBe(400);
 });
+
+test('the found pet\'s page always offers to write to the finder, and never sends the owner off to report again', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const page = fs.readFileSync(path.join(__dirname, '..', '..', 'app', 'cases', '[caseNumber]', 'CasePageClient.js'), 'utf8');
+  expect(page.match(/href=\{`\/report\/found\/message\?case=\$\{encodeURIComponent\(caseNumber\)\}`\}/g)).toHaveLength(2);
+  expect(page).not.toMatch(/didn't leave a phone number/);
+  expect(page).not.toMatch(/Report your lost pet/);
+});

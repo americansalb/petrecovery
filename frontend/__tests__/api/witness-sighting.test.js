@@ -41,6 +41,7 @@ jest.mock('@/app/lib/push', () => ({ __esModule: true, isPushConfigured: () => t
 jest.mock('@/app/lib/email', () => ({ __esModule: true, escapeHtml: jest.requireActual('@/app/lib/email').escapeHtml, sendEmail: jest.fn(async () => ({})) }));
 jest.mock('@/app/lib/config', () => ({ __esModule: true, getEmailBaseUrl: () => 'https://reunitepets.test' }));
 jest.mock('@/app/lib/sse/missionStream', () => ({ __esModule: true, broadcast: jest.fn() }));
+jest.mock('@/app/lib/sms', () => ({ __esModule: true, textOwnerAboutSighting: jest.fn(async () => ({ sent: true })) }));
 jest.mock('@/app/lib/rateLimit', () => ({
   __esModule: true,
   withRateLimitAsync: jest.fn(async () => ({ success: true })),
@@ -62,6 +63,7 @@ import { logEvent } from '@/lib/logging';
 import * as witness from '@/app/lib/witness';
 import * as route from '@/app/api/public/missions/[caseNumber]/sighting/route';
 import { broadcast } from '@/app/lib/sse/missionStream';
+import { textOwnerAboutSighting } from '@/app/lib/sms';
 
 const { checkWitnessSighting, recordWitnessSighting, agoPhrase } = witness;
 const { POST } = route;
@@ -135,6 +137,9 @@ describe('recordWitnessSighting', () => {
     expect(prisma.notification.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: 'avery', type: 'SIGHTING', actionUrl: '/mission-control?mission=AUS-2026-0001' }) }));
     expect(sendPushToUser).toHaveBeenCalledWith(prisma, 'avery', expect.objectContaining({ title: 'Max was just seen' }));
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'avery@example.test', subject: 'Max was just seen near Zilker Park' }));
+    // And a text, for an owner who chose to be texted: the wizard promises "We text you when someone reports a
+    // sighting" (2026-11-16: nothing sent one). Whether to text, and the limit, are app/lib/sms.js's.
+    expect(textOwnerAboutSighting).toHaveBeenCalledWith({ caseId: 'case-max', title: 'Max was just seen', place: 'Zilker Park', url: '/mission-control?mission=AUS-2026-0001' });
     expect(out).toEqual({ sighting: { id: 'sight-1', sightedAt: NOW }, place: 'Zilker Park', told: { owner: true, bell: 3, pushed: 1 }, caseNumber: 'AUS-2026-0001', ownerName: 'Avery' });
   });
 
@@ -168,6 +173,7 @@ describe('recordWitnessSighting', () => {
     const out = await recordWitnessSighting('case-max', { lat: 1, lng: 1, sure: 'LIKELY', direction: null, name: '', note: '', address: '' }, { userId: 'avery' });
     expect(out.told.owner).toBe(false);
     expect(prisma.notification.create).not.toHaveBeenCalled();
+    expect(textOwnerAboutSighting).not.toHaveBeenCalled();
   });
 
   test('no pet, or a search that has ended', async () => {

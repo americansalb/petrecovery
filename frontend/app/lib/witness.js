@@ -28,6 +28,7 @@ import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
 import { sendEmail, escapeHtml } from '@/app/lib/email';
+import { textOwnerAboutSighting } from '@/app/lib/sms';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { onSeeing } from '@/app/lib/brief';
 import { SIGHTINGS_PER_HOUR, OWNER_EMAILS_PER_HOUR, SIGHTING_MAX_KM } from '@/app/lib/sightingLimits';
@@ -277,6 +278,9 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
         html: `<p>Hi ${escapeHtml(pet.reporter.firstName || 'there')},</p><p>${escapeHtml(body)}</p>${value.note ? `<p>"${escapeHtml(value.note)}"</p>` : ''}<p><a href="${link}">Open ${escapeHtml(name)}'s search</a> to see where on the map.</p>`,
       }).catch((e) => console.error('[witness] owner email failed:', e?.message));
     }
+    // And a text, to an owner who asked to be texted about sightings when they reported (app/lib/sms.js). Only where
+    // the site can send texts, a few an hour at most; it says it sent one only when the text service took it.
+    textOwnerAboutSighting({ caseId: pet.id, title, place, url }).catch((e) => console.error('[witness] owner text failed:', e?.message));
   }
 
   // Everyone with the search open, live.

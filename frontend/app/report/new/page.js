@@ -575,6 +575,7 @@ export default function ReportLostPet() {
           contactPhone={!isLoggedIn && contact.method === 'phone' ? contact.phone : ''}
           squadsNotified={result.squadsNotified || 0}
           assignedSquad={result.assignedSquad}
+          told={result.told}
           activation={result.activation}
           caseId={result.reportId}
           detailsToken={result.detailsToken}

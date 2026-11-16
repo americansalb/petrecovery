@@ -24,7 +24,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   ChevronLeft, MapPin, Clock, Eye, Phone, Share2, Printer, Building2,
-  PawPrint, ExternalLink, Megaphone, Map as MapIcon,
+  PawPrint, ExternalLink, MessageCircle, Map as MapIcon,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui';
@@ -464,24 +464,28 @@ export default function CasePageClient() {
   } else if (isFound) {
     actions = (
       <div className="space-y-3">
+        {/* Whatever the finder left, the owner can write to them here (app/report/found/message): the site passes the
+            words on and shows neither address. Before 2026-11-16 a finder who chose email left the owner nothing to
+            press but a button to report their pet lost, which they had already done. */}
         {phone ? (
           <a href={`tel:${phone.tel}`} className={PRIMARY_LINK}>
             <Phone className="h-4 w-4" aria-hidden="true" />
             Call the finder
           </a>
         ) : (
-          <Button size="lg" fullWidth href="/report/new" leftIcon={Megaphone}>
-            Report your lost pet
+          <Button size="lg" fullWidth href={`/report/found/message?case=${encodeURIComponent(caseNumber)}`} leftIcon={MessageCircle}>
+            Message the finder
+          </Button>
+        )}
+        {phone && (
+          <Button variant="outline" size="lg" fullWidth href={`/report/found/message?case=${encodeURIComponent(caseNumber)}`} leftIcon={MessageCircle}>
+            Message the finder
           </Button>
         )}
         <Button variant="outline" size="lg" fullWidth leftIcon={Share2} onClick={share}>
           Share
         </Button>
-        <p className="text-sm text-midnight-500">
-          {phone
-            ? `Is this your pet? Call the finder, and have a photo or vet record ready to show it's yours.`
-            : `The finder didn't leave a phone number. If this is your pet, report it lost: new lost reports are checked against found pets nearby.`}
-        </p>
+        <p className="text-sm text-midnight-500">Is this your pet? Have a photo or vet record ready to show it&apos;s yours.</p>
         {phone && <p className="hidden text-sm text-midnight-500 md:block">Finder&apos;s phone: {phone.display}</p>}
       </div>
     );
