@@ -8,7 +8,7 @@ import { sendVerificationEmail } from '@/app/lib/email';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { TERMS_OF_SERVICE_DOC } from '@/prisma/legal/terms-of-service';
-import { sendAccountExistsLink, EMAIL_HAS_ACCOUNT_MESSAGE } from '@/app/lib/passwordLink';
+import { sendAccountExistsLinkOnce, EMAIL_HAS_ACCOUNT_MESSAGE } from '@/app/lib/passwordLink';
 
 const BASE_URL = getEmailBaseUrl();
 
@@ -267,24 +267,30 @@ export async function POST(request) {
       // typing its email. Nothing else changes here: no password, name or phone from this form is saved, and
       // nothing riding along (a pet, a shelter, a force) is made. Every existing account is answered the same
       // way, so this says nothing about how the account was made.
-      let linkSent = false;
-      try {
-        const { id, email: address, firstName: name } = existingUser;
-        linkSent = Boolean((await sendAccountExistsLink({ id, email: address, firstName: name }))?.success);
-      } catch (err) {
-        console.error('Failed to send the set-password link:', err);
-      }
-      logEvent({
-        event_type: 'auth.register_failed',
-        correlation_id: correlationId,
-        resource_type: 'user',
-        resource_id: existingUser.id,
-        action: 'create',
-        result: 'failure',
-        error_code: 'EMAIL_EXISTS',
-        error_message: 'Email already registered; set-password link sent',
-        metadata: { email_prefix: normalizedEmail.substring(0, 3), link_sent: linkSent }
-      }).catch(() => {});
+      //
+      // The link goes to one address at most once in ACCOUNT_EXISTS_LINK_MINUTES (app/lib/passwordLink.js), on
+      // top of this route's limit per network address. The answer does not wait for it: the same words at the
+      // same speed whether a link went now or went a few minutes ago, so it never says which.
+      const { id, email: address, firstName: name } = existingUser;
+      sendAccountExistsLinkOnce({ id, email: address, firstName: name })
+        .catch((err) => {
+          console.error('Failed to send the set-password link:', err);
+          return { success: false, error: err?.message };
+        })
+        .then((sent) =>
+          logEvent({
+            event_type: 'auth.register_failed',
+            correlation_id: correlationId,
+            resource_type: 'user',
+            resource_id: id,
+            action: 'create',
+            result: 'failure',
+            error_code: 'EMAIL_EXISTS',
+            error_message: 'Email already registered; set-password link offered',
+            metadata: { email_prefix: normalizedEmail.substring(0, 3), link_sent: Boolean(sent?.success), link_sent_recently: sent?.error === 'SENT_RECENTLY' }
+          })
+        )
+        .catch(() => {});
 
       return NextResponse.json(
         {

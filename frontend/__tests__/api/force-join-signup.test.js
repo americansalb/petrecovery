@@ -35,6 +35,7 @@ jest.mock('bcryptjs', () => ({
 jest.mock('@/app/lib/rateLimit', () => ({
   withRateLimit: jest.fn().mockReturnValue({ success: true }),
   withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
+  checkRateLimitForKeyAsync: jest.fn().mockResolvedValue({ success: true }),
   RateLimitPresets: { AUTH: {} },
   rateLimitResponse: jest.fn(),
 }));

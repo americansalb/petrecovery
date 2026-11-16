@@ -75,6 +75,8 @@ export default function ReportFoundPet() {
   const [details, setDetails] = useState({ petName: '', breed: '', size: '', marks: '', microchipId: '' });
   const [contact, setContact] = useState({ firstName: '', method: 'phone', email: '', phone: '' });
   const locationControl = useRef(null); // LocationPicker's locate(), for the footer button
+  // False once the browser has said no to location: the footer stops offering "Use my location".
+  const [canLocate, setCanLocate] = useState(true);
   const photoControl = useRef(null); // PhotoStep's openPicker(), for the footer button
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -462,7 +464,9 @@ export default function ReportFoundPet() {
           primary={
             location
               ? { label: 'Confirm this spot', onClick: advance }
-              : { label: 'Use my location', onClick: () => locationControl.current?.locate() }
+              : canLocate
+                ? { label: 'Use my location', onClick: () => locationControl.current?.locate() }
+                : { label: 'Confirm this spot', onClick: advance, disabled: true }
           }
         >
           <LocationPicker
@@ -475,6 +479,7 @@ export default function ReportFoundPet() {
               advance();
             }}
             controlRef={locationControl}
+            onLocateOffer={setCanLocate}
             storageKey={LOCATION_STORAGE_KEY}
           />
         </StepScreen>

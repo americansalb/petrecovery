@@ -20,9 +20,18 @@
  * typing as a second way (the search screen's sighting form). `near`
  * is a point the typed search leans toward when there is no pin and no
  * device fix yet: on a pet's search, "W 41st St" means the one by the pet.
- * With `near`, the picker also offers to put the pin on a map by hand,
- * opened at that point: a phone with location turned off, whose street
- * lookup failed, still has a way to say where (2026-11-16).
+ *
+ * Wherever it has a map, the picker offers to put the pin on it by hand: a
+ * phone with location turned off, whose street lookup failed, still has a
+ * way to say where (2026-11-16). The map opens at `near` when the screen
+ * gives one. The report wizards give none, so it opens on the country or
+ * region the device's time zone names, or the whole world
+ * (app/lib/maps/roughStart.js), and a tap there zooms in toward the spot
+ * until the map is close enough for a tap to mean a place.
+ *
+ * `onLocateOffer(offered)` tells the screen whether "Use my location" can
+ * still be offered, for a button of its own: false once the browser has
+ * said no.
  *
  * `maxAccuracy` (metres): a device reading rougher than this does not set
  * the pin. The sighting form passes the search's own rule
@@ -44,6 +53,10 @@ import { Search, Loader2, Navigation, MapPin } from 'lucide-react';
 import { searchAutocomplete, getPlaceFromAutocomplete } from '@/app/lib/maps/appleMapKit';
 import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import { lookUpPlaces, within } from '@/app/lib/maps/placeLookup';
+import { roughStart, boxAround } from '@/app/lib/maps/roughStart';
+
+/** How close the map must be before a tap puts the pin: further out, a tap zooms in toward the spot instead. */
+export const PIN_ZOOM = 15;
 
 /** The words for a phone's reading that is too rough to be a place, with the ways that are left. */
 export function roughWords(canPin) {
@@ -158,6 +171,7 @@ export default function LocationPicker({
   near: nearby = null, // { lat, lng }: where a typed search leans when nothing else says where, and where a map to pin on opens
   mapless = false, // true: the search box alone; the place is shown on a map the screen already has
   maxAccuracy = null, // metres: a device reading rougher than this does not set the pin
+  onLocateOffer, // (offered) whenever whether "Use my location" can be offered changes, for the screen's own button
 }) {
   const mapHex = variant === 'found' ? '#10b981' : '#ef4444';
   const [query, setQuery] = useState('');
@@ -172,6 +186,8 @@ export default function LocationPicker({
   const [locateDenied, setLocateDenied] = useState(false);
   // The map is open with no pin yet, for the pin to be put on it by hand.
   const [pinning, setPinning] = useState(false);
+  // The map is too far out for a tap to mean a place (a whole country): the words say to zoom in first.
+  const [farOut, setFarOut] = useState(false);
   const [savedOffer, setSavedOffer] = useState(null); // last confirmed spot, applied only on tap
 
   const mapRef = useRef(null);
@@ -186,13 +202,20 @@ export default function LocationPicker({
   onChangeRef.current = onChange;
   const onLocatedRef = useRef(onLocated);
   onLocatedRef.current = onLocated;
+  const onLocateOfferRef = useRef(onLocateOffer);
+  onLocateOfferRef.current = onLocateOffer;
   const lastFixRef = useRef(null); // the last device fix, to bias a typed search before a pin exists
 
   const nearPoint = nearby && Number.isFinite(nearby.lat) && Number.isFinite(nearby.lng) ? { lat: nearby.lat, lng: nearby.lng } : null;
-  // Putting the pin on by hand needs a map, and somewhere sensible to open it.
-  const canPin = !mapless && Boolean(nearPoint);
+  // Putting the pin on by hand needs a map. It opens at `near`, or on the device's own rough region.
+  const canPin = !mapless;
   // Only what the person can do: no "Use my location" where it is never asked for, or the browser has said no.
   const offerLocate = canLocate && !locateDenied;
+
+  // The screen's own "Use my location" follows the picker's.
+  useEffect(() => {
+    onLocateOfferRef.current?.(offerLocate);
+  }, [offerLocate]);
 
   // Whether the browser has already said no to location for this page. Asking this shows the person nothing.
   useEffect(() => {
@@ -299,9 +322,10 @@ export default function LocationPicker({
     });
   };
 
-  // Map lifecycle - create once a position exists, or once the person asks to put the pin on by hand (opened at
-  // `near`, with no pin until they tap), then keep the pin in sync.
-  const pinStart = !value && pinning && nearPoint ? nearPoint : null;
+  // Map lifecycle - create once a position exists, or once the person asks to put the pin on by hand (with no pin
+  // until they tap), then keep the pin in sync. By hand, the map opens close in at `near`, or else showing the
+  // country or region the device's time zone names, or the whole world (app/lib/maps/roughStart.js).
+  const pinStart = !value && pinning ? (nearPoint ? { ...nearPoint, zoom: 16 } : roughStart()) : null;
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const start = value ? [value.lat, value.lng] : pinStart ? [pinStart.lat, pinStart.lng] : null;
@@ -326,15 +350,24 @@ export default function LocationPicker({
       const L = (await import('leaflet')).default;
       if (cancelled || !mapRef.current || mapInstanceRef.current) return;
 
-      const map = L.map(mapRef.current, { zoomControl: false }).setView(start, value ? 17 : 16);
+      const map = L.map(mapRef.current, { zoomControl: false });
+      if (!value && pinStart?.km) map.fitBounds(boxAround(pinStart, pinStart.km));
+      else map.setView(start, value ? 17 : pinStart.zoom);
       mapInstanceRef.current = map;
       leafletRef.current = L;
       L.control.zoom({ position: 'topright' }).addTo(map);
       L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
       if (value) placeMarker(start);
+      setFarOut(map.getZoom() < PIN_ZOOM);
+      map.on('zoomend', () => setFarOut(map.getZoom() < PIN_ZOOM));
 
-      // A tap puts the pin there, or moves it.
+      // A tap puts the pin there, or moves it. With no pin yet and the map still far out, a tap zooms in toward
+      // the spot instead: a pin put from a view of a whole country could be miles from the place.
       map.on('click', (e) => {
+        if (!markerRef.current && map.getZoom() < PIN_ZOOM) {
+          map.setView(e.latlng, Math.min(map.getZoom() + 4, PIN_ZOOM));
+          return;
+        }
         placeMarker([e.latlng.lat, e.latlng.lng]);
         applyPosition(e.latlng.lat, e.latlng.lng);
       });
@@ -581,8 +614,8 @@ export default function LocationPicker({
         )}
         {(value || pinning) && (
           <>
-            <div className="absolute top-3 left-3 z-[500] px-3 py-1.5 rounded-full bg-midnight-900/85 text-white text-[13px] font-medium backdrop-blur pointer-events-none">
-              {value ? 'Not the exact spot? Drag the pin.' : 'Tap the map to put the pin.'}
+            <div className="absolute top-3 left-3 z-[500] max-w-[calc(100%-4.5rem)] px-3 py-1.5 rounded-2xl bg-midnight-900/85 text-white text-[13px] font-medium backdrop-blur pointer-events-none">
+              {value ? 'Not the exact spot? Drag the pin.' : farOut ? 'Zoom in to the street, then tap to put the pin.' : 'Tap the map to put the pin.'}
             </div>
             {offerLocate && (
               <button

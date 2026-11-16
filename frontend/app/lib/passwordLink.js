@@ -13,15 +13,32 @@
  *    email used to end at "Unable to create account". The link is the way
  *    on, and it goes only to the address: nobody gets into an account by
  *    typing its email.
+ *
+ * Sign-up sends it to one address at most once in ACCOUNT_EXISTS_LINK_MINUTES,
+ * however often the address is typed into the form and from however many
+ * places: the route's own limit is per network address, so without this
+ * anyone could fill a stranger's inbox. The count is kept by the site's
+ * rate limiter (app/lib/rateLimit.js) under a hash of the address, never the
+ * address itself. The window is shorter than the link is good for, so a
+ * link sent in it still works.
  */
 
 import crypto from 'crypto';
 import prisma from '@/app/lib/prisma';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
+import { checkRateLimitForKeyAsync } from '@/app/lib/rateLimit';
 
 /** How long a link is good for. */
 export const PASSWORD_LINK_MINUTES = 60;
+
+/** Sign-up sends the link to one address at most once in this many minutes. */
+export const ACCOUNT_EXISTS_LINK_MINUTES = 15;
+const ONE_LINK_PER_WINDOW = {
+  windowMs: ACCOUNT_EXISTS_LINK_MINUTES * 60 * 1000,
+  maxRequests: 1,
+  blockDurationMs: ACCOUNT_EXISTS_LINK_MINUTES * 60 * 1000,
+};
 
 /** What sign-up answers for an address that already has an account, once the link has gone to it. */
 export const EMAIL_HAS_ACCOUNT_MESSAGE =
@@ -59,4 +76,21 @@ export async function sendAccountExistsLink(user) {
     footnote: "If you didn't ask for this, ignore this email. Nothing changes until the link is used.",
   });
   return sendEmail({ to: user.email, subject: 'Set your ReunitePets password', html });
+}
+
+/** The rate limiter's key for an address: a hash, so the counter never holds the address. */
+export function accountExistsLinkKey(email) {
+  const address = String(email || '').trim().toLowerCase();
+  return `auth:account-exists-link:${crypto.createHash('sha256').update(address).digest('hex')}`;
+}
+
+/**
+ * sendAccountExistsLink, at most once per address in ACCOUNT_EXISTS_LINK_MINUTES. Inside the window
+ * nothing is minted or sent, so the link sent first keeps working, and the answer is
+ * { success: false, skipped: true, error: 'SENT_RECENTLY' }.
+ */
+export async function sendAccountExistsLinkOnce(user) {
+  const limit = await checkRateLimitForKeyAsync(accountExistsLinkKey(user?.email), ONE_LINK_PER_WINDOW);
+  if (!limit?.success) return { success: false, skipped: true, error: 'SENT_RECENTLY' };
+  return sendAccountExistsLink(user);
 }

@@ -12,6 +12,11 @@
  * no password, name or phone from the form is saved; nothing riding along is made;
  * every existing account is answered the same way; and opening the link is the
  * existing reset, which confirms the email.
+ *
+ * And the link goes to one address at most once in 15 minutes, however often
+ * sign-up is tried with it and from wherever: the route's own limit is per
+ * network address, so anyone could fill a stranger's inbox. The answer is the
+ * same words at the same speed whether a link went or not.
  */
 
 import { NextRequest } from 'next/server';
@@ -30,10 +35,20 @@ jest.mock('@/app/lib/prisma', () => {
   return { __esModule: true, default: mock };
 });
 jest.mock('bcryptjs', () => ({ hash: jest.fn().mockResolvedValue('$2b$12$mockedHashValue') }));
+// The site's limiter for a key, by its own rule (a window opened by the first try, maxRequests in it, then no),
+// on a clock the test moves.
+const mockLimits = { hits: new Map(), now: 0 };
 jest.mock('@/app/lib/rateLimit', () => ({
   withRateLimit: jest.fn().mockReturnValue({ success: true }),
   withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
-  RateLimitPresets: { AUTH: {} },
+  checkRateLimitForKeyAsync: jest.fn(async (key, { windowMs, maxRequests }) => {
+    const seen = mockLimits.hits.get(key);
+    const window = seen && mockLimits.now - seen.start < windowMs ? seen : { start: mockLimits.now, count: 0 };
+    window.count += 1;
+    mockLimits.hits.set(key, window);
+    return { success: window.count <= maxRequests };
+  }),
+  RateLimitPresets: { AUTH: { name: 'AUTH' } },
   rateLimitResponse: jest.fn(),
 }));
 jest.mock('@/lib/logging', () => ({ logEvent: jest.fn().mockResolvedValue(undefined) }));
@@ -49,11 +64,12 @@ import prisma from '@/app/lib/prisma';
 import { sendEmail, sendVerificationEmail } from '@/app/lib/email';
 import { getBaseUrl } from '@/app/lib/config';
 import { POST } from '@/app/api/auth/register/route';
-import { mintPasswordLink, PASSWORD_LINK_MINUTES } from '@/app/lib/passwordLink';
+import { checkRateLimitForKeyAsync, withRateLimitAsync, RateLimitPresets } from '@/app/lib/rateLimit';
+import { mintPasswordLink, PASSWORD_LINK_MINUTES, ACCOUNT_EXISTS_LINK_MINUTES } from '@/app/lib/passwordLink';
 
 const GUEST = { id: 'guest-1', email: 'sam@example.com', firstName: 'Sam', passwordHash: '$2b$12$temp', emailVerified: null };
 
-const signup = (extra = {}) =>
+const ask = (extra = {}) =>
   POST(
     new NextRequest('http://localhost:3000/api/auth/register', {
       method: 'POST',
@@ -61,9 +77,18 @@ const signup = (extra = {}) =>
       body: JSON.stringify({ firstName: 'Sammy', email: 'Sam@Example.com', password: 'a-new-password', phone: '512-555-0100', acceptedTerms: true, ...extra }),
     })
   );
+// The answer does not wait for the link: this lets what was started finish before the test looks.
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+const signup = async (extra) => {
+  const res = await ask(extra);
+  await settle();
+  return res;
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockLimits.hits.clear();
+  mockLimits.now = 0;
   prisma.user.findUnique.mockResolvedValue(GUEST);
   prisma.user.update.mockResolvedValue({});
 });
@@ -146,6 +171,7 @@ describe('signing up with an email a guest report already used', () => {
     const res = await signup();
     expect(res.status).toBe(409);
     expect((await res.json()).code).toBe('EMAIL_HAS_ACCOUNT');
+    expect(console.error).toHaveBeenCalled();
     console.error.mockRestore();
   });
 
@@ -156,6 +182,55 @@ describe('signing up with an email a guest report already used', () => {
     expect(res.status).toBe(200);
     expect(prisma.user.create).toHaveBeenCalledTimes(1);
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('one address gets the link at most once in a while, and the answer never says whether it went', () => {
+  test('a second try in the window sends nothing and replaces no link, and is answered the same', async () => {
+    const first = await signup();
+    const second = await signup();
+    const third = await signup({ email: ' SAM@example.com ' });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    // The link sent first still works: no newer one was minted over it.
+    expect(prisma.user.update).toHaveBeenCalledTimes(1);
+    const a = await first.json();
+    for (const res of [second, third]) {
+      expect(res.status).toBe(first.status);
+      expect(await res.json()).toEqual(a);
+    }
+  });
+
+  test('once the window has passed, the link goes again; the window is shorter than the link is good for', async () => {
+    await signup();
+    mockLimits.now += ACCOUNT_EXISTS_LINK_MINUTES * 60 * 1000 + 1000;
+    await signup();
+    expect(sendEmail).toHaveBeenCalledTimes(2);
+    expect(ACCOUNT_EXISTS_LINK_MINUTES).toBeLessThan(PASSWORD_LINK_MINUTES);
+  });
+
+  test('another address has its own window', async () => {
+    await signup();
+    prisma.user.findUnique.mockResolvedValue({ ...GUEST, id: 'guest-2', email: 'kim@example.com' });
+    await signup({ email: 'kim@example.com' });
+    expect(sendEmail.mock.calls.map(([mail]) => mail.to)).toEqual(['sam@example.com', 'kim@example.com']);
+  });
+
+  test('the site\'s rate limiter keeps the count, under a hash of the address and never the address', async () => {
+    await signup();
+    expect(checkRateLimitForKeyAsync).toHaveBeenCalledTimes(1);
+    const [key, options] = checkRateLimitForKeyAsync.mock.calls[0];
+    expect(key).toBe(`auth:account-exists-link:${crypto.createHash('sha256').update('sam@example.com').digest('hex')}`);
+    expect(key).not.toMatch(/sam|example/);
+    expect(options).toMatchObject({ windowMs: ACCOUNT_EXISTS_LINK_MINUTES * 60 * 1000, maxRequests: 1 });
+    // The route's own limit per network address stays.
+    expect(withRateLimitAsync).toHaveBeenCalledWith(expect.anything(), RateLimitPresets.AUTH, 'auth:register');
+  });
+
+  test('the answer does not wait for the email, so how long it takes says nothing either', async () => {
+    sendEmail.mockReturnValueOnce(new Promise(() => {}));
+    const res = await ask();
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe('EMAIL_HAS_ACCOUNT');
   });
 });
 
