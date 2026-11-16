@@ -514,12 +514,15 @@ describe('three instruments: a desk is never asked where it is and is never hand
   test('a witness with location off and the street lookup down can still say where: a pin on a map opened by the pet', () => {
     // 2026-11-16: the geocoder answered 503, the picker said "No matches", and a phone had no map to tap.
     const picker = read('app/components/report/LocationPicker.js');
-    expect(code(picker)).toMatch(/const canPin = !mapless && Boolean\(nearPoint\);/);
+    // Wherever there is a map (the report wizards too, 2026-11-16), not only where the screen gives `near`.
+    expect(code(picker)).toMatch(/const canPin = !mapless;/);
     // The button that opens it, offered whatever the location switch says.
     expect(code(picker)).toMatch(/\{canPin && \(\s*<button\s+type="button"\s+onClick=\{\(\) => \{\s*setLocateError\(null\);\s*setPinning\(true\);\s*\}\}/);
-    // The map opens at `near` with no pin, and a tap puts the pin there.
-    expect(code(picker)).toMatch(/const pinStart = !value && pinning && nearPoint \? nearPoint : null;/);
-    expect(code(picker)).toMatch(/map\.on\('click', \(e\) => \{\s*placeMarker\(\[e\.latlng\.lat, e\.latlng\.lng\]\);\s*applyPosition\(e\.latlng\.lat, e\.latlng\.lng\);/);
+    // The map opens at `near`, close in, with no pin; with no `near`, on the device's rough region.
+    expect(code(picker)).toMatch(/const pinStart = !value && pinning \? \(nearPoint \? \{ \.\.\.nearPoint, zoom: 16 \} : roughStart\(\)\) : null;/);
+    // A tap puts the pin there once the map is close enough (it is, at `near`), and zooms in toward it before.
+    expect(code(picker)).toMatch(/map\.on\('click', \(e\) => \{\s*if \(!markerRef\.current && map\.getZoom\(\) < PIN_ZOOM\) \{\s*map\.setView\(e\.latlng, Math\.min\(map\.getZoom\(\) \+ 4, PIN_ZOOM\)\);\s*return;\s*\}\s*placeMarker\(\[e\.latlng\.lat, e\.latlng\.lng\]\);\s*applyPosition\(e\.latlng\.lat, e\.latlng\.lng\);/);
+    expect(Number(picker.match(/export const PIN_ZOOM = (\d+);/)[1])).toBeLessThanOrEqual(16);
     // The sighting form gives it the pet's own place to open at.
     expect(witness).toMatch(/near=\{near\} maxAccuracy=/);
   });

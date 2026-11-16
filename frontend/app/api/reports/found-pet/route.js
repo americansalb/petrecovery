@@ -362,8 +362,12 @@ export async function POST(request) {
     // not just write a dead Alert row, and use the correct Alert.caseId (the
     // prior missionId field doesn't exist → it 500'd the whole report on the
     // exact high-confidence match that matters). Each recipient is isolated so
-    // one failure can't fail the report save or truncate the rest; notifiedCount
-    // counts only owners actually notified (honest copy).
+    // one failure can't fail the report save or truncate the rest. notifiedCount
+    // counts only owners an email or a text was handed to and taken by the
+    // provider: it used to count every try, so with email not set up the
+    // finder read "We sent the owners of 2 lost cats ... a link" when nothing
+    // had gone. The bell in the app is not a send; the Alert row is kept for
+    // each try, with deliveredAt only when something went.
     const actionableMatches = matches.filter(m => m.band === 'actionable').map(m => m.case);
     let notifiedCount = 0;
     const told = new Set(); // the lost reports whose owner was told, for the finder's match cards
@@ -385,18 +389,24 @@ export async function POST(request) {
         const ownerPetName = match.pet?.name || match.petName || 'your pet';
         const lookLike = `A ${foundKind} was found${foundNear ? ` near ${foundNear}` : ''} that looks like ${ownerPetName}.`;
 
-        await createInAppNotification({
-          userId: match.reporterId,
-          type: 'FOUND_MATCH',
-          title: `A found ${foundKind} may be ${ownerPetName}`,
-          message: `${lookLike} See the photo and write to the finder.`,
-          actionUrl: foundPath,
-          data: { foundCaseId: report.id, foundCaseNumber: report.caseNumber, lostCaseId: match.id },
-        });
+        // The bell does not hold up the email and the text when it fails.
+        try {
+          await createInAppNotification({
+            userId: match.reporterId,
+            type: 'FOUND_MATCH',
+            title: `A found ${foundKind} may be ${ownerPetName}`,
+            message: `${lookLike} See the photo and write to the finder.`,
+            actionUrl: foundPath,
+            data: { foundCaseId: report.id, foundCaseNumber: report.caseNumber, lostCaseId: match.id },
+          });
+        } catch (err) {
+          console.error('Owner match bell failed for case', match.id, err?.message);
+        }
 
+        let mailed = null;
         if (match.reporter?.email) {
           const name = escapeHtml(ownerPetName);
-          await sendEmail({
+          mailed = await Promise.resolve(sendEmail({
             to: match.reporter.email,
             subject: `A found ${foundKind} may be ${ownerPetName}`,
             html: renderBrandedEmail({
@@ -413,27 +423,33 @@ export async function POST(request) {
               ctaUrl: `${baseUrl}${foundPath}`,
               footnote: "You're receiving this because you reported a lost pet on ReunitePets.",
             }),
-          });
+          })).catch((err) => ({ success: false, error: err?.message }));
         }
 
         // An owner who asked for texts (app/lib/sms.js) gets it by text too.
-        await textCaseOwner({
+        const texted = await textCaseOwner({
           caseId: match.id,
           kind: 'FOUND_MATCH',
           body: `ReunitePets: ${lookLike} See it and write to the finder: ${baseUrl}${foundPath}`,
         });
 
+        // Gone only when the provider took it: an email not set up (EMAIL_NOT_CONFIGURED), refused or thrown is not.
+        const emailed = mailed?.success === true;
+        const textSent = texted?.sent === true;
+        const reached = emailed || textSent;
         await prisma.alert.create({
           data: {
             caseId: match.id,
             userId: match.reporterId,
-            method: 'EMAIL',
-            deliveredAt: new Date(),
+            method: emailed && textSent ? 'ALL' : textSent ? 'SMS' : 'EMAIL',
+            deliveredAt: reached ? new Date() : null,
           },
         });
 
-        notifiedCount++;
-        told.add(match.id);
+        if (reached) {
+          notifiedCount++;
+          told.add(match.id);
+        }
       } catch (err) {
         console.error('Owner match-notify failed for case', match.id, err?.message);
         // Isolated - never fail the report save or block other recipients.

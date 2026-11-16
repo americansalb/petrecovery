@@ -9,6 +9,9 @@
  *    and 500'd the whole report on the exact high-confidence match).
  *  - CRIT-A: owner gets a real in-app Notification + email (not a dead Alert row).
  *  - CORR-3: only band==='actionable' owners are notified; honest notifiedCount.
+ *  - 2026-11-16: an owner counts as told only when the provider took the email
+ *    or the text. With email not set up the finder read "We sent the owners of
+ *    2 lost cats that look like this one a link" when nothing had gone.
  *
  * Uses the REAL matching engine (pure) so bands are genuine. Logged-in finder
  * path keeps the mock tractable (no guest-account branch). NOTE: mocked prisma
@@ -48,6 +51,9 @@ import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { textCaseOwner } from '@/app/lib/sms';
+import { foundLines } from '@/app/components/report/successWords';
+
+const screen = (body) => foundLines({ told: body.told, matchesNotified: body.matchesNotified, word: 'dog' }).map((parts) => parts.join(''));
 
 const OWNER_ID = 'lost-owner-1';
 const OWNER_EMAIL = 'owner@example.com';
@@ -107,7 +113,9 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     prisma.pet.create.mockResolvedValue({ id: 'pet-1' });
     prisma.case.create.mockResolvedValue({ id: 'found-case-1', caseNumber: 'FOUND-2026-000001' });
     prisma.alert.create.mockResolvedValue({});
-    sendEmail.mockResolvedValue(undefined);
+    // The provider took the email.
+    sendEmail.mockResolvedValue({ success: true, id: 'mail-1' });
+    textCaseOwner.mockResolvedValue({ sent: false, reason: 'NOT_ASKED' });
     createInAppNotification.mockResolvedValue(undefined);
   });
 
@@ -147,6 +155,10 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     expect(alertData.caseId).toBe('lost-case-1');
     expect(alertData).not.toHaveProperty('missionId');
     expect(alertData.deliveredAt).toBeInstanceOf(Date);
+    expect(alertData.method).toBe('EMAIL');
+    const body = await res.json();
+    expect(body.matchesNotified).toBe(1);
+    expect(body.potentialMatches[0].ownerTold).toBe(true);
   });
 
   test('CORR-3 cruelty gate: a NON-actionable (feed-band) match does NOT notify the owner', async () => {
@@ -169,6 +181,7 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
       lostCandidate({ breed: 'Labrador', color: 'black', lat: 40.0, lng: -75.0 }),
     ]);
     createInAppNotification.mockRejectedValue(new Error('notify backend down'));
+    sendEmail.mockRejectedValue(new Error('mail backend down'));
 
     const res = await post();
     // The report must still save despite the notify failure.
@@ -180,10 +193,59 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     expect(body.potentialMatches[0].ownerTold).toBe(false);
   });
 
+  test('a bell that fails does not stop the email, and the owner the email reached is counted', async () => {
+    prisma.case.findMany.mockResolvedValue([
+      lostCandidate({ breed: 'Labrador', color: 'black', lat: 40.0, lng: -75.0 }),
+    ]);
+    createInAppNotification.mockRejectedValue(new Error('notify backend down'));
+    const body = await (await post()).json();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(body.matchesNotified).toBe(1);
+  });
+
+  test('with email not set up and no text, nobody is counted as told, and the record says nothing went', async () => {
+    prisma.case.findMany.mockResolvedValue([
+      lostCandidate({ breed: 'Labrador', color: 'black', lat: 40.0, lng: -75.0 }),
+    ]);
+    // What sendEmail answers with no provider configured (app/lib/email.js).
+    sendEmail.mockResolvedValue({ success: false, skipped: true, error: 'EMAIL_NOT_CONFIGURED' });
+    textCaseOwner.mockResolvedValue({ sent: false, reason: 'SMS_NOT_CONFIGURED' });
+
+    const res = await post();
+    expect(res.status).toBeLessThan(300);
+    const body = await res.json();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(body.matchesNotified).toBe(0);
+    expect(body.told.owners).toBe(0);
+    expect(body.potentialMatches[0]).toMatchObject({ band: 'actionable', ownerTold: false });
+    // The try is kept, with no delivery on it.
+    expect(prisma.alert.create).toHaveBeenCalledTimes(1);
+    expect(prisma.alert.create.mock.calls[0][0].data).toMatchObject({ caseId: 'lost-case-1', userId: OWNER_ID, deliveredAt: null });
+    // The success screen says nothing was sent to an owner.
+    expect(screen(body).join(' ')).not.toMatch(/owner/);
+  });
+
+  test('of two owners, the screen counts only the one the email reached', async () => {
+    const other = { ...lostCandidate({ breed: 'Labrador', color: 'black', lat: 40.0, lng: -75.0 }), id: 'lost-case-2', reporterId: 'lost-owner-2', reporter: { id: 'lost-owner-2', email: 'other@example.com' } };
+    prisma.case.findMany.mockResolvedValue([lostCandidate({ breed: 'Labrador', color: 'black', lat: 40.0, lng: -75.0 }), other]);
+    sendEmail.mockImplementation(async ({ to }) => (to === OWNER_EMAIL ? { success: true } : { success: false, error: 'rejected by the provider' }));
+    const body = await (await post()).json();
+    expect(sendEmail).toHaveBeenCalledTimes(2);
+    expect(body.matchesNotified).toBe(1);
+    expect(Object.fromEntries(body.potentialMatches.map((m) => [m.reportId, m.ownerTold]))).toEqual({ 'lost-case-1': true, 'lost-case-2': false });
+    expect(screen(body)).toEqual(['We sent the owner of a lost dog that looks like this one a link to your report.']);
+    const delivered = Object.fromEntries(prisma.alert.create.mock.calls.map(([{ data }]) => [data.caseId, data.deliveredAt]));
+    expect(delivered['lost-case-1']).toBeInstanceOf(Date);
+    expect(delivered['lost-case-2']).toBeNull();
+  });
+
   test('an owner who reported with "Text me" is texted about the found pet, with the link to it, and the finder is told whom it reached', async () => {
     prisma.case.findMany.mockResolvedValue([
       lostCandidate({ breed: 'Labrador', color: 'black', lat: 40.0, lng: -75.0 }),
     ]);
+    // The email did not go; the text did, and that is enough to say the owner was sent the link.
+    sendEmail.mockResolvedValue({ success: false, skipped: true, error: 'EMAIL_NOT_CONFIGURED' });
+    textCaseOwner.mockResolvedValue({ sent: true });
     const res = await post();
     const body = await res.json();
     expect(textCaseOwner).toHaveBeenCalledTimes(1);
@@ -191,5 +253,6 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     expect(textCaseOwner.mock.calls[0][0].body).toContain('http://localhost:5757/cases/FOUND-2026-000001');
     expect(body.told).toMatchObject({ owners: 1 });
     expect(body.potentialMatches[0]).toMatchObject({ band: 'actionable', ownerTold: true });
+    expect(prisma.alert.create.mock.calls[0][0].data).toMatchObject({ method: 'SMS', deliveredAt: expect.any(Date) });
   });
 });

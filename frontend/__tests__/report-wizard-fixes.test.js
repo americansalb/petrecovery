@@ -17,7 +17,7 @@ import fs from 'fs';
 import path from 'path';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-jest.mock('@/app/lib/prisma', () => ({ __esModule: true, default: { case: { findMany: jest.fn() } } }));
+jest.mock('@/app/lib/prisma', () => ({ __esModule: true, default: { case: { findMany: jest.fn(), findUnique: jest.fn() } } }));
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
 
@@ -28,6 +28,8 @@ import { GET as openSearch } from '@/app/api/owner/open-search/route';
 import FlyerPreview, { fitNameLine, coverLine, NAME_PT } from '@/app/components/report/FlyerPreview';
 import { OwnerPhoneField } from '@/app/components/report/ContactFields';
 import TagDetailsStep, { MARKS_MAX } from '@/app/components/report/found/TagDetailsStep';
+import OpenSearchNotice from '@/app/components/report/OpenSearchNotice';
+import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
 import { fitInter } from '@/app/lib/cascade/render/flyers/plan';
 
 const APP = path.join(__dirname, '..', 'app');
@@ -85,12 +87,41 @@ describe("a guest is told at the start that a search is already open", () => {
     jest.clearAllMocks();
     getServerSession.mockResolvedValue(null);
     prisma.case.findMany.mockResolvedValue([OPEN]);
+    prisma.case.findUnique.mockResolvedValue({ reporter: { email: 'sam@example.com' } });
   });
 
   test('the search this browser made is named, with the link to it', async () => {
     const res = await ask(made);
     expect(res.headers.get('cache-control')).toBe('no-store');
-    expect(await res.json()).toEqual({ open: { caseNumber: 'AUS-2026-0001', petName: 'Mia', url: '/mission-control?mission=AUS-2026-0001' } });
+    expect(await res.json()).toEqual({ open: { caseNumber: 'AUS-2026-0001', petName: 'Mia', url: '/mission-control?mission=AUS-2026-0001', hasEmail: true } });
+  });
+
+  test('it says whether the search has an email mail can go to, never the address', async () => {
+    const body = await (await ask(made)).json();
+    expect(JSON.stringify(body)).not.toContain('sam@example.com');
+    expect(prisma.case.findUnique).toHaveBeenCalledWith({ where: { id: 'case-1' }, select: { reporter: { select: { email: true } } } });
+    // A phone-only report's account has a placeholder address; an old one may have the words "Not provided".
+    for (const email of [placeholderEmailForPhone('512 555 0100'), 'Not provided', null]) {
+      prisma.case.findUnique.mockResolvedValue({ reporter: email ? { email } : null });
+      expect((await (await ask(made)).json()).open.hasEmail).toBe(false);
+    }
+  });
+
+  test('a guest who gave only a phone is not told to set a password with an email they never gave', () => {
+    const phoneOnly = renderToStaticMarkup(<OpenSearchNotice petName="Mia" url="/mission-control?mission=AUS-2026-0001" hasEmail={false} />);
+    expect(phoneOnly).toContain('href="/mission-control?mission=AUS-2026-0001"');
+    expect(phoneOnly).not.toMatch(/email|password|forgot-password/i);
+    expect(phoneOnly).toContain('Reporting another pet now needs an account.');
+    expect(phoneOnly).toContain('href="/register?callbackUrl=%2Freport%2Fnew"');
+    expect(phoneOnly).toContain('Make an account to report another pet');
+    // With no answer about an email, the notice says only what anyone can do.
+    expect(renderToStaticMarkup(<OpenSearchNotice petName="Mia" url="/x" />)).not.toMatch(/forgot-password/);
+
+    const withEmail = renderToStaticMarkup(<OpenSearchNotice petName="Mia" url="/mission-control?mission=AUS-2026-0001" hasEmail />);
+    expect(withEmail).toContain('Sign in to report another pet');
+    expect(withEmail).toContain('href="/forgot-password"');
+    expect(withEmail).toContain('Set one with your email');
+    expect(wizard).toMatch(/<OpenSearchNotice petName=\{openSearch\.petName\} url=\{openSearch\.url\} hasEmail=\{openSearch\.hasEmail === true\} \/>/);
   });
 
   test('the same searches count as at Post: closed, found, past its date or only opened from a link do not', async () => {
@@ -119,7 +150,7 @@ describe("a guest is told at the start that a search is already open", () => {
     expect(wizard).toMatch(/if \(openSearch && !isLoggedIn\)[\s\S]*?<OpenSearchNotice/);
     const notice = read('components/report/OpenSearchNotice.js');
     expect(notice).toMatch(/You already have a search open for \{name\}/);
-    // A guest's account has no password yet: the way to set one is there, and the way out.
+    // A guest's account has no password yet: for one who gave an email, the way to set one is there, and the way out.
     expect(notice).toMatch(/href="\/forgot-password"/);
     expect(notice).toMatch(/href="\/"/);
   });

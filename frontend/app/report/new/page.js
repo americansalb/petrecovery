@@ -108,6 +108,8 @@ export default function ReportLostPet() {
   const [aiSuggested, setAiSuggested] = useState(false);
   const [contact, setContact] = useState({ firstName: '', method: 'phone', email: '', phone: '' });
   const locationControl = useRef(null); // LocationPicker's locate(), for the footer button
+  // False once the browser has said no to location: the footer stops offering "Use my location".
+  const [canLocate, setCanLocate] = useState(true);
   const photoControl = useRef(null); // PhotoStep's openPicker(), for the footer button
   const [breed, setBreed] = useState('');
   // The questionnaire (app/lib/caseDetails.js): behaviour, health and the
@@ -122,7 +124,7 @@ export default function ReportLostPet() {
   const [errorAction, setErrorAction] = useState(null); // the other way out of a posting error
   const [result, setResult] = useState(null);
   const [pendingDraft, setPendingDraft] = useState(null); // unfinished draft awaiting resume/fresh choice
-  // A guest's search already open from this browser: undefined while asking, then null or { caseNumber, petName, url }.
+  // A guest's search already open from this browser: undefined while asking, then null or { caseNumber, petName, url, hasEmail }.
   const [openSearch, setOpenSearch] = useState(undefined);
 
   // ── Load saved pets, resolve the first step ───────────────────────
@@ -591,7 +593,7 @@ export default function ReportLostPet() {
   if (openSearch && !isLoggedIn) {
     return (
       <div className="h-full flex flex-col bg-white overflow-hidden">
-        <OpenSearchNotice petName={openSearch.petName} url={openSearch.url} />
+        <OpenSearchNotice petName={openSearch.petName} url={openSearch.url} hasEmail={openSearch.hasEmail === true} />
       </div>
     );
   }
@@ -763,7 +765,9 @@ export default function ReportLostPet() {
           primary={
             location
               ? { label: 'Confirm this spot', onClick: advance }
-              : { label: 'Use my location', onClick: () => locationControl.current?.locate() }
+              : canLocate
+                ? { label: 'Use my location', onClick: () => locationControl.current?.locate() }
+                : { label: 'Confirm this spot', onClick: advance, disabled: true }
           }
         >
           <LocationPicker
@@ -776,6 +780,7 @@ export default function ReportLostPet() {
               advance();
             }}
             controlRef={locationControl}
+            onLocateOffer={setCanLocate}
             storageKey={LOCATION_STORAGE_KEY}
           />
         </StepScreen>
