@@ -14,6 +14,7 @@ import { FLYER_THEME, SPECIES_LABEL, SPECIES_WORD } from './theme';
 import { resolveFlyerCopy } from './copy';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
 import { caseShortLabel } from '@/app/lib/caseShortLink';
+import { answerOf } from '@/app/lib/lastSeenAnswer';
 import { approachLine, healthLine, needsMedication as medicationNeeded, lookForBits, factsBits, lureLine } from '@/app/lib/caseDetails';
 
 function areaFromAddress(address) {
@@ -245,16 +246,23 @@ export function normalizeFlyerData(caseData, shared = {}) {
   // The sheet prints the DATE the pet was last seen, in the pet's own time
   // zone, never a clock time. The report wizard asks how long ago in bands
   // ("1 to 6 hours", "1 to 3 days") and stores the band's middle as
-  // lastSeenAt (api/reports/create, calculateLastSeenTime), so "5:45 pm"
+  // lastSeenAt (app/lib/lastSeenAnswer.js), so "5:45 pm"
   // would be an invention. The zone comes from where the pet was lost: the
   // server runs in UTC, where an Austin evening is already tomorrow.
   const zone = zoneFor(caseData);
   let lastSeenWhen = '';
   let lastSeenDate = '';
+  // A band of days ("a day or two", "more than a week") has no one date: the
+  // sheet says "About Nov 14", or "Before Nov 9" for more than a week, the
+  // latest day it can have been (app/lib/lastSeenAnswer.js).
+  const band = answerOf(caseData);
   try {
     if (caseData.lastSeenAt) {
       const d = new Date(caseData.lastSeenAt);
-      lastSeenWhen = new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'short', month: 'short', day: 'numeric' }).format(d);
+      const day = (at) => new Intl.DateTimeFormat('en-US', { timeZone: zone, month: 'short', day: 'numeric' }).format(at);
+      lastSeenWhen = band?.days
+        ? `${band.atLeast ? 'Before' : 'About'} ${day(d)}`
+        : new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'short', month: 'short', day: 'numeric' }).format(d);
       lastSeenDate = new Intl.DateTimeFormat('en-US', { timeZone: zone, month: 'short', day: 'numeric', year: 'numeric' }).format(d);
     }
   } catch {

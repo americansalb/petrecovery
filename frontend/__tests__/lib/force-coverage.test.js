@@ -18,8 +18,11 @@ jest.mock('@/app/lib/prisma', () => ({
   },
 }));
 
+jest.mock('@/app/lib/push', () => ({ __esModule: true, isPushConfigured: jest.fn(() => true), sendPushToUser: jest.fn(async () => ({ success: true, sent: 1 })) }));
+
 import prisma from '@/app/lib/prisma';
-import { forcesCovering, alertForceMembers, routeFoundReport, routeFoundReports } from '@/app/lib/forceCoverage';
+import { sendPushToUser } from '@/app/lib/push';
+import { forcesCovering, alertForceMembers, routeFoundReport, routeFoundReports, countryOfPlace } from '@/app/lib/forceCoverage';
 import { clearForceAreaCache } from '@/app/lib/forceAreas';
 
 const STAMP = new Date('2026-09-01T00:00:00Z');
@@ -79,7 +82,7 @@ describe('alertForceMembers', () => {
       { userId: 'u-ann', rescueSquadId: 'f-camanche' },
       { userId: 'u-owner', rescueSquadId: 'f-clinton' },
     ]);
-    expect(await alertForceMembers({ forces: [CLINTON, CAMANCHE], pet: LOST, exceptUserId: 'u-owner' })).toBe(2);
+    expect(await alertForceMembers({ forces: [CLINTON, CAMANCHE], pet: LOST, exceptUserId: 'u-owner' })).toEqual({ bell: 2, pushed: 0 });
     const rows = prisma.notification.createMany.mock.calls[0][0].data;
     expect(rows.map((r) => r.userId)).toEqual(['u-ann', 'u-bo']);
     expect(rows[0]).toMatchObject({
@@ -100,8 +103,45 @@ describe('alertForceMembers', () => {
       message: 'Is it one of the pets Clinton Pet Rescue is looking for? See the report.',
     });
 
-    expect(await alertForceMembers({ forces: [], pet: LOST })).toBe(0);
+    expect(await alertForceMembers({ forces: [], pet: LOST })).toEqual({ bell: 0, pushed: 0 });
     expect(prisma.notification.createMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the push a force member is eligible for', () => {
+  const LOST = { id: 'case-max', caseNumber: 'CLI-2026-0001', reportType: 'LOST', petName: 'Max', petSpecies: 'DOG', lastSeenAddress: '412 Main Ave, Clinton, IA' };
+  const NOW = new Date('2026-11-16T12:00:00Z');
+
+  test('members on duty get the alert on their phone too, the rest in the bell only, and the count says so', async () => {
+    prisma.rescueForceMember.findMany.mockResolvedValue([
+      { userId: 'u-ann', rescueSquadId: 'f-clinton', onDutyUntil: new Date('2026-11-16T18:00:00Z') },
+      { userId: 'u-bo', rescueSquadId: 'f-clinton', onDutyUntil: new Date('2026-11-16T06:00:00Z') },
+      { userId: 'u-cy', rescueSquadId: 'f-clinton', onDutyUntil: null },
+    ]);
+    const told = await alertForceMembers({ forces: [CLINTON], pet: LOST, now: NOW });
+    expect(told).toEqual({ bell: 3, pushed: 1 });
+    expect(sendPushToUser).toHaveBeenCalledTimes(1);
+    expect(sendPushToUser.mock.calls[0][1]).toBe('u-ann');
+    expect(sendPushToUser.mock.calls[0][2]).toMatchObject({ title: 'Max is missing near Main Ave', url: '/cases/CLI-2026-0001' });
+  });
+
+  test('a push that reaches no phone is not counted as reached', async () => {
+    prisma.rescueForceMember.findMany.mockResolvedValue([{ userId: 'u-ann', rescueSquadId: 'f-clinton', onDutyUntil: new Date('2026-11-16T18:00:00Z') }]);
+    sendPushToUser.mockResolvedValueOnce({ success: true, sent: 0 });
+    expect(await alertForceMembers({ forces: [CLINTON], pet: LOST, now: NOW })).toEqual({ bell: 1, pushed: 0 });
+  });
+});
+
+describe('the country of a force a report sets up', () => {
+  test('is the country the address names, never US for a place outside it', () => {
+    expect(countryOfPlace('Calle Madero 1, Centro, Ciudad de México, CDMX, México')).toBe('MX');
+    expect(countryOfPlace('Av. Reforma 222, Juárez, Mexico City, Mexico')).toBe('MX');
+    expect(countryOfPlace('412 Main Ave, Clinton, IA 52732')).toBe('US');
+    expect(countryOfPlace('1 Main St, Austin, TX 78701, United States')).toBe('US');
+    expect(countryOfPlace('Thamel, Kathmandu, Bagmati, Nepal')).toBe('NP');
+    // A country not on the list is kept as written; no country at all is left blank.
+    expect(countryOfPlace('Plaka, Athens, Attica, Greece')).toBe('Greece');
+    expect(countryOfPlace('19.4326, -99.1332')).toBe('');
   });
 });
 

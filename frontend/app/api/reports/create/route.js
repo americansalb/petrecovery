@@ -16,7 +16,8 @@ import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { withCaseNumberRetry } from '@/app/lib/caseNumber';
-import { forcesCovering, alertForceMembers } from '@/app/lib/forceCoverage';
+import { forcesCovering, alertForceMembers, countryOfPlace } from '@/app/lib/forceCoverage';
+import { lastSeenFromAnswer } from '@/app/lib/lastSeenAnswer';
 import { feedPost } from '@/app/lib/forceFeed';
 import { fillForceOutlineSoon } from '@/app/lib/forceOutlines';
 import { normalizeDetails, isEmptyDetails, needsMedication, healthUrgency, petFieldsFromDetails } from '@/app/lib/caseDetails';
@@ -247,7 +248,8 @@ export async function POST(request) {
         const openSearches = await tx.case.count({
           where: { reporterId: existingUser.id, reportType: 'LOST', status: { in: [...OPEN_CASE_STATUSES] }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
         });
-        if (openSearches >= (session?.user ? MAX_OPEN_SEARCHES_SIGNED_IN : MAX_OPEN_SEARCHES_GUEST)) throw new Error('OPEN_REPORT_EXISTS');
+        // Said for a phone number when the account is one: it has no email and no password.
+        if (openSearches >= (session?.user ? MAX_OPEN_SEARCHES_SIGNED_IN : MAX_OPEN_SEARCHES_GUEST)) throw refusal('OPEN_REPORT_EXISTS', { phoneOnly });
       }
 
       // If user exists and phone wasn't provided, try to get it from their record
@@ -320,6 +322,19 @@ export async function POST(request) {
           throw new Error('Selected pet not found or does not belong to you');
         }
 
+        // A pet already missing has its search: a second one splits the helpers and alerts the force twice.
+        // The owner is sent to the open one. A search that ran past its date and was never closed does not count.
+        const alreadyMissing = await tx.case.findFirst({
+          where: {
+            petId: pet.id,
+            reportType: 'LOST',
+            status: { in: [...OPEN_CASE_STATUSES] },
+            OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+          },
+          select: { caseNumber: true, petName: true },
+        });
+        if (alreadyMissing) throw refusal('PET_ALREADY_MISSING', { open: alreadyMissing });
+
         // Update pet details if they've changed
         pet = await tx.pet.update({
           where: { id: selectedPetId },
@@ -355,8 +370,11 @@ export async function POST(request) {
         });
       }
 
-      // Create case
-      const lastSeenAt = calculateLastSeenTime(timeElapsed);
+      // Create case. The time is the band the owner picked, counted back from now (app/lib/lastSeenAnswer.js):
+      // with the row's createdAt it says which band, so no screen has to show it as an exact time.
+      // Both times are written from the one clock, so the band reads back exactly.
+      const reportedAt = new Date();
+      const lastSeenAt = lastSeenFromAnswer(timeElapsed, reportedAt);
       const petSizeValue = size || 'MEDIUM';
 
       // Build pet description including indoor/outdoor status for cats.
@@ -389,6 +407,7 @@ export async function POST(request) {
           ownerName: firstName,
           ownerPhone: phone || 'Not provided',
           ownerEmail: phoneOnly ? 'Not provided' : email,
+          createdAt: reportedAt,
           lastSeenAt,
           lastSeenLatitude: center[0],
           lastSeenLongitude: center[1],
@@ -518,6 +537,7 @@ export async function POST(request) {
     // (areaCovers in app/lib/maps/forceArea.js).
     let assignedSquad = null;
     let assignedSquads = [];
+    let forceAlerted = { bell: 0, pushed: 0 };
     const COVERAGE_BUFFER = 1; // miles past the town line (or the circle)
 
     try {
@@ -589,13 +609,14 @@ export async function POST(request) {
         // last-seen address: forces made here used to have none, which hid
         // them from the Rescue Forces search and let a second force be
         // created for the same town.
-        const autoPlace = parsePlace(lastSeenAddress);
+        // The country comes from the address too: it used to be US wherever the pet was.
+        const autoPlace = parsePlace(resolvedLastSeenAddress);
         const newSquad = await prisma.rescueForce.create({
           data: {
             name: `${cityName} Pet Rescue`,
             city: cityName,
             state: autoPlace?.country === 'US' && autoPlace.state ? autoPlace.state : null,
-            country: 'US',
+            country: countryOfPlace(resolvedLastSeenAddress),
             centerLatitude: center[0],
             centerLongitude: center[1],
             radiusMiles: 5, // Default 5 mile coverage
@@ -724,23 +745,34 @@ export async function POST(request) {
             name: squad.name,
             city: squad.city,
             distance: squad.distance,
+            // Set up by this report (its only member is the reporter), or one near the spot whose area does not reach it.
+            setUpNow: Boolean(squad.isAutoCreated),
+            nearby: Boolean(squad.isNearbyAssist),
           });
         }
 
         // Members of each force hear about the pet in their notification
-        // bell (app/lib/forceCoverage.js). Non-fatal, like the posts above.
+        // bell, and those on duty on their phone (app/lib/forceCoverage.js).
+        // Non-fatal, like the posts above. What it returns is what the
+        // success screen says.
         try {
-          await alertForceMembers({ forces: squadsToNotify, pet: report, exceptUserId: user.id });
+          const alerted = await alertForceMembers({ forces: squadsToNotify, pet: report, exceptUserId: user.id });
+          forceAlerted = { bell: alerted?.bell || 0, pushed: alerted?.pushed || 0 };
         } catch (alertError) {
           console.error('[Report Debug] Member alerts failed:', alertError);
         }
 
-        // Set the closest squad as the primary assigned squad
+        // Set the closest squad as the primary assigned squad. It carries
+        // what happened, for the success screen: whether this report set it
+        // up, and how many people were alerted through the forces.
         const closestSquad = squadsToNotify[0];
         assignedSquad = {
           id: closestSquad.id,
           name: closestSquad.name,
           city: closestSquad.city,
+          setUpNow: Boolean(closestSquad.isAutoCreated),
+          membersAlerted: forceAlerted.bell,
+          membersPushed: forceAlerted.pushed,
         };
 
         // Log squad assignments
@@ -852,6 +884,10 @@ export async function POST(request) {
       }
     }
 
+    // The link to the report, by email or by text: the sends, waited on below.
+    let linkEmail = null;
+    let linkText = null;
+
     // Send guest report email if account was not explicitly created
     // (skipped for phone-only reporters - their address is a placeholder)
     if (!accountCreated && !session?.user && !phoneOnly) {
@@ -869,9 +905,8 @@ export async function POST(request) {
       // lives here in the body because footnote is escaped as plain text.
       const firstNameSafe = escapeHtml(firstName);
       const petNameSafe = escapeHtml(petName);
-      const emailSafe = escapeHtml(email);
       const caseNumberSafe = escapeHtml(report.caseNumber);
-      sendEmail({
+      linkEmail = sendEmail({
         to: email,
         subject: `${petName}'s lost-pet report is live - here's your link`,
         html: renderBrandedEmail({
@@ -879,7 +914,7 @@ export async function POST(request) {
           heading: `${petName}'s report is live`,
           bodyHtml: `
             <p>Hi ${firstNameSafe},</p>
-            <p>Your lost-pet report for <strong>${petNameSafe}</strong> is now live, and your neighborhood rescue force can see it. We'll email you the moment anyone reports a sighting.</p>
+            <p>Your lost-pet report for <strong>${petNameSafe}</strong> is now live${assignedSquad && !assignedSquad.setUpNow ? `, and ${escapeHtml(assignedSquad.name)} has it` : ''}. We email you here when someone reports a sighting.</p>
             <p style="margin:20px 0 8px;"><strong>Your case:</strong> ${caseNumberSafe}</p>
             <p style="color:#64748b; font-size:14px;">The button below opens Mission Control as you, the owner: from there you see who is helping, mark ground searched, answer sightings and mark ${petNameSafe} found. It works on any phone or computer for 60 days. Keep this email to yourself: anyone who opens the link can run ${petNameSafe}'s search.</p>
             <p style="margin:16px 0 0; font-size:14px;"><a href="${caseUrl}" style="color:#0f172a; font-weight:600;">${petNameSafe}'s public page</a> &nbsp;·&nbsp; <a href="${setPasswordUrl}" style="color:#0f172a; font-weight:600;">Set a password</a></p>
@@ -888,48 +923,47 @@ export async function POST(request) {
           ctaUrl: runUrl,
           footnote: "You're receiving this because you reported a lost pet on ReunitePets.",
         }),
-      }).catch(err => {
-        logEvent({
-          event_type: 'email.send_failed',
-          correlation_id: correlationId,
-          resource_type: 'email',
-          action: 'create',
-          result: 'failure',
-          error_message: err.message
-        });
+      }).then((res) => {
+        if (!res?.success) {
+          logEvent({ event_type: 'email.send_failed', correlation_id: correlationId, resource_type: 'email', action: 'create', result: 'failure', error_message: res?.error || 'unknown' }).catch(() => {});
+        }
+        return res;
+      }, (err) => {
+        logEvent({ event_type: 'email.send_failed', correlation_id: correlationId, resource_type: 'email', action: 'create', result: 'failure', error_message: err.message }).catch(() => {});
+        return { success: false };
       });
     }
 
-    // Phone-only reporters get no email at all - text them the case link so
-    // they have a way back to their report after closing the tab. Best-effort
-    // (sendSms no-ops gracefully when Twilio isn't configured).
+    // Phone-only reporters get no email at all: text them the link that runs
+    // their search (it carries the key to it, like the guest email's button),
+    // so they have a way back after closing the tab. Sent only to the number
+    // they gave. sendSms answers success: false when Twilio is not set up.
     if (phoneOnly && phone) {
-      const caseUrl = `${getEmailBaseUrl()}/cases/${report.caseNumber}`;
-      sendSms(
+      const baseUrl = getEmailBaseUrl();
+      const runUrl = ownerKey
+        ? `${baseUrl}/api/mission/${encodeURIComponent(report.caseNumber)}/own?k=${ownerKey.key}`
+        : `${baseUrl}/cases/${report.caseNumber}`;
+      linkText = sendSms(
         phone,
-        `ReunitePets: your lost-pet report for ${petName} is live. Track sightings and manage it here: ${caseUrl}`
-      ).then(res => {
+        `ReunitePets: ${petName}'s report is live. This link runs the search, so keep it to yourself: ${runUrl} We text you here when someone reports seeing ${petName}.`,
+        { userId: user.id, messageType: 'CASE_LINK' }
+      ).then((res) => {
         if (!res?.success) {
-          logEvent({
-            event_type: 'sms.send_failed',
-            correlation_id: correlationId,
-            resource_type: 'sms',
-            action: 'create',
-            result: 'failure',
-            error_message: res?.error || 'unknown'
-          });
+          logEvent({ event_type: 'sms.send_failed', correlation_id: correlationId, resource_type: 'sms', action: 'create', result: 'failure', error_message: res?.error || 'unknown' }).catch(() => {});
         }
-      }).catch(err => {
-        logEvent({
-          event_type: 'sms.send_failed',
-          correlation_id: correlationId,
-          resource_type: 'sms',
-          action: 'create',
-          result: 'failure',
-          error_message: err.message
-        });
+        return res;
+      }, (err) => {
+        logEvent({ event_type: 'sms.send_failed', correlation_id: correlationId, resource_type: 'sms', action: 'create', result: 'failure', error_message: err.message }).catch(() => {});
+        return { success: false };
       });
     }
+
+    // What went, for the success screen, which says only this. Waited for a
+    // few seconds at most: a send still going then is said to be going.
+    const [emailOutcome, textOutcome] = await Promise.all([
+      linkEmail ? outcome(linkEmail) : null,
+      linkText ? outcome(linkText) : null,
+    ]);
 
     // Fire the report-time action cascade FIRE-AND-FORGET, now that the patrol
     // Alert rows and rescue-force CaseAssignment rows exist. The reporter's
@@ -965,6 +999,16 @@ export async function POST(request) {
       assignedSquad,
       squadsNotified: assignedSquads.length,
       allAssignedSquads: assignedSquads,
+      // Who was told about the report and how, as it happened: the success
+      // screen says this and nothing more (app/components/report/successWords.js).
+      told: {
+        email: emailOutcome, // the link, to a guest who gave an email: 'sent' | 'failed' | 'sending' | null
+        text: textOutcome, // the link, to a guest who gave only a phone
+        forces: assignedSquads.map(({ id, name, setUpNow, nearby }) => ({ id, name, setUpNow, nearby })),
+        forceMembers: forceAlerted.bell, // people alerted in the app through the forces
+        forceMembersPushed: forceAlerted.pushed, // of those, reached on their phone
+        neighbors: nearbyPatrol.length, // neighbors watching the area, alerted in the app and on their phone
+      },
       locations: {
         lastSeen: { lat: center[0], lng: center[1] },
         reporter: reporterLocation ? { lat: reporterLocation[0], lng: reporterLocation[1] } : null,
@@ -1002,6 +1046,17 @@ export async function POST(request) {
     // the pet or its page: someone who typed another person's address learns nothing about them from this.
     if (error.message === 'OPEN_REPORT_EXISTS') {
       const signedIn = Boolean((await getServerSession(authOptions).catch(() => null))?.user);
+      // Someone who reported with only a phone has no inbox and no password: they are told about the number,
+      // and not sent to sign in.
+      if (!signedIn && error.phoneOnly) {
+        return NextResponse.json(
+          {
+            error: 'There is already a search open under this phone number. Mark that pet found or close its search before reporting another pet.',
+            code: 'OPEN_REPORT_EXISTS',
+          },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         {
           error: signedIn
@@ -1009,6 +1064,22 @@ export async function POST(request) {
             : 'There is already a search open under this email. The link to it is in that inbox. Mark that pet found or close the search before reporting another pet, or sign in to report a second one.',
           code: 'OPEN_REPORT_EXISTS',
           signInUrl: '/login?callbackUrl=%2Freport%2Fnew',
+        },
+        { status: 409 }
+      );
+    }
+
+    // The pet picked is already missing. Only its owner can pick it, so the answer names the open search and
+    // sends them to it (the wizard shows openUrl as "Open that search").
+    if (error.message === 'PET_ALREADY_MISSING') {
+      const open = error.open || {};
+      return NextResponse.json(
+        {
+          error: `${open.petName || 'This pet'} already has a search open. Add anything new to that search instead of starting a second one.`,
+          code: 'OPEN_REPORT_EXISTS',
+          reason: 'PET_ALREADY_MISSING',
+          caseNumber: open.caseNumber,
+          openUrl: `/mission-control?mission=${encodeURIComponent(open.caseNumber || '')}`,
         },
         { status: 409 }
       );
@@ -1041,19 +1112,25 @@ export async function POST(request) {
   }
 }
 
-function calculateLastSeenTime(timeElapsed) {
-  const now = new Date();
-  const hours = {
-    'less_than_hour': 0.5,
-    '1_to_6_hours': 3,
-    '6_to_24_hours': 12,
-    '1_to_3_days': 48,
-    '3_to_7_days': 120,
-    '1_to_2_weeks': 240,
-    'more_than_2_weeks': 360,
-  };
-  const hoursAgo = hours[timeElapsed] || 12;
-  return new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
+/** A refusal raised inside the transaction, carrying what the answer needs. */
+function refusal(code, extra = {}) {
+  return Object.assign(new Error(code), extra);
+}
+
+/**
+ * Wait for a send, but not past `ms`: 'sent', 'failed', or 'sending' when
+ * it is still going. The success screen says only what this returns.
+ */
+async function outcome(promise, ms = 6000) {
+  let timer;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(() => resolve('sending'), ms);
+  });
+  try {
+    return await Promise.race([promise.then((res) => (res?.success ? 'sent' : 'failed'), () => 'failed'), late]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {

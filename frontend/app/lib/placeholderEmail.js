@@ -18,3 +18,15 @@ export function placeholderEmailForPhone(phone) {
 export function isPlaceholderEmail(email) {
   return typeof email === 'string' && email.toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
 }
+
+/**
+ * True for an address mail can be sent to. Not for a placeholder, and not
+ * for the words "Not provided", which phone-only lost reports stored as
+ * the case's ownerEmail: the cascade used to queue follow-up email to
+ * that and record the recovery email as sent.
+ */
+export function isDeliverableEmail(email) {
+  if (typeof email !== 'string') return false;
+  const value = email.trim();
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value) && !isPlaceholderEmail(value);
+}
