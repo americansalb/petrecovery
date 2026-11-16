@@ -11,6 +11,7 @@
  * the pet is.
  */
 import { distanceMeters } from '@/app/lib/searchGrid';
+import { distanceWords } from '@/app/lib/searchCircle';
 import { nearestOnPath, SIGHTING_REACH_METERS } from '@/app/lib/streetWalks';
 import { clockTime, dayAndTime, placeWords } from './words';
 
@@ -138,13 +139,9 @@ export function directionWord(a, b) {
   return COMPASS[Math.round((((degrees % 360) + 360) % 360) / 45) % 8];
 }
 
-/** "120 m", "0.8 km": a straight-line distance, rounded as people say it. */
+/** "120 m", "1.6 km", "12 km": a straight-line distance, rounded as people say it (app/lib/searchCircle.js, distanceWords). */
 export function metersWords(meters) {
-  if (!Number.isFinite(meters)) return '';
-  if (meters < 50) return 'under 50 m';
-  // 995 m and up is said in kilometres, so it is never "1000 m".
-  if (meters < 995) return `${Math.round(meters / 10) * 10} m`;
-  return `${(meters / 1000).toFixed(1)} km`;
+  return distanceWords(meters);
 }
 
 /** A time as a sentence says it: "at 9:30 pm" today, "on Tue at 8:00 pm" this week, "on Nov 3" before that. */

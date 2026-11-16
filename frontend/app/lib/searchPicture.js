@@ -98,7 +98,7 @@ const PICTURE_SELECT = {
 
 function sightingOut(s, { withNames, isOwner }) {
   // The street or the landmark. An address that will not give up its house number is left off.
-  const place = s.address && s.address !== 'Marked on the map' ? placeOnly(s.address) || null : null;
+  const place = placeOnly(s.address) || null;
   const named = s.reporterName || (s.reportedBy?.firstName && s.reportedBy.firstName !== 'Deleted' ? s.reportedBy.firstName : null);
   return {
     id: s.id,

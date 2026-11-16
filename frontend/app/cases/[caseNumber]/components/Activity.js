@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { Eye, MessageSquare, Camera, Check, Megaphone, MapPin } from 'lucide-react';
 import { timeAgo, shortDate } from '@/app/lib/caseLabels';
-import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
+import { isNoPlace } from '@/app/lib/maps/reverseLabel';
 
 const SHOWN_AT_FIRST = 3;
 
@@ -25,9 +25,9 @@ function photoCount(photoUrls) {
   }
 }
 
-/** The first part of an address ("Zilker Park"), never a pair of coordinates. */
+/** The first part of an address ("Zilker Park"), never a pair of coordinates or words that say there is no place. */
 function nearWhat(address) {
-  if (!address || looksLikeCoordinates(address)) return '';
+  if (isNoPlace(address)) return '';
   // Reporters often type "Near the park" themselves; don't print "near Near".
   return address.split(',')[0].trim().replace(/^near\s+/i, '');
 }

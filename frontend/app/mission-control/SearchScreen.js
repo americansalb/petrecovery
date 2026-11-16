@@ -45,6 +45,11 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { distanceMeters } from '@/app/lib/searchGrid';
 import { rankAreas, needsSearch } from '@/app/lib/searchCircle';
+// A reading rougher than this is not a place. A phone with precise location turned off answers with a point that
+// can be kilometres out, and a sighting pinned there sends the owner to the wrong street. Past this, the witness
+// types the street or puts the pin on by hand. The picker's own "Use my location" holds to the same number.
+import { SIGHTING_ACCURACY_METERS } from '@/app/lib/sightingLimits';
+import { roughWords } from '@/app/components/report/LocationPicker';
 // The site's own address, built in: a link or a QR code made here never carries the host's name (app/lib/config.js).
 import { getBaseUrl } from '@/app/lib/config';
 import { orientWalk, walkTitle, placeFromStreets } from '@/app/lib/streetWalks';
@@ -73,13 +78,6 @@ const SearchMap = dynamic(() => import('./components/SearchMap'), {
   loading: () => <div className="h-full w-full bg-[var(--mc-ground)]" />,
 });
 
-/**
- * A reading rougher than this is not a place. A phone with precise
- * location turned off answers with a point that can be kilometres out,
- * and a sighting pinned there sends the owner to the wrong street. Past
- * this, the witness types the street instead.
- */
-const SIGHTING_ACCURACY_METERS = 150;
 /** A fresh sighting this close to a helper's street is drawn on the same map as the street. Further off, the top line says where. */
 const SIGHTING_IN_VIEW_METERS = 1200;
 /**
@@ -230,6 +228,9 @@ function Screen({ mission }) {
   // and the pin is set there; a desk, or a phone that will not say, types
   // the street.
   const phoneSpot = useRef(null);
+  // Where the form's map opens for the pin to be put on by hand (the form's `near`): the words offer it only where it is.
+  const pinAt = useRef(null);
+  pinAt.current = hot || picture?.lastSeen || null;
   // The time picked, as it is now: the reading below can arrive after someone has already tapped "Today".
   const pickedMinutes = useRef(0);
   const openSeen = useCallback(async () => {
@@ -256,7 +257,7 @@ function Screen({ mission }) {
         setWhereFrom('phone');
       }
     } else if (here && pickedMinutes.current === 0) {
-      setProblem('Your phone only gave a rough location. Type the street or the corner.');
+      setProblem(roughWords(Number.isFinite(pinAt.current?.lat) && Number.isFinite(pinAt.current?.lng)));
     }
   }, [desk, locate]);
   // Where the phone is now is where the pet is only for "Just now". Someone at home in the evening, sending

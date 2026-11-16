@@ -12,7 +12,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { caseTitle, timeAgo } from '@/app/lib/caseLabels';
-import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
+import { isNoPlace } from '@/app/lib/maps/reverseLabel';
 import { parsePlace } from '@/app/lib/placeLabel';
 import { milesBetween } from '@/app/lib/maps/forceArea';
 
@@ -33,7 +33,7 @@ const SHELTER_MILES = 30;
 
 /** "Zilker Park" from "Zilker Park, Austin, TX"; the street without its number from "6701 Burnet Rd, ...". */
 export function placeName(address) {
-  if (!address || looksLikeCoordinates(address)) return '';
+  if (isNoPlace(address)) return '';
   const first = address.split(',')[0].trim().replace(/^near\s+/i, '').replace(/^\d+[a-z]?\s+/i, '');
   if (first && !/^\d/.test(first)) return first;
   return parsePlace(address)?.label || '';
@@ -58,10 +58,11 @@ const NUMBERED = /\b(highway|hwy|route|rte|road|rd|ruta|carretera|autopista|inte
  *
  * Where no street can be told apart from a number, the town if the
  * address names one, and otherwise nothing: never the address as typed.
+ * Words stored in place of a place ("Marked on the map") are no place.
  */
 export function placeOnly(address) {
   const raw = String(address || '').trim();
-  if (!raw || looksLikeCoordinates(raw)) return '';
+  if (isNoPlace(raw)) return '';
   let first = raw.split(',')[0].trim().replace(/^near\s+/i, '');
   // A number in front, as North America writes it.
   if (!ORDINAL.test(first)) first = first.replace(/^\d+[a-z]?(\s+\d+\/\d+)?\s+/i, '');

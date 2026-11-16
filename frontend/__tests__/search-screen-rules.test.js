@@ -409,15 +409,33 @@ describe('three instruments: a browser reads its position once and never watches
   });
 
   test('a reading too rough to name a street never sets the pin of a sighting', () => {
-    expect(shell).toMatch(/const SIGHTING_ACCURACY_METERS = \d+;/);
-    const limit = Number(shell.match(/const SIGHTING_ACCURACY_METERS = (\d+);/)[1]);
+    // One number, kept with the other limits on a sighting, for the screen and the place picker alike.
+    const { SIGHTING_ACCURACY_METERS: limit } = require('@/app/lib/sightingLimits');
     expect(limit).toBeLessThanOrEqual(200);
+    expect(shell).toMatch(/import \{ SIGHTING_ACCURACY_METERS \} from '@\/app\/lib\/sightingLimits';/);
+    expect(code(shell)).not.toMatch(/const SIGHTING_ACCURACY_METERS = /);
     // The pin is set from the phone's reading in one place, behind the check.
     expect(code(shell)).toMatch(/if \(here && here\.accuracy <= SIGHTING_ACCURACY_METERS\) \{\s*const point = \{ lat: here\.lat, lng: here\.lng \};\s*const spot = [^;]+;\s*phoneSpot\.current = spot;\s*if \(pickedMinutes\.current === 0\) \{\s*setWhere\(spot\);\s*setWhereFrom\('phone'\);/);
     // Nowhere else is a pin made from a reading.
     expect(code(shell).match(/phoneSpot\.current = (?!null)/g)).toHaveLength(1);
     // The owner's distance is not guessed from a rough reading either.
     expect(code(shell)).toMatch(/if \(!here \|\| !\(here\.accuracy <= SIGHTING_ACCURACY_METERS\)\) return;/);
+  });
+
+  test('the place picker\'s own "Use my location" holds to the same rule on the sighting form', () => {
+    // 2026-11-16: with accuracy 1500 m the form said "rough location", and the picker's own button pinned the
+    // rough point anyway, and Send sent it about 2 km off.
+    const seen = cardsOf(witness).find((c) => c.name === 'Seen').source;
+    expect(witness).toMatch(/import \{ SIGHTING_ACCURACY_METERS \} from '@\/app\/lib\/sightingLimits';/);
+    const pickers = seen.match(/<LocationPicker\b[^>]*\/>/g);
+    // The phone's picker carries the limit; the desk's never reads the device at all.
+    for (const picker of pickers) expect(/canLocate=\{false\}/.test(picker) || /maxAccuracy=\{SIGHTING_ACCURACY_METERS\}/.test(picker)).toBe(true);
+    const picker = read('app/components/report/LocationPicker.js');
+    // The reading is checked before the pin is set from it, and the rough reading's words are the screen's own.
+    expect(code(picker)).toMatch(/if \(Number\.isFinite\(maxAccuracy\) && !\(accuracy <= maxAccuracy\)\) \{\s*setIsLocating\(false\);\s*setLocateError\(roughWords\(canPin\)\);\s*return;\s*\}\s*const spot = await applyPosition\(latitude, longitude\);/);
+    expect(code(shell)).toMatch(/setProblem\(roughWords\(/);
+    // The picker reads the device in one place.
+    expect(picker.match(/getCurrentPosition\(/g)).toHaveLength(1);
   });
 });
 
@@ -455,14 +473,28 @@ describe('three instruments: a desk is never asked where it is and is never hand
 
   test('the form does not offer "Use my location" on a desk', () => {
     expect(shell).toMatch(/<Seen\b.*canLocate=\{!desk\}/);
-    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{onWhere\} variant="lost" canLocate=\{canLocate\} search=\{typing \|\| !placed\} near=\{near\} \/>/);
+    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{onWhere\} variant="lost" canLocate=\{canLocate\} search=\{typing \|\| !placed\} near=\{near\} maxAccuracy=\{SIGHTING_ACCURACY_METERS\} \/>/);
     // A typed street is looked for around the search, since a desk has no position of its own to lean on.
     expect(shell).toMatch(/<Seen\b.*near=\{hot \|\| picture\.lastSeen\}/);
     const picker = read('app/components/report/LocationPicker.js');
-    // Both of the picker's own location buttons sit behind the switch.
+    // Both of the picker's own location buttons sit behind the switch, which is off wherever canLocate is.
     const buttons = picker.match(/onClick=\{useMyLocation\}/g) || [];
     expect(buttons).toHaveLength(2);
-    expect(picker.match(/\{canLocate && \(\s*(<>\s*<p[^>]*>or<\/p>\s*)?<button\s+type="button"\s+onClick=\{useMyLocation\}/g)).toHaveLength(2);
+    expect(picker.match(/\{offerLocate && \(\s*<button\s+type="button"\s+onClick=\{useMyLocation\}/g)).toHaveLength(2);
+    expect(code(picker)).toMatch(/const offerLocate = canLocate && !locateDenied;/);
+  });
+
+  test('a witness with location off and the street lookup down can still say where: a pin on a map opened by the pet', () => {
+    // 2026-11-16: the geocoder answered 503, the picker said "No matches", and a phone had no map to tap.
+    const picker = read('app/components/report/LocationPicker.js');
+    expect(code(picker)).toMatch(/const canPin = !mapless && Boolean\(nearPoint\);/);
+    // The button that opens it, offered whatever the location switch says.
+    expect(code(picker)).toMatch(/\{canPin && \(\s*<button\s+type="button"\s+onClick=\{\(\) => \{\s*setLocateError\(null\);\s*setPinning\(true\);\s*\}\}/);
+    // The map opens at `near` with no pin, and a tap puts the pin there.
+    expect(code(picker)).toMatch(/const pinStart = !value && pinning && nearPoint \? nearPoint : null;/);
+    expect(code(picker)).toMatch(/map\.on\('click', \(e\) => \{\s*placeMarker\(\[e\.latlng\.lat, e\.latlng\.lng\]\);\s*applyPosition\(e\.latlng\.lat, e\.latlng\.lng\);/);
+    // The sighting form gives it the pet's own place to open at.
+    expect(witness).toMatch(/near=\{near\} maxAccuracy=/);
   });
 
   test('a desk shows the code to scan in place of the button that hands out a street', () => {

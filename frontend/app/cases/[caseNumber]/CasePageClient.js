@@ -35,7 +35,7 @@ import {
   caseStatus, caseTitle, caseDescriptor, casePlace, caseTimeline, caseSize,
   caseDescription, casePhone, known, shortDate, timeAgo,
 } from '@/app/lib/caseLabels';
-import { PIN_ONLY_LABEL, looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
+import { PIN_ONLY_LABEL, looksLikeCoordinates, isNoPlace } from '@/app/lib/maps/reverseLabel';
 import { speciesLabel } from '@/app/lib/species';
 import { getBaseUrl } from '@/app/lib/config';
 import MarkReunitedModal from '@/app/mission-control/components/overlays/MarkReunitedModal';
@@ -144,7 +144,8 @@ function Photo({ c, alt }) {
 }
 
 function HotSighting({ s }) {
-  const where = s.address && !looksLikeCoordinates(s.address) ? s.address.split(',')[0].trim().replace(/^near\s+/i, '') : '';
+  // A sighting sent with only a pin has no street: it reads "Seen 5 minutes ago", never "near Marked on the map".
+  const where = isNoPlace(s.address) ? '' : s.address.split(',')[0].trim().replace(/^near\s+/i, '');
   return (
     <div role="status" className="flex items-start gap-3 rounded-2xl bg-flash-50 p-4 ring-1 ring-flash-300">
       <span className="relative mt-1.5 flex h-3 w-3 shrink-0" aria-hidden="true">

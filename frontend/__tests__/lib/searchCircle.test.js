@@ -8,8 +8,8 @@
  * time an area takes to its size and not to the streets in it.
  */
 import {
-  CIRCLES, DEFAULT_CIRCLE, RING, MINUTES_PER_HECTARE, MINUTES_PER_HECTARE_CLOSE_CAT,
-  circleFor, areasOf, inArea, areaAt, hectaresOf, minutesFor, seenArea, inWords, pointAt, outlineOf, heartOf, reachOf, landmarksIn, urgencyOf, planCircle, rankAreas, needsSearch, outLongAfter, heldFor,
+  CIRCLES, DEFAULT_CIRCLE, RING, MINUTES_PER_HECTARE, MINUTES_PER_HECTARE_CLOSE_CAT, SEEN_CIRCLE_REACH_METERS,
+  distanceWords, circleFor, areasOf, inArea, areaAt, hectaresOf, minutesFor, seenArea, inWords, pointAt, outlineOf, heartOf, reachOf, landmarksIn, urgencyOf, planCircle, rankAreas, needsSearch, outLongAfter, heldFor,
 } from '@/app/lib/searchCircle';
 import { distanceMeters } from '@/app/lib/searchGrid';
 
@@ -182,6 +182,19 @@ describe('an area in words', () => {
     expect(reachOf(seenArea('s', DOG, 'Max'), 'Max')).toBe('Within 150 m of where Max was seen');
   });
 
+  test('the circle round a sighting says how far, and which way, it is from where the pet was lost', () => {
+    const seen = seenArea('s', DOG, 'Max');
+    expect(reachOf(seen, 'Max', { lost: LOST, seen: pointAt(LOST, 1240, 45) })).toBe('Within 150 m of where Max was seen, 1.2 km north-east of where Max was lost');
+    expect(reachOf(seen, 'Max', { lost: LOST, seen: pointAt(LOST, 320, 180) })).toBe('Within 150 m of where Max was seen, 320 m south of where Max was lost');
+    // Where the pet was lost, it says nothing more.
+    expect(reachOf(seen, 'Max', { lost: LOST, seen: pointAt(LOST, 20, 90) })).toBe('Within 150 m of where Max was seen');
+  });
+
+  test('a distance is said as a person says it', () => {
+    expect([30, 140, 994, 995, 1640, 3000, 12400, 85000, 1578000].map(distanceWords)).toEqual(['under 50 m', '140 m', '990 m', '1 km', '1.6 km', '3 km', '12 km', '85 km', '1,578 km']);
+    expect(distanceWords(undefined)).toBe('');
+  });
+
   test('its name inside a sentence', () => {
     expect(inWords('The middle')).toBe('the middle');
     expect(inWords('North side')).toBe('the north side');
@@ -351,6 +364,21 @@ describe('the order ground is given out in', () => {
 
   test('a sighting\'s circle with nobody there is given first', () => {
     expect(order([area('middle', { priority: 8 }), area('seen-1', { priority: 10, ring: 3 }), area('south', { priority: 10 })])).toEqual(['seen-1', 'south', 'middle']);
+  });
+
+  test('a sighting\'s circle far from the person asking is not handed to them first, across a city or a country', () => {
+    // A helper in Austin, and a circle round a sighting sent from Chicago.
+    const away = (a) => ({ 'seen-far': 1578000, middle: 300, north: 500 })[a.id];
+    expect(order([area('middle', { priority: 8 }), area('seen-far', { priority: 10, ring: RING.SEEN }), area('north')], away)).toEqual(['middle', 'north', 'seen-far']);
+    // After searched ground too: it is given only when there is nothing else at all.
+    const searched = area('north', { status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T09:00:00Z' });
+    expect(order([searched, area('seen-far', { priority: 10, ring: RING.SEEN })], away)).toEqual(['north', 'seen-far']);
+    // Within reach of them it is first, as before.
+    const near = (a) => ({ 'seen-1': SEEN_CIRCLE_REACH_METERS, middle: 300 })[a.id];
+    expect(order([area('middle', { priority: 8 }), area('seen-1', { priority: 10, ring: RING.SEEN })], near)).toEqual(['seen-1', 'middle']);
+    // Asked to go there, or sent there first by the owner, the person goes: that was someone's own word.
+    expect(order([area('middle', { priority: 8 }), area('seen-far', { priority: 10, ring: RING.SEEN, askedOfMe: true })], away)[0]).toBe('seen-far');
+    expect(order([area('middle', { priority: 8 }), area('seen-far', { priority: 11, ring: RING.SEEN, first: true })], away)[0]).toBe('seen-far');
   });
 
   test('before the side the pet was seen in, even where that side is the nearer of the two', () => {

@@ -18,6 +18,23 @@ export function looksLikeCoordinates(text) {
 export const PIN_ONLY_LABEL = 'Near the pinned spot';
 
 /**
+ * Words stored where a sighting had no street, which say there is no
+ * place: "Marked on the map" (the witness route, until 2026-11-16, when it
+ * began storing nothing) and "Unknown location" (an older route).
+ */
+const NO_PLACE_WORDS = /^(marked on the map|unknown location)\.?$/i;
+
+/**
+ * Whether an address names no place a reader can use: empty, a pair of
+ * coordinates, or words that say there is none. A screen shows no place
+ * for it, never "Seen near Marked on the map".
+ */
+export function isNoPlace(text) {
+  const words = typeof text === 'string' ? text.trim() : '';
+  return !words || looksLikeCoordinates(words) || NO_PLACE_WORDS.test(words);
+}
+
+/**
  * Reverse geocode to a short place label, or null. Fail-soft and bounded:
  * a slow or down geocoder must never block posting a report.
  */

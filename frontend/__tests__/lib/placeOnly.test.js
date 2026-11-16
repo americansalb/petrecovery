@@ -6,7 +6,8 @@
 
 jest.mock('@/app/lib/prisma', () => ({ __esModule: true, default: {} }));
 
-import { placeOnly } from '@/app/lib/needOptions';
+import { placeOnly, placeName } from '@/app/lib/needOptions';
+import { isNoPlace } from '@/app/lib/maps/reverseLabel';
 
 describe('placeOnly', () => {
   test.each([
@@ -54,7 +55,6 @@ describe('placeOnly', () => {
   test.each([
     ['Zilker Park, Austin, TX', 'Zilker Park'],
     ['Ramsey Park', 'Ramsey Park'],
-    ['Marked on the map', 'Marked on the map'],
   ])('a landmark is itself: %s', (address, place) => {
     expect(placeOnly(address)).toBe(place);
   });
@@ -68,11 +68,42 @@ describe('placeOnly', () => {
     expect(placeOnly(undefined)).toBe('');
   });
 
+  test('words stored where a sighting had no street are no place, so nothing reads "near Marked on the map"', () => {
+    for (const words of ['Marked on the map', 'marked on the map.', 'Unknown location', '  ']) {
+      expect(placeOnly(words)).toBe('');
+      expect(placeName(words)).toBe('');
+      expect(isNoPlace(words)).toBe(true);
+    }
+    expect(isNoPlace('30.2672, -97.7431')).toBe(true);
+    expect(isNoPlace('Zilker Park')).toBe(false);
+    // A street that only starts with those words is still a street.
+    expect(placeOnly('Marked Tree Rd')).toBe('Marked Tree Rd');
+  });
+
   test('no result ever begins with a house number', () => {
     const addresses = ['4001 Ramsey Ave', '12 34 Foo St', '99 Red Balloons Rd, Berlin', '7 Eleven Way', '4001 1/2 Ramsey Ave', '15B Baker Street 3', '221B Baker Street, London'];
     for (const address of addresses) {
       const place = placeOnly(address);
       expect({ address, ok: !/^\d+[a-z]?\s/i.test(place) || /^\d+(st|nd|rd|th)\b/i.test(place) }).toEqual({ address, ok: true });
     }
+  });
+});
+
+describe('every screen that names a sighting\'s place reads naturally with no street', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const read = (rel) => fs.readFileSync(path.join(__dirname, '..', '..', rel), 'utf8');
+
+  test('the pet\'s page asks the one check before it prints "near"', () => {
+    // "Seen 5 minutes ago near Marked on the map" (2026-11-16): the hot sighting and "What happened".
+    expect(read('app/cases/[caseNumber]/CasePageClient.js')).toMatch(/const where = isNoPlace\(s\.address\) \? '' : /);
+    expect(read('app/cases/[caseNumber]/components/Activity.js')).toMatch(/function nearWhat\(address\) \{\s*if \(isNoPlace\(address\)\) return '';/);
+  });
+
+  test('nothing stores or prints the words that stood in for a place', () => {
+    expect(read('app/lib/witness.js')).not.toMatch(/'Marked on the map/);
+    expect(read('app/lib/searchPicture.js')).not.toMatch(/Marked on the map/);
+    expect(read('app/mission-control/desktop/Board.js')).not.toMatch(/'Marked on the map'/);
+    expect(read('app/api/activity/feed/route.js')).not.toMatch(/near \$\{s\.address\}/);
   });
 });
