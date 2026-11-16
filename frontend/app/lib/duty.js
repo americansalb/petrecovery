@@ -35,12 +35,14 @@ export async function setDuty({ forceId, userId, hours, now = new Date() }) {
 /**
  * The members of these forces, split into who is on duty and who is not,
  * each person once. `exceptUserId` leaves out the person who caused the
- * event (nobody is told about their own sighting).
+ * event (nobody is told about their own sighting); `exceptUserIds`, people
+ * told about it another way (the owner of the pet seen).
  */
-export async function membersByDuty(forceIds, { exceptUserId = null, now = new Date() } = {}) {
+export async function membersByDuty(forceIds, { exceptUserId = null, exceptUserIds = [], now = new Date() } = {}) {
   if (!forceIds?.length) return { onDuty: [], offDuty: [] };
+  const except = [...new Set([exceptUserId, ...(Array.isArray(exceptUserIds) ? exceptUserIds : [])].filter(Boolean))];
   const rows = await prisma.rescueForceMember.findMany({
-    where: { rescueSquadId: { in: forceIds }, isActive: true, ...(exceptUserId && { userId: { not: exceptUserId } }) },
+    where: { rescueSquadId: { in: forceIds }, isActive: true, ...(except.length === 1 && { userId: { not: except[0] } }), ...(except.length > 1 && { userId: { notIn: except } }) },
     select: { userId: true, onDutyUntil: true },
   });
   const onDuty = new Set();

@@ -175,18 +175,24 @@ describe('rankJobs: ground', () => {
   });
 
   test('the reason given is the reason', () => {
-    const why = (over) => rankJobs({ blocks: [area('west', 'West side', { reach: '', landmarks: [], ...over })], way: 'foot', petName: 'Max' })[0].why;
+    // Two days after the searches below.
+    const now = new Date('2026-11-14T10:30:00Z').getTime();
+    const why = (over) => rankJobs({ blocks: [area('west', 'West side', { reach: '', landmarks: [], ...over })], way: 'foot', petName: 'Max', now })[0].why;
     expect(why({ priority: 11 })).toBe("Max's owner asked for it to be searched first. Nobody has searched it.");
-    expect(why({ status: 'NEEDS_REVISIT', searchCount: 1 })).toBe('It has been searched and is down for another look.');
+    expect(why({ status: 'NEEDS_REVISIT', searchCount: 1, searchedAt: '2026-11-12T10:00:00Z' })).toBe('It was last searched 2 days ago and is down for another look.');
+    expect(why({ status: 'NEEDS_REVISIT', searchCount: 1 })).toBe('It is down for another look.');
     expect(why({ status: 'IN_PROGRESS', on: 1 })).toBe('1 person is searching it now, and there is room for more.');
     expect(why({ status: 'IN_PROGRESS', on: 2 })).toBe('2 people are searching it now, and there is room for more.');
     // A fact about this area only. The page is handed one area, and cannot speak for the others.
-    expect(why({ status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T10:00:00Z' })).toBe('It has been searched once.');
-    expect(why({ status: 'SEARCHED', searchCount: 2, searchedAt: '2026-11-12T10:00:00Z' })).toBe('It has been searched twice.');
-    expect(why({ status: 'SEARCHED', searchCount: 4, searchedAt: '2026-11-12T10:00:00Z' })).toBe('It has been searched 4 times.');
+    // With its age, always: a search fades, and is never said as if it lasted (CLAUDE.md).
+    expect(why({ status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T10:00:00Z' })).toBe('It has been searched once, the last time 2 days ago.');
+    expect(why({ status: 'SEARCHED', searchCount: 2, searchedAt: '2026-11-12T10:00:00Z' })).toBe('It has been searched twice, the last time 2 days ago.');
+    expect(why({ status: 'SEARCHED', searchCount: 4, searchedAt: '2026-11-14T08:30:00Z' })).toBe('It has been searched 4 times, the last time 2 hours ago.');
     expect(why({ status: 'SEARCHED', searchCount: 2 })).not.toMatch(/Every area|longest ago/);
     // Asked to search it by the owner: said as that, whatever else is true of it.
-    expect(why({ askedOfMe: true, status: 'SEARCHED', searchCount: 1 })).toBe("Max's owner asked you to search it. It has been searched once.");
+    expect(why({ askedOfMe: true, status: 'SEARCHED', searchCount: 1, searchedAt: '2026-11-12T10:00:00Z' })).toBe("Max's owner asked you to search it. It has been searched once, the last time 2 days ago.");
+    // Searched at a time nobody knows: nothing is said about the search, rather than a bare "searched".
+    expect(why({ askedOfMe: true, status: 'SEARCHED', searchCount: 1 })).toBe("Max's owner asked you to search it.");
     expect(why({ askedOfMe: true, priority: 11 })).toBe("Max's owner asked you to search it. Nobody has searched it.");
   });
 

@@ -46,6 +46,8 @@ jest.mock('@/lib/logging', () => ({
 jest.mock('@/app/lib/email', () => ({
   sendVerificationEmail: jest.fn().mockResolvedValue({ success: true }),
   sendEmail: jest.fn().mockResolvedValue({ success: true }),
+  renderBrandedEmail: jest.fn(() => '<html></html>'),
+  escapeHtml: (s) => String(s),
 }));
 
 import { POST as register } from '@/app/api/auth/register/route';
@@ -121,13 +123,16 @@ describe('POST /api/auth/register with joinForceId', () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
-  it('answers a registered address the same general way and joins nobody', async () => {
+  it('answers a registered address with the set-password link and joins nobody', async () => {
     prisma.user.findUnique.mockResolvedValue({ id: 'someone', email: 'rita@example.com' });
     const res = await register(signup({ joinForceId: 'force-1' }));
     const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error).toBe('Unable to create account. Please try again or use a different email.');
+    expect(res.status).toBe(409);
+    expect(body.code).toBe('EMAIL_HAS_ACCOUNT');
+    expect(body.error).toMatch(/^This email already has an account\./);
+    expect(prisma.rescueForce.findFirst).not.toHaveBeenCalled();
     expect(prisma.rescueForceMember.create).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
   it('plain sign-up (no force) creates no membership and a plain email', async () => {

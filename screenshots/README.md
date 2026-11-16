@@ -70,7 +70,7 @@ Notes:
 | pub-20-pet-public-view.png | `/pets/view/eF6Q3wsZy1k-RJ3-TCaegQ0IM_OOCZ-VTlDTvSwQLxg` | `/pets/view/eF6Q3wsZy1k-RJ3-TCaegQ0IM_OOCZ-VTlDTvSwQLxg` |  |
 | pub-21-hub.png | `/hub` | `/hub` | 3 console errors |
 | pub-22-hub-search.png | `/hub/search?q=lost` | `/hub/search?q=lost` | 2 console errors |
-| pub-23-hub-category.png | `/hub/c/lost-pet-help` | `/hub/c/lost-pet-help` | 2 console errors |
+| pub-23-hub-category.png | `/hub/c/lost-pet-support` | `/hub/c/lost-pet-support` | 2 console errors |
 | pub-24-hub-thread.png | `/hub/thread/tips-for-shy-cats-hiding-nearby` | `/hub/thread/tips-for-shy-cats-hiding-nearby` |  |
 | pub-25-hub-user.png | `/hub/u/cmr4cizxe0000rdvl50vvspav` | `/hub/u/cmr4cizxe0000rdvl50vvspav` |  |
 | pub-26-report-public-mission.png | `/reports/cmr4cj05x000drdvlz56tfxsw` | `/reports/cmr4cj05x000drdvlz56tfxsw` |  |

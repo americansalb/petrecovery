@@ -212,7 +212,11 @@ export default function ReportFoundPet() {
   };
 
   // ── Submit ────────────────────────────────────────────────────────
-  const effectiveEmail = isLoggedIn ? session?.user?.email || '' : contact.email.trim();
+  // Only the way the finder picked ("Text me" or "Email me"): a number typed and then switched away from used
+  // to go on the report too, and onto its public page.
+  const textMe = !isLoggedIn && contact.method === 'phone';
+  const effectiveEmail = isLoggedIn ? session?.user?.email || '' : textMe ? '' : contact.email.trim();
+  const effectivePhone = isLoggedIn || !textMe ? '' : contact.phone.trim();
   const effectiveName = isLoggedIn ? session?.user?.name || 'Helpful Neighbor' : contact.firstName.trim();
 
   const handleSubmit = async () => {
@@ -232,7 +236,7 @@ export default function ReportFoundPet() {
         headers: { 'Content-Type': 'application/json', ...(await captchaHeaders('report_found')) },
         body: JSON.stringify({
           email: effectiveEmail,
-          phone: contact.phone.trim(),
+          phone: effectivePhone,
           firstName: effectiveName,
           petName: details.petName.trim(),
           breed: details.breed,
@@ -279,7 +283,7 @@ export default function ReportFoundPet() {
         label: 'The animal',
         sidebarIcon: PawPrint,
         sidebarTitle: 'Found a pet?',
-        sidebarCopy: 'We compare your report with lost-pet reports nearby and email owners whose pet looks like a close match.',
+        sidebarCopy: 'We compare your report with lost-pet reports nearby and send the owners whose pet looks like a close match a link to it.',
       },
       {
         id: 'wherewhen',
@@ -308,7 +312,7 @@ export default function ReportFoundPet() {
             label: 'Contact',
             sidebarIcon: Mail,
             sidebarTitle: 'Where we reach you',
-            sidebarCopy: "We email you about this report here. You don't need a password.",
+            sidebarCopy: "We send you the link to this report here, and any message an owner writes to you through the site. You don't need a password.",
           }]
         : []),
       {
@@ -360,8 +364,8 @@ export default function ReportFoundPet() {
       when: FOUND_TIME_OPTIONS.find((o) => o.value === timeElapsed)?.label || '',
       where: location ? location.city || (looksLikeCoordinates(location.address) ? 'the pinned spot' : location.address) : '',
       lookFor: [colorLine, facts.length ? `${facts.join(', ')}.` : '', details.marks ? details.marks.trim().replace(/[.]?$/, '.') : ''].filter(Boolean).join(' '),
-      phone: isLoggedIn ? '' : contact.phone,
-      email: isLoggedIn ? session?.user?.email || '' : contact.email,
+      phone: isLoggedIn || contact.method !== 'phone' ? '' : contact.phone,
+      email: isLoggedIn ? session?.user?.email || '' : contact.method === 'phone' ? '' : contact.email,
     };
   }, [species, details, photos, displayIndex, timeElapsed, location, color, isLoggedIn, contact, session]);
   const preview = species ? <FlyerPreview {...flyer} width={272} /> : null;
@@ -379,7 +383,8 @@ export default function ReportFoundPet() {
           isLoggedIn={isLoggedIn}
           accountCreated={result.accountCreated}
           contactEmail={effectiveEmail}
-          contactPhone={isLoggedIn ? '' : contact.phone.trim()}
+          contactPhone={effectivePhone}
+          told={result.told}
           matches={result.potentialMatches || []}
           matchesNotified={result.matchesNotified || 0}
         />
@@ -627,7 +632,7 @@ export default function ReportFoundPet() {
                     id: 'contact',
                     icon: Mail,
                     label: 'We reach you at',
-                    value: [contact.firstName, contact.email].filter(Boolean).join(', '),
+                    value: [contact.firstName, contact.method === 'phone' ? contact.phone : contact.email].filter(Boolean).join(', '),
                   }]
                 : []),
             ]}

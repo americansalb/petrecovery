@@ -31,7 +31,13 @@ jest.mock('@/app/lib/prisma', () => ({
 }));
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
-jest.mock('@/app/lib/email', () => ({ __esModule: true, sendEmail: jest.fn() }));
+jest.mock('@/app/lib/email', () => ({
+  __esModule: true,
+  sendEmail: jest.fn(),
+  renderBrandedEmail: jest.fn((parts) => `<h1>${parts.heading}</h1>${parts.bodyHtml}<a href="${parts.ctaUrl}">${parts.ctaLabel}</a>`),
+  escapeHtml: jest.requireActual('@/app/lib/email').escapeHtml,
+}));
+jest.mock('@/app/lib/sms', () => ({ __esModule: true, sendSms: jest.fn(async () => ({ success: true })), textCaseOwner: jest.fn(async () => ({ sent: false, reason: 'NOT_ASKED' })) }));
 jest.mock('@/app/lib/config', () => ({ __esModule: true, getEmailBaseUrl: () => 'http://localhost:5757' }));
 jest.mock('@/app/lib/notifications-inapp', () => ({ __esModule: true, createInAppNotification: jest.fn() }));
 jest.mock('bcryptjs', () => ({ __esModule: true, default: { hash: jest.fn().mockResolvedValue('hash') } }));
@@ -41,6 +47,7 @@ import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
+import { textCaseOwner } from '@/app/lib/sms';
 
 const OWNER_ID = 'lost-owner-1';
 const OWNER_EMAIL = 'owner@example.com';
@@ -120,10 +127,15 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(sendEmail.mock.calls[0][0].to).toBe(OWNER_EMAIL);
 
-    // The "last inch": the notification must be CLICKABLE to the match - the
-    // actionUrl resolves to the case by caseNumber (the missionNumber alias bug
-    // would have made this null/undefined / a broken link).
-    expect(createInAppNotification.mock.calls[0][0].actionUrl).toBe('/cases/CASE-2026-000123');
+    // The "last inch": the notification must be CLICKABLE to the match, and it
+    // opens the FOUND pet's page, where its photo and place are. It used to
+    // open the owner's own page, which does not mention the found animal.
+    expect(createInAppNotification.mock.calls[0][0].actionUrl).toBe('/cases/FOUND-2026-000001');
+    // The email's button opens the found pet too, and it links to writing to the finder.
+    const mail = sendEmail.mock.calls[0][0].html;
+    expect(mail).toContain('http://localhost:5757/cases/FOUND-2026-000001');
+    expect(mail).toContain('http://localhost:5757/report/found/message?case=FOUND-2026-000001');
+    expect(mail).not.toContain('/cases/CASE-2026-000123');
 
     // Alert persisted with caseId (CRIT-B). NOTE: this is the ALERT model
     // specifically - its schema field is caseId and it has NO missionId. This is
@@ -162,5 +174,22 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     // The report must still save despite the notify failure.
     expect(res.status).toBeLessThan(300);
     expect(res.status).not.toBe(500);
+    // And the finder's card for that match does not say the owner was told.
+    const body = await res.json();
+    expect(body.matchesNotified).toBe(0);
+    expect(body.potentialMatches[0].ownerTold).toBe(false);
+  });
+
+  test('an owner who reported with "Text me" is texted about the found pet, with the link to it, and the finder is told whom it reached', async () => {
+    prisma.case.findMany.mockResolvedValue([
+      lostCandidate({ breed: 'Labrador', color: 'black', lat: 40.0, lng: -75.0 }),
+    ]);
+    const res = await post();
+    const body = await res.json();
+    expect(textCaseOwner).toHaveBeenCalledTimes(1);
+    expect(textCaseOwner.mock.calls[0][0]).toMatchObject({ caseId: 'lost-case-1', kind: 'FOUND_MATCH' });
+    expect(textCaseOwner.mock.calls[0][0].body).toContain('http://localhost:5757/cases/FOUND-2026-000001');
+    expect(body.told).toMatchObject({ owners: 1 });
+    expect(body.potentialMatches[0]).toMatchObject({ band: 'actionable', ownerTold: true });
   });
 });

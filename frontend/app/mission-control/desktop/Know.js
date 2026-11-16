@@ -98,7 +98,7 @@ export function Know({ picture, items, unit, circle = null, now, rings, onRings 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [picture.sightings, picture.lastSeen, picture.timeZone, name, Math.floor(now / 600000)]
   );
-  const ground = unit === 'area' ? areaLines({ areas: items, circle, name }) : groundLines({ items, unit, name });
+  const ground = unit === 'area' ? areaLines({ areas: items, circle, name, now }) : groundLines({ items, unit, name });
   const study = researchFor(picture.pet?.species);
   return (
     <Card title="What the search shows">

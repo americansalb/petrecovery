@@ -21,6 +21,7 @@ import { openAreas } from '@/app/lib/searchZones';
 import { inWords, rankAreas } from '@/app/lib/searchCircle';
 import { distanceMeters, FIRST_PRIORITY } from '@/app/lib/searchGrid';
 import { briefFor } from '@/app/lib/brief';
+import { agoWords } from '@/app/mission-control/lib/words';
 
 export { briefFor };
 
@@ -67,7 +68,7 @@ function walkText(meters) {
  * `needs`: open needs as listNeeds gives them (kind, title, taken, peopleNeeded, mine, lat, lng).
  * `party`: the next search party or null. `near`: {lat, lng} of the person, if given.
  */
-export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', when = 'now30', near = null, petName = 'the pet' }) {
+export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', when = 'now30', near = null, petName = 'the pet', now = Date.now() }) {
   const kinds = WAYS[way]?.kinds || WAYS.foot.kinds;
   const jobs = [];
 
@@ -129,12 +130,18 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
         why: [
           area.askedOfMe ? `${petName}'s owner asked you to search it.` : (area.priority || 0) >= FIRST_PRIORITY ? `${petName}'s owner asked for it to be searched first.` : null,
           area.reach ? `${area.reach}${marks.length ? `, around ${marks.join(' and ')}` : ''}.` : null,
+          // A search is said with its age, and never as if it lasted: the ground fades (CLAUDE.md, "Searched" is a
+          // record, and it fades). Where the time is not known, nothing is said about a search at all.
           area.on > 0
             ? `${area.on === 1 ? '1 person is' : `${area.on} people are`} searching it now, and there is room for more.`
             : area.status === 'NEEDS_REVISIT' || area.again
-              ? 'It has been searched and is down for another look.'
+              ? area.searchedAt
+                ? `It was last searched ${agoWords(area.searchedAt, now)} and is down for another look.`
+                : 'It is down for another look.'
               : area.searchCount > 0
-                ? `It has been searched ${area.searchCount === 1 ? 'once' : area.searchCount === 2 ? 'twice' : `${area.searchCount} times`}.`
+                ? area.searchedAt
+                  ? `It has been searched ${area.searchCount === 1 ? 'once' : area.searchCount === 2 ? 'twice' : `${area.searchCount} times`}, the last time ${agoWords(area.searchedAt, now)}.`
+                  : null
                 : 'Nobody has searched it.',
           away != null ? `${walkText(away)}.` : null,
         ].filter(Boolean).join(' '),
@@ -192,7 +199,7 @@ export async function pickJob({ pet, forceId, userId, member, way = 'foot', when
     forceId && member ? listNeeds(forceId, { userId, member, caseId: pet.id }) : [],
     forceId && member && when === 'party' ? nextParty(forceId, pet.id, { userId, member, now }) : null,
   ]);
-  const jobs = rankJobs({ blocks, needs, party, way, when, near, petName: pet.petName || 'the pet' });
+  const jobs = rankJobs({ blocks, needs, party, way, when, near, petName: pet.petName || 'the pet', now: new Date(now).getTime() });
   const [job, ...rest] = jobs;
   return {
     job: job || null,

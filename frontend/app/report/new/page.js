@@ -13,8 +13,12 @@
  * after posting, one tap each, on the page after posting and the pet's
  * page (founder, 2026-11-07: asking them before posting was too much
  * friction). Logged-in owners with saved pets start from a pet picker that
- * short-circuits straight to "when". Option taps advance immediately; typed
- * steps use the footer Continue. Geolocation is only requested from the
+ * short-circuits straight to "when". A logged-in owner has no contact screen
+ * (the email is the account's) but is asked the phone finders call, prefilled
+ * with the account's: the flyer tells whoever sees the pet to call. A guest
+ * whose browser already has a search open is told so before the first
+ * question (one search at a time without signing in). Option taps advance
+ * immediately; typed steps use the footer Continue. Geolocation is only requested from the
  * Where step's button.
  *
  * All UI comes from the shared primitives in app/components/report/.
@@ -23,7 +27,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import {
-  Heart, Clock, MapPin, Camera, Mail, Megaphone, HeartHandshake, Stethoscope, Gift,
+  Heart, Clock, MapPin, Camera, Mail, Megaphone, HeartHandshake, Stethoscope, Gift, Phone,
 } from 'lucide-react';
 import WizardShell from '../../components/report/WizardShell';
 import StepScreen from '../../components/report/StepScreen';
@@ -31,7 +35,8 @@ import OptionCardGrid from '../../components/report/OptionCardGrid';
 import LocationPicker from '../../components/report/LocationPicker';
 import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import PhotoStep from '../../components/report/PhotoStep';
-import ContactFields, { contactIsValid } from '../../components/report/ContactFields';
+import ContactFields, { contactIsValid, OwnerPhoneField } from '../../components/report/ContactFields';
+import OpenSearchNotice from '../../components/report/OpenSearchNotice';
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
 import FlyerStrip from '../../components/report/FlyerStrip';
 import FlyerPreview, { formatPhone } from '../../components/report/FlyerPreview';
@@ -51,7 +56,7 @@ import { loadDraft, saveDraft, clearDraft } from '../../components/report/wizard
 import ColorSelector from '../../components/ColorSelector';
 import {
   SPECIES_OPTIONS, DOG_SIZE_OPTIONS, CAT_LIVING_OPTIONS,
-  LOST_TIME_OPTIONS, WIZARD_THEMES, speciesToApi,
+  LOST_TIME_OPTIONS, WIZARD_THEMES, speciesToApi, isValidPhone,
 } from '../../components/report/wizardTheme';
 import { SARAMA_AVATAR } from '@/lib/brandAssets';
 import { captchaHeaders } from '@/app/lib/captchaClient';
@@ -67,14 +72,14 @@ const GROUP_OF = {
   pets: 'pet', species: 'pet', name: 'pet', size: 'pet',
   when: 'whenwhere', where: 'whenwhere', photo: 'photo', colors: 'photo',
   behaviour: 'help', health: 'help',
-  contact: 'contact', reward: 'post', review: 'post',
+  contact: 'contact', phone: 'contact', reward: 'post', review: 'post',
 };
 // What each screen is called in the sidebar's list of the current group.
 const SCREEN_LABEL = {
   pets: 'Which pet', species: 'Kind of pet', name: 'Name', size: 'Size',
   when: 'When', where: 'Where', photo: 'Photo', colors: 'Colors',
   behaviour: 'With strangers', health: 'Medication and health',
-  contact: 'How finders reach you', reward: 'Reward', review: 'Review and post',
+  contact: 'How finders reach you', phone: 'Phone finders call', reward: 'Reward', review: 'Review and post',
 };
 
 const NO_REWARD = { hasReward: null, rewardMode: null, rewardAmount: null, scamAck: false };
@@ -117,24 +122,41 @@ export default function ReportLostPet() {
   const [errorAction, setErrorAction] = useState(null); // the other way out of a posting error
   const [result, setResult] = useState(null);
   const [pendingDraft, setPendingDraft] = useState(null); // unfinished draft awaiting resume/fresh choice
+  // A guest's search already open from this browser: undefined while asking, then null or { caseNumber, petName, url }.
+  const [openSearch, setOpenSearch] = useState(undefined);
 
   // ── Load saved pets, resolve the first step ───────────────────────
   useEffect(() => {
     if (authStatus === 'loading') return;
     if (!isLoggedIn) {
       setMyPets([]);
+      // Without signing in, one search can be open at a time; Post refuses a second. Ask now, so a guest who
+      // already has one is told before the first question, with the way to it.
+      fetch('/api/owner/open-search', { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : { open: null }))
+        .then((data) => setOpenSearch(data?.open?.caseNumber ? data.open : null))
+        .catch(() => setOpenSearch(null));
       return;
     }
+    setOpenSearch(null);
     fetch('/api/pets')
       .then((res) => (res.ok ? res.json() : { pets: [] }))
       .then((data) => setMyPets(data.pets || []))
       .catch(() => setMyPets([]));
+    // The phone finders call: the account's, when it has one, as the answer to start from.
+    fetch('/api/profile')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const phone = String(data?.user?.phone || '').trim();
+        if (phone) setContact((c) => (c.phone?.trim() ? c : { ...c, method: 'phone', phone }));
+      })
+      .catch(() => {});
   }, [authStatus, isLoggedIn]);
 
   useEffect(() => {
-    if (stepId || authStatus === 'loading' || myPets === null) return;
+    if (stepId || authStatus === 'loading' || myPets === null || openSearch === undefined) return;
     setStepId(isLoggedIn && myPets.length > 0 ? 'pets' : 'species');
-  }, [stepId, authStatus, isLoggedIn, myPets]);
+  }, [stepId, authStatus, isLoggedIn, myPets, openSearch]);
 
   // ── Draft persistence (session-scoped, explicit restore) ──────────
   const dirty = Boolean(
@@ -177,7 +199,8 @@ export default function ReportLostPet() {
     setPhotos(d.photos || []);
     setDisplayIndex(d.displayIndex || 0);
     setColor(d.color || '');
-    setContact(d.contact || { firstName: '', method: 'phone', email: '', phone: '' });
+    // A draft with no phone keeps the account's, if it has loaded.
+    setContact((c) => ({ ...(d.contact || { firstName: '', method: 'phone', email: '', phone: '' }), phone: d.contact?.phone || c.phone || '' }));
     setBreed(d.breed || '');
     setDetails(d.details && typeof d.details === 'object' ? d.details : {});
     setReward(d.reward && typeof d.reward === 'object' ? { ...NO_REWARD, ...d.reward } : NO_REWARD);
@@ -195,13 +218,14 @@ export default function ReportLostPet() {
       behaviour: Boolean(d.details?.temperament),
       health: Array.isArray(d.details?.health) && d.details.health.length > 0,
       contact: isLoggedIn || contactIsValid(d.contact || {}, CONTACT_MODE),
+      phone: isValidPhone(d.contact?.phone),
       reward: rewardIsValid(d.reward || {}),
     };
     const order = [
       'species', 'name',
       ...(d.species === 'dog' || d.species === 'cat' ? ['size'] : []),
       'when', 'where', 'photo', 'colors', 'behaviour', 'health',
-      ...(!isLoggedIn ? ['contact'] : []),
+      isLoggedIn ? 'phone' : 'contact',
       'reward',
     ];
     const chain = [];
@@ -270,8 +294,9 @@ export default function ReportLostPet() {
       photo: needsColors ? 'colors' : 'behaviour',
       colors: 'behaviour',
       behaviour: 'health',
-      health: isLoggedIn ? 'reward' : 'contact',
+      health: isLoggedIn ? 'phone' : 'contact',
       contact: 'reward',
+      phone: 'reward',
       reward: 'review',
     };
     if (chain[stepId]) go(chain[stepId]);
@@ -310,14 +335,22 @@ export default function ReportLostPet() {
     : CONTACT_MODE === 'either' && contact.method === 'phone'
       ? ''
       : contact.email.trim();
-  const effectivePhone = isLoggedIn ? '' : contact.phone.trim();
+  // Signed in: the phone asked on its own screen (the account's when it has one). The case is saved with it, and
+  // the flyer prints it under "Seen {name}? Call or text".
+  const effectivePhone = contact.phone.trim();
   const effectiveName = isLoggedIn ? session?.user?.name || 'Pet Owner' : contact.firstName.trim();
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
     setError(null);
     setErrorLink(null);
     setErrorAction(null);
+    // The flyer tells whoever sees the pet to call: never post a signed-in owner's report without a number.
+    if (isLoggedIn && !isValidPhone(contact.phone)) {
+      setError('Add the phone finders call. It goes on the flyer.');
+      setErrorAction({ label: 'Add a phone', onClick: () => editFromReview('phone') });
+      return;
+    }
+    setIsSubmitting(true);
     try {
       const orderedPhotos = photos.length
         ? [photos[displayIndex], ...photos.filter((_, i) => i !== displayIndex)]
@@ -415,15 +448,21 @@ export default function ReportLostPet() {
         sidebarTitle: 'What a finder should do',
         sidebarCopy: `How ${name} acts with strangers, medication, and what to look for. These lines go on the flyer, where a stranger reads them first.`,
       },
-      ...(!isLoggedIn
-        ? [{
+      !isLoggedIn
+        ? {
             id: 'contact',
             label: 'Contact',
             sidebarIcon: Mail,
             sidebarTitle: 'Stay reachable',
             sidebarCopy: `We send sightings of ${name} here. You don't need a password.`,
-          }]
-        : []),
+          }
+        : {
+            id: 'contact',
+            label: 'Contact',
+            sidebarIcon: Phone,
+            sidebarTitle: 'Stay reachable',
+            sidebarCopy: `The flyer and ${name}'s page show this number, so whoever sees ${name} can call you.`,
+          },
       {
         id: 'post',
         label: 'Post it',
@@ -443,7 +482,7 @@ export default function ReportLostPet() {
       'when', 'where', 'photo',
       ...(!color || !selectedPet ? ['colors'] : []),
       'behaviour', 'health',
-      ...(!isLoggedIn ? ['contact'] : []),
+      isLoggedIn ? 'phone' : 'contact',
       'reward', 'review',
     ],
     [isLoggedIn, myPets, selectedPet, sizeAsked, color]
@@ -494,6 +533,7 @@ export default function ReportLostPet() {
       variant: 'lost',
       species: sp,
       petName,
+      breed,
       photoUrl: photos[displayIndex] || photos[0] || '',
       pills: [needsMedication(details) ? 'Needs medication' : '', money].filter(Boolean),
       when: LOST_TIME_OPTIONS.find((o) => o.value === timeElapsed)?.label || '',
@@ -501,7 +541,7 @@ export default function ReportLostPet() {
       lookFor: [colorLine, ...lookForBits(details), facts.length ? `${facts.join(', ')}.` : ''].filter(Boolean).join(' '),
       urgent: healthLine(details, { name: who }),
       approach: details.temperament || details.approachNote ? approachLine(details, { name: who, species: sp }) : '',
-      phone: isLoggedIn ? '' : contact.method === 'phone' ? contact.phone : '',
+      phone: isLoggedIn || contact.method === 'phone' ? contact.phone : '',
       email: isLoggedIn ? session?.user?.email || '' : contact.method === 'phone' ? '' : contact.email,
     };
   }, [species, petName, petSize, isIndoorCat, color, breed, details, reward, photos, displayIndex, timeElapsed, location, isLoggedIn, contact, session]);
@@ -535,6 +575,7 @@ export default function ReportLostPet() {
           contactPhone={!isLoggedIn && contact.method === 'phone' ? contact.phone : ''}
           squadsNotified={result.squadsNotified || 0}
           assignedSquad={result.assignedSquad}
+          told={result.told}
           activation={result.activation}
           caseId={result.reportId}
           detailsToken={result.detailsToken}
@@ -543,6 +584,14 @@ export default function ReportLostPet() {
           breed={result.petBreed}
           flyer={flyer}
         />
+      </div>
+    );
+  }
+
+  if (openSearch && !isLoggedIn) {
+    return (
+      <div className="h-full flex flex-col bg-white overflow-hidden">
+        <OpenSearchNotice petName={openSearch.petName} url={openSearch.url} />
       </div>
     );
   }
@@ -798,6 +847,23 @@ export default function ReportLostPet() {
         </StepScreen>
       )}
 
+      {stepId === 'phone' && (
+        <StepScreen
+          stepKey="phone"
+          variant={VARIANT}
+          question={`What number can finders call about ${name}?`}
+          hint={`It goes on the flyer and ${name}'s page, so whoever sees ${name} can call or text you.`}
+          primary={{ label: 'Continue', onClick: advance, disabled: !isValidPhone(contact.phone) }}
+        >
+          <OwnerPhoneField
+            variant={VARIANT}
+            value={contact.phone}
+            onChange={(phone) => setContact((c) => ({ ...c, method: 'phone', phone }))}
+            onSubmit={advance}
+          />
+        </StepScreen>
+      )}
+
       {stepId === 'review' && (
         <StepScreen
           stepKey="review"
@@ -859,16 +925,21 @@ export default function ReportLostPet() {
                 label: 'Reward',
                 value: reward.hasReward ? (reward.rewardMode === 'unstated' || !reward.rewardAmount ? 'Yes, amount not printed' : `$${Number(reward.rewardAmount).toLocaleString('en-US')}`) : 'None',
               },
-              ...(!isLoggedIn
-                ? [{
+              !isLoggedIn
+                ? {
                     id: 'contact',
                     icon: Mail,
                     label: 'Finders reach you at',
                     value: [contact.firstName, contact.method === 'phone' ? formatPhone(contact.phone) : contact.email]
                       .filter(Boolean)
                       .join(', '),
-                  }]
-                : []),
+                  }
+                : {
+                    id: 'phone',
+                    icon: Phone,
+                    label: 'Finders call',
+                    value: formatPhone(contact.phone),
+                  },
             ]}
             onEdit={editFromReview}
           />

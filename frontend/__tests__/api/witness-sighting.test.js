@@ -41,6 +41,7 @@ jest.mock('@/app/lib/push', () => ({ __esModule: true, isPushConfigured: () => t
 jest.mock('@/app/lib/email', () => ({ __esModule: true, escapeHtml: jest.requireActual('@/app/lib/email').escapeHtml, sendEmail: jest.fn(async () => ({})) }));
 jest.mock('@/app/lib/config', () => ({ __esModule: true, getEmailBaseUrl: () => 'https://reunitepets.test' }));
 jest.mock('@/app/lib/sse/missionStream', () => ({ __esModule: true, broadcast: jest.fn() }));
+jest.mock('@/app/lib/sms', () => ({ __esModule: true, textOwnerAboutSighting: jest.fn(async () => ({ sent: true })) }));
 jest.mock('@/app/lib/rateLimit', () => ({
   __esModule: true,
   withRateLimitAsync: jest.fn(async () => ({ success: true })),
@@ -62,6 +63,7 @@ import { logEvent } from '@/lib/logging';
 import * as witness from '@/app/lib/witness';
 import * as route from '@/app/api/public/missions/[caseNumber]/sighting/route';
 import { broadcast } from '@/app/lib/sse/missionStream';
+import { textOwnerAboutSighting } from '@/app/lib/sms';
 
 const { checkWitnessSighting, recordWitnessSighting, agoPhrase } = witness;
 const { POST } = route;
@@ -135,6 +137,9 @@ describe('recordWitnessSighting', () => {
     expect(prisma.notification.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: 'avery', type: 'SIGHTING', actionUrl: '/mission-control?mission=AUS-2026-0001' }) }));
     expect(sendPushToUser).toHaveBeenCalledWith(prisma, 'avery', expect.objectContaining({ title: 'Max was just seen' }));
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'avery@example.test', subject: 'Max was just seen near Zilker Park' }));
+    // And a text, for an owner who chose to be texted: the wizard promises "We text you when someone reports a
+    // sighting" (2026-11-16: nothing sent one). Whether to text, and the limit, are app/lib/sms.js's.
+    expect(textOwnerAboutSighting).toHaveBeenCalledWith({ caseId: 'case-max', title: 'Max was just seen', place: 'Zilker Park', url: '/mission-control?mission=AUS-2026-0001' });
     expect(out).toEqual({ sighting: { id: 'sight-1', sightedAt: NOW }, place: 'Zilker Park', told: { owner: true, bell: 3, pushed: 1 }, caseNumber: 'AUS-2026-0001', ownerName: 'Avery' });
   });
 
@@ -153,10 +158,22 @@ describe('recordWitnessSighting', () => {
     expect(prisma.caseSighting.create.mock.calls[0][0].data.description).toBe('Seen by someone with the link.');
   });
 
+  test('an owner who is also in a force looking for the pet is told once, as the owner', async () => {
+    await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.74, address: 'Zilker Park' }).value, { now: NOW });
+    expect(wakeForces).toHaveBeenCalledWith(expect.objectContaining({ exceptUserId: null, exceptUserIds: ['avery'] }));
+    expect(prisma.notification.create).toHaveBeenCalledTimes(1);
+    expect(prisma.notification.create.mock.calls[0][0].data).toMatchObject({ userId: 'avery', type: 'SIGHTING' });
+    // A signed-in witness is left out too: neither hears it from the force.
+    wakeForces.mockClear();
+    await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.74, address: 'Zilker Park' }).value, { userId: 'sarah', now: NOW });
+    expect(wakeForces).toHaveBeenCalledWith(expect.objectContaining({ exceptUserId: 'sarah', exceptUserIds: ['avery'] }));
+  });
+
   test('the owner reporting their own pet is not told about it', async () => {
     const out = await recordWitnessSighting('case-max', { lat: 1, lng: 1, sure: 'LIKELY', direction: null, name: '', note: '', address: '' }, { userId: 'avery' });
     expect(out.told.owner).toBe(false);
     expect(prisma.notification.create).not.toHaveBeenCalled();
+    expect(textOwnerAboutSighting).not.toHaveBeenCalled();
   });
 
   test('no pet, or a search that has ended', async () => {
@@ -223,17 +240,77 @@ describe('the place is a street or a corner, never a house', () => {
     prisma.caseSighting.create.mockClear();
     wakeForces.mockClear();
     expect((await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.77, address: '4001' }).value, { now: NOW })).place).toBeNull();
-    expect(wakeForces.mock.calls[0][0].body).toMatch(/^Marked on the map\./);
-    expect(prisma.caseSighting.create.mock.calls[0][0].data.address).toBe('Marked on the map');
+    expect(wakeForces.mock.calls[0][0].body).toMatch(/^Someone thinks it was Max\. The pin on the map shows where\./);
+    expect(prisma.caseSighting.create.mock.calls[0][0].data.address).toBe('');
     // A landmark with no number in it is a place.
     prisma.caseSighting.create.mockClear();
     expect((await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.26, lng: -97.77, address: 'Zilker Park' }).value, { now: NOW })).place).toBe('Zilker Park');
   });
 
-  test('off every street, with nothing typed, it is still recorded, as marked on the map', async () => {
-    await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.4, lng: -97.9 }).value, { now: NOW });
-    expect(prisma.caseSighting.create.mock.calls[0][0].data.address).toBe('Marked on the map');
-    expect(wakeForces.mock.calls[0][0].body).toMatch(/^Marked on the map\./);
+  test('off every street, with nothing typed, it is still recorded by its pin, and the words read as a sentence', async () => {
+    await recordWitnessSighting('case-max', checkWitnessSighting({ lat: 30.4, lng: -97.9, minutesAgo: 30 }).value, { now: NOW });
+    // Nothing is written where a street would be, so no screen prints "near Marked on the map".
+    expect(prisma.caseSighting.create.mock.calls[0][0].data.address).toBe('');
+    expect(wakeForces.mock.calls[0][0].body).toBe('Someone thinks it was Max. The pin on the map shows where.');
+    expect(prisma.notification.create.mock.calls[0][0].data.message).toBe('Someone thinks it was Max. The pin on the map shows where.');
+    expect(sendEmail.mock.calls[0][0].subject).toBe('Max was seen 30 minutes ago');
+    const said = JSON.stringify([wakeForces.mock.calls, prisma.notification.create.mock.calls, sendEmail.mock.calls, sendPushToUser.mock.calls, broadcast.mock.calls]);
+    expect(said).not.toMatch(/Marked on the map|near null|Near \.|undefined/i);
+  });
+});
+
+describe('a sighting implausibly far from where the pet was lost is not taken', () => {
+  // Whiskers, a cat lost in Austin, and a phone in Chicago (2026-11-16). The site measures it as 1,581 km.
+  const WHISKERS = { ...MAX, id: 'case-whiskers', caseNumber: 'AUS-2026-0002', petName: 'Whiskers', petSpecies: 'CAT', lastSeenLatitude: 30.2672, lastSeenLongitude: -97.7431 };
+  const CHICAGO = { lat: 41.8781, lng: -87.6298 };
+  const call = (body) => POST(new Request('http://localhost/api/public/missions/AUS-2026-0002/sighting', { method: 'POST', body: JSON.stringify(body) }), { params: { caseNumber: 'AUS-2026-0002' } });
+
+  test('the limit is a pet driven to the next town, not a pin a country off', () => {
+    const { SIGHTING_MAX_KM } = jest.requireActual('@/app/lib/sightingLimits');
+    expect(SIGHTING_MAX_KM).toBeGreaterThanOrEqual(30);
+    expect(SIGHTING_MAX_KM).toBeLessThanOrEqual(200);
+  });
+
+  test('nothing is kept and nobody is told, and the witness is told how far it is, in words the form shows', async () => {
+    prisma.case.findFirst.mockResolvedValue(WHISKERS);
+    const out = await recordWitnessSighting('AUS-2026-0002', checkWitnessSighting(CHICAGO).value, { now: NOW });
+    expect(out).toMatchObject({ error: 'TOO_FAR', caseNumber: 'AUS-2026-0002' });
+    expect(out.words).toBe('That spot is 1,581 km from where Whiskers was lost, too far to send to the search. Check the pin or the street, and send it again.');
+    expect(prisma.caseSighting.create).not.toHaveBeenCalled();
+    expect(prisma.caseSighting.update).not.toHaveBeenCalled();
+    expect(prisma.case.update).not.toHaveBeenCalled();
+    for (const told of everyoneTold) expect(told).not.toHaveBeenCalled();
+  });
+
+  test('the route answers 400 with those words and keeps a record of it', async () => {
+    prisma.case.findFirst.mockResolvedValue(WHISKERS);
+    const res = await call(CHICAGO);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toEqual({ error: expect.stringMatching(/^That spot is 1,581 km from where Whiskers was lost/), code: 'TOO_FAR' });
+    expect(body.error).not.toMatch(/\d\.\d km|—/);
+    expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: 'case.sighting_refused', error_code: 'TOO_FAR' }));
+    expect(prisma.caseSighting.create).not.toHaveBeenCalled();
+  });
+
+  test('the Seen form shows whatever words the route answers with', () => {
+    const hook = fs.readFileSync(path.join(__dirname, '..', '..', 'app', 'mission-control', 'hooks', 'useSearch.js'), 'utf8');
+    expect(hook).toMatch(/if \(!res\.ok\) return \{ error: data\.error \|\| /);
+    const screen = fs.readFileSync(path.join(__dirname, '..', '..', 'app', 'mission-control', 'SearchScreen.js'), 'utf8');
+    expect(screen).toMatch(/const result = await search\.sendSighting\(\{[\s\S]*?\}\);\s*if \(result\.error\) return setProblem\(result\.error\);/);
+  });
+
+  test('a pet seen across town, or driven to the next one, is still taken', async () => {
+    prisma.case.findFirst.mockResolvedValue(WHISKERS);
+    // About 25 km north, in Round Rock.
+    const out = await recordWitnessSighting('AUS-2026-0002', checkWitnessSighting({ lat: 30.5083, lng: -97.6789 }).value, { now: NOW });
+    expect(out.error).toBeUndefined();
+    expect(prisma.caseSighting.create).toHaveBeenCalledTimes(1);
+  });
+
+  test('a report with no place it was lost has nothing to measure from, and the sighting is taken', async () => {
+    prisma.case.findFirst.mockResolvedValue({ ...WHISKERS, lastSeenLatitude: null, lastSeenLongitude: null });
+    expect((await recordWitnessSighting('AUS-2026-0002', checkWitnessSighting(CHICAGO).value, { now: NOW })).error).toBeUndefined();
   });
 });
 

@@ -158,8 +158,14 @@ export async function GET(request) {
         .map(p => p.assignment.case.id)
     );
 
+    // Searches this person took part in through Mission Control: an area they went out on, or the search
+    // they joined from the pet's link while signed in. Most helpers never join a force's assignment, so
+    // without these someone who searched four of a pet's five areas had no sign of that pet here.
+    const searchedByMe = await searchesJoined(user.id, { skip: new Set([...ownedCaseIds, ...participatingCaseIds]) });
+    const searchedCaseIds = new Set(searchedByMe.map((s) => s.caseItem.id));
+
     // Get all unique case IDs user is involved with
-    const allInvolvedCaseIds = [...new Set([...ownedCaseIds, ...participatingCaseIds])];
+    const allInvolvedCaseIds = [...new Set([...ownedCaseIds, ...participatingCaseIds, ...searchedCaseIds])];
 
     // Fetch squad assignments for all involved cases
     const caseAssignments = await prisma.caseAssignment.findMany({
@@ -256,6 +262,32 @@ export async function GET(request) {
         squadsHelping,
         totalVolunteers: squadsHelping.reduce((sum, s) => sum + s.volunteerCount, 0),
         mySquad: participation.assignment.rescueSquad?.name,
+      });
+    }
+
+    // And the searches joined on the search screen, with how many areas this person searched.
+    for (const { caseItem, areas } of searchedByMe) {
+      const squadsHelping = assignmentsByCaseId[caseItem.id] || [];
+      missions.push({
+        id: caseItem.id,
+        missionNumber: caseItem.caseNumber,
+        petName: caseItem.petName,
+        petSpecies: caseItem.petSpecies,
+        petPhotoUrl: caseItem.petPhotoUrl || null,
+        lastSeen: formatTime(caseItem.lastSeenAt),
+        hoursMissing: caseItem.lastSeenAt
+          ? Math.floor((Date.now() - new Date(caseItem.lastSeenAt).getTime()) / 3600000)
+          : 0,
+        sightings: 0,
+        status: caseItem.status,
+        isLive: false,
+        activeVolunteers: 0,
+        missionMode: null,
+        isOwner: false,
+        squadsHelping,
+        totalVolunteers: squadsHelping.reduce((sum, s) => sum + s.volunteerCount, 0),
+        mySquad: null,
+        myAreas: areas,
       });
     }
 
@@ -444,7 +476,7 @@ export async function GET(request) {
           }),
         ]);
         for (const c of counts) missingByForce[c.rescueSquadId] = c._count._all;
-        const seen = new Set([...ownedCaseIds, ...participatingCaseIds]);
+        const seen = new Set([...ownedCaseIds, ...participatingCaseIds, ...searchedCaseIds]);
         for (const row of rows) {
           if (!row.case || !row.rescueSquad || seen.has(row.case.id)) continue;
           seen.add(row.case.id);
@@ -664,6 +696,53 @@ export async function GET(request) {
       { error: 'Failed to load dashboard', details: error.message },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * The pets still missing whose search this person took part in on the
+ * search screen (Mission Control): they went out on one of its areas
+ * (app/lib/searchZones.js keeps a SearchZoneVisit for each), or joined it
+ * from the pet's link while signed in (a MissionVolunteer with their
+ * account). `skip` holds cases already listed (their own, or joined
+ * through a force). Newest first, with `areas`: how many of its areas they
+ * said they searched. Never fails the dashboard: a table that cannot be
+ * read lists nothing.
+ */
+async function searchesJoined(userId, { skip = new Set() } = {}) {
+  try {
+    const [visits, joined] = await Promise.all([
+      prisma.searchZoneVisit.findMany({
+        where: { searcherId: userId, startedAt: { not: null } },
+        orderBy: { startedAt: 'desc' },
+        take: 200,
+        select: { caseId: true, zoneId: true, outcome: true },
+      }),
+      prisma.missionVolunteer.findMany({
+        where: { userId },
+        orderBy: { joinedAt: 'desc' },
+        take: 50,
+        select: { mission: { select: { caseId: true } } },
+      }),
+    ]);
+    const areas = {};
+    for (const v of visits) {
+      if (!areas[v.caseId]) areas[v.caseId] = new Set();
+      if (v.outcome === 'SEARCHED') areas[v.caseId].add(v.zoneId);
+    }
+    const ids = [...new Set([...visits.map((v) => v.caseId), ...joined.map((j) => j.mission?.caseId)])].filter((id) => id && !skip.has(id));
+    if (!ids.length) return [];
+    const cases = await prisma.case.findMany({
+      where: { id: { in: ids }, reportType: 'LOST', status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] } },
+      select: { id: true, caseNumber: true, petName: true, petSpecies: true, petPhotoUrl: true, lastSeenAt: true, status: true },
+    });
+    const order = new Map(ids.map((id, i) => [id, i]));
+    return cases
+      .sort((a, b) => order.get(a.id) - order.get(b.id))
+      .map((caseItem) => ({ caseItem, areas: areas[caseItem.id]?.size || 0 }));
+  } catch (err) {
+    console.error('Dashboard: searches joined query failed:', err.message);
+    return [];
   }
 }
 

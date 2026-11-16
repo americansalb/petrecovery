@@ -12,8 +12,10 @@
  * is, and nothing tells a helper to stop: every action is the person at
  * the desk asking or writing in their own name.
  */
-import { RING, inWords, inArea, rankAreas } from '@/app/lib/searchCircle';
+import { RING, inWords, inArea, rankAreas, isShortSearch } from '@/app/lib/searchCircle';
+import { searchedLately, FRESH_HOURS } from '@/app/lib/trail';
 import { distanceMeters } from '@/app/lib/searchGrid';
+import { wholeDays } from '@/app/lib/elapsed';
 import { agoWords, clockTime, placeWords } from './words';
 import { activity, directionWord, durationWords, metersWords, whenWords } from './insight';
 import { outLong, unanswered } from './team';
@@ -29,6 +31,23 @@ export const circleAreas = (areas = []) => areas.filter((a) => !isSeenCircle(a))
 /** An area's name inside a sentence ("the west side") and at the start of one ("The west side"). */
 export const areaName = (area) => inWords(area?.name || area?.title);
 export const AreaName = (area) => capital(areaName(area));
+
+/**
+ * An area's name in a list of areas: its own name, and for the circle
+ * round a sighting, when the pet was seen and where, from the sighting
+ * itself ("Where Whiskers was seen at 9:40 pm on Burnet Rd"). Every such
+ * circle is "Where Whiskers was seen", so without the time and the place
+ * the owner cannot tell one 50 m away from one across town. `sightings`
+ * are the picture's ({ id, at, place }); the board's own `sightingAt` is
+ * the time where the picture does not carry the sighting.
+ */
+export function listName(area, { sightings = [], timeZone, now = Date.now() } = {}) {
+  const name = area?.name || area?.title || '';
+  if (!isSeenCircle(area)) return name;
+  const seen = (sightings || []).find((s) => s.id === area.sightingId) || null;
+  const at = seen?.at || area.sightingAt || null;
+  return [name, at ? whenWords(at, timeZone, now) : '', placeWords(seen?.place)].filter(Boolean).join(' ');
+}
 
 /** The short name written on the map: "Middle", "North", "Far north-east". A sighting's circle is named by the sighting's own mark. */
 export function mapLabel(area) {
@@ -126,7 +145,8 @@ export function agoShort(at, now = Date.now()) {
   if (ms < 2 * 60 * 1000) return 'just now';
   if (ms < HOUR_MS) return `${Math.round(ms / 60000)} min ago`;
   if (ms < 24 * HOUR_MS) return `${Math.round(ms / HOUR_MS)} h ago`;
-  const days = Math.floor(ms / (24 * HOUR_MS));
+  // Whole days, as the Ground list and the pet's page count them (app/lib/elapsed.js).
+  const days = wholeDays(ms);
   return days === 1 ? 'yesterday' : `${days} days ago`;
 }
 
@@ -142,6 +162,12 @@ const searchesOf = (area) => (Array.isArray(area?.history) && area.history.lengt
  * ground somebody passed through yesterday is nearly bare. An estimate
  * for shading and for the order ground is offered in. It is never shown
  * as a number: nobody can say how likely a search was to find a pet.
+ *
+ * A search's time counts from nothing: "I searched it" a few seconds after
+ * taking an area is a search of a few seconds, and counts for next to
+ * nothing. Only a search whose time is not known (put down from the desk,
+ * or said after the site had stopped counting the person there) is taken
+ * to have had the time the area needs.
  */
 export function searchStrength(area, now = Date.now()) {
   let missed = 1;
@@ -149,7 +175,7 @@ export function searchStrength(area, now = Date.now()) {
     const hours = Math.max(0, now - new Date(one.at).getTime()) / HOUR_MS;
     const fresh = Math.max(0, 1 - hours / FADE_HOURS);
     const cover = COVER_WEIGHT[one.covered] || COVER_UNSAID;
-    const time = one.minutes && area.minutes ? Math.min(1, one.minutes / (area.minutes * FULL_TIME_SHARE)) : 1;
+    const time = one.minutes != null && area.minutes ? Math.min(1, Math.max(0, one.minutes) / (area.minutes * FULL_TIME_SHARE)) : 1;
     missed *= 1 - ONE_SEARCH * fresh * cover * time;
   }
   return Math.max(0, Math.min(1, 1 - missed));
@@ -164,18 +190,22 @@ export function isFaded(area, now = Date.now()) {
  * The record of an area, one sentence to a search, newest first: when, who
  * (where names go), how long, how much of it they say they covered, and in
  * their own words what they could not get to. A search far shorter than
- * the area takes says so.
+ * the area takes says so, and one of under a minute says "under a minute"
+ * rather than nothing.
  */
 export function searchLog(area, { timeZone, now = Date.now() } = {}) {
   return searchesOf(area).map((one) => {
     const when = `${capital(agoWords(one.at, now))}, ${whenWords(one.at, timeZone, now)}`;
     if (one.marked) return `${when}: put down as searched${one.by ? ` by ${one.by}` : ''}. Nobody on the site was on it, so how long and how fully is not known.`;
     const parts = [one.by || 'A helper'];
-    if (one.minutes) parts.push(`${one.minutes} ${one.minutes === 1 ? 'minute' : 'minutes'}`);
+    const took = one.minutes != null ? Math.round(one.minutes) : null;
+    if (took != null) parts.push(one.minutes < 1 ? 'under a minute' : `${took} ${took === 1 ? 'minute' : 'minutes'}`);
     if (one.covered) parts.push(`covered ${COVER_WORDS[one.covered]}`);
-    const quick = one.minutes && area.minutes && one.minutes < area.minutes / 3 ? ` The area takes about ${area.minutes}.` : '';
+    const quick = isShortSearch(one, area) ? ` The area takes about ${area.minutes}.` : '';
+    // Said after the site had stopped counting them there: dated then, the latest it can have been, and untimed.
+    const late = one.late ? ' They said so after the site had stopped counting them there, so how long is not known.' : '';
     const missed = one.note ? ` Could not get to: "${one.note}"` : '';
-    return `${when}: ${parts.join(', ')}.${quick}${missed}`;
+    return `${when}: ${parts.join(', ')}.${quick}${late}${missed}`;
   });
 }
 
@@ -282,17 +312,41 @@ export function groundCoverage(areas = [], now = Date.now()) {
 }
 
 /** The ground in sentences, for "What the search shows". `circle` is the board's ({ radius, ... }). */
-export function groundLines({ areas = [], circle = null, name = 'the pet' } = {}) {
-  const c = groundCoverage(areas);
+export function groundLines({ areas = [], circle = null, name = 'the pet', now = Date.now() } = {}) {
+  const c = groundCoverage(areas, now);
   if (!c.total) return [];
   const within = circle?.radius ? ` within ${metersWords(circle.radius)}` : '';
   const lines = [];
+  // The areas searched in the last twelve hours, as the owner's card and the goal everyone shares count them
+  // (groundNowWords, app/lib/trail.js): a search before that has faded, and is not counted as ground covered.
+  const lately = circleAreas(areas).filter((a) => searchedLately(a, now)).length;
+  const being = c.searching ? `, and ${c.searching === 1 ? '1 is' : `${c.searching} are`} being searched now` : '';
   if (c.searched === 0 && c.searching === 0) lines.push(`${c.total} areas of ground${within} of where ${name} was lost. None has been searched yet.`);
-  else if (c.searched === c.total) lines.push(`All ${c.total} areas${within} have been searched at least once.`);
-  else lines.push(`${c.searched} of the ${c.total} areas${within} ${c.searched === 1 ? 'has' : 'have'} been searched${c.searching ? `, and ${c.searching === 1 ? '1 is' : `${c.searching} are`} being searched now` : ''}.`);
+  else if (lately === c.total) lines.push(`All ${c.total} areas${within} were searched in the last ${FRESH_HOURS} hours${being}.`);
+  else lines.push(`${lately === 0 ? 'None' : lately} of the ${c.total} areas${within} ${lately === 1 || lately === 0 ? 'was' : 'were'} searched in the last ${FRESH_HOURS} hours${being}.`);
   if (c.left > 0) lines.push(`Searching the ${c.left === 1 ? 'one' : c.left} left takes one person ${durationWords(c.minutesLeft)}.`);
   if (c.again > 0) lines.push(`${c.again === 1 ? '1 area is' : `${c.again} areas are`} down for another look.`);
   return lines;
+}
+
+/**
+ * How much of the circle's own ground is searched now, in one sentence for
+ * the owner's card: the areas searched in the last twelve hours, which is
+ * the count the goal everyone shares keeps (app/lib/trail.js,
+ * searchedLately), and how many someone is on. An area searched before
+ * that is not counted: its search has faded (founder, 2026-11-13: "does it
+ * not fade over time?"). A search far shorter than the area takes is not
+ * counted either, as it does not keep the map green.
+ */
+export function groundNowWords(areas = [], now = Date.now()) {
+  const own = circleAreas(areas);
+  if (!own.length) return '';
+  const on = own.filter((a) => a.status === 'IN_PROGRESS').length;
+  const being = on ? `, and ${on === 1 ? '1 is' : `${on} are`} being searched now` : '';
+  if (!own.some((a) => a.searchCount > 0)) return `None of the ${own.length} areas has been searched yet${being}.`;
+  const lately = own.filter((a) => searchedLately(a, now)).length;
+  const searched = lately === 0 ? `None of the ${own.length} areas was searched` : `${lately} of the ${own.length} areas ${lately === 1 ? 'was' : 'were'} searched`;
+  return `${searched} in the last ${FRESH_HOURS} hours${being}.`;
 }
 
 /**
@@ -374,6 +428,13 @@ export function coveredWords(areas = []) {
   return `${capital(named.join(', '))}, the rest ${timesWords(least)}.`;
 }
 
+/**
+ * Someone the desk can offer to send somewhere: free, and neither gone (they said "I am stopping") nor still
+ * shown an area on their own phone that the site stopped counting them on (app/lib/searchTeam.js, `late`). The
+ * desk can still write to either, or give them an area by hand.
+ */
+const sendable = (p) => p.state === 'free' && !p.stopped && !p.late;
+
 function sightingCard({ picture, areas, people, name, now }) {
   const seen = [...(picture.sightings || [])].filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng)).sort((a, b) => new Date(b.at) - new Date(a.at))[0];
   if (!seen || now - new Date(seen.at).getTime() > SIGHTING_NEEDS_MS) return null;
@@ -411,7 +472,7 @@ function sightingCard({ picture, areas, people, name, now }) {
     };
     // The one whose last area was nearest: the nearest thing to where they are that the search knows.
     const pick = people
-      .filter((p) => p.state === 'free' && lately(p))
+      .filter((p) => sendable(p) && lately(p))
       .map((p) => {
         const last = p.lastOn ? areas.find((a) => a.id === p.lastOn.id) : null;
         return { person: p, meters: last?.center ? distanceMeters(last.center, seen) : Infinity };
@@ -479,7 +540,7 @@ export function needsForGround({ picture, areas = [], circle = null, people = []
   // The person the sighting's card offers to send is that card's too: one card about them, not two.
   const sent = seen?.primary.do.type === 'ask' ? seen.primary.do.handle : null;
   for (const p of people) {
-    if (p.state !== 'free' || p.handle === sent) continue;
+    if (!sendable(p) || p.handle === sent) continue;
     const since = p.lastWalkedAt || p.joinedAt;
     if (!since) continue;
     const idle = now - new Date(since).getTime();

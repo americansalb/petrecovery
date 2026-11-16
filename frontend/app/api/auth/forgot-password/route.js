@@ -13,11 +13,10 @@ import { sendEmail } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import crypto from 'crypto';
-import { getEmailBaseUrl } from '@/app/lib/config';
+import { mintPasswordLink } from '@/app/lib/passwordLink';
 
 export const dynamic = 'force-dynamic';
 
-const BASE_URL = getEmailBaseUrl();
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_RESPONSE_TIME = 500; // Prevents timing attacks
 
@@ -111,23 +110,10 @@ export async function POST(request) {
     // passwords, and OAuth accounts have none at all. The reset flow is how
     // ALL of them set a usable password, so no passwordHash gate here.
 
-    // Generate secure reset token
-    // Store HASH in database, send RAW to user
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    // Save hashed token to database
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetToken: hashedToken,
-        resetTokenExpiry,
-      }
-    });
-
-    // Build reset URL with raw token
-    const resetUrl = `${BASE_URL}/reset-password?token=${rawToken}`;
+    // A secure reset token: its HASH is stored, the RAW token goes in the link
+    // (app/lib/passwordLink.js, shared with sign-up for an address that
+    // already has an account). Good for an hour.
+    const { url: resetUrl, expiresAt: resetTokenExpiry } = await mintPasswordLink(user.id);
 
     // Send email
     const emailHtml = buildResetEmailHtml(user.firstName, resetUrl);

@@ -24,7 +24,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   ChevronLeft, MapPin, Clock, Eye, Phone, Share2, Printer, Building2,
-  PawPrint, ExternalLink, Megaphone, Map as MapIcon,
+  PawPrint, ExternalLink, MessageCircle, Map as MapIcon,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui';
@@ -35,7 +35,7 @@ import {
   caseStatus, caseTitle, caseDescriptor, casePlace, caseTimeline, caseSize,
   caseDescription, casePhone, known, shortDate, timeAgo,
 } from '@/app/lib/caseLabels';
-import { PIN_ONLY_LABEL, looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
+import { PIN_ONLY_LABEL, looksLikeCoordinates, isNoPlace } from '@/app/lib/maps/reverseLabel';
 import { speciesLabel } from '@/app/lib/species';
 import { getBaseUrl } from '@/app/lib/config';
 import MarkReunitedModal from '@/app/mission-control/components/overlays/MarkReunitedModal';
@@ -144,7 +144,8 @@ function Photo({ c, alt }) {
 }
 
 function HotSighting({ s }) {
-  const where = s.address && !looksLikeCoordinates(s.address) ? s.address.split(',')[0].trim().replace(/^near\s+/i, '') : '';
+  // A sighting sent with only a pin has no street: it reads "Seen 5 minutes ago", never "near Marked on the map".
+  const where = isNoPlace(s.address) ? '' : s.address.split(',')[0].trim().replace(/^near\s+/i, '');
   return (
     <div role="status" className="flex items-start gap-3 rounded-2xl bg-flash-50 p-4 ring-1 ring-flash-300">
       <span className="relative mt-1.5 flex h-3 w-3 shrink-0" aria-hidden="true">
@@ -165,7 +166,7 @@ function HotSighting({ s }) {
 
 export default function CasePageClient() {
   const { caseNumber } = useParams();
-  const { data: session, status: authStatus } = useSession();
+  const { status: authStatus } = useSession();
   const wide = useWide();
 
   const [c, setC] = useState(null);
@@ -287,8 +288,11 @@ export default function CasePageClient() {
   const phone = casePhone(c);
   const contactName = c.contact?.name && c.contact.name !== 'The owner' ? c.contact.name : '';
   const signedIn = authStatus === 'authenticated';
-  // The page's data says whether the person asking is the owner. The owner's account id is not sent to the page.
-  const isOwner = signedIn && Boolean(session?.user?.id) && c.viewerIsOwner === true;
+  // The page's data says whether the person asking is the owner, by the rule Mission Control uses: the account
+  // the report was filed to, or the owner's key to this one search, which the browser that sent a report made
+  // without an account keeps (app/lib/ownerKey.js). So a guest owner has their tools here too, without signing
+  // in. The owner's account id is not sent to the page.
+  const isOwner = c.viewerIsOwner === true;
   const lat = Number(c.lastSeenLatitude);
   const lng = Number(c.lastSeenLongitude);
   const hasCoords = c.lastSeenLatitude != null && c.lastSeenLongitude != null && Number.isFinite(lat) && Number.isFinite(lng);
@@ -460,24 +464,28 @@ export default function CasePageClient() {
   } else if (isFound) {
     actions = (
       <div className="space-y-3">
+        {/* Whatever the finder left, the owner can write to them here (app/report/found/message): the site passes the
+            words on and shows neither address. Before 2026-11-16 a finder who chose email left the owner nothing to
+            press but a button to report their pet lost, which they had already done. */}
         {phone ? (
           <a href={`tel:${phone.tel}`} className={PRIMARY_LINK}>
             <Phone className="h-4 w-4" aria-hidden="true" />
             Call the finder
           </a>
         ) : (
-          <Button size="lg" fullWidth href="/report/new" leftIcon={Megaphone}>
-            Report your lost pet
+          <Button size="lg" fullWidth href={`/report/found/message?case=${encodeURIComponent(caseNumber)}`} leftIcon={MessageCircle}>
+            Message the finder
+          </Button>
+        )}
+        {phone && (
+          <Button variant="outline" size="lg" fullWidth href={`/report/found/message?case=${encodeURIComponent(caseNumber)}`} leftIcon={MessageCircle}>
+            Message the finder
           </Button>
         )}
         <Button variant="outline" size="lg" fullWidth leftIcon={Share2} onClick={share}>
           Share
         </Button>
-        <p className="text-sm text-midnight-500">
-          {phone
-            ? `Is this your pet? Call the finder, and have a photo or vet record ready to show it's yours.`
-            : `The finder didn't leave a phone number. If this is your pet, report it lost: new lost reports are checked against found pets nearby.`}
-        </p>
+        <p className="text-sm text-midnight-500">Is this your pet? Have a photo or vet record ready to show it&apos;s yours.</p>
         {phone && <p className="hidden text-sm text-midnight-500 md:block">Finder&apos;s phone: {phone.display}</p>}
       </div>
     );
@@ -652,6 +660,7 @@ export default function CasePageClient() {
                 caseId={c.id}
                 caseNumber={caseRef}
                 signedIn={signedIn}
+                isOwner={isOwner}
                 lost={status.key === 'lost'}
                 room={room}
                 searchHref={missionHref}
@@ -687,11 +696,11 @@ export default function CasePageClient() {
         </div>
       </main>
 
-      {/* Signed in (the force's members, the owner): the map first, since
+      {/* Signed in (the force's members) or the owner: the map first, since
           that is where the searching happens. A visitor: "I've seen". */}
       {status.key === 'lost' && (
         <StickyActions watchId={ACTIONS_ID}>
-          {signedIn ? (
+          {signedIn || isOwner ? (
             <Link href={missionHref} className={`${DARK_LINK} flex-1`}>
               <MapIcon className="h-4 w-4" aria-hidden="true" />
               Search on the map

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { placeName } from '@/app/lib/needOptions';
 
 /**
  * GET /api/activity/feed
@@ -92,7 +93,8 @@ export async function GET(request) {
       activities.push(...sightings.map(s => ({
         id: `sighting-${s.id}`,
         type: 'SIGHTING',
-        content: `Possible sighting reported near ${s.address}`,
+        // The street or the landmark; a sighting sent with only a pin names none.
+        content: placeName(s.address) ? `Possible sighting reported near ${placeName(s.address)}` : 'Possible sighting reported',
         missionNumber: s.case.caseNumber,
         petName: s.case.petName,
         petPhoto: s.case.petPhotoUrl,

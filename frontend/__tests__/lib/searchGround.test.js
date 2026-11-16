@@ -9,8 +9,10 @@
  */
 import {
   isSeenCircle, circleAreas, areaName, AreaName, mapLabel, timesWords, listWords, whereWords, whereShort, areaState, areaLine, areaFacts,
-  groundCoverage, groundLines, givenNextAreas, minutesRange, quietGround, coveredWords, needsForGround, groundActivity, forAnyoneElse, whyThisArea,
+  groundCoverage, groundLines, givenNextAreas, minutesRange, quietGround, coveredWords, needsForGround, groundActivity, forAnyoneElse, whyThisArea, listName,
 } from '@/app/mission-control/lib/ground';
+import fs from 'fs';
+import path from 'path';
 
 const ZONE = 'America/Chicago';
 // 10:00 pm in Austin on the 11th.
@@ -44,6 +46,46 @@ const person = (name, over = {}) => ({ handle: `h-${name}`, name, kind: 'helper'
 const picture = (over = {}) => ({
   id: 'case-max', open: true, timeZone: ZONE, pet: { name: 'Max', species: 'DOG' }, owner: { firstName: 'Avery' },
   lastSeen: { ...LOST, at: ago(180), place: 'Sinclair Ave' }, sightings: [], updates: [], viewer: { isOwner: true, leads: true, seesNames: true }, ...over,
+});
+
+describe('the circles round sightings, in the desk\'s lists', () => {
+  // Testing found every circle named "Search where Whiskers was seen" in the Ask and Ground lists, so the owner
+  // could not tell a circle 50 m away from one 2.6 km away. Each says when the pet was seen, and where if known.
+  const sightings = [
+    { id: 's1', at: ago(12), place: 'Ramsey Ave' },
+    { id: 's2', at: ago(26 * 60), place: 'Burnet Rd and W 45th St' },
+    { id: 's3', at: ago(5), place: null },
+  ];
+
+  test('each says its own time and place, so no two read the same', () => {
+    const near = listName(seenCircle(), { sightings, timeZone: ZONE, now: NOW });
+    const far = listName(seenCircle({ id: 'z-seen-2', key: 'seen-s2', sightingId: 's2', sightingAt: ago(26 * 60) }), { sightings, timeZone: ZONE, now: NOW });
+    expect(near).toBe('Where Max was seen at 9:48 pm on Ramsey Ave');
+    expect(far).toBe('Where Max was seen on Tue at 8:00 pm at Burnet Rd and W 45th St');
+    expect(near).not.toBe(far);
+    // In a sentence, as the Ask list says it.
+    expect(areaName({ name: near })).toBe('where Max was seen at 9:48 pm on Ramsey Ave');
+  });
+
+  test('a place the sighting does not have is left out; a sighting the picture does not carry still has the board\'s time', () => {
+    expect(listName(seenCircle({ sightingId: 's3', sightingAt: ago(5) }), { sightings, timeZone: ZONE, now: NOW })).toBe('Where Max was seen at 9:55 pm');
+    expect(listName(seenCircle({ sightingId: 'gone', sightingAt: ago(30) }), { sightings: [], timeZone: ZONE, now: NOW })).toBe('Where Max was seen at 9:30 pm');
+  });
+
+  test('the circle\'s own areas keep their names', () => {
+    expect(listName(area('west'), { sightings, timeZone: ZONE, now: NOW })).toBe('West side');
+    expect(listName(area('middle'))).toBe('The middle');
+  });
+
+  test('the Ground list, the picked area\'s card and the Ask list all name areas this way', () => {
+    const read = (file) => fs.readFileSync(path.join(__dirname, '..', '..', 'app', 'mission-control', 'desktop', file), 'utf8');
+    const ground = read('Ground.js');
+    expect(ground).toMatch(/\{listName\(area, \{ sightings: picture\.sightings, timeZone: zone, now \}\)\}/);
+    expect(ground).toMatch(/const title = listName\(area, \{ sightings: picture\.sightings, timeZone: zone, now \}\);/);
+    expect(ground).not.toMatch(/>\{area\.name\}</);
+    const people = read('People.js');
+    expect(people).toMatch(/`Search \$\{areaName\(\{ name: listName\(street, \{ sightings: picture\.sightings, timeZone: zone, now \}\) \}\)\}`/);
+  });
 });
 
 describe('the names of things', () => {
@@ -186,18 +228,25 @@ describe('the ground in numbers and sentences', () => {
   test('some searched, one being searched: what is left is what nobody has searched or is on', () => {
     const areas = five({ middle: searched(2, ago(80)), north: searched(1, ago(105)), east: onIt(['Sarah'], ago(25)) });
     expect(groundCoverage(areas, NOW)).toEqual({ total: 5, searched: 2, done: 2, searching: 1, again: 0, faded: 0, left: 2, minutesLeft: 90, people: 1 });
-    expect(groundLines({ areas, circle: CIRCLE, name: 'Max' })).toEqual(['2 of the 5 areas within 400 m have been searched, and 1 is being searched now.', 'Searching the 2 left takes one person about an hour and a half.']);
+    expect(groundLines({ areas, circle: CIRCLE, name: 'Max', now: NOW })).toEqual(['2 of the 5 areas within 400 m were searched in the last 12 hours, and 1 is being searched now.', 'Searching the 2 left takes one person about an hour and a half.']);
   });
 
   test('one searched reads in the singular', () => {
-    expect(groundLines({ areas: five({ middle: searched(1, ago(80)) }), circle: CIRCLE, name: 'Max' })[0]).toBe('1 of the 5 areas within 400 m has been searched.');
+    expect(groundLines({ areas: five({ middle: searched(1, ago(80)) }), circle: CIRCLE, name: 'Max', now: NOW })[0]).toBe('1 of the 5 areas within 400 m was searched in the last 12 hours.');
   });
 
-  test('all searched says "at least once", and never that the search is over', () => {
+  test('all searched lately says when, and never that the search is over', () => {
     const all = five({ middle: searched(3, ago(10)), north: searched(1, ago(105)), east: searched(1, ago(50)), south: searched(2, ago(40)), west: searched(1, ago(75)) });
-    const lines = groundLines({ areas: all, circle: CIRCLE, name: 'Max' });
-    expect(lines).toEqual(['All 5 areas within 400 m have been searched at least once.']);
+    const lines = groundLines({ areas: all, circle: CIRCLE, name: 'Max', now: NOW });
+    expect(lines).toEqual(['All 5 areas within 400 m were searched in the last 12 hours.']);
     expect(lines.join(' ')).not.toMatch(/\bdone\b|finished|complete|nothing left/i);
+  });
+
+  test('ground searched days ago is not counted as covered: the search has faded', () => {
+    // Founder, 2026-11-13: "does it not fade over time?". The desk's summary said "4 of the 5 areas have been
+    // searched" for areas searched three days before (2026-11-16).
+    const old = five({ middle: searched(1, ago(3 * 24 * 60)), north: searched(1, ago(2 * 24 * 60)) });
+    expect(groundLines({ areas: old, circle: CIRCLE, name: 'Max', now: NOW })[0]).toBe('None of the 5 areas within 400 m was searched in the last 12 hours.');
   });
 
   test('up for another look is counted and said', () => {
@@ -375,6 +424,23 @@ describe('"Needs you" on ground', () => {
     // One card about Jo, and a second free person is offered other ground: nobody is asked to the sighting twice.
     const two = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [person('Jo', { joinedAt: ago(4) }), person('Priya', { joinedAt: ago(6) })] }));
     expect(two.map((c) => c.primary.words)).toEqual(['Ask Jo to go', 'Ask Priya to search the middle']);
+  });
+
+  test('someone who said "I am stopping" is not asked to go to a sighting, nor offered ground: they have gone', () => {
+    const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(12), place: 'Ramsey Ave' };
+    const jo = person('Jo', { walked: 1, lastWalkedAt: ago(20), stopped: { id: 'z-west', title: 'West side', at: ago(4) } });
+    const cards = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [jo] }));
+    expect(cards.map((c) => c.kind)).toEqual(['sighting']);
+    expect(cards[0].body).toBe('300 m south of where Max was lost. Nobody is free right now. The next person who asks for ground is given it.');
+    expect(JSON.stringify(cards)).not.toMatch(/Ask Jo/);
+    // Someone free beside them is the one asked.
+    const priya = person('Priya', { joinedAt: ago(6) });
+    expect(needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [jo, priya] }))[0].primary.words).toBe('Ask Priya to go');
+  });
+
+  test('nor is someone whose phone still shows them an area the site stopped counting them on: they have not said what happened', () => {
+    const sam = person('Sam', { walked: 1, lastWalkedAt: ago(20), late: { id: 'z-west', title: 'West side', since: ago(160), at: ago(25) } });
+    expect(needsForGround(base({ people: [sam] }))).toEqual([]);
   });
 
   test('a sighting past its hour has no card of its own, so a free person is offered its circle while nobody has gone', () => {

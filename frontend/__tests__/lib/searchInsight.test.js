@@ -136,10 +136,20 @@ describe('which way and how far', () => {
     expect(metersWords(980)).toBe('980 m');
     // Never "1000 m".
     expect(metersWords(994)).toBe('990 m');
-    expect(metersWords(995)).toBe('1.0 km');
-    expect(metersWords(999.6)).toBe('1.0 km');
+    expect(metersWords(995)).toBe('1 km');
+    expect(metersWords(999.6)).toBe('1 km');
     expect(metersWords(1640)).toBe('1.6 km');
     expect(metersWords(NaN)).toBe('');
+  });
+
+  test('a long way is said in whole kilometres, grouped by thousands, never "1578.0 km"', () => {
+    expect(metersWords(3000)).toBe('3 km');
+    expect(metersWords(9940)).toBe('9.9 km');
+    expect(metersWords(9960)).toBe('10 km');
+    expect(metersWords(12400)).toBe('12 km');
+    expect(metersWords(1578000)).toBe('1,578 km');
+    expect(metersWords(12345678)).toBe('12,346 km');
+    for (const meters of [995, 1640, 9960, 85000, 1578000]) expect(metersWords(meters)).not.toMatch(/\.0 km|\d{4} km/);
   });
 });
 

@@ -10,7 +10,10 @@
  * There is one thing a witness does: send a place and a time. If the pet
  * moves they send again from where it is now. The same place sent again
  * within ten minutes of the first send is the same sighting, still true,
- * so its time is moved up and nobody is alerted twice.
+ * so its time is moved up and nobody is alerted twice. A place further
+ * from where the pet was lost than any pet goes (SIGHTING_MAX_KM) is a pin
+ * in the wrong place: it is not taken, and the witness is told how far it
+ * is, so they can put it right.
  *
  * The route: POST /api/public/missions/[caseNumber]/sighting.
  */
@@ -19,14 +22,16 @@ import prisma from '@/app/lib/prisma';
 import { missionWhere } from '@/app/lib/shareMetadata';
 import { placeFromStreets } from '@/app/lib/streetWalks';
 import { distanceMeters } from '@/app/lib/searchGrid';
+import { distanceWords } from '@/app/lib/searchCircle';
 import { placeOnly } from '@/app/lib/needOptions';
 import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 import { isPushConfigured, sendPushToUser } from '@/app/lib/push';
 import { sendEmail, escapeHtml } from '@/app/lib/email';
+import { textOwnerAboutSighting } from '@/app/lib/sms';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { onSeeing } from '@/app/lib/brief';
-import { SIGHTINGS_PER_HOUR, OWNER_EMAILS_PER_HOUR } from '@/app/lib/sightingLimits';
+import { SIGHTINGS_PER_HOUR, OWNER_EMAILS_PER_HOUR, SIGHTING_MAX_KM } from '@/app/lib/sightingLimits';
 
 /** How sure the witness is, as the 1 to 5 certainty the sighting stores. */
 export const SURE = { SURE: 5, LIKELY: 3, UNSURE: 1 };
@@ -106,9 +111,10 @@ async function boardStreets(caseId) {
 
 /**
  * Records the sighting and tells everyone. `caseParam` is the case id or
- * number from the link. Returns { error: 'NOT_FOUND' | 'CLOSED' | 'TOO_MANY' } or
- * { sighting, place, told }. `again: true` marks a sighting that was
- * already on the map and had its time moved up.
+ * number from the link. Returns { error: 'NOT_FOUND' | 'CLOSED' | 'TOO_MANY' },
+ * { error: 'TOO_FAR', words } with what the form says, or { sighting,
+ * place, told }. `again: true` marks a sighting that was already on the
+ * map and had its time moved up.
  */
 export async function recordWitnessSighting(caseParam, value, { userId = null, now = new Date() } = {}) {
   const pet = await prisma.case.findFirst({
@@ -120,6 +126,8 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
       petName: true,
       petSpecies: true,
       lastSeenAddress: true,
+      lastSeenLatitude: true,
+      lastSeenLongitude: true,
       reporter: { select: { id: true, email: true, firstName: true } },
     },
   });
@@ -128,6 +136,18 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
 
   const name = pet.petName || 'The pet';
   const point = { lat: value.lat, lng: value.lng };
+  // Checked before anything is kept or anyone told: a sighting this far off would ring the owner and every force,
+  // and put a circle a city or a country away on the search. Where the report has no place there is nothing to measure.
+  const lost = Number.isFinite(pet.lastSeenLatitude) && Number.isFinite(pet.lastSeenLongitude) ? { lat: pet.lastSeenLatitude, lng: pet.lastSeenLongitude } : null;
+  const away = lost ? distanceMeters(lost, point) : 0;
+  if (away > SIGHTING_MAX_KM * 1000) {
+    return {
+      error: 'TOO_FAR',
+      caseNumber: pet.caseNumber,
+      meters: Math.round(away),
+      words: `That spot is ${distanceWords(away)} from where ${pet.petName || 'the pet'} was lost, too far to send to the search. Check the pin or the street, and send it again.`,
+    };
+  }
   // The board knows the streets, so its corner ("Ramsey Ave and W 40th St") names the place where the
   // point is on it, and is used as it stands. Off the board, the place is what the witness typed or the
   // map lookup gave, kept as the street or the landmark: a house number is neither stored nor passed on,
@@ -177,7 +197,8 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
       sightedAt: new Date(now.getTime() - minutes * 60000),
       latitude: value.lat,
       longitude: value.lng,
-      address: place || 'Marked on the map',
+      // No street known: nothing is written in its place, so no screen says "near Marked on the map". The pin is the place.
+      address: place || '',
       description,
       certaintyLevel: SURE[value.sure],
       photoUrls: '[]',
@@ -193,7 +214,9 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   const told = { owner: false, bell: 0, pushed: 0 };
   // The search screen: where the sighting is on the map, and where the owner opens directions.
   const url = `/mission-control?mission=${encodeURIComponent(pet.caseNumber)}`;
-  const near = place ? `Near ${place}.` : 'Marked on the map.';
+  const near = place ? `Near ${place}.` : '';
+  // With no street to name, the words say where to look for the place, after who saw it.
+  const pinned = place ? '' : 'The pin on the map shows where.';
   const title = live ? `${name} was just seen` : `${name} was seen ${agoPhrase(minutes)}`;
   // What to do on seeing the pet is the searcher's brief's own first sentence, and only while the sighting is live.
   const seeing = live ? onSeeing(pet) : '';
@@ -216,9 +239,11 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
       const woke = await wakeForces({
         forceIds,
         exceptUserId: userId,
+        // The owner hears it once, as the owner (below), and not a second time as a member of a force looking.
+        exceptUserIds: pet.reporter?.id ? [pet.reporter.id] : [],
         kind: WAKE_KINDS.SIGHTING,
         title,
-        body: [near, heading, sureWords, seeing].filter(Boolean).join(' '),
+        body: [near, heading, sureWords, pinned, seeing].filter(Boolean).join(' '),
         url,
         data: { caseId: pet.id, sightingId: sighting.id },
         now,
@@ -233,7 +258,7 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
   // The owner: the bell, a push, an email. Never the witness's own report.
   if (pet.reporter && pet.reporter.id !== userId) {
     told.owner = true;
-    const body = [near, heading, sureWords].filter(Boolean).join(' ');
+    const body = [near, heading, sureWords, pinned].filter(Boolean).join(' ');
     try {
       await prisma.notification.create({
         data: { userId: pet.reporter.id, type: 'SIGHTING', title, message: body, actionUrl: url, data: JSON.stringify({ caseId: pet.id, sightingId: sighting.id }) },
@@ -253,6 +278,9 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
         html: `<p>Hi ${escapeHtml(pet.reporter.firstName || 'there')},</p><p>${escapeHtml(body)}</p>${value.note ? `<p>"${escapeHtml(value.note)}"</p>` : ''}<p><a href="${link}">Open ${escapeHtml(name)}'s search</a> to see where on the map.</p>`,
       }).catch((e) => console.error('[witness] owner email failed:', e?.message));
     }
+    // And a text, to an owner who asked to be texted about sightings when they reported (app/lib/sms.js). Only where
+    // the site can send texts, a few an hour at most; it says it sent one only when the text service took it.
+    textOwnerAboutSighting({ caseId: pet.id, title, place, url }).catch((e) => console.error('[witness] owner text failed:', e?.message));
   }
 
   // Everyone with the search open, live.

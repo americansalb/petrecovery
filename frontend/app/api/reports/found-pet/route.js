@@ -11,9 +11,26 @@ import { findMatches } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
-import { sendSms } from '@/app/lib/sms';
+import { sendSms, textCaseOwner } from '@/app/lib/sms';
 import { withCaseNumberRetry } from '@/app/lib/caseNumber';
 import { routeFoundReport, alertForceMembers } from '@/app/lib/forceCoverage';
+import { lastSeenFromAnswer } from '@/app/lib/lastSeenAnswer';
+import { placeName } from '@/app/lib/needOptions';
+import { casePhone } from '@/app/lib/caseLabels';
+import { messageFinderPath } from '@/app/lib/finderMessage';
+
+/** 'sent' or 'failed' for a send, 'sending' when it is still going after a few seconds. */
+async function outcome(promise, ms = 6000) {
+  let timer;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(() => resolve('sending'), ms);
+  });
+  try {
+    return await Promise.race([promise.then((res) => (res?.success ? 'sent' : 'failed'), () => 'failed'), late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // Someone not signed in can send six found-pet reports an hour and fifteen a day, the same as lost-pet reports
 // (app/api/reports/create/route.js). A person who finds an animal sends one; this stops reports made in bulk.
@@ -204,8 +221,10 @@ export async function POST(request) {
       }
     });
 
-    // 4. Create found report
-    const foundAt = calculateFoundTime(timeElapsed);
+    // 4. Create found report. The time is the band the finder picked
+    // (app/lib/lastSeenAnswer.js), written from the same clock as createdAt.
+    const reportedAt = new Date();
+    const foundAt = lastSeenFromAnswer(timeElapsed, reportedAt);
     // Retried on collision, like the lost-pet intake. The suffix is random,
     // so a clash is unlikely rather than impossible, and a 500 here loses
     // a found animal someone is standing next to.
@@ -225,6 +244,7 @@ export async function POST(request) {
         ownerName: firstName,
         ownerPhone: phone || 'Not provided',
         ownerEmail: email,
+        createdAt: reportedAt,
         lastSeenAt: foundAt,
         lastSeenLatitude: center[0],
         lastSeenLongitude: center[1],
@@ -346,34 +366,62 @@ export async function POST(request) {
     // counts only owners actually notified (honest copy).
     const actionableMatches = matches.filter(m => m.band === 'actionable').map(m => m.case);
     let notifiedCount = 0;
+    const told = new Set(); // the lost reports whose owner was told, for the finder's match cards
+
+    // Every link to the owner opens the FOUND pet's page, where its photo
+    // and place are: it used to open the owner's own page, which does not
+    // mention the found animal. The owner writes to the finder from the
+    // message page; the finder's email and phone are never shown there, and
+    // the finder's phone is given here only when the finder left one on the
+    // report, where the found page shows it to everyone.
+    const baseUrl = getEmailBaseUrl();
+    const foundPath = `/cases/${encodeURIComponent(report.caseNumber)}`;
+    const foundKind = (petType || 'pet').toLowerCase();
+    const foundNear = placeName(foundAddress);
+    const finderPhone = casePhone({ contact: { phone } });
 
     await Promise.all(actionableMatches.map(async (match) => {
       try {
-        const ownerPetName = match.pet?.name || 'your pet';
+        const ownerPetName = match.pet?.name || match.petName || 'your pet';
+        const lookLike = `A ${foundKind} was found${foundNear ? ` near ${foundNear}` : ''} that looks like ${ownerPetName}.`;
 
         await createInAppNotification({
           userId: match.reporterId,
           type: 'FOUND_MATCH',
-          title: `Possible match for ${ownerPetName}`,
-          message: `Someone just reported a found ${petType} that may match your lost pet. Tap to review and connect.`,
-          actionUrl: match.caseNumber ? `/cases/${match.caseNumber}` : null,
-          data: { foundCaseId: report.id },
+          title: `A found ${foundKind} may be ${ownerPetName}`,
+          message: `${lookLike} See the photo and write to the finder.`,
+          actionUrl: foundPath,
+          data: { foundCaseId: report.id, foundCaseNumber: report.caseNumber, lostCaseId: match.id },
         });
 
         if (match.reporter?.email) {
+          const name = escapeHtml(ownerPetName);
           await sendEmail({
             to: match.reporter.email,
-            subject: `Possible match for your lost ${petType} - ReunitePets.org`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #10b981;">A possible match for ${ownerPetName}</h2>
-                <p>Good news - someone in your area just reported a found ${petType} that may match your lost pet.</p>
-                <p><a href="${getEmailBaseUrl()}${match.caseNumber ? `/cases/${match.caseNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Review the match</a></p>
-                <p><small style="color:#6b7280;">ReunitePets never asks for payment to reconnect you with your pet. Review the match safely through the site.</small></p>
-              </div>
-            `,
+            subject: `A found ${foundKind} may be ${ownerPetName}`,
+            html: renderBrandedEmail({
+              preheader: lookLike,
+              heading: `A found ${foundKind} may be ${ownerPetName}`,
+              bodyHtml: `
+                <p>${escapeHtml(lookLike)} The report has the photo and where it was found.</p>
+                ${finderPhone ? `<p>The finder left a phone number: <a href="tel:${escapeHtml(finderPhone.tel)}" style="color:#0f172a; font-weight:600;">${escapeHtml(finderPhone.display)}</a>.</p>` : ''}
+                <p>You can also write to the finder from the site. They get your message by email or text, and see your email or phone only if you add it.</p>
+                <p style="margin:16px 0 0;"><a href="${baseUrl}${messageFinderPath(report.caseNumber)}" style="color:#0f172a; font-weight:600;">Write to the finder</a></p>
+                <p style="margin:16px 0 0; color:#64748b; font-size:14px;">Ask for a photo of the ${escapeHtml(foundKind)} taken today before you go. Never pay anyone before ${name} is back with you.</p>
+              `,
+              ctaLabel: `See the found ${foundKind}`,
+              ctaUrl: `${baseUrl}${foundPath}`,
+              footnote: "You're receiving this because you reported a lost pet on ReunitePets.",
+            }),
           });
         }
+
+        // An owner who asked for texts (app/lib/sms.js) gets it by text too.
+        await textCaseOwner({
+          caseId: match.id,
+          kind: 'FOUND_MATCH',
+          body: `ReunitePets: ${lookLike} See it and write to the finder: ${baseUrl}${foundPath}`,
+        });
 
         await prisma.alert.create({
           data: {
@@ -385,6 +433,7 @@ export async function POST(request) {
         });
 
         notifiedCount++;
+        told.add(match.id);
       } catch (err) {
         console.error('Owner match-notify failed for case', match.id, err?.message);
         // Isolated - never fail the report save or block other recipients.
@@ -393,43 +442,56 @@ export async function POST(request) {
 
     // 6. A phone-only finder is texted the link to the report. Anyone else
     // new is emailed it with a way to set a password (never the password
-    // itself), in the background.
+    // itself). Both are waited on for a few seconds, so the success screen
+    // says whether the link went.
+    let linkText = null;
+    let linkEmail = null;
+    const kindWord = (petType || 'pet').toLowerCase();
     if (phoneOnly && phone) {
-      sendSms(
+      linkText = sendSms(
         phone,
-        `ReunitePets: your found-${(petType || 'pet').toLowerCase()} report is posted. Owners nearby can see it here: ${getEmailBaseUrl()}/cases/${report.caseNumber}`
-      ).catch((err) => console.error('SMS send failed:', err?.message));
+        `ReunitePets: your found-${kindWord} report is posted: ${baseUrl}/cases/${report.caseNumber} If an owner writes to you through the site, the message comes to this number.`,
+        { userId: user.id, messageType: 'CASE_LINK' }
+      ).catch((err) => {
+        console.error('SMS send failed:', err?.message);
+        return { success: false };
+      });
     }
     if (accountCreated && !phoneOnly) {
-      const baseUrl = getEmailBaseUrl();
       const caseUrl = `${baseUrl}/cases/${report.caseNumber}`;
       const setPasswordUrl = `${baseUrl}/forgot-password?email=${encodeURIComponent(email)}`;
-      const kind = escapeHtml((petType || 'pet').toLowerCase());
-      sendEmail({
+      const kind = escapeHtml(kindWord);
+      linkEmail = sendEmail({
         to: email,
-        subject: `Your found ${(petType || 'pet').toLowerCase()} report is posted`,
+        subject: `Your found ${kindWord} report is posted`,
         html: renderBrandedEmail({
-          preheader: `Case ${report.caseNumber}: track matches and messages from owners.`,
+          preheader: `Case ${report.caseNumber}. If an owner writes to you through the site, the message comes here.`,
           heading: 'Your report is posted',
           bodyHtml: `
             <p>Hi ${escapeHtml(firstName)},</p>
             <p>Thank you for reporting the ${kind} you found. ${
               notifiedCount > 0
-                ? `We emailed ${notifiedCount} ${notifiedCount === 1 ? 'owner' : 'owners'} whose lost ${kind} looks like a close match.`
+                ? `We sent a link to your report to ${notifiedCount} ${notifiedCount === 1 ? 'owner' : 'owners'} whose lost ${kind} looks like a close match.`
                 : 'Owners who reported a lost pet nearby can find it on the Lost &amp; Found board.'
-            }</p>
+            } If an owner writes to you through the site, the message comes to this address.</p>
             <p style="margin:20px 0 8px;"><strong>Your case:</strong> ${escapeHtml(report.caseNumber)}</p>
-            <p style="color:#64748b; font-size:14px;">We also set up an account for ${escapeHtml(email)} so you can update or close the report, and we will email you about pets reported lost near where you found this one.</p>
+            <p style="color:#64748b; font-size:14px;">We also set up an account for ${escapeHtml(email)} so you can update or close the report.</p>
             <p style="margin:16px 0 0; font-size:14px;"><a href="${setPasswordUrl}" style="color:#0f172a; font-weight:600;">Set your password</a></p>
           `,
           ctaLabel: 'Open your report',
           ctaUrl: caseUrl,
           footnote: "You're receiving this because you reported a found pet on ReunitePets.",
         }),
-      }).catch(err => console.error('Email send failed:', err));
+      }).catch((err) => {
+        console.error('Email send failed:', err);
+        return { success: false };
+      });
     }
+    const [emailOutcome, textOutcome] = await Promise.all([
+      linkEmail ? outcome(linkEmail) : null,
+      linkText ? outcome(linkText) : null,
+    ]);
 
-    // Return immediately without waiting for email
     return NextResponse.json({
       success: true,
       reportId: report.id,
@@ -438,7 +500,10 @@ export async function POST(request) {
       caseNumber: report.caseNumber,
       accountCreated,
       matchesNotified: notifiedCount,
-      potentialMatches: formattedMatches, // §4d no-PII shape
+      // §4d no-PII shape, each saying whether its owner was told: the finder's card says so only then.
+      potentialMatches: formattedMatches.map((m) => ({ ...m, ownerTold: told.has(m.reportId) })),
+      // What went, for the success screen, which says only this.
+      told: { email: emailOutcome, text: textOutcome, owners: notifiedCount },
     });
 
   } catch (error) {
@@ -472,17 +537,3 @@ function coarseArea(address, distanceMiles) {
   return `${region}${proximity}`;
 }
 
-function calculateFoundTime(timeElapsed) {
-  const now = new Date();
-  const hours = {
-    'less_than_hour': 0.5,
-    '1_to_6_hours': 3,
-    '6_to_24_hours': 12,
-    '1_to_3_days': 48,
-    '3_to_7_days': 120,
-    '1_to_2_weeks': 240,
-    'more_than_2_weeks': 360,
-  };
-  const hoursAgo = hours[timeElapsed] || 12;
-  return new Date(now.getTime() - hoursAgo * 60 * 60 * 1000);
-}

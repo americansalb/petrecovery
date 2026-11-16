@@ -275,10 +275,37 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     given.forEach((id, i) => expect(id).not.toBe(i === 0 ? 'middle' : given[i - 1]));
   });
 
-  test('after the circle round a sighting, the thanks do not count it among the areas', () => {
-    expect(shell).toMatch(/setDoneAtSighting\(unit === 'area' && isSeenCircle\(mineRaw\)\);/);
+  test('the thanks for an area count no areas "searched so far": a search fades, and the trail under it counts what is fresh', () => {
     const helper = read('app/mission-control/steps/Helper.js');
-    expect(helper).toMatch(/\{done\} is searched\. Thank you\.\{doneAtSighting \? '' : ` \$\{counts\.searched\} of the \$\{counts\.total\} areas /);
+    const thanks = code(helper).slice(code(helper).indexOf(') : done && ground ? ('), code(helper).indexOf(') : done ? ('));
+    expect(thanks).toMatch(/\{done\} is searched\. Thank you\.\s*<\/Lead>/);
+    expect(thanks).not.toMatch(/counts\./);
+    expect(helper).toMatch(/\{ground && !desk && <Trail trail=\{trail\} items=\{items\} name=\{name\} now=\{now\} className="mt-3" \/>\}/);
+  });
+
+  test('"Before you go out" is shown to anyone who agreed and has not been through it, after a reload too, and the server refuses nobody for want of it', () => {
+    // Founder, 2026-11-12: it follows the tick as a step everyone passes through.
+    expect(code(shell)).toMatch(/const trained = Boolean\(viewer\?\.trained \|\| trainedHere\);/);
+    const start = code(shell).slice(code(shell).indexOf('function startWalk() {'), code(shell).indexOf('async function walked('));
+    expect(start).toMatch(/if \(!viewer \|\| !viewer\.waiver\) \{\s*setJoinFrom\('agree'\);\s*return go\('join'\);\s*\}/);
+    expect(start).toMatch(/if \(!trained\) \{\s*setJoinFrom\('training'\);\s*return go\('join'\);\s*\}\s*return takeStreet\(\);/);
+    // The join card opens at the training for them, and its one button counts as going through it here and now.
+    expect(shell).toMatch(/<Join key=\{joinFrom\} from=\{joinFrom\} /);
+    expect(shell).toMatch(/onJoined=\{\(\) => \{ setTrainedHere\(true\); return takeStreet\(\); \}\}/);
+    const helper = read('app/mission-control/steps/Helper.js');
+    expect(helper).toMatch(/const \[stage, setStage\] = useState\(from === 'training' \? 'training' : 'agree'\);/);
+    // "Give me a job, on foot" from the pet's page does the same.
+    expect(code(shell)).toMatch(/action === 'walk' && !desk && !viewer\?\.isOwner && !\(viewer\?\.waiver && trained\)\) \{\s*setJoinFrom\(viewer\?\.waiver \? 'training' : 'agree'\);/);
+    // The board never reads it.
+    expect(read('app/api/mission/[missionId]/board/route.js')).not.toMatch(/trained/);
+  });
+
+  test('"I am stopping" is leaving: the card thanks them, and says nothing of an area just searched', () => {
+    const stop = code(shell).slice(code(shell).indexOf('async function stopWalking('), code(shell).indexOf('async function cannot('));
+    expect(stop).toMatch(/setDone\(null\);\s*setDoneId\(null\);\s*setStopped\(true\);\s*return go\('main'\);/);
+    // Taking ground again, or searching it, is not having stopped.
+    expect(code(shell).match(/setStopped\(false\);/g)).toHaveLength(2);
+    expect(shell).toMatch(/stopped=\{stopped\}/);
   });
 
   test('when the pet was seen is said with its day: a sighting keeps its circle for three days', () => {
@@ -409,15 +436,33 @@ describe('three instruments: a browser reads its position once and never watches
   });
 
   test('a reading too rough to name a street never sets the pin of a sighting', () => {
-    expect(shell).toMatch(/const SIGHTING_ACCURACY_METERS = \d+;/);
-    const limit = Number(shell.match(/const SIGHTING_ACCURACY_METERS = (\d+);/)[1]);
+    // One number, kept with the other limits on a sighting, for the screen and the place picker alike.
+    const { SIGHTING_ACCURACY_METERS: limit } = require('@/app/lib/sightingLimits');
     expect(limit).toBeLessThanOrEqual(200);
+    expect(shell).toMatch(/import \{ SIGHTING_ACCURACY_METERS \} from '@\/app\/lib\/sightingLimits';/);
+    expect(code(shell)).not.toMatch(/const SIGHTING_ACCURACY_METERS = /);
     // The pin is set from the phone's reading in one place, behind the check.
     expect(code(shell)).toMatch(/if \(here && here\.accuracy <= SIGHTING_ACCURACY_METERS\) \{\s*const point = \{ lat: here\.lat, lng: here\.lng \};\s*const spot = [^;]+;\s*phoneSpot\.current = spot;\s*if \(pickedMinutes\.current === 0\) \{\s*setWhere\(spot\);\s*setWhereFrom\('phone'\);/);
     // Nowhere else is a pin made from a reading.
     expect(code(shell).match(/phoneSpot\.current = (?!null)/g)).toHaveLength(1);
     // The owner's distance is not guessed from a rough reading either.
     expect(code(shell)).toMatch(/if \(!here \|\| !\(here\.accuracy <= SIGHTING_ACCURACY_METERS\)\) return;/);
+  });
+
+  test('the place picker\'s own "Use my location" holds to the same rule on the sighting form', () => {
+    // 2026-11-16: with accuracy 1500 m the form said "rough location", and the picker's own button pinned the
+    // rough point anyway, and Send sent it about 2 km off.
+    const seen = cardsOf(witness).find((c) => c.name === 'Seen').source;
+    expect(witness).toMatch(/import \{ SIGHTING_ACCURACY_METERS \} from '@\/app\/lib\/sightingLimits';/);
+    const pickers = seen.match(/<LocationPicker\b[^>]*\/>/g);
+    // The phone's picker carries the limit; the desk's never reads the device at all.
+    for (const picker of pickers) expect(/canLocate=\{false\}/.test(picker) || /maxAccuracy=\{SIGHTING_ACCURACY_METERS\}/.test(picker)).toBe(true);
+    const picker = read('app/components/report/LocationPicker.js');
+    // The reading is checked before the pin is set from it, and the rough reading's words are the screen's own.
+    expect(code(picker)).toMatch(/if \(Number\.isFinite\(maxAccuracy\) && !\(accuracy <= maxAccuracy\)\) \{\s*setIsLocating\(false\);\s*setLocateError\(roughWords\(canPin\)\);\s*return;\s*\}\s*const spot = await applyPosition\(latitude, longitude\);/);
+    expect(code(shell)).toMatch(/setProblem\(roughWords\(/);
+    // The picker reads the device in one place.
+    expect(picker.match(/getCurrentPosition\(/g)).toHaveLength(1);
   });
 });
 
@@ -455,14 +500,28 @@ describe('three instruments: a desk is never asked where it is and is never hand
 
   test('the form does not offer "Use my location" on a desk', () => {
     expect(shell).toMatch(/<Seen\b.*canLocate=\{!desk\}/);
-    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{onWhere\} variant="lost" canLocate=\{canLocate\} search=\{typing \|\| !placed\} near=\{near\} \/>/);
+    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{onWhere\} variant="lost" canLocate=\{canLocate\} search=\{typing \|\| !placed\} near=\{near\} maxAccuracy=\{SIGHTING_ACCURACY_METERS\} \/>/);
     // A typed street is looked for around the search, since a desk has no position of its own to lean on.
     expect(shell).toMatch(/<Seen\b.*near=\{hot \|\| picture\.lastSeen\}/);
     const picker = read('app/components/report/LocationPicker.js');
-    // Both of the picker's own location buttons sit behind the switch.
+    // Both of the picker's own location buttons sit behind the switch, which is off wherever canLocate is.
     const buttons = picker.match(/onClick=\{useMyLocation\}/g) || [];
     expect(buttons).toHaveLength(2);
-    expect(picker.match(/\{canLocate && \(\s*(<>\s*<p[^>]*>or<\/p>\s*)?<button\s+type="button"\s+onClick=\{useMyLocation\}/g)).toHaveLength(2);
+    expect(picker.match(/\{offerLocate && \(\s*<button\s+type="button"\s+onClick=\{useMyLocation\}/g)).toHaveLength(2);
+    expect(code(picker)).toMatch(/const offerLocate = canLocate && !locateDenied;/);
+  });
+
+  test('a witness with location off and the street lookup down can still say where: a pin on a map opened by the pet', () => {
+    // 2026-11-16: the geocoder answered 503, the picker said "No matches", and a phone had no map to tap.
+    const picker = read('app/components/report/LocationPicker.js');
+    expect(code(picker)).toMatch(/const canPin = !mapless && Boolean\(nearPoint\);/);
+    // The button that opens it, offered whatever the location switch says.
+    expect(code(picker)).toMatch(/\{canPin && \(\s*<button\s+type="button"\s+onClick=\{\(\) => \{\s*setLocateError\(null\);\s*setPinning\(true\);\s*\}\}/);
+    // The map opens at `near` with no pin, and a tap puts the pin there.
+    expect(code(picker)).toMatch(/const pinStart = !value && pinning && nearPoint \? nearPoint : null;/);
+    expect(code(picker)).toMatch(/map\.on\('click', \(e\) => \{\s*placeMarker\(\[e\.latlng\.lat, e\.latlng\.lng\]\);\s*applyPosition\(e\.latlng\.lat, e\.latlng\.lng\);/);
+    // The sighting form gives it the pet's own place to open at.
+    expect(witness).toMatch(/near=\{near\} maxAccuracy=/);
   });
 
   test('a desk shows the code to scan in place of the button that hands out a street', () => {
@@ -616,7 +675,7 @@ describe('what a desk says about the search is a count, a time, a distance or a 
     expect(know).toMatch(/import \{ coverage, groundLines, missingFor, researchFor, sightingLines \} from '\.\.\/lib\/insight';/);
     // On ground the sentences are the ground's own tested file (lib/ground.js); on streets, the streets' (lib/insight.js).
     expect(know).toMatch(/import \{ groundCoverage, groundLines as areaLines \} from '\.\.\/lib\/ground';/);
-    expect(know).toMatch(/const ground = unit === 'area' \? areaLines\(\{ areas: items, circle, name \}\) : groundLines\(\{ items, unit, name \}\);/);
+    expect(know).toMatch(/const ground = unit === 'area' \? areaLines\(\{ areas: items, circle, name, now \}\) : groundLines\(\{ items, unit, name \}\);/);
     // The only number about people is how many are on ground right now, which the areas themselves say.
     expect(know).toMatch(/<Stat value=\{g\.people\} label="searching now" \/>/);
     expect(know).toMatch(/<Stat value=\{c\.walking\} label="walking now" \/>/);

@@ -14,8 +14,8 @@ import { authOptions } from '@/app/lib/auth';
 import { ownerByKey } from '@/app/lib/ownerKey';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
-import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
+import { endSearch } from '@/app/lib/searchEnd';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -218,35 +218,19 @@ export async function POST(request, { params }) {
       }
     }
 
-    // CRIT-D: on a terminal status change, tell the people who were searching.
-    // Active mission volunteers get the resolution news (so they can stop), in-app
-    // and best-effort/isolated so it can never fail the status update itself.
+    // CRIT-D: on a terminal status change, the search is over (app/lib/searchEnd.js). Everyone with an account
+    // who helped (the search's roster, whoever sent a sighting, a force's assignment) and the members of the
+    // forces looking each get one notice in their bell, and the areas people were still on are closed.
+    // Best-effort and isolated, so it can never fail the status update itself.
     if (status === 'REUNITED' || status === 'CLOSED_OTHER') {
       try {
-        const mission = await prisma.missionControl.findUnique({
-          where: { caseId: params.missionId },
-          include: {
-            activeVolunteers: { where: { status: 'ACTIVE' }, select: { userId: true } },
-          },
+        await endSearch({
+          pet: { ...updatedMission, id: params.missionId, reporterId: currentMission.reporterId },
+          status,
+          actorId: session.user.id,
         });
-        const volunteerIds = [...new Set(
-          (mission?.activeVolunteers || []).map(v => v.userId).filter(Boolean)
-        )];
-        const petName = updatedMission.petName || 'the pet';
-        const reunited = status === 'REUNITED';
-        await Promise.all(volunteerIds.map(uid =>
-          createInAppNotification({
-            userId: uid,
-            type: 'CASE_STATUS',
-            title: reunited ? `${petName} was reunited! 🎉` : `Case closed: ${petName}`,
-            message: reunited
-              ? `Great news - ${petName} has been reunited with their family. Thank you for helping search!`
-              : `The case for ${petName} has been closed. Thank you for your help.`,
-            actionUrl: updatedMission.caseNumber ? `/cases/${updatedMission.caseNumber}` : null,
-          }).catch(() => {})
-        ));
       } catch (err) {
-        console.error('Status-change volunteer notify failed:', err?.message);
+        console.error('Status-change search end failed:', err?.message);
       }
     }
 

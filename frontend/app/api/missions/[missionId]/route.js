@@ -18,6 +18,7 @@ import { normalizePhotoUrl } from '@/app/lib/utils';
 import { normalizeDetails, needsMedication, healthUrgency, petFieldsFromDetails, HOW_OUT_OPTIONS } from '@/app/lib/caseDetails';
 import { verifyDetailsToken, DETAILS_TOKEN_HEADER } from '@/app/lib/detailsToken';
 import { scheduleKitRedraw } from '@/app/lib/cascade/redrawLater';
+import { ownerByKey } from '@/app/lib/ownerKey';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -382,7 +383,13 @@ const DESCRIPTION_MAX = 1000;
 export async function PATCH(request, { params }) {
   try {
     const id = params.missionId;
-    const session = await getServerSession(authOptions);
+    let session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      // Not signed in, with the owner's key to this search (app/lib/ownerKey.js): the owner is who is asking, as on
+      // the notes and status routes. A guest owner changes the photo, the phone and the details from the pet's page.
+      const owner = await ownerByKey(request, id);
+      if (owner) session = { user: { id: owner.userId, role: 'USER' } };
+    }
     // The person who just posted has no session yet; the success screen
     // carries a token for the questionnaire fields of that one case
     // (app/lib/detailsToken.js).

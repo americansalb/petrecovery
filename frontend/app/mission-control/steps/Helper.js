@@ -38,7 +38,7 @@ import { PAWS } from '@/app/lib/trail';
 import { SAFETY_RULES, SAFETY_AGREEMENT, searchTraining } from '@/app/lib/safetyRules';
 import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Pinned, Stamp } from '../components/kit';
 import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
-import { clockTime, lookingLine } from '../lib/words';
+import { lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 import { areaName, isSeenCircle, whereWords, whereShort, hazardLines } from '../lib/ground';
 import { missingFor, whenWords } from '../lib/insight';
@@ -162,7 +162,7 @@ const COVER_CHOICES = [
  * (founder, 2026-11-13: "A real search and rescue team would find this
  * superficial and comical"). One tap answers it; nothing waits on it.
  */
-function Debrief({ onSend }) {
+function Debrief({ onSend, paws = PAWS.DEBRIEF }) {
   const [covered, setCovered] = useState(null);
   const [note, setNote] = useState('');
   const [sent, setSent] = useState(false);
@@ -184,7 +184,8 @@ function Debrief({ onSend }) {
   return (
     <div className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3" role="group" aria-label="About your search">
       <p className="text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">How much of it did you cover?</p>
-      {told && <Paws count={PAWS.DEBRIEF} className="mt-1.5" />}
+      {/* None on a search far shorter than the area takes, which left none itself (app/lib/trail.js). */}
+      {told && <Paws count={paws} className="mt-1.5" />}
       <div className="mt-2 flex gap-2">
         {COVER_CHOICES.map(([value, label]) => (
           <button
@@ -257,7 +258,7 @@ function Ways({ ways = [], owner, className = '' }) {
   );
 }
 
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, doneAtSighting = false, onDebrief = null, trail = null, ways = [], instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, donePaws = PAWS.SEARCH, doneTakes = null, stopped = false, onDebrief = null, trail = null, ways = [], instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
@@ -269,6 +270,9 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
   // The card says when it has shown the ask, which is what the desk reads as "seen": a phone that only fetched
   // it, or a computer that does not show it, says nothing.
   useShown(ask && ask.askedSeen === false ? ask.id : null, onAskShown, beatOf(now));
+  // An area searched that left paw prints. One far shorter than the area takes leaves none (app/lib/trail.js), and
+  // she does not cheer it: she says why, and how long the area takes.
+  const cheer = Boolean(done && ground && donePaws > 0);
   return (
     <>
       {/* Sarama guides: she cheers an area searched, says who asked, and greets anyone who has just opened the link. */}
@@ -276,18 +280,21 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       {!desk && (
         <Sarama
           className="mb-3"
-          pose={done && ground ? 'cheer' : ask ? 'point' : 'sit'}
+          pose={cheer ? 'cheer' : ask ? 'point' : 'sit'}
           say={
-            done && ground
-              ? SARAMA.done(PAWS.SEARCH)
-              : ask
-                ? SARAMA.asked(ask.askedBy)
-                : // Who she is, then the brief word for word: their own home first, and what to do on seeing the pet.
-                  [trail?.mine?.paws > 0 ? SARAMA.back(name) : SARAMA.hello(name, missingFor(picture.lastSeen?.at, now)), brief.own, brief.never]
+            cheer
+              ? SARAMA.done(donePaws)
+              : done && ground
+                ? SARAMA.short(doneTakes)
+                : ask
+                  ? SARAMA.asked(ask.askedBy)
+                  : // Who she is, then the brief word for word: their own home first, and what to do on seeing the pet.
+                    // Someone who has just said "I am stopping" is thanked, not greeted as if they had come back.
+                    [stopped ? SARAMA.stopped(name) : trail?.mine?.paws > 0 ? SARAMA.back(name) : SARAMA.hello(name, missingFor(picture.lastSeen?.at, now)), brief.own, brief.never]
           }
         />
       )}
-      {done && ground && <Paws count={PAWS.SEARCH} className="mb-2" />}
+      {cheer && <Paws count={donePaws} className="mb-2" />}
       <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
       <Heading className="mt-1">{ask ? (ground ? `Search ${areaName(ask)}` : `Walk ${ask.name}`) : `Help look for ${name}`}</Heading>
       {ask ? (
@@ -308,11 +315,12 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       ) : done && ground ? (
         <>
         <Lead className="mt-1.5">
-          {/* The count is of the circle's own areas. The circle round a sighting is not one of them, so it is not counted after one. */}
-          {done} is searched. Thank you.{doneAtSighting ? '' : ` ${counts.searched} of the ${counts.total} areas ${counts.searched === 1 ? 'has' : 'have'} been searched so far.`}
+          {/* No count of areas "searched so far": a search fades over a day, so a count of every area ever searched is
+              not what is true now. What is, the areas searched in the last 12 hours, is the trail's goal under this card. */}
+          {done} is searched. Thank you.
         </Lead>
         {/* The debrief: what a search is worth depends on how much of the ground was covered. */}
-        {onDebrief && <Debrief key={done} onSend={onDebrief} />}
+        {onDebrief && <Debrief key={done} onSend={onDebrief} paws={donePaws > 0 ? PAWS.DEBRIEF : 0} />}
         </>
       ) : done ? (
         <Lead className="mt-1.5">
@@ -372,8 +380,13 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
  * Then "Before you go out", the short training, whose one button gives
  * them their area. The screen never calls the training optional, and the
  * server refuses nobody for want of it (founder, 2026-11-12).
+ *
+ * Someone who has agreed and has not been through the training (they
+ * reloaded on it, or agreed before it was shown) is brought in at it
+ * (`from` 'training'): it follows the tick as a step everyone passes
+ * through, and the tick is not asked twice.
  */
-export function Join({ picture, name, owner, viewer, unit, instrument, search, onJoined, onBack }) {
+export function Join({ picture, name, owner, viewer, unit, instrument, search, onJoined, onBack, from = 'agree' }) {
   const signedIn = Boolean(viewer?.signedIn);
   // The app records a walk for someone signed in. A browser records nothing, and neither does the app for a guest.
   const records = instrument === 'field' && signedIn;
@@ -384,7 +397,7 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   // 'agree' is the tick; 'training' is what they read once they have agreed.
-  const [stage, setStage] = useState('agree');
+  const [stage, setStage] = useState(from === 'training' ? 'training' : 'agree');
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const ownerName = owner?.firstName || 'The owner';
@@ -689,15 +702,29 @@ export function Street({ picture, name, unit, mine, instrument, gps, onWalked, o
   );
 }
 
-/** The pet is home: everyone is told and thanked. */
-export function Home({ picture, name, owner, petHref }) {
+/**
+ * The search is over: everyone is told and thanked. The owner reads it as
+ * the person who marked their own pet home, with how many people helped
+ * them, and is not asked to sign up for alerts about other people's pets.
+ */
+export function Home({ picture, name, owner, petHref, now = Date.now() }) {
   const pet = picture.pet || {};
   const searched = picture.searched;
-  const at = picture.resolvedAt ? clockTime(picture.resolvedAt, picture.timeZone) : '';
+  const isOwner = Boolean(picture.viewer?.isOwner);
+  // "at 7:48 pm" today, "on Sat at 7:48 pm" this week, "on Nov 3" before that: a reunion two days ago says its day.
+  const at = picture.resolvedAt ? whenWords(picture.resolvedAt, picture.timeZone, now) : '';
+  const when = at ? ` ${at}` : '';
   // "3 areas", and "5 streets" or "2 blocks" beside it where the search began before it was on areas.
   const count = (n, word) => (n > 0 ? `${n} ${word}${n === 1 ? '' : 's'}` : '');
   const parts = searched && searched.people > 0 ? [count(searched.areas || 0, 'area'), count(searched.streets, 'street'), count(searched.blocks || 0, 'block')].filter(Boolean) : [];
   const ground = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0] || '';
+  const people = searched?.people === 1 ? '1 person' : `${searched?.people || 0} people`;
+  let lead;
+  if (isOwner) lead = picture.reunited ? `You marked ${name} home${when}. The search is over.` : `You closed this search${when}.`;
+  else lead = picture.reunited ? `${owner?.firstName || 'The owner'} marked ${name} home${when}. The search is over.` : `${owner?.firstName || 'The owner'} closed this search. Thank you for wanting to help.`;
+  let tally = '';
+  if (ground && isOwner) tally = `${people} helped you search ${ground}.`;
+  else if (ground) tally = searched.mine && searched.people === 1 ? `You searched ${ground}. Thank you.` : `${people} searched ${ground}.${searched.mine ? ' You were one of them. Thank you.' : ''}`;
   return (
     <div className="flex flex-1 flex-col">
       {pet.photoUrl && (
@@ -709,23 +736,19 @@ export function Home({ picture, name, owner, petHref }) {
           <Stamp kind={picture.reunited ? 'home' : 'closed'} />
         </div>
         <Heading className="mt-2 !text-[27px] !leading-8">{picture.reunited ? `${name} is home` : 'This search has ended'}</Heading>
-        <Lead className="mt-1.5">
-          {picture.reunited
-            ? `${owner?.firstName || 'The owner'} marked ${name} home${at ? ` at ${at}` : ''}. The search is over.`
-            : `${owner?.firstName || 'The owner'} closed this search. Thank you for wanting to help.`}
-        </Lead>
-        {ground && (
-          <p className="mt-4 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3 text-base font-semibold leading-[22px] text-[var(--mc-ink)]">
-            {searched.mine && searched.people === 1
-              ? `You searched ${ground}. Thank you.`
-              : `${searched.people === 1 ? '1 person' : `${searched.people} people`} searched ${ground}.${searched.mine ? ' You were one of them. Thank you.' : ''}`}
-          </p>
-        )}
+        <Lead className="mt-1.5">{lead}</Lead>
+        {tally && <p className="mt-4 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3 text-base font-semibold leading-[22px] text-[var(--mc-ink)]">{tally}</p>}
         <div className="mt-auto pt-6">
-          <Second href="/patrol/join">Alert me when a pet is lost near me</Second>
-          <div className="flex justify-center">
-            <QuietLink href={petHref}>Open {name}&apos;s page</QuietLink>
-          </div>
+          {isOwner ? (
+            <Second href={petHref}>Open {name}&apos;s page</Second>
+          ) : (
+            <>
+              <Second href="/patrol/join">Alert me when a pet is lost near me</Second>
+              <div className="flex justify-center">
+                <QuietLink href={petHref}>Open {name}&apos;s page</QuietLink>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

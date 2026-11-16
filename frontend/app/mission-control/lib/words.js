@@ -10,6 +10,7 @@
  * to do.
  */
 import { speciesLabel } from '@/app/lib/species';
+import { wholeDays } from '@/app/lib/elapsed';
 
 /** A sighting this fresh turns the line at the top orange on every screen. The pet's page uses the same hour (app/cases/[caseNumber]/CasePageClient.js). */
 export const HOT_SIGHTING_MS = 60 * 60 * 1000;
@@ -58,7 +59,8 @@ export function agoWords(date, now = Date.now()) {
     const hours = Math.round(ms / HOUR);
     return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
   }
-  const days = Math.round(ms / DAY);
+  // Whole days, as the pet's page and the desk count them (app/lib/elapsed.js).
+  const days = wholeDays(ms);
   return days === 1 ? '1 day ago' : `${days} days ago`;
 }
 

@@ -26,7 +26,12 @@ export function personLine(person, { timeZone, now = Date.now(), unit = 'street'
       const what = `Asked to search ${inWords(person.asked.title)} at ${clockTime(person.asked.at, timeZone)}`;
       return person.asked.seenAt ? `${what}. Seen ${clockTime(person.asked.seenAt, timeZone)}.` : `${what}. Not seen yet.`;
     }
-    if (person.walked > 0 && person.lastWalkedAt) return `Free since ${dayAndTime(person.lastWalkedAt, timeZone, now)}. Searched ${person.walked === 1 ? '1 area' : `${person.walked} areas`}.`;
+    const searched = person.walked > 0 ? ` Searched ${person.walked === 1 ? '1 area' : `${person.walked} areas`}.` : '';
+    // The site stopped counting them on an area, and their phone still shows it to them to say what happened: the
+    // desk says the same, and not that they are free since their last search.
+    if (person.late) return `Took ${inWords(person.late.title)} ${whenWords(person.late.since, timeZone, now)}. Has not said if they searched it.${searched}`;
+    if (person.stopped) return `Stopped ${whenWords(person.stopped.at, timeZone, now)}.${searched}`;
+    if (person.walked > 0 && person.lastWalkedAt) return `Free since ${dayAndTime(person.lastWalkedAt, timeZone, now)}.${searched}`;
     if (person.joinedAt) return `Joined ${dayAndTime(person.joinedAt, timeZone, now)}. No area yet.`;
     return 'No area yet.';
   }

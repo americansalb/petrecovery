@@ -35,6 +35,7 @@ import { isMark } from '@/app/lib/searchBoard';
 import { CLAIM_TTL_MS } from '@/app/lib/searchGrid';
 import { wordsForDesk, wordsForPerson } from '@/app/lib/searchTalk';
 import { zoneAskWaitingFor, zoneSearchersSince, zoneGroundCovered } from '@/app/lib/searchZones';
+import { hasTrained } from '@/app/lib/waiver';
 
 /**
  * Someone who finished an area this recently still counts as out looking:
@@ -98,7 +99,7 @@ const PICTURE_SELECT = {
 
 function sightingOut(s, { withNames, isOwner }) {
   // The street or the landmark. An address that will not give up its house number is left off.
-  const place = s.address && s.address !== 'Marked on the map' ? placeOnly(s.address) || null : null;
+  const place = placeOnly(s.address) || null;
   const named = s.reporterName || (s.reportedBy?.firstName && s.reportedBy.firstName !== 'Deleted' ? s.reportedBy.firstName : null);
   return {
     id: s.id,
@@ -223,13 +224,15 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
       zoneGroundCovered(pet.id),
     ]);
     const blocks = grid?.cells || [];
-    const who = [...ground.people, ...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter((id) => id && !isMark(id));
+    // The people who helped: the owner searching their own pet's ground is not one of them, as it is not in
+    // `looking`, so the owner reads how many helped them and a helper reads how many searched beside them.
+    const who = [...ground.people, ...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter((id) => id && !isMark(id) && id !== pet.reporterId);
     searched = {
       areas: ground.areas,
       streets: streets.length,
       blocks: blocks.length,
       people: new Set(who).size,
-      mine: Boolean(searcher && who.includes(searcher.id)),
+      mine: Boolean(searcher && !isOwner && who.includes(searcher.id)),
     };
   }
 
@@ -244,6 +247,9 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
     mineToRead = { words, asked };
   }
   const talk = searcher?.leads && open && pet.reportType !== 'FOUND' ? await wordsForDesk(pet.id, { viewerId: searcher.id }) : null;
+  // Whether a helper who has agreed to the waiver has read "Before you go out" since: their screen shows it before
+  // their first ground if not. The owner is not asked to read it to look for their own pet.
+  const trained = searcher && open && !isOwner && searcher.waiver ? await hasTrained({ userId: searcher.userId, volunteerId: searcher.volunteerId }) : isOwner;
 
   return {
     id: pet.id,
@@ -284,7 +290,7 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
     ...(mineToRead || {}),
     ...(talk ? { talk } : {}),
     viewer: searcher
-      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), admin: Boolean(searcher.admin), waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
+      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), admin: Boolean(searcher.admin), waiver: searcher.waiver, trained, signedIn: searcher.kind === 'user' }
       : null,
   };
 }

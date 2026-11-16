@@ -246,6 +246,35 @@ describe('a search on areas of ground', () => {
     expect(dana).toMatchObject({ state: 'free', walked: 0, on: null, lastOn: null });
   });
 
+  test('"I am stopping" is kept apart from giving an area back to take another: they have gone', () => {
+    const zones = [
+      zone({ id: 'z-mid', name: 'The middle', visits: [visit({ startedAt: ago(90), endedAt: ago(60), outcome: 'SEARCHED' })] }),
+      zone({ visits: [visit({ startedAt: ago(50), endedAt: ago(5), outcome: 'STOPPED' })] }),
+    ];
+    const [dana] = roster({ caseId: CASE, zones, now: NOW });
+    expect(dana).toMatchObject({ state: 'free', walked: 1, stopped: { id: 'z-west', title: 'West side', at: ago(5) }, late: null });
+    // Given back to take another: on the new one, and not stopped.
+    const moved = [zone({ visits: [visit({ startedAt: ago(50), endedAt: ago(5), outcome: 'GAVE_BACK' })] }), zone({ id: 'z-north', name: 'North side', visits: [visit({ startedAt: ago(5) })] })];
+    expect(roster({ caseId: CASE, zones: moved, now: NOW })[0]).toMatchObject({ state: 'walking', stopped: null });
+    // Stopped, then took ground again: what they started last decides.
+    const back = [zone({ visits: [visit({ startedAt: ago(50), endedAt: ago(30), outcome: 'STOPPED' })] }), zone({ id: 'z-north', name: 'North side', visits: [visit({ startedAt: ago(20), endedAt: ago(2), outcome: 'SEARCHED' })] })];
+    expect(roster({ caseId: CASE, zones: back, now: NOW })[0]).toMatchObject({ state: 'free', stopped: null });
+  });
+
+  test('the site stopped counting them on an area and they have not said what happened: the desk says so, as their phone does, for half a day', () => {
+    // Took the west side (45 minutes) 160 minutes ago: the site stopped counting them at 135.
+    const zones = [zone({ minutes: 45, visits: [visit({ startedAt: ago(160), endedAt: ago(25), outcome: 'LAPSED' })] })];
+    const [dana] = roster({ caseId: CASE, zones, now: NOW });
+    expect(dana).toMatchObject({ state: 'free', late: { id: 'z-west', title: 'West side', since: ago(160), at: ago(25) }, stopped: null });
+    // Taken two days ago and swept only now, by a sweep that stamped its own moment: it went stale two days ago, and is
+    // off their phone, so the desk does not say it either.
+    const old = [zone({ minutes: 45, visits: [visit({ startedAt: ago(48 * 60), endedAt: ago(3), outcome: 'LAPSED' })] })];
+    expect(roster({ caseId: CASE, zones: old, now: NOW })[0].late).toBeNull();
+    // Said what happened since: not late.
+    const said = [zone({ minutes: 45, visits: [visit({ startedAt: ago(160), endedAt: ago(25), outcome: 'SEARCHED' })] })];
+    expect(roster({ caseId: CASE, zones: said, now: NOW })[0].late).toBeNull();
+  });
+
   test('asked, then seen, then started: the ask stays on the person while they are on what was asked', () => {
     const asked = visit({ askedAt: ago(5), askedNote: 'Start at the creek path, please.', askedByName: 'Avery' });
     let [dana] = roster({ caseId: CASE, zones: [zone({ visits: [asked] })], now: NOW });

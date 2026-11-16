@@ -20,6 +20,9 @@ jest.mock('@/app/lib/prisma', () => ({
     pet: { findMany: jest.fn().mockResolvedValue([]) },
     searchSession: { updateMany: jest.fn().mockResolvedValue({}), findMany: jest.fn().mockResolvedValue([]) },
     case: { findMany: jest.fn().mockResolvedValue([]) },
+    // Searches joined on the search screen (none here).
+    searchZoneVisit: { findMany: jest.fn().mockResolvedValue([]) },
+    missionVolunteer: { findMany: jest.fn().mockResolvedValue([]) },
   },
 }));
 

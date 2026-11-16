@@ -15,9 +15,11 @@ jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() })
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('@/lib/logging', () => ({ __esModule: true, logEvent: jest.fn(async () => {}) }));
 jest.mock('@/app/lib/utils', () => ({ __esModule: true, normalizePhotoUrl: (u) => u }));
+jest.mock('@/app/lib/ownerKey', () => ({ __esModule: true, ownerByKey: jest.fn(async () => null) }));
 
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { ownerByKey } from '@/app/lib/ownerKey';
 import { PATCH } from '@/app/api/missions/[missionId]/route';
 import { scheduleKitRedraw } from '@/app/lib/cascade/redrawLater';
 import { signDetailsToken, DETAILS_TOKEN_HEADER } from '@/app/lib/detailsToken';
@@ -135,4 +137,22 @@ describe('the questionnaire (docs/REPORT_QUESTIONNAIRE.md)', () => {
       process.env.NEXTAUTH_SECRET = old;
     }
   });
+});
+
+test('a guest owner holding the key to their own report changes it without signing in, as on the notes and status routes', async () => {
+  // 2026-11-16: the pet's page showed a guest owner their tools, and every change came back "Sign in first."
+  ownerByKey.mockResolvedValueOnce({ userId: 'avery' });
+  const res = await call({ petDescription: 'Blue collar, answers to Max.' }, null);
+  expect(res.status).toBe(200);
+  expect(ownerByKey).toHaveBeenCalledWith(expect.any(Request), 'case-max');
+  expect(prisma.case.update).toHaveBeenCalledWith(expect.objectContaining({ data: { petDescription: 'Blue collar, answers to Max.' } }));
+});
+
+test('without a good key for this report, a signed-out change is still refused', async () => {
+  ownerByKey.mockResolvedValueOnce(null);
+  expect((await call({ petDescription: 'x' }, null)).status).toBe(401);
+  // A key that names another person's report gives that person, who is not this report's owner.
+  ownerByKey.mockResolvedValueOnce({ userId: 'sarah' });
+  expect((await call({ petDescription: 'x' }, null)).status).toBe(403);
+  expect(prisma.case.update).not.toHaveBeenCalled();
 });

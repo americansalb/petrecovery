@@ -73,6 +73,23 @@ describe('membersByDuty', () => {
       expect.objectContaining({ where: expect.objectContaining({ userId: { not: 'avery' } }) })
     );
   });
+
+  test('also leaves out the people told about it another way: the owner of a pet seen hears it once, as the owner', async () => {
+    prisma.rescueForceMember.findMany.mockResolvedValue([]);
+    await membersByDuty(['f1'], { exceptUserId: 'sarah', exceptUserIds: ['avery'], now: NOW });
+    expect(prisma.rescueForceMember.findMany.mock.calls[0][0].where.userId).toEqual({ notIn: ['sarah', 'avery'] });
+    prisma.rescueForceMember.findMany.mockClear();
+    // An anonymous witness: only the owner is left out.
+    await membersByDuty(['f1'], { exceptUserId: null, exceptUserIds: ['avery'], now: NOW });
+    expect(prisma.rescueForceMember.findMany.mock.calls[0][0].where.userId).toEqual({ not: 'avery' });
+    prisma.rescueForceMember.findMany.mockClear();
+    // The owner sending their own sighting is left out once.
+    await membersByDuty(['f1'], { exceptUserId: 'avery', exceptUserIds: ['avery'], now: NOW });
+    expect(prisma.rescueForceMember.findMany.mock.calls[0][0].where.userId).toEqual({ not: 'avery' });
+    prisma.rescueForceMember.findMany.mockClear();
+    await membersByDuty(['f1'], { now: NOW });
+    expect(prisma.rescueForceMember.findMany.mock.calls[0][0].where).not.toHaveProperty('userId');
+  });
 });
 
 describe('wakeForces', () => {

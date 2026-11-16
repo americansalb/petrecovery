@@ -98,7 +98,7 @@ export function Trail({ trail = null, items = [], name = 'the pet', now = Date.n
       {goal.total > 0 && (
         <>
           <p className={`text-[14px] font-semibold leading-5 text-[var(--mc-ink)] ${mine?.paws > 0 || trail?.paws > 0 ? 'mt-2' : ''}`}>
-            Keep the map green: {goal.fresh} of {goal.total} areas searched in the last {FRESH_HOURS} hours.
+            Keep the map green: {goal.fresh} of {goal.total} areas searched in the last {FRESH_HOURS} hours or being searched now.
           </p>
           <span className="mt-1.5 flex gap-1" aria-hidden="true">
             {Array.from({ length: goal.total }, (_, i) => (

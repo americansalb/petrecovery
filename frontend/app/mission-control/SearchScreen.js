@@ -45,6 +45,11 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { distanceMeters } from '@/app/lib/searchGrid';
 import { rankAreas, needsSearch } from '@/app/lib/searchCircle';
+// A reading rougher than this is not a place. A phone with precise location turned off answers with a point that
+// can be kilometres out, and a sighting pinned there sends the owner to the wrong street. Past this, the witness
+// types the street or puts the pin on by hand. The picker's own "Use my location" holds to the same number.
+import { SIGHTING_ACCURACY_METERS } from '@/app/lib/sightingLimits';
+import { roughWords } from '@/app/components/report/LocationPicker';
 // The site's own address, built in: a link or a QR code made here never carries the host's name (app/lib/config.js).
 import { getBaseUrl } from '@/app/lib/config';
 import { orientWalk, walkTitle, placeFromStreets } from '@/app/lib/streetWalks';
@@ -63,7 +68,8 @@ import { readNote, saveNote } from './lib/identity';
 import { dayAndTime, situationLine, neighborsLine, ownerSighting, petSub, HOT_SIGHTING_MS } from './lib/words';
 import { searcherBrief } from './lib/briefLines';
 import { wordsForCard, wordsForOwner, dealtLine } from './lib/team';
-import { AreaName, circleAreas, isSeenCircle, minutesRange } from './lib/ground';
+import { AreaName, circleAreas, minutesRange, searchStrength } from './lib/ground';
+import { PAWS } from '@/app/lib/trail';
 
 /** The space between the sheet and the map's key above it, and between the sheet and the map's credit when there is no key. */
 const KEY_GAP = 8;
@@ -73,13 +79,6 @@ const SearchMap = dynamic(() => import('./components/SearchMap'), {
   loading: () => <div className="h-full w-full bg-[var(--mc-ground)]" />,
 });
 
-/**
- * A reading rougher than this is not a place. A phone with precise
- * location turned off answers with a point that can be kilometres out,
- * and a sighting pinned there sends the owner to the wrong street. Past
- * this, the witness types the street instead.
- */
-const SIGHTING_ACCURACY_METERS = 150;
 /** A fresh sighting this close to a helper's street is drawn on the same map as the street. Further off, the top line says where. */
 const SIGHTING_IN_VIEW_METERS = 1200;
 /**
@@ -163,10 +162,18 @@ function Screen({ mission }) {
 
   const [view, setView] = useState('main'); // main | join | seen | sent
   const [done, setDone] = useState(null);
-  // Whether what they just searched was the circle round a sighting, which is not one of the areas the card counts.
-  const [doneAtSighting, setDoneAtSighting] = useState(false);
   // The area just searched, so the card that says thank you can take its debrief.
   const [doneId, setDoneId] = useState(null);
+  // The paw prints that search left, as the server counted them (app/lib/trail.js: none for a search far shorter
+  // than the area takes), and how long the area takes, which Sarama says when it left none.
+  const [donePaws, setDonePaws] = useState(PAWS.SEARCH);
+  const [doneTakes, setDoneTakes] = useState(null);
+  // They just said "I am stopping": the first card thanks them, and does not greet them as if they had come back.
+  const [stopped, setStopped] = useState(false);
+  // Where the join card opens: at the tick, or, for someone who has agreed and not yet read "Before you go out", at
+  // that. And whether they read it here, before the server's word that they did has come back.
+  const [joinFrom, setJoinFrom] = useState('agree');
+  const [trainedHere, setTrainedHere] = useState(false);
   const [busy, setBusy] = useState(null);
   const [problem, setProblem] = useState('');
   const [photo, setPhoto] = useState(false);
@@ -202,6 +209,10 @@ function Screen({ mission }) {
   const name = picture?.pet?.name || 'this pet';
   const owner = picture?.owner || null;
   const isOwner = Boolean(viewer?.isOwner);
+  // Read "Before you go out" (app/api/mission/[missionId]/trained), here or before. Someone who agreed to the
+  // waiver and has not is shown it before their first ground, after a reload too: it follows the tick as a step
+  // everyone passes through. The server refuses nobody for want of it.
+  const trained = Boolean(viewer?.trained || trainedHere);
   // The sighting that leads this person's screen. For everyone, one seen within the hour. For the owner, also one
   // that only just reached them, whenever it was seen: they were just told about it and came to see where.
   const hot = isOwner ? ownerSighting(picture?.sightings, now) : seenLately;
@@ -230,6 +241,9 @@ function Screen({ mission }) {
   // and the pin is set there; a desk, or a phone that will not say, types
   // the street.
   const phoneSpot = useRef(null);
+  // Where the form's map opens for the pin to be put on by hand (the form's `near`): the words offer it only where it is.
+  const pinAt = useRef(null);
+  pinAt.current = hot || picture?.lastSeen || null;
   // The time picked, as it is now: the reading below can arrive after someone has already tapped "Today".
   const pickedMinutes = useRef(0);
   const openSeen = useCallback(async () => {
@@ -256,7 +270,7 @@ function Screen({ mission }) {
         setWhereFrom('phone');
       }
     } else if (here && pickedMinutes.current === 0) {
-      setProblem('Your phone only gave a rough location. Type the street or the corner.');
+      setProblem(roughWords(Number.isFinite(pinAt.current?.lat) && Number.isFinite(pinAt.current?.lng)));
     }
   }, [desk, locate]);
   // Where the phone is now is where the pet is only for "Just now". Someone at home in the evening, sending
@@ -330,8 +344,11 @@ function Screen({ mission }) {
     window.history.replaceState(null, '', `${window.location.pathname}?${rest}`);
     if (!picture.open) return;
     if (action === 'sighting') openSeen();
-    else if (action === 'walk' && !desk && !viewer?.isOwner && !viewer?.waiver) go('join');
-  }, [picture, params, resolving, search.loading, openSeen, desk, viewer, go]);
+    else if (action === 'walk' && !desk && !viewer?.isOwner && !(viewer?.waiver && trained)) {
+      setJoinFrom(viewer?.waiver ? 'training' : 'agree');
+      go('join');
+    }
+  }, [picture, params, resolving, search.loading, openSeen, desk, viewer, trained, go]);
 
   // The owner opening a fresh sighting is itself news for the witness.
   useEffect(() => {
@@ -425,6 +442,7 @@ function Screen({ mission }) {
     setProblem('');
     setDone(null);
     setDoneId(null);
+    setStopped(false);
     try {
       const here = await locate();
       // Passing on a street lasts for one round of "Different street". A fresh ask starts clean, so the
@@ -452,6 +470,7 @@ function Screen({ mission }) {
         }
         last = result;
         if (result.code === 'WAIVER_NOT_ACCEPTED' || result.code === 'NOT_JOINED') {
+          setJoinFrom('agree');
           go('join');
           return { error: '' };
         }
@@ -476,7 +495,15 @@ function Screen({ mission }) {
     }
   }
   function startWalk() {
-    if (!viewer || !viewer.waiver) return go('join');
+    if (!viewer || !viewer.waiver) {
+      setJoinFrom('agree');
+      return go('join');
+    }
+    // Agreed, and not yet through "Before you go out": it comes first, whenever they agreed.
+    if (!trained) {
+      setJoinFrom('training');
+      return go('join');
+    }
     return takeStreet();
   }
   async function walked() {
@@ -489,7 +516,10 @@ function Screen({ mission }) {
       if (gps?.recording) gps.stop().catch(() => {});
       setDone(title);
       setDoneId(unit === 'area' ? mineRaw.id : null);
-      setDoneAtSighting(unit === 'area' && isSeenCircle(mineRaw));
+      // The prints the server says this search left, and three where it does not say.
+      setDonePaws(typeof result.paws === 'number' ? result.paws : PAWS.SEARCH);
+      setDoneTakes(mineRaw.minutes || null);
+      setStopped(false);
       return go('main');
     } finally {
       setBusy(null);
@@ -502,6 +532,9 @@ function Screen({ mission }) {
       const result = await search.act(unit, mineRaw.id, 'release');
       if (result.error) return setProblem(result.error);
       if (gps?.recording) gps.stop().catch(() => {});
+      setDone(null);
+      setDoneId(null);
+      setStopped(true);
       return go('main');
     } finally {
       setBusy(null);
@@ -623,14 +656,31 @@ function Screen({ mission }) {
   );
   // What is lit on this person's map: the area they are on, or else the one they were asked to search.
   const litId = mineRaw?.id || askedRaw?.id || null;
+  // A search fades over a day, so the map is drawn again as time passes: every ten minutes, as on the desk, and not
+  // with every tick.
+  const clock = Math.floor(now / 600000) * 600000;
   // The ground of the search. On a phone an area carries no name: the one that is lit is the one the card names.
-  // Who is on one is written on it for the people who may know.
+  // Who is on one is written on it for the people who may know. The green is how strongly each counts as searched
+  // right now, the desk's own measure (lib/ground.js, searchStrength): it fades to nothing over a day, and is less for
+  // a short or partial search. Without it the map drew every area ever searched the same solid green.
   const mapAreas = useMemo(
     () =>
       unit === 'area'
-        ? items.map((i) => ({ id: i.id, outline: i.outline, ring: i.ring, status: i.status, searchCount: i.searchCount, on: i.on, mine: i.id === litId, center: i.center, label: '', who: (i.who || []).map((w) => w.name).join(', ') || null }))
+        ? items.map((i) => ({
+            id: i.id,
+            outline: i.outline,
+            ring: i.ring,
+            status: i.status,
+            searchCount: i.searchCount,
+            on: i.on,
+            mine: i.id === litId,
+            center: i.center,
+            label: '',
+            who: (i.who || []).map((w) => w.name).join(', ') || null,
+            strength: i.searchCount > 0 ? searchStrength(i, clock) : 0,
+          }))
         : [],
-    [unit, items, litId]
+    [unit, items, litId, clock]
   );
   const mapStreets = useMemo(() => (unit === 'street' ? items.map((i) => ({ id: i.id, path: i.path, status: i.status, mine: i.id === litId, who: i.claimedByName || null })) : []), [unit, items, litId]);
   const mapCells = useMemo(() => (unit === 'block' ? items : []), [unit, items]);
@@ -744,7 +794,7 @@ function Screen({ mission }) {
     return (
       <div className="mc-dark mc-screen flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
-          <Home picture={picture} name={name} owner={owner} petHref={petHref} />
+          <Home picture={picture} name={name} owner={owner} petHref={petHref} now={now} />
         </div>
       </div>
     );
@@ -766,15 +816,17 @@ function Screen({ mission }) {
   } else if (isOwner && hot) {
     step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (isOwner) {
-    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
+    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} items={items} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (mine && ground) {
     step = <Area picture={picture} name={name} mine={mine} instrument={instrument} gps={gps} open={sheetOpen} onOpen={() => setSheetOpen(true)} onSearched={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (mine) {
     step = <Street picture={picture} name={name} unit={unit} mine={mine} instrument={instrument} gps={gps} onWalked={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (view === 'join' && !desk) {
-    step = <Join picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => takeStreet()} onBack={() => go('main')} />;
+    // Opened at the tick, or at "Before you go out" for someone who agreed and has not read it. Reading it to its
+    // button is going through it, here and now, whatever the server has heard.
+    step = <Join key={joinFrom} from={joinFrom} picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => { setTrainedHere(true); return takeStreet(); }} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} doneAtSighting={doneAtSighting} onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null} trail={search.trail} ways={search.ways} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} donePaws={donePaws} doneTakes={doneTakes} stopped={stopped} onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null} trail={search.trail} ways={search.ways} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   }
 
   const overlays = (
@@ -831,8 +883,13 @@ function Screen({ mission }) {
   // area too, since the card closed over the map says the area and not how to search it. Hidden while the card is
   // open and the map is a strip; the map is fitted as if it shows, so opening the card does not move the map.
   const showChip = !isOwner && view === 'main';
+  // Ground says what its green means: searched just now is full, and it fades over a day, as the desk's key says.
+  // Never a bare "searched": the age is what a search is run on. The key shows while any green is left to explain.
+  const greenLeft = ground && mapAreas.some((a) => a.strength > 0);
   const keyBits = [
-    counts.searched > 0 ? [ground ? 'fill' : 'bar', 'Already searched'] : null,
+    greenLeft ? ['fill', 'Searched just now'] : null,
+    greenLeft ? ['fade', 'Fades over a day'] : null,
+    !ground && counts.searched > 0 ? ['bar', 'Walked'] : null,
     // Their own area is one of those in progress only while the site counts them as on it.
     counts.inProgress > (mine?.status === 'IN_PROGRESS' ? 1 : 0) ? ['dots', ground ? 'Someone is searching it now' : 'Someone is on it now'] : null,
     track.length > 1 ? ['path', 'Your path'] : null,
@@ -861,6 +918,9 @@ function Screen({ mission }) {
         <span key={words} className="flex items-center gap-1.5 rounded-md bg-[var(--mc-surface)]/85 px-1.5 py-0.5">
           {kind === 'fill' ? (
             <span className="h-3 w-5 rounded-[3px]" style={{ border: '1px solid var(--mc-done)', background: 'color-mix(in srgb, var(--mc-done) 45%, transparent)' }} aria-hidden="true" />
+          ) : kind === 'fade' ? (
+            // The same green going from full to almost none: what a day does to a search.
+            <span className="h-3 w-9 rounded-[3px]" style={{ border: '1px solid var(--mc-done)', background: 'linear-gradient(90deg, color-mix(in srgb, var(--mc-done) 45%, transparent), transparent)' }} aria-hidden="true" />
           ) : kind === 'bar' ? (
             <span className="h-1.5 w-5 rounded-full bg-slate-400/70" aria-hidden="true" />
           ) : kind === 'path' ? (

@@ -32,7 +32,7 @@ import { ArrowLeft, Check, ExternalLink, Flag, Loader2, Maximize, RotateCcw } fr
 import { metersWords } from '../lib/insight';
 import { clockTime } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
-import { areaFacts, areaLine, areaName, areaState, circleAreas, isSeenCircle, searchLog, searchStrength } from '../lib/ground';
+import { areaFacts, areaLine, areaName, areaState, circleAreas, isSeenCircle, listName, searchLog, searchStrength } from '../lib/ground';
 
 const CONTROL =
   'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[var(--mc-line-strong)] bg-[var(--mc-surface)] px-3 text-[13px] font-bold leading-5 text-[var(--mc-ink)] shadow-sm hover:bg-[var(--mc-raised)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
@@ -177,7 +177,8 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
                 <Glyph area={area} next={soon} wide={wide} now={now} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{area.name}</span>
+                    {/* A circle round a sighting says when and where the pet was seen: they are all "Where Whiskers was seen". */}
+                    <span className="text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{listName(area, { sightings: picture.sightings, timeZone: zone, now })}</span>
                     <span className="shrink-0 text-[13px] font-semibold leading-5 text-[var(--mc-muted)]">about {area.minutes} min</span>
                   </span>
                   <span className={`block text-[14px] font-medium leading-5 ${tone}`}>
@@ -236,6 +237,7 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
  */
 export function AreaCard({ area, picture, circle, now, leads, busy, problem, free = [], next = false, onSteer, onAsk, onUnask, onClose }) {
   const zone = picture.timeZone;
+  const title = listName(area, { sightings: picture.sightings, timeZone: zone, now });
   const facts = areaFacts(area, { picture, circle, now });
   const log = searchLog(area, { timeZone: picture.timeZone, now });
   const brief = searcherBrief(picture);
@@ -250,14 +252,14 @@ export function AreaCard({ area, picture, circle, now, leads, busy, problem, fre
   // A sighting's circle takes one person: with someone there, on the way or asked, nobody else is sent.
   const taken = sighting && (area.on > 0 || (area.asked || []).some((a) => a.holds) || Boolean(area.going));
   return (
-    <section aria-label={area.name} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
+    <section aria-label={title} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
       <button type="button" onClick={onClose} className="-ml-1 mt-3 inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-lg px-1 text-[13px] font-bold text-[var(--mc-soft)] hover:text-[var(--mc-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400">
         <ArrowLeft size={16} aria-hidden="true" /> All the ground
       </button>
       <div className="mt-2 flex items-start gap-3">
         <Glyph area={area} next={next} wide={Boolean(circle?.widened)} size={30} now={now} />
         <div className="min-w-0">
-          <h2 className="text-[19px] font-extrabold leading-[25px] text-[var(--mc-ink)]">{area.name}</h2>
+          <h2 className="text-[19px] font-extrabold leading-[25px] text-[var(--mc-ink)]">{title}</h2>
           <p className="text-[13px] font-bold leading-[19px] text-[var(--mc-muted)]">
             {areaState(area, now)}
             {area.first ? ' · asked for first' : next ? ' · given out next' : ''}

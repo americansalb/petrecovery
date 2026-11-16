@@ -52,6 +52,9 @@ export default function RegisterPage() {
 
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
+  // The email already had an account (often one a report made without signing in): the server sent a link to
+  // the address to set its password, so the finale says that instead of "verify".
+  const [hadAccount, setHadAccount] = useState(false);
   const [form, setForm] = useState({ firstName: '', email: '', phone: '', password: '', confirmPassword: '' });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -157,6 +160,11 @@ export default function RegisterPage() {
         }),
       });
       const data = await res.json();
+      if (res.status === 409 && data.code === 'EMAIL_HAS_ACCOUNT') {
+        setHadAccount(true);
+        setDone(true);
+        return;
+      }
       if (!res.ok) {
         setError(data.error || 'Registration failed');
         setLoading(false);
@@ -194,14 +202,16 @@ export default function RegisterPage() {
                 <MailCheck className="w-8 h-8" />
               </div>
               <h1 id="register-heading" className="text-2xl font-bold text-midnight-900 mb-2">
-                Check your inbox, {form.firstName.trim()}!
+                {hadAccount ? 'This email already has an account' : `Check your inbox, ${form.firstName.trim()}!`}
               </h1>
               <p className="text-midnight-500 mb-1">
-                We sent a verification link to
+                {hadAccount ? 'We sent a link to set its password to' : 'We sent a verification link to'}
               </p>
               <p className="font-semibold text-midnight-900 mb-6">{form.email.trim()}</p>
               <p className="text-sm text-midnight-400 mb-8">
-                Click it to activate your account, then sign in.
+                {hadAccount
+                  ? 'Open it to set your password, then sign in. If you reported a pet without signing in, the report is on this account. The link works for an hour.'
+                  : 'Click it to activate your account, then sign in.'}
               </p>
               <Button variant="primary" fullWidth size="lg" href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}>
                 Go to Sign In
