@@ -312,14 +312,18 @@ export function groundCoverage(areas = [], now = Date.now()) {
 }
 
 /** The ground in sentences, for "What the search shows". `circle` is the board's ({ radius, ... }). */
-export function groundLines({ areas = [], circle = null, name = 'the pet' } = {}) {
-  const c = groundCoverage(areas);
+export function groundLines({ areas = [], circle = null, name = 'the pet', now = Date.now() } = {}) {
+  const c = groundCoverage(areas, now);
   if (!c.total) return [];
   const within = circle?.radius ? ` within ${metersWords(circle.radius)}` : '';
   const lines = [];
+  // The areas searched in the last twelve hours, as the owner's card and the goal everyone shares count them
+  // (groundNowWords, app/lib/trail.js): a search before that has faded, and is not counted as ground covered.
+  const lately = circleAreas(areas).filter((a) => searchedLately(a, now)).length;
+  const being = c.searching ? `, and ${c.searching === 1 ? '1 is' : `${c.searching} are`} being searched now` : '';
   if (c.searched === 0 && c.searching === 0) lines.push(`${c.total} areas of ground${within} of where ${name} was lost. None has been searched yet.`);
-  else if (c.searched === c.total) lines.push(`All ${c.total} areas${within} have been searched at least once.`);
-  else lines.push(`${c.searched} of the ${c.total} areas${within} ${c.searched === 1 ? 'has' : 'have'} been searched${c.searching ? `, and ${c.searching === 1 ? '1 is' : `${c.searching} are`} being searched now` : ''}.`);
+  else if (lately === c.total) lines.push(`All ${c.total} areas${within} were searched in the last ${FRESH_HOURS} hours${being}.`);
+  else lines.push(`${lately === 0 ? 'None' : lately} of the ${c.total} areas${within} ${lately === 1 || lately === 0 ? 'was' : 'were'} searched in the last ${FRESH_HOURS} hours${being}.`);
   if (c.left > 0) lines.push(`Searching the ${c.left === 1 ? 'one' : c.left} left takes one person ${durationWords(c.minutesLeft)}.`);
   if (c.again > 0) lines.push(`${c.again === 1 ? '1 area is' : `${c.again} areas are`} down for another look.`);
   return lines;

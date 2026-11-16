@@ -228,18 +228,25 @@ describe('the ground in numbers and sentences', () => {
   test('some searched, one being searched: what is left is what nobody has searched or is on', () => {
     const areas = five({ middle: searched(2, ago(80)), north: searched(1, ago(105)), east: onIt(['Sarah'], ago(25)) });
     expect(groundCoverage(areas, NOW)).toEqual({ total: 5, searched: 2, done: 2, searching: 1, again: 0, faded: 0, left: 2, minutesLeft: 90, people: 1 });
-    expect(groundLines({ areas, circle: CIRCLE, name: 'Max' })).toEqual(['2 of the 5 areas within 400 m have been searched, and 1 is being searched now.', 'Searching the 2 left takes one person about an hour and a half.']);
+    expect(groundLines({ areas, circle: CIRCLE, name: 'Max', now: NOW })).toEqual(['2 of the 5 areas within 400 m were searched in the last 12 hours, and 1 is being searched now.', 'Searching the 2 left takes one person about an hour and a half.']);
   });
 
   test('one searched reads in the singular', () => {
-    expect(groundLines({ areas: five({ middle: searched(1, ago(80)) }), circle: CIRCLE, name: 'Max' })[0]).toBe('1 of the 5 areas within 400 m has been searched.');
+    expect(groundLines({ areas: five({ middle: searched(1, ago(80)) }), circle: CIRCLE, name: 'Max', now: NOW })[0]).toBe('1 of the 5 areas within 400 m was searched in the last 12 hours.');
   });
 
-  test('all searched says "at least once", and never that the search is over', () => {
+  test('all searched lately says when, and never that the search is over', () => {
     const all = five({ middle: searched(3, ago(10)), north: searched(1, ago(105)), east: searched(1, ago(50)), south: searched(2, ago(40)), west: searched(1, ago(75)) });
-    const lines = groundLines({ areas: all, circle: CIRCLE, name: 'Max' });
-    expect(lines).toEqual(['All 5 areas within 400 m have been searched at least once.']);
+    const lines = groundLines({ areas: all, circle: CIRCLE, name: 'Max', now: NOW });
+    expect(lines).toEqual(['All 5 areas within 400 m were searched in the last 12 hours.']);
     expect(lines.join(' ')).not.toMatch(/\bdone\b|finished|complete|nothing left/i);
+  });
+
+  test('ground searched days ago is not counted as covered: the search has faded', () => {
+    // Founder, 2026-11-13: "does it not fade over time?". The desk's summary said "4 of the 5 areas have been
+    // searched" for areas searched three days before (2026-11-16).
+    const old = five({ middle: searched(1, ago(3 * 24 * 60)), north: searched(1, ago(2 * 24 * 60)) });
+    expect(groundLines({ areas: old, circle: CIRCLE, name: 'Max', now: NOW })[0]).toBe('None of the 5 areas within 400 m was searched in the last 12 hours.');
   });
 
   test('up for another look is counted and said', () => {

@@ -675,7 +675,7 @@ describe('what a desk says about the search is a count, a time, a distance or a 
     expect(know).toMatch(/import \{ coverage, groundLines, missingFor, researchFor, sightingLines \} from '\.\.\/lib\/insight';/);
     // On ground the sentences are the ground's own tested file (lib/ground.js); on streets, the streets' (lib/insight.js).
     expect(know).toMatch(/import \{ groundCoverage, groundLines as areaLines \} from '\.\.\/lib\/ground';/);
-    expect(know).toMatch(/const ground = unit === 'area' \? areaLines\(\{ areas: items, circle, name \}\) : groundLines\(\{ items, unit, name \}\);/);
+    expect(know).toMatch(/const ground = unit === 'area' \? areaLines\(\{ areas: items, circle, name, now \}\) : groundLines\(\{ items, unit, name \}\);/);
     // The only number about people is how many are on ground right now, which the areas themselves say.
     expect(know).toMatch(/<Stat value=\{g\.people\} label="searching now" \/>/);
     expect(know).toMatch(/<Stat value=\{c\.walking\} label="walking now" \/>/);
