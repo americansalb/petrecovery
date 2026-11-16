@@ -1,13 +1,35 @@
 # PetRecovery.org CI/CD Pipeline
-# Runs on push to main and all pull requests
+#
+# What runs when (2026-11-16, after the account hit its Actions minutes and
+# was blocked: 168 runs in half a month, every pull request testing
+# everything twice):
+#
+#   a pull request into pet_main  everything: lint and types, unit tests,
+#                                 the game's Postgres checks, the security
+#                                 audit, and the production build with its
+#                                 startup and memory gate. A pull request
+#                                 is tested as merged with pet_main.
+#   a push to pet_main            the unit tests only. The pull request
+#                                 already ran the rest on the same merge;
+#                                 this catches two pull requests that pass
+#                                 alone and break together.
+#   "Run workflow" by hand        everything, plus the E2E job.
+#
+# A newer commit on the same pull request (or a newer push to pet_main)
+# stops the run it replaces: only the latest result is ever read.
 
 name: CI/CD
 
 on:
   push:
-    branches: [pet_main, report-wizard-v2]
+    branches: [pet_main]
   pull_request:
     branches: [pet_main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   NODE_VERSION: '22'
@@ -24,6 +46,8 @@ jobs:
   # Job 1: Lint and Type Check
   lint:
     name: Lint & Type Check
+    # Not on a push to pet_main: its pull request already ran this (see the top).
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -103,6 +127,8 @@ jobs:
   # Isolated PostgreSQL: never credentials or network access to the live DB.
   geo-postgres:
     name: Game PostgreSQL release checks
+    # Not on a push to pet_main: its pull request already ran this (see the top).
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -142,6 +168,8 @@ jobs:
   # Job 3: Build
   build:
     name: Build Application
+    # Not on a push to pet_main: its pull request already ran this (see the top).
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     needs: [lint, test, geo-postgres, security]
     services:
@@ -177,6 +205,16 @@ jobs:
         working-directory: frontend
         run: npx prisma generate
 
+      # The build is half of every run's minutes. Next keeps its compiled
+      # output in .next/cache and reuses what has not changed.
+      - name: Restore the Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: frontend/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}-
+
       - name: Build application
         working-directory: frontend
         env:
@@ -199,7 +237,11 @@ jobs:
           GEO_DATABASE_URL: postgresql://launchqa:local-launch-qa-only@localhost:55439/probablyearth_launch_qa
         run: node scripts/production-memory-smoke.js
 
+      # Only the E2E job reads this, and it runs only by hand. Uploaded on
+      # every run it was hundreds of MB kept for a week each time, which
+      # counts against the account's Actions storage.
       - name: Upload build artifacts
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: build-output
@@ -210,12 +252,16 @@ jobs:
           include-hidden-files: true
           retention-days: 7
 
-  # Job 4: E2E Tests (runs on main branch only)
+  # Job 4: E2E Tests, by hand only ("Run workflow" on the Actions tab). It
+  # ran after every merge into pet_main, installing browsers each time, for
+  # a Playwright suite that is non-blocking and has never passed without a
+  # seeded database; the boot it checks is already the build job's startup
+  # gate, which runs on every pull request.
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/pet_main'
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -280,6 +326,8 @@ jobs:
   # Job 6: Security Scan
   security:
     name: Security Scan
+    # Not on a push to pet_main: its pull request already ran this (see the top).
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
