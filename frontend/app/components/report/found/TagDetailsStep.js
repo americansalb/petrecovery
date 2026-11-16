@@ -11,6 +11,14 @@ import { Plus } from 'lucide-react';
 import BreedSelector from '../../BreedSelector';
 import { GENERIC_SIZE_OPTIONS, WIZARD_THEMES } from '../wizardTheme';
 
+/**
+ * The most "Anything distinctive?" holds. It becomes the found pet's
+ * description on the report page and its lines on the flyer, and had no
+ * limit: 3,090 letters went through and were shown. Typing or pasting stops
+ * here, and the count shows once it is close.
+ */
+export const MARKS_MAX = 500;
+
 export default function TagDetailsStep({
   variant = 'found',
   species,
@@ -92,11 +100,17 @@ export default function TagDetailsStep({
         <textarea
           id="tag-marks"
           value={value.marks || ''}
-          onChange={(e) => set({ marks: e.target.value })}
+          onChange={(e) => set({ marks: e.target.value.slice(0, MARKS_MAX) })}
+          maxLength={MARKS_MAX}
           rows={3}
           placeholder="Red collar, white paws, very friendly, favors one leg…"
           className={`w-full px-4 py-3.5 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors resize-none leading-relaxed ${theme.focusRing}`}
         />
+        {(value.marks || '').length > MARKS_MAX - 100 && (
+          <p className="text-xs text-midnight-400 mt-1.5 text-right tabular-nums">
+            {(value.marks || '').length} of {MARKS_MAX} letters
+          </p>
+        )}
       </div>
 
       <div>

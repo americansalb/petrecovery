@@ -24,6 +24,49 @@ export function contactIsValid(value, mode) {
   return isValidEmail(value.email);
 }
 
+/**
+ * The phone finders call, for an owner who is signed in: their email is the
+ * account's, so this is the one thing the report still needs to reach them.
+ * The flyer tells whoever sees the pet to call, so it is asked every time,
+ * prefilled with the account's number when it has one.
+ */
+export function OwnerPhoneField({ value, onChange, onSubmit, variant = 'lost', hint }) {
+  const theme = WIZARD_THEMES[variant];
+  const ok = isValidPhone(value);
+  return (
+    <div>
+      <label htmlFor="owner-phone" className="block text-sm font-semibold text-midnight-700 mb-1.5">
+        Phone
+      </label>
+      <div className="relative">
+        <Phone size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-midnight-300" />
+        <input
+          id="owner-phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && ok && onSubmit) {
+              e.preventDefault();
+              onSubmit();
+            }
+          }}
+          enterKeyHint="done"
+          placeholder="(555) 123-4567"
+          autoFocus
+          className={`w-full pl-10 pr-10 py-3.5 bg-white border-2 rounded-2xl outline-none transition-colors ${
+            value && !ok ? 'border-red-300' : `border-midnight-100 ${theme.focusRing}`
+          }`}
+        />
+        {ok && <Check size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500" />}
+      </div>
+      {hint && <p className="text-xs text-midnight-400 mt-1.5">{hint}</p>}
+    </div>
+  );
+}
+
 export default function ContactFields({
   value, // { firstName, method: 'email'|'phone', email, phone }
   onChange,

@@ -18,10 +18,25 @@ import {
   getFilteredSightings,
 } from '@/app/lib/missionControl/ownerHub';
 import { ensureMissionControl } from '@/app/lib/missionControl/ensure';
+import { ownerByKey } from '@/app/lib/ownerKey';
+
+/**
+ * Who is asking, as the id each action checks against the report's own account: the signed-in account, or,
+ * for a request that holds the owner's key to this one search (app/lib/ownerKey.js), the account the report
+ * was filed to. That is how someone who reported without an account is the owner, and the same rule Mission
+ * Control uses (app/lib/searcher.js). The key opens this search and nothing else of the account, and every
+ * action below still refuses anyone who is not the report's owner.
+ */
+async function asking(request, missionId) {
+  const session = await getServerSession(authOptions);
+  const byKey = await ownerByKey(request, missionId);
+  const id = byKey?.userId || session?.user?.id || null;
+  return id ? { user: { id } } : null;
+}
 
 export async function GET(request, { params }) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await asking(request, params.missionId);
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -74,7 +89,7 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await asking(request, params.missionId);
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },

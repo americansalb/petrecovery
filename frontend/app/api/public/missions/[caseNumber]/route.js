@@ -21,6 +21,7 @@ import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import { withRateLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
+import { holdsOwnerKey } from '@/app/lib/ownerKey';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -87,6 +88,9 @@ export async function GET(request, { params }) {
         resolvedAt: true,
         // Owner/Reporter info
         reporterId: true,
+        // The owner's key (app/lib/ownerKey.js): only to tell whether the person asking holds it. Never sent.
+        ownerKeyHash: true,
+        ownerKeyAt: true,
         ownerName: true,
         ownerPhone: true,
         // ownerEmail is deliberately NOT selected: this route is public, and a
@@ -161,7 +165,9 @@ export async function GET(request, { params }) {
     const city = parsedPlace?.city || 'Unknown';
     const state = parsedPlace?.state || 'XX';
 
-    // Who is asking, only to say whether this is their own pet. Nobody signed in is nobody's owner.
+    // Who is asking, only to say whether this is their own pet. The same rule as Mission Control's
+    // (searcherFor, app/lib/searcher.js): the account the report was filed to, or whoever holds the owner's key
+    // to this one search, which is how someone who reported without an account is the owner (app/lib/ownerKey.js).
     let viewerId = null;
     try {
       viewerId = (await getServerSession(authOptions))?.user?.id || null;
@@ -169,7 +175,7 @@ export async function GET(request, { params }) {
       // A page anyone may read: a session that cannot be read is nobody signed in.
       viewerId = null;
     }
-    const viewerIsOwner = Boolean(viewerId && viewerId === missionData.reporterId);
+    const viewerIsOwner = Boolean(viewerId && viewerId === missionData.reporterId) || holdsOwnerKey(request, missionData);
 
     // Build response
     const response = {

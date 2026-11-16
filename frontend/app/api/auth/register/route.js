@@ -8,6 +8,7 @@ import { sendVerificationEmail } from '@/app/lib/email';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { TERMS_OF_SERVICE_DOC } from '@/prisma/legal/terms-of-service';
+import { sendAccountExistsLink, EMAIL_HAS_ACCOUNT_MESSAGE } from '@/app/lib/passwordLink';
 
 const BASE_URL = getEmailBaseUrl();
 
@@ -259,22 +260,38 @@ export async function POST(request) {
     });
 
     if (existingUser) {
-      // SECURITY: Return generic message to prevent email enumeration
-      // Log without blocking response
+      // The address already has an account. Often it is the person's own, made by a lost pet report sent
+      // without signing in, with no password they know; this answer used to be a dead end ("Unable to create
+      // account"). The way on is the set-password link of /forgot-password (app/lib/passwordLink.js), sent to
+      // the address itself: whoever controls the inbox sets the password, and nobody gets into an account by
+      // typing its email. Nothing else changes here: no password, name or phone from this form is saved, and
+      // nothing riding along (a pet, a shelter, a force) is made. Every existing account is answered the same
+      // way, so this says nothing about how the account was made.
+      let linkSent = false;
+      try {
+        const { id, email: address, firstName: name } = existingUser;
+        linkSent = Boolean((await sendAccountExistsLink({ id, email: address, firstName: name }))?.success);
+      } catch (err) {
+        console.error('Failed to send the set-password link:', err);
+      }
       logEvent({
         event_type: 'auth.register_failed',
         correlation_id: correlationId,
         resource_type: 'user',
+        resource_id: existingUser.id,
         action: 'create',
         result: 'failure',
         error_code: 'EMAIL_EXISTS',
-        error_message: 'Email already registered',
-        metadata: { email_prefix: normalizedEmail.substring(0, 3) }
+        error_message: 'Email already registered; set-password link sent',
+        metadata: { email_prefix: normalizedEmail.substring(0, 3), link_sent: linkSent }
       }).catch(() => {});
 
       return NextResponse.json(
-        { error: 'Unable to create account. Please try again or use a different email.' },
-        { status: 400 }
+        {
+          error: EMAIL_HAS_ACCOUNT_MESSAGE,
+          code: 'EMAIL_HAS_ACCOUNT',
+        },
+        { status: 409 }
       );
     }
 

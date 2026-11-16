@@ -14,8 +14,52 @@
  */
 
 import { SPECIES_ICONS } from './wizardTheme';
+import { planSheet, PAGES, fitInter } from '@/app/lib/cascade/render/flyers/plan';
 
 const BASE_W = 350;
+
+/**
+ * The line beside LOST, fitted the way the printed sheet fits it
+ * (cascade/render/flyers/Flyer.jsx): Inter at 26pt on a Letter sheet,
+ * shrunk to fit its box down to 14pt, then up to two lines broken at spaces,
+ * and only past two lines cut with an ellipsis. The preview used to cut it
+ * at one line ("Senor Bigotes de la Ca...") under "This is what gets
+ * printed", while the sheet printed the whole name.
+ */
+export const NAME_PT = { base: 26, min: 14 };
+const nameBoxes = {};
+/** The width of the box beside the band on the printed Letter sheet, in pt, for LOST or FOUND. */
+function printedNameBox(word) {
+  if (!(word in nameBoxes)) {
+    let w = 0;
+    try {
+      w = planSheet(PAGES.LETTER, null, { k: 1, tabs: true, stamp: word, words: {} }).nameW;
+    } catch {
+      w = 0;
+    }
+    nameBoxes[word] = Number.isFinite(w) && w > 0 ? w : 200;
+  }
+  return nameBoxes[word];
+}
+
+/**
+ * How the preview sets the line beside the band: { scale, boxEm }. `scale`
+ * is the printed size over the full size (1 for a short name), and `boxEm`
+ * is the printed box in the line's own ems, so it breaks where the sheet does.
+ */
+export function fitNameLine(text, word = 'LOST') {
+  const box = printedNameBox(word);
+  const pt = fitInter(text, box, NAME_PT.base, NAME_PT.min);
+  return { scale: pt / NAME_PT.base, boxEm: box / pt };
+}
+
+/** "Max, a dog", or "Senor Bigotes, a chihuahua": the line the printed sheet puts beside LOST. */
+export function coverLine({ petName, breed, word }) {
+  const name = (petName || '').trim();
+  const b = String(breed || '').trim();
+  const kind = b && !/^unknown\b/i.test(b) ? b.toLowerCase() : word;
+  return name ? `${name}, ${/^[aeiou]/i.test(kind) ? 'an' : 'a'} ${kind}` : `A ${kind}`;
+}
 const INK = '#4a2512';
 const CREAM = '#fffbea';
 const LEMON = '#ffe566';
@@ -47,6 +91,7 @@ export default function FlyerPreview({
   variant = 'lost',
   species,
   petName,
+  breed, // the cover line names the breed when the report has one, as the printed sheet does
   photoUrl,
   pills = [],
   when,
@@ -65,7 +110,8 @@ export default function FlyerPreview({
   const word = SPECIES_WORD[sp] || 'pet';
   const Icon = SPECIES_ICONS[word === 'pet' ? 'other' : word] || SPECIES_ICONS.other;
   const name = (petName || '').trim();
-  const title = name ? `${name}, a ${word}` : `A ${word}`;
+  const title = coverLine({ petName: name, breed, word });
+  const fit = fitNameLine(title, stamp.word);
   const who = name || `this ${word}`;
   const seen = [when, where].filter(Boolean).join(', ');
   const phoneText = formatPhone(phone);
@@ -110,7 +156,22 @@ export default function FlyerPreview({
           {stamp.word}
         </span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25em', minWidth: 0 }}>
-          <span style={{ fontSize: '1.125em', fontWeight: 800, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+          <span
+            style={{
+              fontSize: `${(1.125 * fit.scale).toFixed(4)}em`,
+              fontWeight: 800,
+              lineHeight: 1.05,
+              maxWidth: `${fit.boxEm.toFixed(3)}em`,
+              overflowWrap: 'normal',
+              wordBreak: 'normal',
+              display: '-webkit-box',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+              overflow: 'hidden',
+            }}
+          >
+            {title}
+          </span>
           {pills.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25em' }}>
               {pills.map((p) => (
