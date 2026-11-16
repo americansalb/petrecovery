@@ -660,8 +660,10 @@ async function main() {
   }
 
   // ---- Forum (hub) ----
+  // 'lost-pet-support' is the slug the production seeds (seed-rescue-hub.js, seed-forum-content.js) use and the
+  // one /hub lists (app/hub/page.js). Any other slug makes the demo thread invisible on /hub.
   const catDefs = [
-    ['Lost Pet Help', 'lost-pet-help', 'Tips and coordination for active lost pet searches', '🆘', '#ef4444'],
+    ['Lost Pet Support', 'lost-pet-support', 'Tips and coordination for active lost pet searches', '🆘', '#ef4444'],
     ['Success Stories', 'success-stories', 'Reunions and happy endings', '🎉', '#10b981'],
     ['General Discussion', 'general', 'Everything else pets', '💬', '#6366f1'],
   ];
@@ -671,7 +673,7 @@ async function main() {
     forumCats[slug] = await prisma.forumCategory.upsert({
       where: { slug },
       update: {},
-      create: { name, slug, description, icon, color, displayOrder: i, threadCount: slug === 'lost-pet-help' ? 1 : 0 },
+      create: { name, slug, description, icon, color, displayOrder: i, threadCount: slug === 'lost-pet-support' ? 1 : 0 },
     });
   }
   let thread = await prisma.forumThread.findFirst({ where: { slug: 'tips-for-shy-cats-hiding-nearby' } });
@@ -680,7 +682,7 @@ async function main() {
       data: {
         title: 'Tips for shy cats hiding nearby - what worked for you?',
         slug: 'tips-for-shy-cats-hiding-nearby',
-        categoryId: forumCats['lost-pet-help'].id,
+        categoryId: forumCats['lost-pet-support'].id,
         authorId: sarah.id,
         content:
           'My orange tabby Whiskers slipped out two nights ago. I know indoor cats usually hide within a few houses. What actually worked to lure yours out? Humane trap? Sock trail? Sitting outside at 2am with tuna?',
@@ -718,6 +720,10 @@ async function main() {
         content: 'Trail camera pointed at a feeding station tells you if she is still in the area before you commit to trapping.',
       },
     });
+  } else if (thread.categoryId !== forumCats['lost-pet-support'].id) {
+    // A database seeded before the slug was fixed has the thread under the old slug, lost-pet-help, which /hub never lists.
+    thread = await prisma.forumThread.update({ where: { id: thread.id }, data: { categoryId: forumCats['lost-pet-support'].id } });
+    await prisma.forumCategory.update({ where: { id: forumCats['lost-pet-support'].id }, data: { threadCount: { increment: 1 } } });
   }
   for (const u of [admin, sarah, mike]) {
     await prisma.forumProfile.upsert({

@@ -190,7 +190,7 @@ Static segment card in `app/hub/layout.js`.
 
 | route | purpose | client/server | auth | dynamic params & source |
 |---|---|---|---|---|
-| `/dashboard` | User dashboard: my missions, my forces (with pets missing in each area), pets missing in my forces' areas ("Help find"), help nearby. Every pet opens its page (`/cases/…`); only "Search underway" (a walk being recorded) opens Mission Control | client | logged-in (middleware + client) | — |
+| `/dashboard` | User dashboard: my missing pets first (saved profiles with an open report, and lost reports made with no saved profile), my forces (with pets missing in each area), searches I joined (through a force's assignment, or on the search screen: an area I went out on, or the search I joined from the pet's link signed in, with how many areas I searched), pets missing in my forces' areas ("Help find"), help nearby. Every pet opens its page (`/cases/…`); a missing pet's "Open search" and "Search underway" (a walk being recorded) open Mission Control | client | logged-in (middleware + client) | — |
 | `/profile` | User profile view/edit + sign out | client | logged-in (redirect) | — |
 | `/settings` | Settings hub with tabs (`force-dynamic`) | client | logged-in (middleware + client) | optional tab query |
 | `/settings/accounts` | Linked social accounts (Google/Facebook/Apple) | client | logged-in | — |
@@ -354,7 +354,7 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 | `missions/[missionId]/share/route.js` | POST | Record a share + notify owner | session | case, notification, shareEvent |
 | `missions/[missionId]/share-stats/route.js` | GET | Share counts | **public** | case, shareEvent |
 | `missions/[missionId]/sightings/route.js` | GET, POST | The older sightings route. GET: owner, force or staff (`mayKnowThePeople`), 200 at most, reporter by first name, no `reportedById` or `witnessKeyHash`. POST is switched off (410): a sighting is sent from the pet's own page (`public/missions/[caseNumber]/sighting`) | GET owner/force/staff | case, caseSighting |
-| `missions/[missionId]/status/route.js` | POST | Change case status; REUNITED also posts "Max is home" in every force's Discussion (`app/lib/forceFeed.js`) | session | case, missionControl, caseAssignment, squadPost |
+| `missions/[missionId]/status/route.js` | POST | Change case status; REUNITED also posts "Max is home" in every force's Discussion (`app/lib/forceFeed.js`). REUNITED or CLOSED_OTHER ends the search (`app/lib/searchEnd.js`): one bell notice (CASE_UPDATE) to every account that helped (the search's roster, whoever sent a sighting, a force assignment's participants) and to the members of the forces looking, never the owner or whoever made the change; every visit still open is closed with outcome ENDED, and the thank-you screen counts everyone who went out on an area | session | case, caseAssignment, squadPost, searchZoneVisit, missionVolunteer, searchZone, caseSighting, caseParticipant, rescueForceMember, notification |
 | `missions/[missionId]/tasks/route.js` | GET, POST | Case squad-tasks. GET: owner, force or staff (`mayKnowThePeople`), people by first name, no account ids (it took no sign-in until 2026-11-12). POST: owner, staff or a leader of the force | GET owner/force/staff; POST session | case, caseUpdate, rescueForceMember, squadTask |
 | `missions/bulk/route.js` | POST | Bulk case operations | session | case |
 | `missions/my-feed/route.js` | GET | Feed from my squads' assigned cases; the owner is a first name. Nothing calls it | session | caseAssignment, rescueForceMember |
@@ -1035,7 +1035,7 @@ Plus: 2 `CaseSighting` on `AUS-2026-0001` (sarah @ Barton Creek Greenbelt trailh
 
 **Rescue Force** (table `RescueSquad`): **Austin Rescue Force** — Austin TX 78704, zips `["78701","78704","78751"]`, CITYWIDE, center 30.2672/-97.7431, r=15mi, VETERAN, 4350 squadPoints, badges `["first_reunion","night_owls"]`, 17 reunions. Divisions `North Austin` / `South Austin`. Members: admin=FOUNDER (no division), sarah=LEADER (North), mike=MEMBER (South), david=MEMBER (North). `CaseAssignment` Max's case → force (ACTIVE) with `CaseParticipant` rows for admin/sarah/mike; 3 `SquadActivity`; 2 `SquadTask` ("Search Barton Creek Greenbelt east entrance" SEARCH_AREA/HIGH/IN_PROGRESS → sarah; "Call Austin Animal Center" SHELTER_CHECK/AVAILABLE); 1 `SquadPost` by sarah + 1 comment by mike, plus a search party for Max next Saturday at 9 (sarah and david going), a sighting (mike), a question (david) and a hello (admin), and sarah's pinned announcement "How we search. Read this first." Neighboring sample forces: Round Rock (outline), Pflugerville, Cedar Park.
 
-**Hub**: categories `lost-pet-help`, `success-stories`, `general` (deterministic slugs); thread **`tips-for-shy-cats-hiding-nearby`** by sarah in `lost-pet-help` (URGENT, geo-tagged Austin); 2 replies; `ForumProfile` for admin/sarah/mike (trust 2, reputation 120).
+**Hub**: categories `lost-pet-support`, `success-stories`, `general` (deterministic slugs; `lost-pet-support` is the slug the production seeds use and `/hub` lists); thread **`tips-for-shy-cats-hiding-nearby`** by sarah in `lost-pet-support` (URGENT, geo-tagged Austin); 2 replies; `ForumProfile` for admin/sarah/mike (trust 2, reputation 120).
 
 **Conversation**: links `AUS-2026-0001` ↔ `AUS-2026-0003` (owner=admin, finder=mike, matchScore 92) with 3 messages. **Shelters**: Austin Animal Center (7201 Levander Loop, 78702) and Austin Pets Alive! (1156 W Cesar Chavez St, 78703, `isNoKill=true`), both verified. **Alerts/notifications**: one `Alert` for admin on `AUS-2026-0002` (EMAIL, delivered+opened); two `Notification` for admin (SIGHTING unread with `actionUrl: /missions/AUS-2026-0001`; SQUAD_MESSAGE read).
 
@@ -1054,7 +1054,7 @@ Prisma table naming: most models have no `@@map`, so Postgres tables are quoted 
 | `/pets/view/[token]` | publicViewToken (≥16 chars) | `SELECT "publicViewToken" FROM "Pet" WHERE name = 'Max';` |
 | `/admin/pets/[id]` | Pet.id | `SELECT id FROM "Pet" WHERE name = 'Luna';` |
 | `/admin/users/[id]` | User.id | `SELECT id FROM "User" WHERE email = 'sarah@localdev.test';` |
-| `/hub/c/[slug]` | ForumCategory.slug | `SELECT slug FROM "ForumCategory" ORDER BY "displayOrder";` → `lost-pet-help`, `success-stories`, `general` |
+| `/hub/c/[slug]` | ForumCategory.slug | `SELECT slug FROM "ForumCategory" ORDER BY "displayOrder";` → `lost-pet-support`, `success-stories`, `general` |
 | `/hub/thread/[slug]` | ForumThread.slug | `'tips-for-shy-cats-hiding-nearby'` (only deterministic slug) |
 | `/hub/u/[id]` | User.id with ForumProfile | `SELECT "userId" FROM "ForumProfile" fp JOIN "User" u ON u.id = fp."userId" WHERE u.email = 'admin@localdev.test';` |
 | `/messages/[id]` | Conversation.id | `SELECT c.id FROM "Conversation" c JOIN "Case" k ON k.id = c."lostCaseId" WHERE k."caseNumber" = 'AUS-2026-0001';` |

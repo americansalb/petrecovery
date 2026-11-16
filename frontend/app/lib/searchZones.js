@@ -74,6 +74,9 @@ export const ZONE_ACTIONS = ['claim', 'release', 'searched'];
  * from the desk (outcome MARKED, untimed). An area's `history` is its last
  * few, newest first, and the screen works out from them how much a search
  * still counts for (app/mission-control/lib/ground.js, searchStrength).
+ * A visit still open when the pet came home or the search was closed is
+ * ended then with outcome ENDED (app/lib/searchEnd.js): it is not a
+ * search of the area, and the person still counts on the thank-you screen.
  */
 export const COVERED = ['ALL', 'MOST', 'PART'];
 /** How many searches of one area the board sends. */
@@ -892,11 +895,19 @@ export async function zoneSearchersSince(caseId, since) {
   return (rows || []).map((r) => r.searcherId);
 }
 
-/** For the thank-you screen: how many areas were searched at least once, and by whom. { areas, people: [searcher id] } */
+/**
+ * For the thank-you screen: how many areas were searched, and by whom. { areas, people: [searcher id] }
+ *
+ * Everyone who went out on an area searched it as far as they got: someone who said "I searched it", and
+ * someone still on it when the pet came home (the search's end closes that visit as ENDED, app/lib/searchEnd.js),
+ * or who stopped part way. An area counts once anyone went out on it, or once it was put down as searched from
+ * the desk. An ask nobody started is not a search.
+ */
 export async function zoneGroundCovered(caseId) {
+  const went = { startedAt: { not: null } };
   const [areas, visits] = await Promise.all([
-    prisma.searchZone.count({ where: { caseId, searchCount: { gt: 0 } } }).catch(() => 0),
-    prisma.searchZoneVisit.findMany({ where: { caseId, outcome: 'SEARCHED' }, select: { searcherId: true } }).catch(() => []),
+    prisma.searchZone.count({ where: { caseId, OR: [{ searchCount: { gt: 0 } }, { visits: { some: went } }] } }).catch(() => 0),
+    prisma.searchZoneVisit.findMany({ where: { caseId, ...went }, select: { searcherId: true } }).catch(() => []),
   ]);
   return { areas, people: (visits || []).map((v) => v.searcherId) };
 }

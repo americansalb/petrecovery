@@ -490,13 +490,24 @@ describe('searchPicture: after the pet is home', () => {
   test('the areas of ground that were searched, and whether some of it was this person\'s', async () => {
     prisma.case.findFirst.mockResolvedValue(pet({ status: 'REUNITED', resolvedAt: ago(1) }));
     prisma.searchZone.count.mockResolvedValue(3);
-    // Four searches of three areas by two people. Ground put down as searched from the desk is no visit of anyone's.
-    prisma.searchZoneVisit.findMany.mockImplementation(async ({ where }) => (where.outcome === 'SEARCHED' ? [{ searcherId: 'v:vol-1' }, { searcherId: 'v:vol-1' }, { searcherId: 'user-sarah' }, { searcherId: 'user-sarah' }] : []));
+    // Four visits to three areas by two people: searched, or still on it when the pet came home. Ground put down
+    // as searched from the desk is no visit of anyone's.
+    prisma.searchZoneVisit.findMany.mockImplementation(async ({ where }) => (where.startedAt ? [{ searcherId: 'v:vol-1' }, { searcherId: 'v:vol-1' }, { searcherId: 'user-sarah' }, { searcherId: 'user-sarah' }] : []));
     const mine = await searchPicture('case-max', { searcher: HELPER, now: NOW });
     expect(mine).toMatchObject({ open: false, reunited: true, searched: { areas: 3, streets: 0, blocks: 0, people: 2, mine: true } });
-    expect(prisma.searchZone.count).toHaveBeenCalledWith({ where: { caseId: 'case-max', searchCount: { gt: 0 } } });
+    expect(prisma.searchZone.count).toHaveBeenCalledWith({ where: { caseId: 'case-max', OR: [{ searchCount: { gt: 0 } }, { visits: { some: { startedAt: { not: null } } } }] } });
     const stranger = await searchPicture('case-max', { now: NOW });
     expect(stranger.searched).toEqual({ areas: 3, streets: 0, blocks: 0, people: 2, mine: false });
+  });
+
+  test('the owner searching their own pet\'s ground is not counted among the people who helped, and is not thanked as one', async () => {
+    prisma.case.findFirst.mockResolvedValue(pet({ status: 'REUNITED', resolvedAt: ago(1) }));
+    prisma.searchZone.count.mockResolvedValue(3);
+    prisma.searchZoneVisit.findMany.mockImplementation(async ({ where }) => (where.startedAt ? [{ searcherId: 'v:vol-1' }, { searcherId: 'user-sarah' }, { searcherId: 'user-avery' }] : []));
+    const owner = await searchPicture('case-max', { searcher: OWNER, now: NOW });
+    expect(owner.searched).toEqual({ areas: 3, streets: 0, blocks: 0, people: 2, mine: false });
+    const helper = await searchPicture('case-max', { searcher: HELPER, now: NOW });
+    expect(helper.searched).toEqual({ areas: 3, streets: 0, blocks: 0, people: 2, mine: true });
   });
 
   test('a search from before it was on areas: the streets that were walked, and whether some of it was this person\'s', async () => {

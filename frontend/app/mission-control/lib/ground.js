@@ -14,6 +14,7 @@
  */
 import { RING, inWords, inArea, rankAreas } from '@/app/lib/searchCircle';
 import { distanceMeters } from '@/app/lib/searchGrid';
+import { wholeDays } from '@/app/lib/elapsed';
 import { agoWords, clockTime, placeWords } from './words';
 import { activity, directionWord, durationWords, metersWords, whenWords } from './insight';
 import { outLong, unanswered } from './team';
@@ -29,6 +30,23 @@ export const circleAreas = (areas = []) => areas.filter((a) => !isSeenCircle(a))
 /** An area's name inside a sentence ("the west side") and at the start of one ("The west side"). */
 export const areaName = (area) => inWords(area?.name || area?.title);
 export const AreaName = (area) => capital(areaName(area));
+
+/**
+ * An area's name in a list of areas: its own name, and for the circle
+ * round a sighting, when the pet was seen and where, from the sighting
+ * itself ("Where Whiskers was seen at 9:40 pm on Burnet Rd"). Every such
+ * circle is "Where Whiskers was seen", so without the time and the place
+ * the owner cannot tell one 50 m away from one across town. `sightings`
+ * are the picture's ({ id, at, place }); the board's own `sightingAt` is
+ * the time where the picture does not carry the sighting.
+ */
+export function listName(area, { sightings = [], timeZone, now = Date.now() } = {}) {
+  const name = area?.name || area?.title || '';
+  if (!isSeenCircle(area)) return name;
+  const seen = (sightings || []).find((s) => s.id === area.sightingId) || null;
+  const at = seen?.at || area.sightingAt || null;
+  return [name, at ? whenWords(at, timeZone, now) : '', placeWords(seen?.place)].filter(Boolean).join(' ');
+}
 
 /** The short name written on the map: "Middle", "North", "Far north-east". A sighting's circle is named by the sighting's own mark. */
 export function mapLabel(area) {
@@ -126,7 +144,8 @@ export function agoShort(at, now = Date.now()) {
   if (ms < 2 * 60 * 1000) return 'just now';
   if (ms < HOUR_MS) return `${Math.round(ms / 60000)} min ago`;
   if (ms < 24 * HOUR_MS) return `${Math.round(ms / HOUR_MS)} h ago`;
-  const days = Math.floor(ms / (24 * HOUR_MS));
+  // Whole days, as the Ground list and the pet's page count them (app/lib/elapsed.js).
+  const days = wholeDays(ms);
   return days === 1 ? 'yesterday' : `${days} days ago`;
 }
 

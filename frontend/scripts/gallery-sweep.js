@@ -60,7 +60,7 @@ const PUB = [
   ['pub-20-pet-public-view', `/pets/view/${ID.petMaxToken}`],
   ['pub-21-hub', '/hub'],
   ['pub-22-hub-search', '/hub/search?q=lost'],
-  ['pub-23-hub-category', '/hub/c/lost-pet-help'],
+  ['pub-23-hub-category', '/hub/c/lost-pet-support'],
   ['pub-24-hub-thread', `/hub/thread/${ID.threadSlug}`],
   ['pub-25-hub-user', `/hub/u/${ID.adminId}`],
   ['pub-26-report-public-mission', `/reports/${ID.maxCaseId}`],

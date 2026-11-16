@@ -118,6 +118,23 @@ export default function DashboardPage() {
   const missingPets = pets
     .filter((p) => p.missing)
     .map((p) => ({ ...p, mission: missionById.get(p.missing.caseId) || null }));
+  /* Every pet of this person's that is still missing: their saved animals,
+     and the lost reports they made for a pet with no saved profile (most
+     owners report first and never add one). Without the reports an owner
+     who reported Pip opened this page to nothing about Pip. */
+  const listed = new Set(missingPets.map((p) => p.missing.caseId));
+  const missingNow = [
+    ...missingPets.map((p) => ({
+      key: p.id, name: p.name, photo: p.primaryPhotoUrl, caseNumber: p.missing.caseNumber,
+      hoursMissing: p.missing.hoursMissing, mission: p.mission,
+    })),
+    ...missions
+      .filter((m) => m.isOwner && !listed.has(m.id) && m.missionNumber)
+      .map((m) => ({
+        key: m.id, name: m.petName || 'Your pet', photo: m.petPhotoUrl, caseNumber: m.missionNumber,
+        hoursMissing: m.hoursMissing, mission: m,
+      })),
+  ];
   const helping = missions.filter((m) => !m.isOwner);
   const urgentNearby = nearbyAlerts.filter((a) => (parseInt(a.hoursMissing, 10) || 999) < 48);
 
@@ -184,8 +201,8 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-[26px] leading-tight font-black text-midnight-900">Hi, {firstName}</h1>
             <p className="text-[15px] text-midnight-500 mt-1">
-              {missingPets.length > 0
-                ? `${missingPets.length === 1 ? missingPets[0].name : `${missingPets.length} of your animals`} still isn't home.`
+              {missingNow.length > 0
+                ? missingNow.length === 1 ? `${missingNow[0].name} still isn't home.` : `${missingNow.length} of your animals still aren't home.`
                 : pets.length > 0
                   ? `Everyone's home. ${pets.length} ${pets.length === 1 ? 'animal' : 'animals'} in your care.`
                   : 'Add your animals so they are ready if they ever go missing.'}
@@ -196,20 +213,23 @@ export default function DashboardPage() {
               competing primaries at the top is how a page loses its point. */}
         </div>
 
-        {/* A missing animal outranks the whole page */}
-        {missingPets.map((p) => (
-          <Link
-            key={p.id}
-            href={`/cases/${encodeURIComponent(p.missing.caseNumber)}`}
+        {/* A missing animal outranks the whole page. The card opens the
+            pet's page; its button opens the search itself. */}
+        {missingNow.map((p) => (
+          <div
+            key={p.key}
             /* On a phone the headline needs the full width, so the action
                drops to its own full-width row instead of squeezing the
                sentence into three lines beside it. */
-            className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border-2 border-red-200 bg-red-50/60 px-5 py-4 hover:bg-red-50 transition group"
+            className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border-2 border-red-200 bg-red-50/60 px-5 py-4"
           >
-            <div className="flex items-center gap-4 min-w-0 basis-full sm:basis-auto sm:flex-1">
-              {p.primaryPhotoUrl ? (
+            <Link
+              href={`/cases/${encodeURIComponent(p.caseNumber)}`}
+              className="flex items-center gap-4 min-w-0 basis-full sm:basis-auto sm:flex-1 rounded-lg hover:opacity-90 transition"
+            >
+              {p.photo ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.primaryPhotoUrl} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0 ring-2 ring-red-200" />
+                <img src={p.photo} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0 ring-2 ring-red-200" />
               ) : (
                 <span className="w-14 h-14 rounded-xl bg-white flex items-center justify-center shrink-0 ring-2 ring-red-200">
                   <PawPrint className="w-6 h-6 text-red-400" />
@@ -217,11 +237,11 @@ export default function DashboardPage() {
               )}
               <div className="min-w-0">
                 <p className="font-black text-midnight-900 text-[17px] leading-tight">
-                  {p.name} has been missing {elapsed(p.missing.hoursMissing)}
+                  {p.name} has been missing {elapsed(p.hoursMissing)}
                 </p>
                 <p className="text-sm text-midnight-600 mt-0.5">
                   {[
-                    `Mission ${p.missing.caseNumber}`,
+                    `Mission ${p.caseNumber}`,
                     p.mission?.sightings > 0
                       ? `${p.mission.sightings} sighting${p.mission.sightings === 1 ? '' : 's'}`
                       : 'no sightings yet',
@@ -231,11 +251,14 @@ export default function DashboardPage() {
                   ].filter(Boolean).join(' · ')}
                 </p>
               </div>
-            </div>
-            <span className="w-full sm:w-auto justify-center text-sm font-bold text-white bg-red-600 group-hover:bg-red-700 px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5 shrink-0 transition">
+            </Link>
+            <Link
+              href={`/mission-control?mission=${encodeURIComponent(p.caseNumber)}`}
+              className="w-full sm:w-auto justify-center text-sm font-bold text-white bg-red-600 hover:bg-red-700 px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5 shrink-0 transition"
+            >
               Open search <ArrowRight className="w-4 h-4" />
-            </span>
-          </Link>
+            </Link>
+          </div>
         ))}
 
         {isNewcomer ? (
@@ -345,7 +368,7 @@ export default function DashboardPage() {
                       <Link key={m.id} href={`/cases/${encodeURIComponent(m.missionNumber || m.id)}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">
                         <p className="flex-1 min-w-0 text-sm text-midnight-700 truncate">
                           <span className="font-bold text-midnight-900">{m.petName}</span>
-                          {m.mySquad ? ` · with ${m.mySquad}` : ''}
+                          {m.mySquad ? ` · with ${m.mySquad}` : m.myAreas > 0 ? ` · you searched ${m.myAreas} ${m.myAreas === 1 ? 'area' : 'areas'}` : ''}
                         </p>
                         <span className="text-[13px] text-midnight-400 tabular-nums shrink-0">
                           missing {elapsed(m.hoursMissing)}

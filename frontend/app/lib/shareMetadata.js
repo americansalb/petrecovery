@@ -13,6 +13,7 @@
 
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import { getBaseUrl } from '@/app/lib/config';
+import { wholeDays } from '@/app/lib/elapsed';
 
 export const SITE_NAME = 'ReunitePets';
 
@@ -164,7 +165,8 @@ function missionCity(address) {
 
 function missionTimeMissing(lastSeenAt) {
   if (!lastSeenAt) return '';
-  const days = Math.floor((Date.now() - new Date(lastSeenAt).getTime()) / 86400000);
+  // Whole days, as the pet's page counts them (app/lib/elapsed.js).
+  const days = wholeDays(Date.now() - new Date(lastSeenAt).getTime());
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   return `${days} days ago`;

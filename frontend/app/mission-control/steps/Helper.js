@@ -38,7 +38,7 @@ import { PAWS } from '@/app/lib/trail';
 import { SAFETY_RULES, SAFETY_AGREEMENT, searchTraining } from '@/app/lib/safetyRules';
 import { Eyebrow, Heading, Lead, Note, Primary, Second, SeenButton, QuietLink, BottomRow, AdviceBlock, Problem, Pinned, Stamp } from '../components/kit';
 import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
-import { clockTime, lookingLine } from '../lib/words';
+import { lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 import { areaName, isSeenCircle, whereWords, whereShort, hazardLines } from '../lib/ground';
 import { missingFor, whenWords } from '../lib/insight';
@@ -689,15 +689,29 @@ export function Street({ picture, name, unit, mine, instrument, gps, onWalked, o
   );
 }
 
-/** The pet is home: everyone is told and thanked. */
-export function Home({ picture, name, owner, petHref }) {
+/**
+ * The search is over: everyone is told and thanked. The owner reads it as
+ * the person who marked their own pet home, with how many people helped
+ * them, and is not asked to sign up for alerts about other people's pets.
+ */
+export function Home({ picture, name, owner, petHref, now = Date.now() }) {
   const pet = picture.pet || {};
   const searched = picture.searched;
-  const at = picture.resolvedAt ? clockTime(picture.resolvedAt, picture.timeZone) : '';
+  const isOwner = Boolean(picture.viewer?.isOwner);
+  // "at 7:48 pm" today, "on Sat at 7:48 pm" this week, "on Nov 3" before that: a reunion two days ago says its day.
+  const at = picture.resolvedAt ? whenWords(picture.resolvedAt, picture.timeZone, now) : '';
+  const when = at ? ` ${at}` : '';
   // "3 areas", and "5 streets" or "2 blocks" beside it where the search began before it was on areas.
   const count = (n, word) => (n > 0 ? `${n} ${word}${n === 1 ? '' : 's'}` : '');
   const parts = searched && searched.people > 0 ? [count(searched.areas || 0, 'area'), count(searched.streets, 'street'), count(searched.blocks || 0, 'block')].filter(Boolean) : [];
   const ground = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0] || '';
+  const people = searched?.people === 1 ? '1 person' : `${searched?.people || 0} people`;
+  let lead;
+  if (isOwner) lead = picture.reunited ? `You marked ${name} home${when}. The search is over.` : `You closed this search${when}.`;
+  else lead = picture.reunited ? `${owner?.firstName || 'The owner'} marked ${name} home${when}. The search is over.` : `${owner?.firstName || 'The owner'} closed this search. Thank you for wanting to help.`;
+  let tally = '';
+  if (ground && isOwner) tally = `${people} helped you search ${ground}.`;
+  else if (ground) tally = searched.mine && searched.people === 1 ? `You searched ${ground}. Thank you.` : `${people} searched ${ground}.${searched.mine ? ' You were one of them. Thank you.' : ''}`;
   return (
     <div className="flex flex-1 flex-col">
       {pet.photoUrl && (
@@ -709,23 +723,19 @@ export function Home({ picture, name, owner, petHref }) {
           <Stamp kind={picture.reunited ? 'home' : 'closed'} />
         </div>
         <Heading className="mt-2 !text-[27px] !leading-8">{picture.reunited ? `${name} is home` : 'This search has ended'}</Heading>
-        <Lead className="mt-1.5">
-          {picture.reunited
-            ? `${owner?.firstName || 'The owner'} marked ${name} home${at ? ` at ${at}` : ''}. The search is over.`
-            : `${owner?.firstName || 'The owner'} closed this search. Thank you for wanting to help.`}
-        </Lead>
-        {ground && (
-          <p className="mt-4 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3 text-base font-semibold leading-[22px] text-[var(--mc-ink)]">
-            {searched.mine && searched.people === 1
-              ? `You searched ${ground}. Thank you.`
-              : `${searched.people === 1 ? '1 person' : `${searched.people} people`} searched ${ground}.${searched.mine ? ' You were one of them. Thank you.' : ''}`}
-          </p>
-        )}
+        <Lead className="mt-1.5">{lead}</Lead>
+        {tally && <p className="mt-4 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3 text-base font-semibold leading-[22px] text-[var(--mc-ink)]">{tally}</p>}
         <div className="mt-auto pt-6">
-          <Second href="/patrol/join">Alert me when a pet is lost near me</Second>
-          <div className="flex justify-center">
-            <QuietLink href={petHref}>Open {name}&apos;s page</QuietLink>
-          </div>
+          {isOwner ? (
+            <Second href={petHref}>Open {name}&apos;s page</Second>
+          ) : (
+            <>
+              <Second href="/patrol/join">Alert me when a pet is lost near me</Second>
+              <div className="flex justify-center">
+                <QuietLink href={petHref}>Open {name}&apos;s page</QuietLink>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -652,6 +652,7 @@ export default function CasePageClient() {
                 caseId={c.id}
                 caseNumber={caseRef}
                 signedIn={signedIn}
+                isOwner={isOwner}
                 lost={status.key === 'lost'}
                 room={room}
                 searchHref={missionHref}

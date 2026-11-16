@@ -744,7 +744,7 @@ function Screen({ mission }) {
     return (
       <div className="mc-dark mc-screen flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
-          <Home picture={picture} name={name} owner={owner} petHref={petHref} />
+          <Home picture={picture} name={name} owner={owner} petHref={petHref} now={now} />
         </div>
       </div>
     );

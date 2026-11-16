@@ -10,9 +10,9 @@
 import { speciesLabel } from '@/app/lib/species';
 import { PIN_ONLY_LABEL } from '@/app/lib/maps/reverseLabel';
 import { isCaseOpen } from '@/app/lib/caseStatus';
+import { wholeDays } from '@/app/lib/elapsed';
 
 const HOUR = 3600000;
-const DAY = 24 * HOUR;
 
 /** "Unknown" is a database value, not something to show a person. */
 export function known(value) {
@@ -70,8 +70,9 @@ export function casePlace(c) {
   return city ? [city, state].filter(Boolean).join(', ') : PIN_ONLY_LABEL;
 }
 
+// Whole days, as the search screen and the desk count them (app/lib/elapsed.js).
 function span(ms) {
-  const days = Math.floor(Math.max(0, ms) / DAY);
+  const days = wholeDays(ms);
   if (days >= 1) return `${days} ${days === 1 ? 'day' : 'days'}`;
   const hours = Math.max(1, Math.floor(Math.max(0, ms) / HOUR));
   return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
@@ -168,7 +169,7 @@ export function timeAgo(date, now = Date.now()) {
   if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
-  const days = Math.floor(hours / 24);
+  const days = wholeDays(now - t);
   if (days < 30) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
   return shortDate(t, now);
 }

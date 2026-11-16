@@ -223,13 +223,15 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
       zoneGroundCovered(pet.id),
     ]);
     const blocks = grid?.cells || [];
-    const who = [...ground.people, ...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter((id) => id && !isMark(id));
+    // The people who helped: the owner searching their own pet's ground is not one of them, as it is not in
+    // `looking`, so the owner reads how many helped them and a helper reads how many searched beside them.
+    const who = [...ground.people, ...streets.map((s) => s.searchedById), ...blocks.map((b) => b.searchedByKey || b.searchedById)].filter((id) => id && !isMark(id) && id !== pet.reporterId);
     searched = {
       areas: ground.areas,
       streets: streets.length,
       blocks: blocks.length,
       people: new Set(who).size,
-      mine: Boolean(searcher && who.includes(searcher.id)),
+      mine: Boolean(searcher && !isOwner && who.includes(searcher.id)),
     };
   }
 

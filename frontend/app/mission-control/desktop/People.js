@@ -28,7 +28,7 @@ import { clockTime } from '../lib/words';
 import { rankAreas } from '@/app/lib/searchCircle';
 import { lookFirst } from '../lib/insight';
 import { grouped, outLong, personLine, shortTitle } from '../lib/team';
-import { areaName, areaState, forAnyoneElse } from '../lib/ground';
+import { areaName, areaState, forAnyoneElse, listName } from '../lib/ground';
 
 const NOTE_MAX = 140;
 const BUTTON =
@@ -139,6 +139,8 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
     });
   const thread = words.filter((w) => (w.fromDesk ? w.toHandle : w.fromHandle) === person.handle);
   const canGive = leads && (unit === 'street' || ground) && person.state !== 'walking' && !person.asked;
+  // The area they were asked for, as the lists name it.
+  const askedArea = ground && person.asked ? items.find((i) => i.id === person.asked.id) || null : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
@@ -158,7 +160,7 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
           <p className="text-[13px] font-bold leading-[18px] text-[var(--mc-muted)]">
             {person.on?.id === person.asked.id ? (ground ? 'Searching what was asked' : 'Walking what was asked') : person.asked.seenAt ? `Asked ${clockTime(person.asked.at, zone)}. Seen ${clockTime(person.asked.seenAt, zone)}, not started.` : `Asked ${clockTime(person.asked.at, zone)}. Not seen yet.`}
           </p>
-          <p className="mt-0.5 text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">{person.asked.title}</p>
+          <p className="mt-0.5 text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">{askedArea ? listName(askedArea, { sightings: picture.sightings, timeZone: zone, now }) : person.asked.title}</p>
           {person.asked.note && <p className="mt-0.5 text-[14px] font-medium leading-5 text-[var(--mc-soft)]">&quot;{person.asked.note}&quot;</p>}
           {!ground && !person.asked.holds && person.on?.id !== person.asked.id && (
             <p className="mt-1 text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">
@@ -200,7 +202,8 @@ function Person({ person, picture, items, unit, now, leads, selected, words, onB
                       </span>
                       <span className="min-w-0">
                         <span className="flex flex-wrap items-center gap-x-1.5">
-                          <span className="text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{ground ? `Search ${areaName(street)}` : `Walk ${shortTitle(street.title)}`}</span>
+                          {/* A circle round a sighting says when and where the pet was seen: they are all "where Whiskers was seen". */}
+                          <span className="text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{ground ? `Search ${areaName({ name: listName(street, { sightings: picture.sightings, timeZone: zone, now }) })}` : `Walk ${shortTitle(street.title)}`}</span>
                           {/* On ground the first in the order is what anyone who asked would be given. */}
                           {(ground ? street.id === open[0]?.id : (street.priority || 0) === (open[0]?.priority || 0)) && <span className="rounded-md bg-[var(--mc-seen-bg)] px-1.5 text-[13px] font-bold leading-[18px] text-[var(--mc-seen-ink)]">{ground ? 'Given out next' : 'Most urgent'}</span>}
                         </span>

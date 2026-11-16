@@ -12,6 +12,7 @@
  */
 import { distanceMeters } from '@/app/lib/searchGrid';
 import { nearestOnPath, SIGHTING_REACH_METERS } from '@/app/lib/streetWalks';
+import { wholeDays } from '@/app/lib/elapsed';
 import { clockTime, dayAndTime, placeWords } from './words';
 
 const MINUTE = 60 * 1000;
@@ -319,5 +320,6 @@ export function missingFor(lostAt, now = Date.now()) {
   const ms = Math.max(0, now - new Date(lostAt).getTime());
   if (ms < HOUR) return `${Math.max(1, Math.round(ms / MINUTE))} min`;
   if (ms < 48 * HOUR) return `${Math.round(ms / HOUR)} ${Math.round(ms / HOUR) === 1 ? 'hour' : 'hours'}`;
-  return `${Math.round(ms / (24 * HOUR))} days`;
+  // Whole days, as the pet's page and the search screen count them (app/lib/elapsed.js).
+  return `${wholeDays(ms)} days`;
 }

@@ -9,8 +9,10 @@
  */
 import {
   isSeenCircle, circleAreas, areaName, AreaName, mapLabel, timesWords, listWords, whereWords, whereShort, areaState, areaLine, areaFacts,
-  groundCoverage, groundLines, givenNextAreas, minutesRange, quietGround, coveredWords, needsForGround, groundActivity, forAnyoneElse, whyThisArea,
+  groundCoverage, groundLines, givenNextAreas, minutesRange, quietGround, coveredWords, needsForGround, groundActivity, forAnyoneElse, whyThisArea, listName,
 } from '@/app/mission-control/lib/ground';
+import fs from 'fs';
+import path from 'path';
 
 const ZONE = 'America/Chicago';
 // 10:00 pm in Austin on the 11th.
@@ -44,6 +46,46 @@ const person = (name, over = {}) => ({ handle: `h-${name}`, name, kind: 'helper'
 const picture = (over = {}) => ({
   id: 'case-max', open: true, timeZone: ZONE, pet: { name: 'Max', species: 'DOG' }, owner: { firstName: 'Avery' },
   lastSeen: { ...LOST, at: ago(180), place: 'Sinclair Ave' }, sightings: [], updates: [], viewer: { isOwner: true, leads: true, seesNames: true }, ...over,
+});
+
+describe('the circles round sightings, in the desk\'s lists', () => {
+  // Testing found every circle named "Search where Whiskers was seen" in the Ask and Ground lists, so the owner
+  // could not tell a circle 50 m away from one 2.6 km away. Each says when the pet was seen, and where if known.
+  const sightings = [
+    { id: 's1', at: ago(12), place: 'Ramsey Ave' },
+    { id: 's2', at: ago(26 * 60), place: 'Burnet Rd and W 45th St' },
+    { id: 's3', at: ago(5), place: null },
+  ];
+
+  test('each says its own time and place, so no two read the same', () => {
+    const near = listName(seenCircle(), { sightings, timeZone: ZONE, now: NOW });
+    const far = listName(seenCircle({ id: 'z-seen-2', key: 'seen-s2', sightingId: 's2', sightingAt: ago(26 * 60) }), { sightings, timeZone: ZONE, now: NOW });
+    expect(near).toBe('Where Max was seen at 9:48 pm on Ramsey Ave');
+    expect(far).toBe('Where Max was seen on Tue at 8:00 pm at Burnet Rd and W 45th St');
+    expect(near).not.toBe(far);
+    // In a sentence, as the Ask list says it.
+    expect(areaName({ name: near })).toBe('where Max was seen at 9:48 pm on Ramsey Ave');
+  });
+
+  test('a place the sighting does not have is left out; a sighting the picture does not carry still has the board\'s time', () => {
+    expect(listName(seenCircle({ sightingId: 's3', sightingAt: ago(5) }), { sightings, timeZone: ZONE, now: NOW })).toBe('Where Max was seen at 9:55 pm');
+    expect(listName(seenCircle({ sightingId: 'gone', sightingAt: ago(30) }), { sightings: [], timeZone: ZONE, now: NOW })).toBe('Where Max was seen at 9:30 pm');
+  });
+
+  test('the circle\'s own areas keep their names', () => {
+    expect(listName(area('west'), { sightings, timeZone: ZONE, now: NOW })).toBe('West side');
+    expect(listName(area('middle'))).toBe('The middle');
+  });
+
+  test('the Ground list, the picked area\'s card and the Ask list all name areas this way', () => {
+    const read = (file) => fs.readFileSync(path.join(__dirname, '..', '..', 'app', 'mission-control', 'desktop', file), 'utf8');
+    const ground = read('Ground.js');
+    expect(ground).toMatch(/\{listName\(area, \{ sightings: picture\.sightings, timeZone: zone, now \}\)\}/);
+    expect(ground).toMatch(/const title = listName\(area, \{ sightings: picture\.sightings, timeZone: zone, now \}\);/);
+    expect(ground).not.toMatch(/>\{area\.name\}</);
+    const people = read('People.js');
+    expect(people).toMatch(/`Search \$\{areaName\(\{ name: listName\(street, \{ sightings: picture\.sightings, timeZone: zone, now \}\) \}\)\}`/);
+  });
 });
 
 describe('the names of things', () => {
