@@ -24,6 +24,7 @@ import prisma from '@/app/lib/prisma';
 import { walkTitle } from '@/app/lib/streetWalks';
 import { cellLabel } from '@/app/lib/searchGrid';
 import { firstWord, NAME_MAX } from '@/app/lib/searchText';
+import { lapsedAt, LATE_MS } from '@/app/lib/searchCircle';
 
 export { NAME_MAX };
 
@@ -57,25 +58,33 @@ export function askHolds(askedAt, now = Date.now()) {
  * search's messages ({ fromId, fromName, fromDesk, toId, toName }).
  *
  * A search on areas of ground (app/lib/searchZones.js) passes `zones`:
- * each { id, name, visits: [{ searcherId, searcherName, askedAt,
+ * each { id, name, minutes, visits: [{ searcherId, searcherName, askedAt,
  * askedSeenAt, askedNote, askedByName, startedAt, endedAt, outcome }] }.
  * A person is then on an area ({ unit: 'area' }), asked to search one, or
  * free, and `walked` counts the areas they searched. `known` is anyone
  * else to list by name alone ({ id, name }): people who walked a street
  * before the search was on areas.
  *
+ * Of someone free, what became of the last area they started, where it
+ * says something: `stopped` ({ id, title, at }) when they said "I am
+ * stopping", so they are not offered to the desk to send anywhere; `late`
+ * ({ id, title, since, at }) when the site stopped counting them on it at
+ * `at` and they have not said what happened. For half a day after that
+ * their phone still shows them that area to say so (app/lib/searchZones.js,
+ * lapsedVisitOf), and the desk says the same.
+ *
  * Each person: { id, handle, name, kind: 'helper' | 'member', joinedAt,
  * state: 'walking' | 'asked' | 'free', on: { unit, id, title } | null,
  * since, asked: { id, title, at, seenAt, note, byName, holds } | null,
- * walked, lastWalkedAt, lastOn: { unit, id, title } | null }. `id` is for
- * the server only: `forDesk` drops it.
+ * walked, lastWalkedAt, lastOn: { unit, id, title } | null, stopped,
+ * late }. `id` is for the server only: `forDesk` drops it.
  */
 export function roster({ caseId, helpers = [], streets = [], cells = [], zones = [], known = [], messages = [], ownerId = null, users = {}, now = Date.now() }) {
   const people = new Map();
   const person = (id, name) => {
     if (!id || id === ownerId || String(id).startsWith(MARK)) return null;
     if (!people.has(id)) {
-      people.set(id, { id, handle: handleFor(caseId, id), name: '', kind: String(id).startsWith('v:') ? 'helper' : 'member', joinedAt: null, state: 'free', on: null, since: null, asked: null, walked: 0, lastWalkedAt: null, lastOn: null });
+      people.set(id, { id, handle: handleFor(caseId, id), name: '', kind: String(id).startsWith('v:') ? 'helper' : 'member', joinedAt: null, state: 'free', on: null, since: null, asked: null, walked: 0, lastWalkedAt: null, lastOn: null, lastStart: null });
     }
     const p = people.get(id);
     if (!p.name && name) p.name = firstWord(name);
@@ -125,6 +134,8 @@ export function roster({ caseId, helpers = [], streets = [], cells = [], zones =
         p.on = place;
         p.since = v.startedAt;
       }
+      // The last area they started, whatever became of it.
+      if (v.startedAt && (!p.lastStart || new Date(v.startedAt) >= new Date(p.lastStart.visit.startedAt))) p.lastStart = { place, visit: v, minutes: z.minutes };
       if (v.outcome === 'SEARCHED' && v.endedAt) {
         p.walked += 1;
         const newest = later(p.lastWalkedAt, v.endedAt);
@@ -144,10 +155,17 @@ export function roster({ caseId, helpers = [], streets = [], cells = [], zones =
 
   const order = { free: 0, asked: 1, walking: 2 };
   return [...people.values()]
-    .map((p) => {
+    .map(({ lastStart, ...p }) => {
       // Someone asked who has not started is "asked"; someone walking the street they were asked for is walking.
       const state = p.state === 'walking' ? 'walking' : p.asked ? 'asked' : 'free';
-      return { ...p, state, name: p.name || firstWord(users[p.id]) || 'A helper' };
+      const last = state === 'walking' ? null : lastStart;
+      const { id: areaId, title } = last?.place || {};
+      // They said "I am stopping": they have gone, and are not someone to send.
+      const stopped = last?.visit.outcome === 'STOPPED' && last.visit.endedAt ? { id: areaId, title, at: last.visit.endedAt } : null;
+      // The site stopped counting them on it and they have not said what happened: their phone still shows it to them.
+      const lapsed = last?.visit.outcome === 'LAPSED' ? lapsedAt(last.visit, last.minutes) : null;
+      const late = lapsed && now - lapsed.getTime() < LATE_MS ? { id: areaId, title, since: last.visit.startedAt, at: lapsed } : null;
+      return { ...p, state, name: p.name || firstWord(users[p.id]) || 'A helper', stopped, late };
     })
     .sort((a, b) => order[a.state] - order[b.state] || new Date(b.joinedAt || b.lastWalkedAt || b.since || 0) - new Date(a.joinedAt || a.lastWalkedAt || a.since || 0) || (a.handle < b.handle ? -1 : 1));
 }
@@ -193,6 +211,7 @@ export async function teamOf(caseId, { ownerId = null, now = Date.now() } = {}) 
       select: {
         id: true,
         name: true,
+        minutes: true,
         visits: {
           orderBy: { createdAt: 'desc' },
           take: 300,

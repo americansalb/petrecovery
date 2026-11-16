@@ -16,7 +16,7 @@
 import React from 'react';
 import { render, act, fireEvent } from '@testing-library/react';
 
-const made = { groups: [] };
+const made = { groups: [], polygons: [] };
 jest.mock('leaflet', () => {
   const shape = () => ({
     addTo() {
@@ -40,6 +40,11 @@ jest.mock('leaflet', () => {
       return group;
     },
     tileLayer: shape,
+    // What an area is drawn with, so a test can read its green.
+    polygon: (points, options) => {
+      made.polygons.push({ points, options });
+      return shape();
+    },
     polyline: shape,
     rectangle: shape,
     circle: shape,
@@ -86,6 +91,7 @@ beforeAll(() => {
 });
 beforeEach(() => {
   made.groups.length = 0;
+  made.polygons.length = 0;
   place.word = { top: 400, bottom: 440 };
   // What a phone has put away ("Got it") is kept in the browser: each test starts with nothing put away.
   window.localStorage.clear();
@@ -474,5 +480,153 @@ describe('a phone holding an area', () => {
     await act(async () => fireEvent.click(view.getByRole('button', { name: 'Show the map' }), { detail: 0 }));
     expect(view.getByRole('button', { name: 'Show all of the card' }).getAttribute('aria-expanded')).toBe('false');
     expect(view.getByRole('button', { name: 'How to search here' })).toBeTruthy();
+  });
+});
+
+/**
+ * A search of ground on a phone, from what its record says: the green fades, a search of a few seconds leaves no
+ * paw prints, "I am stopping" is leaving, and "Before you go out" is not skipped by a reload.
+ */
+describe('a phone on a search of ground', () => {
+  const at = (minutes) => new Date(NOW - minutes * 60000).toISOString();
+  const outline = (lat) => [[lat, -97.747], [lat - 0.002, -97.747], [lat - 0.002, -97.744], [lat, -97.744], [lat, -97.747]];
+  const area = (key, lat, over = {}) => ({
+    id: `z-${key}`, key, ring: 1, name: `${key[0].toUpperCase()}${key.slice(1)} side`, title: `${key} side`,
+    reach: `150 m to 400 m ${key} of where Max was lost`, landmarks: [], hazards: [],
+    center: { lat: lat - 0.001, lng: -97.7455 }, outline: outline(lat),
+    minutes: 45, priority: 6, status: 'UNSEARCHED', on: 0, coming: 0, searchCount: 0, searchedAt: null, history: [], mine: false, full: false, ...over,
+  });
+  const searchedAt = (minutes, more = {}) => ({ status: 'SEARCHED', searchCount: 1, searchedAt: at(minutes), history: [{ at: at(minutes), marked: false, minutes: 40, covered: 'ALL', ...more }] });
+  const onGround = (items, over = {}) => ({ ...hook({ items, ...over }), unit: 'area', board: { unit: 'area' }, circle: { center: { lat: 30.3148, lng: -97.7459 }, radius: 400 }, trail: null, ways: [], debrief: jest.fn(async () => ({ ok: true })), trained: jest.fn(async () => undefined), ...over });
+  const card = (view) => view.container.querySelector('[aria-label="Your step"]').textContent;
+  const green = (item) => made.polygons.filter((p) => p.points === item.outline).pop()?.options.fillOpacity;
+  // The join card reads the waiver's text when it opens.
+  const realFetch = global.fetch;
+  beforeEach(() => {
+    global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ version: '3', content: 'The waiver.' }) }));
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  test('the map draws a search fading over a day, as the desk does: two days old is bare, and a search of seconds is not a full one', async () => {
+    const fresh = area('north', 30.318, searchedAt(10));
+    const old = area('south', 30.312, searchedAt(50 * 60));
+    // "I searched it" fourteen seconds after taking it, and "Most of it".
+    const tapped = area('east', 30.315, searchedAt(1, { minutes: 0.2, covered: 'MOST' }));
+    useSearch.mockReturnValue(onGround([fresh, old, tapped]));
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(green(fresh)).toBeGreaterThan(0.5);
+    // Searched two days ago: nothing is left of it but the faint fill every searched area has.
+    expect(green(old)).toBeCloseTo(0.06, 2);
+    expect(green(tapped)).toBeLessThan(0.07);
+    // The key says the green fades, and never a bare "searched".
+    expect(view.container.textContent).toMatch(/Searched just now/);
+    expect(view.container.textContent).toMatch(/Fades over a day/);
+    expect(view.container.textContent).not.toMatch(/Already searched/);
+  });
+
+  test('with every search faded, the key has no green to explain', async () => {
+    useSearch.mockReturnValue(onGround([area('north', 30.318, searchedAt(30 * 60)), area('south', 30.312)]));
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(view.container.textContent).not.toMatch(/Searched just now|Already searched/);
+  });
+
+  test('"I searched it" seconds after taking an area: no cheer and no paw prints, and Sarama says why', async () => {
+    const mine = area('east', 30.315, { status: 'IN_PROGRESS', on: 1, mine: true });
+    const after = onGround([area('east', 30.315, searchedAt(0, { minutes: 0.2 }))]);
+    const state = onGround([mine], { act: jest.fn(async () => { useSearch.mockReturnValue(after); return { ok: true, paws: 0 }; }) });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I searched it' })));
+    expect(state.act).toHaveBeenCalledWith('area', 'z-east', 'searched');
+    expect(card(view)).toMatch(/A search this short leaves no paw prints\. This area takes one person about 45 minutes\./);
+    expect(card(view)).toMatch(/The east side is searched\. Thank you\./);
+    expect(card(view)).not.toMatch(/Well done|\+3/);
+    expect(view.queryByRole('img', { name: /paw print/ })).toBeNull();
+    // No count of the areas "searched so far" either: the trail's own count is what is true now.
+    expect(card(view)).not.toMatch(/searched so far/);
+  });
+
+  test('a real search is cheered, with the prints the server counted', async () => {
+    const mine = area('east', 30.315, { status: 'IN_PROGRESS', on: 1, mine: true });
+    const after = onGround([area('east', 30.315, searchedAt(0))]);
+    const state = onGround([mine], { act: jest.fn(async () => { useSearch.mockReturnValue(after); return { ok: true, paws: 3 }; }) });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I searched it' })));
+    expect(card(view)).toMatch(/Well done\. That is 3 paw prints on this search\./);
+    expect(view.getByRole('img', { name: '3 paw prints' })).toBeTruthy();
+  });
+
+  test('"I am stopping" is leaving: Sarama thanks them, and does not greet them as if they had come back', async () => {
+    const trail = { paws: 7, helpers: 1, mine: { searches: 2, debriefs: 1, paws: 7, rank: 'Scout' } };
+    const mine = area('east', 30.315, { status: 'IN_PROGRESS', on: 1, mine: true });
+    const after = onGround([area('east', 30.315)], { trail });
+    const state = onGround([mine], { trail, act: jest.fn(async () => { useSearch.mockReturnValue(after); return { ok: true }; }) });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I am stopping' })));
+    expect(state.act).toHaveBeenCalledWith('area', 'z-east', 'release');
+    expect(card(view)).toMatch(/Thank you for your time looking for Max\./);
+    expect(card(view)).not.toMatch(/Good to see you again/);
+    // Opening the link again another time is coming back.
+    view.unmount();
+    useSearch.mockReturnValue(after);
+    const again = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(card(again)).toMatch(/Good to see you again\. Max still needs us\./);
+  });
+
+  test('"Before you go out" is not skipped by a reload: agreed, not trained, and asking for ground shows it first', async () => {
+    const viewer = { ...picture().viewer, waiver: true, trained: false };
+    const state = onGround([area('north', 30.318), area('south', 30.312)], { picture: picture({ viewer }), viewer, act: jest.fn(async () => ({ ok: true })) });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I can search an area' })));
+    // The training, and not the tick again: they have agreed.
+    expect(card(view)).toMatch(/Before you go out/);
+    expect(card(view)).not.toMatch(/I agree/);
+    expect(state.act).not.toHaveBeenCalled();
+    // Its one button records it and gives them their ground.
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I understand. Give me an area' })));
+    expect(state.trained).toHaveBeenCalledTimes(1);
+    expect(state.act).toHaveBeenCalledWith('area', expect.any(String), 'claim');
+  });
+
+  test('someone who has been through it is given ground at once, and someone who has not agreed is asked to first', async () => {
+    const trained = { ...picture().viewer, waiver: true, trained: true };
+    let state = onGround([area('north', 30.318)], { picture: picture({ viewer: trained }), viewer: trained, act: jest.fn(async () => ({ ok: true })) });
+    useSearch.mockReturnValue(state);
+    let view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I can search an area' })));
+    expect(state.act).toHaveBeenCalledWith('area', 'z-north', 'claim');
+    expect(card(view)).not.toMatch(/Before you go out/);
+    view.unmount();
+    const fresh = { ...picture().viewer, waiver: false, trained: false };
+    state = onGround([area('north', 30.318)], { picture: picture({ viewer: fresh }), viewer: fresh, act: jest.fn(async () => ({ ok: true })) });
+    useSearch.mockReturnValue(state);
+    view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I can search an area' })));
+    expect(card(view)).toMatch(/Join the search/);
+    expect(state.act).not.toHaveBeenCalled();
+  });
+
+  test('the owner\'s card says how much is searched now, not how much was ever searched', async () => {
+    const owner = picture({ viewer: { kind: 'user', firstName: 'Avery', isOwner: true, seesNames: true, leads: true, waiver: true, trained: true, signedIn: true } });
+    const items = [area('north', 30.318, searchedAt(60)), area('east', 30.315, searchedAt(30 * 60)), area('south', 30.312, searchedAt(50 * 60)), area('west', 30.309)];
+    useSearch.mockReturnValue(onGround(items, { picture: owner, viewer: owner.viewer }));
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(card(view)).toMatch(/1 of the 4 areas was searched in the last 12 hours\./);
+    expect(card(view)).not.toMatch(/3 of the 4 areas/);
   });
 });

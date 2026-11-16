@@ -342,7 +342,9 @@ async function actOnArea({ pet, searcher, id, action, correlationId }) {
     result: 'success',
     metadata: { title: result.title, status: result.item?.status, added: result.added, count: result.count, volunteer: searcher.kind === 'volunteer' },
   }).catch(() => {});
-  return NextResponse.json({ success: true, unit: 'area', ...(result.item ? { item: result.item } : {}), ...(result.added != null ? { added: result.added } : {}), ...(result.count != null ? { count: result.count } : {}) });
+  // For a search, the paw prints it left: the card that says thank you shows them, and none for a search far
+  // shorter than the area takes (app/lib/trail.js).
+  return NextResponse.json({ success: true, unit: 'area', ...(result.item ? { item: result.item } : {}), ...(result.added != null ? { added: result.added } : {}), ...(result.count != null ? { count: result.count } : {}), ...(result.paws != null ? { paws: result.paws } : {}) });
 }
 
 /**

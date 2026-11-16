@@ -419,6 +419,23 @@ describe('"Needs you" on ground', () => {
     expect(two.map((c) => c.primary.words)).toEqual(['Ask Jo to go', 'Ask Priya to search the middle']);
   });
 
+  test('someone who said "I am stopping" is not asked to go to a sighting, nor offered ground: they have gone', () => {
+    const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(12), place: 'Ramsey Ave' };
+    const jo = person('Jo', { walked: 1, lastWalkedAt: ago(20), stopped: { id: 'z-west', title: 'West side', at: ago(4) } });
+    const cards = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [jo] }));
+    expect(cards.map((c) => c.kind)).toEqual(['sighting']);
+    expect(cards[0].body).toBe('300 m south of where Max was lost. Nobody is free right now. The next person who asks for ground is given it.');
+    expect(JSON.stringify(cards)).not.toMatch(/Ask Jo/);
+    // Someone free beside them is the one asked.
+    const priya = person('Priya', { joinedAt: ago(6) });
+    expect(needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [jo, priya] }))[0].primary.words).toBe('Ask Priya to go');
+  });
+
+  test('nor is someone whose phone still shows them an area the site stopped counting them on: they have not said what happened', () => {
+    const sam = person('Sam', { walked: 1, lastWalkedAt: ago(20), late: { id: 'z-west', title: 'West side', since: ago(160), at: ago(25) } });
+    expect(needsForGround(base({ people: [sam] }))).toEqual([]);
+  });
+
   test('a sighting past its hour has no card of its own, so a free person is offered its circle while nobody has gone', () => {
     const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(90), place: 'Ramsey Ave' };
     const [card] = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle({ sightingAt: ago(90) }), ...five()], people: [person('Jo', { joinedAt: ago(4) })] }));

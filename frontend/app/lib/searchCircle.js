@@ -325,6 +325,45 @@ export function heldFor(minutes) {
 export const SEEN_CIRCLE_REACH_METERS = 5000;
 
 /**
+ * How long after the site stops counting someone as on an area they can
+ * still say what happened there. The site's count is a guess from the
+ * clock; the person who went over the ground is the one who knows.
+ */
+export const LATE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * When the site stopped counting someone as on an area they started
+ * (`visit`: { startedAt, endedAt }), which is `heldFor` the area's
+ * `minutes` after they started it. A visit swept before each was stamped
+ * with that moment carries the time of the sweep, which can be days
+ * later, so the earlier of the two is taken. Null with neither.
+ */
+export function lapsedAt(visit, minutes) {
+  const held = visit?.startedAt ? new Date(visit.startedAt).getTime() + heldFor(minutes) * 60 * 1000 : Infinity;
+  const ended = visit?.endedAt ? new Date(visit.endedAt).getTime() : Infinity;
+  const at = Math.min(held, ended);
+  return Number.isFinite(at) ? new Date(at) : null;
+}
+
+/** Under this share of the time an area takes one person, a search of it is far shorter than the area takes. */
+export const SHORT_SHARE = 1 / 3;
+
+/**
+ * Whether one search of an area (`one`, an entry of the area's `history`:
+ * { minutes }, how long it took, null where that is not known) was far
+ * shorter than the area takes one person. The record says so beside it
+ * (app/mission-control/lib/ground.js, searchLog), the map counts it for
+ * next to nothing (searchStrength), and it leaves no paw prints and does
+ * not keep the map green (app/lib/trail.js). A search whose time is not
+ * known is never called short.
+ */
+export function isShortSearch(one, area) {
+  const took = one?.minutes;
+  const takes = Number(area?.minutes);
+  return took != null && Number.isFinite(Number(took)) && takes > 0 && Number(took) < takes * SHORT_SHARE;
+}
+
+/**
  * The order ground is given out in, for someone who asks for some: the
  * area they were asked to search; then ground the person running the
  * search asked for first, whoever is already on it; then ground that

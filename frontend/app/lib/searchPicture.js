@@ -35,6 +35,7 @@ import { isMark } from '@/app/lib/searchBoard';
 import { CLAIM_TTL_MS } from '@/app/lib/searchGrid';
 import { wordsForDesk, wordsForPerson } from '@/app/lib/searchTalk';
 import { zoneAskWaitingFor, zoneSearchersSince, zoneGroundCovered } from '@/app/lib/searchZones';
+import { hasTrained } from '@/app/lib/waiver';
 
 /**
  * Someone who finished an area this recently still counts as out looking:
@@ -246,6 +247,9 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
     mineToRead = { words, asked };
   }
   const talk = searcher?.leads && open && pet.reportType !== 'FOUND' ? await wordsForDesk(pet.id, { viewerId: searcher.id }) : null;
+  // Whether a helper who has agreed to the waiver has read "Before you go out" since: their screen shows it before
+  // their first ground if not. The owner is not asked to read it to look for their own pet.
+  const trained = searcher && open && !isOwner && searcher.waiver ? await hasTrained({ userId: searcher.userId, volunteerId: searcher.volunteerId }) : isOwner;
 
   return {
     id: pet.id,
@@ -286,7 +290,7 @@ export async function searchPicture(caseParam, { searcher = null, now = Date.now
     ...(mineToRead || {}),
     ...(talk ? { talk } : {}),
     viewer: searcher
-      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), admin: Boolean(searcher.admin), waiver: searcher.waiver, signedIn: searcher.kind === 'user' }
+      ? { kind: searcher.kind, firstName: searcher.firstName, isOwner, seesNames: withNames, leads: Boolean(searcher.leads), admin: Boolean(searcher.admin), waiver: searcher.waiver, trained, signedIn: searcher.kind === 'user' }
       : null,
   };
 }

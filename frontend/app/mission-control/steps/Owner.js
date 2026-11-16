@@ -49,6 +49,7 @@ function Heard({ heard = [], picture, now, onReply, onPutAway }) {
   );
 }
 import { clockTime, dayAndTime, placeWords, agoWords, lookingLine } from '../lib/words';
+import { groundNowWords } from '../lib/ground';
 
 function useAdvice(picture, now) {
   return useMemo(
@@ -60,7 +61,7 @@ function useAdvice(picture, now) {
 }
 
 /** Who is looking, and the one thing that brings more people. */
-export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, problem, heard = [], onReply = null, onPutAway = null }) {
+export function OwnerNow({ picture, name, now, unit, items = [], counts, onShare, onHome, problem, heard = [], onReply = null, onPutAway = null }) {
   const advice = useAdvice(picture, now);
   const [open, setOpen] = useState(false);
   const ground = unit === 'area';
@@ -71,9 +72,9 @@ export function OwnerNow({ picture, name, now, unit, counts, onShare, onHome, pr
       <Heading>{lookingLine(picture.looking?.helpers || 0)}</Heading>
       {counts.total > 0 && (
         <Lead className="mt-1.5">
-          {ground
-            ? `${counts.searched} of the ${counts.total} areas ${counts.searched === 1 ? 'has' : 'have'} been searched.`
-            : `${counts.searched} of ${counts.total} ${thing}s ${counts.searched === 1 ? 'is' : 'are'} searched.`}
+          {/* Ground: what is searched now, the areas searched in the last 12 hours, and never a count of every area
+              ever searched, since a search fades over a day (lib/ground.js, groundNowWords). */}
+          {ground ? groundNowWords(items, now) : `${counts.searched} of ${counts.total} ${thing}s ${counts.searched === 1 ? 'is' : 'are'} searched.`}
         </Lead>
       )}
       <Heard heard={heard} picture={picture} now={now} onReply={onReply} onPutAway={onPutAway} />

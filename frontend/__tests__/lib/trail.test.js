@@ -8,6 +8,10 @@
 import fs from 'fs';
 import path from 'path';
 import { PAWS, RANKS, pawsFor, rankOf, nextRank, trailOf, freshAreas, FRESH_HOURS } from '@/app/lib/trail';
+
+// The server's half of the rule (app/lib/searchZones.js, pawsForSearch) is pure; what it is kept beside is not read here.
+jest.mock('@/app/lib/prisma', () => ({ __esModule: true, default: {} }));
+jest.mock('@/app/lib/searchBoard', () => ({ __esModule: true, ensureGrid: jest.fn() }));
 import { SARAMA } from '@/app/mission-control/lib/sarama';
 
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', '..', file), 'utf8');
@@ -41,6 +45,33 @@ describe('paw prints', () => {
 
   test('ground put down from the desk leaves none', () => {
     expect(trailOf([{ outcome: 'MARKED', searcherId: 'm:owner', covered: null }], 'm:owner').paws).toBe(0);
+  });
+
+  test('nothing for speed: a search far shorter than the area takes leaves none, and nor does a debrief on it', () => {
+    // "I searched it" fourteen seconds after taking an area, then "All of it": the server marks it short.
+    const tapped = { outcome: 'SEARCHED', searcherId: 'dana', covered: 'ALL', short: true };
+    expect(trailOf([tapped], 'dana')).toEqual({ paws: 0, helpers: 0, mine: { searches: 0, debriefs: 0, paws: 0, rank: '' } });
+    // Tapping it over and over is no faster way up the ranks than one real search.
+    expect(trailOf([tapped, tapped, tapped, tapped, tapped], 'dana').mine.paws).toBe(0);
+    expect(trailOf([tapped, { outcome: 'SEARCHED', searcherId: 'dana', covered: 'PART' }], 'dana').mine).toEqual({ searches: 1, debriefs: 1, paws: 4, rank: 'Scout' });
+  });
+
+  test('which search is short is decided on the server from its time, by the same line the record draws: a third of what the area takes', () => {
+    const { pawsForSearch } = require('@/app/lib/searchZones');
+    const { isShortSearch, SHORT_SHARE } = require('@/app/lib/searchCircle');
+    expect(SHORT_SHARE).toBeCloseTo(1 / 3, 5);
+    // Fourteen seconds, fourteen minutes, twenty minutes, and a time not known, on an area that takes 45.
+    expect(pawsForSearch(0.2, 45)).toBe(0);
+    expect(pawsForSearch(14, 45)).toBe(0);
+    expect(pawsForSearch(20, 45)).toBe(PAWS.SEARCH);
+    expect(pawsForSearch(null, 45)).toBe(PAWS.SEARCH);
+    // Never more for being slow: the full prints from a third of the time on, and no more however long.
+    expect(pawsForSearch(45, 45)).toBe(pawsForSearch(20, 45));
+    expect(pawsForSearch(130, 45)).toBe(pawsForSearch(20, 45));
+    expect(isShortSearch({ minutes: 9 }, { minutes: 45 })).toBe(true);
+    expect(isShortSearch({ minutes: null }, { minutes: 45 })).toBe(false);
+    const zones = read('app/lib/searchZones.js');
+    expect(zones).toMatch(/short: v\.outcome === 'SEARCHED' && pawsForSearch\(minutesSpent\(v\.startedAt, v\.endedAt, takes\.get\(v\.zoneId\)\), takes\.get\(v\.zoneId\)\) === 0/);
   });
 
   test('ranks: Scout from the first print, Tracker at 8, Trail lead at 20', () => {
@@ -84,7 +115,7 @@ describe('what the game never pays for', () => {
     for (const source of [trail.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''), component, helper]) {
       expect(source).not.toMatch(/leaderboard|ranking of|top helpers|#1\b|first place|beat /i);
     }
-    expect(read('app/lib/searchZones.js')).toMatch(/trail: trailOf\(finished \|\| \[\], viewer\),/);
+    expect(read('app/lib/searchZones.js')).toMatch(/trail: trailOf\(searches, viewer\),/);
     // What is sent is counts. Nobody's name or id goes with them.
     expect(read('app/api/mission/[missionId]/board/route.js')).toMatch(/trail: read\.trail \|\| null,/);
   });
@@ -98,7 +129,7 @@ describe('what the game never pays for', () => {
 describe('Sarama', () => {
   const helper = read('app/mission-control/steps/Helper.js');
   const needs = read('app/mission-control/desktop/Needs.js');
-  const lines = [SARAMA.hello('Max', '5 days'), SARAMA.hello('Max', ''), SARAMA.back('Max'), SARAMA.join(), SARAMA.training(), SARAMA.asked('Avery'), SARAMA.asked(null), SARAMA.done(3), SARAMA.next('Flyers'), SARAMA.nobodyOut('Max'), SARAMA.nextArea('the west side')];
+  const lines = [SARAMA.hello('Max', '5 days'), SARAMA.hello('Max', ''), SARAMA.back('Max'), SARAMA.stopped('Max'), SARAMA.join(), SARAMA.training(), SARAMA.asked('Avery'), SARAMA.asked(null), SARAMA.done(3), SARAMA.short(45), SARAMA.next('Flyers'), SARAMA.nobodyOut('Max'), SARAMA.nextArea('the west side')];
 
   test('she speaks as herself, short and plain', () => {
     expect(SARAMA.hello('Max', '5 days')).toBe("I'm Sarama, and I'm looking for Max, missing 5 days. Here is how to help right now.");
@@ -119,7 +150,10 @@ describe('Sarama', () => {
 
   test('what she says is useful: to someone new, their own home first and what to do on seeing the pet', () => {
     // Founder, 2026-11-13: "make the text actually useful and teaches people where to look".
-    expect(helper).toMatch(/\[trail\?\.mine\?\.paws > 0 \? SARAMA\.back\(name\) : SARAMA\.hello\(name, missingFor\(picture\.lastSeen\?\.at, now\)\), brief\.own, brief\.never\]/);
+    // Someone who has just said "I am stopping" is thanked, and not greeted "Good to see you again".
+    expect(helper).toMatch(/\[stopped \? SARAMA\.stopped\(name\) : trail\?\.mine\?\.paws > 0 \? SARAMA\.back\(name\) : SARAMA\.hello\(name, missingFor\(picture\.lastSeen\?\.at, now\)\), brief\.own, brief\.never\]/);
+    expect(SARAMA.stopped('Max')).toBe('Thank you for your time looking for Max.');
+    expect(SARAMA.stopped('Max')).not.toMatch(/again|back/i);
     const { briefFor } = require('@/app/lib/brief');
     expect(briefFor({ way: 'own', pet: { petName: 'Max', petSpecies: 'DOG' } })).toEqual(['First look around your own home: your yard, under your porch or deck, your shed and your garage.']);
     expect(briefFor({ way: 'own', pet: { petName: 'Milo', petSpecies: 'CAT' } })[0]).toMatch(/under your porch or deck, in your shed and garage, and in thick bushes\. A scared cat hides within a few houses\./);
@@ -132,10 +166,19 @@ describe('Sarama', () => {
     for (const line of lines) expect(line).not.toMatch(/look low|under |call out|chase|sidewalk|garage|shed/i);
   });
 
-  test('she cheers only an area searched, and its paw prints land with her', () => {
-    expect(helper).toMatch(/pose=\{done && ground \? 'cheer' : ask \? 'point' : 'sit'\}/);
-    expect(helper).toMatch(/\{done && ground && <Paws count=\{PAWS\.SEARCH\} className="mb-2" \/>\}/);
-    expect(helper).toMatch(/\{told && <Paws count=\{PAWS\.DEBRIEF\} className="mt-1\.5" \/>\}/);
+  test('she cheers only an area searched that left paw prints, and they land with her', () => {
+    expect(helper).toMatch(/const cheer = Boolean\(done && ground && donePaws > 0\);/);
+    expect(helper).toMatch(/pose=\{cheer \? 'cheer' : ask \? 'point' : 'sit'\}/);
+    expect(helper).toMatch(/\{cheer && <Paws count=\{donePaws\} className="mb-2" \/>\}/);
+    expect(helper).toMatch(/\{told && <Paws count=\{paws\} className="mt-1\.5" \/>\}/);
+    // A search far shorter than the area takes: no cheer and no prints, and she says why and how long the area takes.
+    expect(helper).toMatch(/cheer\s+\? SARAMA\.done\(donePaws\)\s+: done && ground\s+\? SARAMA\.short\(doneTakes\)/);
+    expect(SARAMA.short(45)).toBe('A search this short leaves no paw prints. This area takes one person about 45 minutes.');
+    // The prints shown are the ones the server counted for that search.
+    const shell = read('app/mission-control/SearchScreen.js');
+    expect(shell).toMatch(/setDonePaws\(typeof result\.paws === 'number' \? result\.paws : PAWS\.SEARCH\);/);
+    expect(read('app/mission-control/hooks/useSearch.js')).toMatch(/\.\.\.\(typeof data\.paws === 'number' \? \{ paws: data\.paws \} : \{\}\)/);
+    expect(read('app/api/mission/[missionId]/board/route.js')).toMatch(/\.\.\.\(result\.paws != null \? \{ paws: result\.paws \} : \{\}\)/);
   });
 
   test('she does not greet a desk: whoever runs the search is not asked to come and look', () => {
@@ -217,7 +260,7 @@ describe('Sarama, drawn', () => {
   });
 
   test('the pose says what she is doing: asking, sending, searching, cheering', () => {
-    expect(helper).toMatch(/pose=\{done && ground \? 'cheer' : ask \? 'point' : 'sit'\}/);
+    expect(helper).toMatch(/pose=\{cheer \? 'cheer' : ask \? 'point' : 'sit'\}/);
     expect(helper).toMatch(/<Sarama className="mb-3" pose="ask" say=\{SARAMA\.join\(\)\} \/>/);
     expect(helper).toMatch(/pose=\{sighting \? 'point' : 'sniff'\}/);
   });

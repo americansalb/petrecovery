@@ -28,12 +28,12 @@
  */
 import prisma from '@/app/lib/prisma';
 import { CLAIM_TTL_MS, FIRST_PRIORITY, SIGHTING_PRIORITY_WINDOW_MS, distanceMeters } from '@/app/lib/searchGrid';
-import { RING, SEEN_CIRCLE_REACH_METERS, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, reachOf, landmarksIn, urgencyOf, inWords, rankAreas, heldFor } from '@/app/lib/searchCircle';
+import { RING, SEEN_CIRCLE_REACH_METERS, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, reachOf, landmarksIn, urgencyOf, inWords, rankAreas, heldFor, isShortSearch, lapsedAt, LATE_MS } from '@/app/lib/searchCircle';
 
-export { rankAreas };
+export { rankAreas, LATE_MS };
 import { ensureGrid } from '@/app/lib/searchBoard';
 import { fetchHazards, hazardsIn, parseHazards, HAZARD_MARGIN_METERS } from '@/app/lib/searchHazards';
-import { trailOf } from '@/app/lib/trail';
+import { trailOf, PAWS } from '@/app/lib/trail';
 import { handleFor, askHolds } from '@/app/lib/searchTeam';
 import { cleanWord } from '@/app/lib/searchTalk';
 import { cut } from '@/app/lib/searchText';
@@ -42,12 +42,8 @@ import { cut } from '@/app/lib/searchText';
 export const SEEN_CIRCLES_MAX = 3;
 /** An ask nobody started in this long is over: the person is no longer shown as asked. */
 export const ASK_STALE_MS = 12 * 60 * 60 * 1000;
-/**
- * How long after the site stops counting someone as on an area they can
- * still say what happened there. The site's count is a guess from the
- * clock; the person who went over the ground is the one who knows.
- */
-export const LATE_MS = 12 * 60 * 60 * 1000;
+// LATE_MS, how long after the site stops counting someone as on an area they can still say what happened there,
+// is app/lib/searchCircle.js's, so the desk's list of people reads the same half day (app/lib/searchTeam.js).
 export const ASK_NOTE_MAX = 140;
 /** What the asked person's button says, and so what the desk is told in their name when they press it. */
 export const CANNOT_WORDS = "I can't right now.";
@@ -107,6 +103,45 @@ const CASE_FOR_ZONES = { id: true, reportType: true, petName: true, petSpecies: 
 const holdFor = (minutes) => heldFor(minutes) * 60 * 1000;
 /** The shortest hold there is: the sweep looks at nothing started more recently. */
 const MIN_HOLD_MS = heldFor(0) * 60 * 1000;
+
+/**
+ * When the site stopped counting someone as on an area, or stopped holding
+ * an ask for them: the moment it went stale, not the moment somebody next
+ * happened to load the search. An area taken on Friday and never heard of
+ * again went stale on Friday, however late on Sunday it is swept. `visit`
+ * is { startedAt, askedAt }, `areaMinutes` how long the area takes. Never
+ * later than `now`.
+ */
+function staleAt(visit, areaMinutes, now = Date.now()) {
+  const from = visit.startedAt ? new Date(visit.startedAt).getTime() + holdFor(areaMinutes) : visit.askedAt ? new Date(visit.askedAt).getTime() + ASK_STALE_MS : now;
+  return new Date(Math.min(now, from));
+}
+
+/**
+ * How long a helper had an area, in minutes to the tenth, so a search of
+ * fourteen seconds is kept as one and is not rounded up to a minute or
+ * dropped as unknown. Null where the time says nothing about the search:
+ * nobody started it (put down from the desk), it ran until the site
+ * stopped counting them there (`ran`: they said what happened later, so
+ * how long they were on the ground is not known), or it is far longer
+ * than the area takes (they forgot to say).
+ */
+function minutesSpent(startedAt, endedAt, areaMinutes) {
+  if (!startedAt || !endedAt) return null;
+  const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime();
+  if (!(ms >= 0) || ranToTheHold(ms, areaMinutes) || ms > 3 * (areaMinutes || 60) * 60000) return null;
+  return Math.round(ms / 6000) / 10;
+}
+const ranToTheHold = (ms, areaMinutes) => ms >= holdFor(areaMinutes);
+
+/**
+ * The paw prints one search leaves (app/lib/trail.js): none for a search
+ * far shorter than the area takes (`minutes` is how long it took, null
+ * where that is not known). The reasons are with the trail.
+ */
+export function pawsForSearch(minutes, areaMinutes) {
+  return isShortSearch({ minutes }, { minutes: areaMinutes }) ? 0 : PAWS.SEARCH;
+}
 
 /** "north" from "north", "north-east" from "outer-north-east": the way an area lies, or null for a whole circle. */
 function wayOf(key) {
@@ -331,6 +366,12 @@ export async function debriefZone({ caseId, zoneId, searcher, covered, note = ''
  * (longer for a large area: holdFor) is no longer counted as on it, and an
  * ask nobody started in half a day is over. Returns how many were closed.
  * The person keeps their own card for it (lapsedVisitOf).
+ *
+ * Each is ended at the moment it went stale (staleAt), not at the moment of
+ * the sweep: nothing sweeps until somebody loads the search, and an area
+ * taken on Friday and swept on Sunday was not anyone's until Sunday. Its
+ * time decides how long its person can still say what happened, and when a
+ * search said late is dated.
  */
 export async function sweepStaleVisits(caseId, now = Date.now()) {
   const old = await prisma.searchZoneVisit.findMany({
@@ -339,12 +380,13 @@ export async function sweepStaleVisits(caseId, now = Date.now()) {
       endedAt: null,
       OR: [{ startedAt: { lt: new Date(now - MIN_HOLD_MS) } }, { startedAt: null, askedAt: { lt: new Date(now - ASK_STALE_MS) } }],
     },
-    select: { id: true, startedAt: true, zone: { select: { minutes: true } } },
+    select: { id: true, startedAt: true, askedAt: true, zone: { select: { minutes: true } } },
   });
   const stale = old.filter((v) => !v.startedAt || now - new Date(v.startedAt).getTime() > holdFor(v.zone?.minutes));
   if (!stale.length) return 0;
-  const { count } = await prisma.searchZoneVisit.updateMany({ where: { id: { in: stale.map((v) => v.id) }, endedAt: null }, data: { endedAt: new Date(now), outcome: 'LAPSED' } });
-  return count;
+  // One write to each, since each went stale at its own moment. Only one still open: a request that ended it meanwhile keeps its own end.
+  const ended = await Promise.all(stale.map((v) => prisma.searchZoneVisit.updateMany({ where: { id: v.id, endedAt: null }, data: { endedAt: staleAt(v, v.zone?.minutes, now), outcome: 'LAPSED' } })));
+  return ended.reduce((sum, written) => sum + (written?.count || 0), 0);
 }
 
 const parseList = (text) => {
@@ -407,18 +449,22 @@ function oneAtATime(zoneId, work) {
 /**
  * The searches of an area, newest first: [{ at, marked, minutes, covered }],
  * with who and their own words where names go. `minutes` is how long a
- * helper had the area, left out where it says nothing (put down from the
- * desk, or far longer than the area takes: they forgot to say).
+ * helper had the area, to the tenth of a minute, so a search of a few
+ * seconds is kept as one (minutesSpent). It is left out where it says
+ * nothing: put down from the desk, far longer than the area takes (they
+ * forgot to say), or said after the site had stopped counting them there,
+ * which is `late`: dated when it stopped counting them, and untimed.
  */
 function historyOf(row, { history = null, withNames = false } = {}) {
   const past = (history?.get(row.id) || []).map((v) => {
     const marked = v.outcome === 'MARKED';
-    const spent = !marked && v.startedAt && v.endedAt ? Math.round((new Date(v.endedAt) - new Date(v.startedAt)) / 60000) : null;
+    const ran = !marked && v.startedAt && v.endedAt ? new Date(v.endedAt) - new Date(v.startedAt) : null;
     return {
       at: v.endedAt,
       marked,
-      minutes: spent != null && spent >= 1 && spent <= 3 * (row.minutes || 60) ? spent : null,
+      minutes: marked ? null : minutesSpent(v.startedAt, v.endedAt, row.minutes),
       covered: COVERED.includes(v.covered) ? v.covered : null,
+      ...(ran != null && ranToTheHold(ran, row.minutes) ? { late: true } : {}),
       ...(withNames ? { by: v.searcherName || null, note: v.debrief || null } : {}),
     };
   });
@@ -527,10 +573,31 @@ const byUrgency = (a, b) => b.priority - a.priority || Number(b.ring === RING.SE
 async function lapsedVisitOf(caseId, searcherId, now = Date.now()) {
   if (!searcherId) return null;
   const last = await prisma.searchZoneVisit
-    .findFirst({ where: { caseId, searcherId, startedAt: { not: null } }, orderBy: [{ startedAt: 'desc' }, { id: 'desc' }], select: { id: true, zoneId: true, outcome: true, endedAt: true } })
+    .findFirst({
+      where: { caseId, searcherId, startedAt: { not: null } },
+      orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, zoneId: true, outcome: true, startedAt: true, endedAt: true, zone: { select: { minutes: true } } },
+    })
     .catch(() => null);
   if (!last || last.outcome !== 'LAPSED' || !last.endedAt) return null;
-  return now - new Date(last.endedAt).getTime() < LATE_MS ? { id: last.id, zoneId: last.zoneId, endedAt: last.endedAt } : null;
+  // Half a day from when the site stopped counting them, which is when it went stale. A visit swept before each was
+  // stamped with that moment carries the time of the sweep, days later perhaps: it is read from when they started.
+  const stale = lapsedAt(last, last.zone?.minutes);
+  return now - stale.getTime() < LATE_MS ? { id: last.id, zoneId: last.zoneId, endedAt: stale } : null;
+}
+
+/**
+ * This person's own open visit to an area that has run past the time the
+ * site counts anyone as on one, and has not been swept yet (nothing sweeps
+ * until somebody loads the search, and a phone can send "I searched it"
+ * before it loads it). It is ended as the sweep would end it, at the moment
+ * it went stale, so what they say now is taken as said late and is never
+ * a search made now.
+ */
+async function settleOverdue(zone, me, now) {
+  const held = (zone.visits || []).find((v) => v.searcherId === me && onIt(v));
+  if (!held || now - new Date(held.startedAt).getTime() <= holdFor(zone.minutes)) return;
+  await prisma.searchZoneVisit.updateMany({ where: { id: held.id, endedAt: null }, data: { endedAt: staleAt(held, zone.minutes, now), outcome: 'LAPSED' } });
 }
 
 /**
@@ -588,13 +655,17 @@ export async function readZones(caseId, { viewer = null, withNames = false, owne
     if (theirs) theirs.mine = true;
   }
   const { circle, center, widened } = made;
+  // Each finished search marked for whether it was far shorter than its area takes: such a search leaves no paw
+  // prints (app/lib/trail.js, which reads no clock itself).
+  const takes = new Map(rows.map((row) => [row.id, row.minutes]));
+  const searches = (finished || []).map((v) => ({ ...v, short: v.outcome === 'SEARCHED' && pawsForSearch(minutesSpent(v.startedAt, v.endedAt, takes.get(v.zoneId)), takes.get(v.zoneId)) === 0 }));
   return {
     circle: { center, inner: circle.inner, edge: circle.edge, wide: circle.wide, radius: widened ? circle.wide : circle.edge, widened },
     areas,
     streetsStatus: made.streetsStatus,
     hazardsStatus: made.hazardsStatus,
     // The paw prints on this search: the team's, and the reader's own (app/lib/trail.js). Counts only.
-    trail: trailOf(finished || [], viewer),
+    trail: trailOf(searches, viewer),
   };
 }
 
@@ -640,13 +711,14 @@ export async function openAreas(caseId, { take = 12, viewer = null, now = Date.n
  *
  *   claim     start searching it. Whatever else this person was on is
  *             given back: one area per person at a time.
- *   release   stop, without having searched it
+ *   release   stop, without having searched it: the person is leaving
  *   searched  this person searched it: the area counts one more search
  *
  * and, for whoever runs the search, the steering in ZONE_STEER_ACTIONS.
  *
  * Returns { item, title } (the area as the board sends it, for this
- * person; `title` is its name as a sentence takes it) or { error, title }:
+ * person; `title` is its name as a sentence takes it), with `paws` for a
+ * search (the paw prints it left: app/lib/trail.js), or { error, title }:
  * NOT_FOUND, TAKEN (a sighting's circle has its one person), NOT_YOURS,
  * NOT_CLAIMED, NOT_ALLOWED, SOMEONE_ON_IT, ALREADY_WALKED, NOT_WALKED,
  * ALREADY_AGAIN, ALREADY_WIDE.
@@ -656,6 +728,8 @@ export async function actOnZone({ caseId, id, action, searcher, ownerId = null, 
   const when = new Date(now);
   const steering = ZONE_STEER_ACTIONS.includes(action);
   if (steering && !searcher.leads) return { error: 'NOT_ALLOWED', title: null };
+  // For a search: the paw prints it left.
+  let paws = null;
 
   if (action === 'widen') return widenCircle({ caseId, searcher, now });
   if (action === 'againAll') {
@@ -734,31 +808,41 @@ export async function actOnZone({ caseId, id, action, searcher, ownerId = null, 
     // One area per person at a time: whatever else they were on is given back, once they have the new one.
     await prisma.searchZoneVisit.updateMany({ where: { caseId, searcherId: me, endedAt: null, startedAt: { not: null }, NOT: { zoneId: before.id } }, data: { endedAt: when, outcome: 'GAVE_BACK' } });
   } else if (action === 'release') {
-    const given = await prisma.searchZoneVisit.updateMany({ where: { zoneId: before.id, searcherId: me, endedAt: null, startedAt: { not: null } }, data: { endedAt: when, outcome: 'GAVE_BACK' } });
+    // "I am stopping" is leaving, kept apart from an area given back to take another (GAVE_BACK): the person is not
+    // out any more, so they are not counted as looking or offered to the desk to send somewhere.
+    await settleOverdue(before, me, now);
+    const given = await prisma.searchZoneVisit.updateMany({ where: { zoneId: before.id, searcherId: me, endedAt: null, startedAt: { not: null } }, data: { endedAt: when, outcome: 'STOPPED' } });
     if (given.count === 0) {
       // The site had stopped counting them as there. Stopping is still theirs to say, and it takes the card off their screen.
       const late = await lapsedVisitOf(caseId, me, now);
       if (!late || late.zoneId !== before.id) return { error: 'NOT_YOURS', title };
-      await prisma.searchZoneVisit.updateMany({ where: { id: late.id, outcome: 'LAPSED' }, data: { outcome: 'GAVE_BACK' } });
+      await prisma.searchZoneVisit.updateMany({ where: { id: late.id, outcome: 'LAPSED' }, data: { outcome: 'STOPPED', endedAt: late.endedAt } });
     }
   } else if (action === 'searched') {
+    // Past the time the site counts anyone as on an area, and not swept yet: what they say is said late.
+    await settleOverdue(before, me, now);
+    const held = before.visits.find((v) => v.searcherId === me && onIt(v));
     // Only someone on it can say so: "searched" means a person went over the ground.
     const done = await prisma.searchZoneVisit.updateMany({ where: { zoneId: before.id, searcherId: me, endedAt: null, startedAt: { not: null } }, data: { endedAt: when, outcome: 'SEARCHED' } });
     if (done.count > 0) {
       await prisma.searchZone.update({ where: { id: before.id }, data: { searchCount: { increment: 1 }, searchedAt: when, searchedById: me, searchedByName: searcher.firstName, againAt: null } });
       await askMet();
+      // The record keeps the search however short, and the map counts it by its time. Its prints follow the trail's rule.
+      paws = pawsForSearch(minutesSpent(held?.startedAt, when, before.minutes), before.minutes);
     } else {
       // Out longer than the site allowed for, so it had stopped counting them as there. They went over the
       // ground all the same, and saying so counts. Once: only the request that changes the visit counts it.
       const late = await lapsedVisitOf(caseId, me, now);
       if (!late || late.zoneId !== before.id) return { error: 'NOT_CLAIMED', title };
-      const counted = await prisma.searchZoneVisit.updateMany({ where: { id: late.id, outcome: 'LAPSED' }, data: { outcome: 'SEARCHED' } });
-      if (counted.count === 0) return { error: 'NOT_CLAIMED', title };
-      // That search was made before the site stopped counting them, not now. So it is dated then, and it undoes
-      // nothing done on the area since: a later search stays the last one, and another look the owner has asked
-      // for since still stands. "Send people here first" is met only if nothing at all was written on the area
-      // after they were last counted there.
+      // That search was made before the site stopped counting them, not now. So it is dated then (and the visit
+      // too, where an older sweep stamped it later), and it undoes nothing done on the area since: a later search
+      // stays the last one, and another look the owner has asked for since still stands. "Send people here first"
+      // is met only if nothing at all was written on the area after they were last counted there.
       const then = new Date(late.endedAt);
+      const counted = await prisma.searchZoneVisit.updateMany({ where: { id: late.id, outcome: 'LAPSED' }, data: { outcome: 'SEARCHED', endedAt: then } });
+      if (counted.count === 0) return { error: 'NOT_CLAIMED', title };
+      // How long they were on the ground is not known, so it is not called short.
+      paws = PAWS.SEARCH;
       const newest = !before.searchedAt || new Date(before.searchedAt) < then;
       const lookStands = Boolean(before.againAt) && new Date(before.againAt) > then;
       await prisma.searchZone.update({
@@ -778,6 +862,7 @@ export async function actOnZone({ caseId, id, action, searcher, ownerId = null, 
   return {
     item: zoneForBoard(after, { viewer: me, withNames: searcher.seesNames, ownerId, ownerName, caseId, name: pet?.petName || 'the pet', sightings, now }),
     title,
+    ...(paws != null ? { paws } : {}),
   };
 }
 
@@ -892,12 +977,26 @@ export async function markZoneAskSeen(caseId, searcherId, now = Date.now()) {
 /**
  * Who is out, from the areas: on one now, or finished one since `since`.
  * Searcher ids, for the picture's count (app/lib/searchPicture.js).
+ * Someone who said "I am stopping" after their last search has gone home,
+ * and is not counted as out for having searched before it.
  */
 export async function zoneSearchersSince(caseId, since) {
   const rows = await prisma.searchZoneVisit
-    .findMany({ where: { caseId, OR: [{ endedAt: null, startedAt: { not: null } }, { outcome: 'SEARCHED', endedAt: { gte: since } }] }, select: { searcherId: true } })
+    .findMany({
+      where: { caseId, OR: [{ endedAt: null, startedAt: { not: null } }, { outcome: { in: ['SEARCHED', 'STOPPED'] }, endedAt: { gte: since } }] },
+      select: { searcherId: true, outcome: true, endedAt: true },
+    })
     .catch(() => []);
-  return (rows || []).map((r) => r.searcherId);
+  const stopped = new Map();
+  for (const r of rows || []) {
+    if (r.outcome !== 'STOPPED' || !r.endedAt) continue;
+    const at = new Date(r.endedAt).getTime();
+    if (!(stopped.get(r.searcherId) >= at)) stopped.set(r.searcherId, at);
+  }
+  return (rows || [])
+    .filter((r) => r.outcome !== 'STOPPED')
+    .filter((r) => !r.endedAt || !(stopped.get(r.searcherId) >= new Date(r.endedAt).getTime()))
+    .map((r) => r.searcherId);
 }
 
 /**

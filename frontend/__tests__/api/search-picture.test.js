@@ -23,6 +23,7 @@ jest.mock('@/app/lib/prisma', () => ({
     searchZoneVisit: { findMany: jest.fn(async () => []), findFirst: jest.fn(async () => null) },
     searchMessage: { findMany: jest.fn(async () => []), updateMany: jest.fn(async () => ({ count: 0 })) },
     alert: { count: jest.fn(async () => 0) },
+    waiverAcceptance: { findFirst: jest.fn(async () => null) },
   },
 }));
 jest.mock('@/app/lib/searcher', () => ({ __esModule: true, searcherFor: jest.fn(async () => null) }));
@@ -112,6 +113,7 @@ beforeEach(() => {
   prisma.searchGrid.findUnique.mockResolvedValue(null);
   prisma.alert.count.mockResolvedValue(0);
   prisma.caseAssignment.findMany.mockResolvedValue([]);
+  prisma.waiverAcceptance.findFirst.mockResolvedValue(null);
   searcherFor.mockResolvedValue(null);
   withRateLimitAsync.mockResolvedValue({ success: true });
 });
@@ -176,7 +178,7 @@ describe('searchPicture: what anyone with the link sees', () => {
     // Nor to a helper who joined from the link.
     const helper = await searchPicture('case-max', { searcher: HELPER, now: NOW });
     expect(JSON.stringify(helper)).not.toContain('Dana');
-    expect(helper.viewer).toEqual({ kind: 'volunteer', firstName: 'Jo', isOwner: false, seesNames: false, leads: false, admin: false, waiver: true, signedIn: false });
+    expect(helper.viewer).toEqual({ kind: 'volunteer', firstName: 'Jo', isOwner: false, seesNames: false, leads: false, admin: false, waiver: true, trained: false, signedIn: false });
     expect(text).not.toMatch(/witnessKey/);
     expect(helper.neighbors).toBeNull();
   });
@@ -428,6 +430,30 @@ describe('searchPicture: who else sees a helper\'s first name', () => {
   });
 });
 
+describe('searchPicture: whether a helper has been through "Before you go out"', () => {
+  // It follows the tick as a step everyone passes through: the screen shows it to anyone who agreed and has not read
+  // it since, after a reload too. Nothing on the server refuses a search for want of it.
+  test('read from their latest agreement: trained once it is stamped, and not before', async () => {
+    expect((await searchPicture('case-max', { searcher: HELPER, now: NOW })).viewer.trained).toBe(false);
+    expect(prisma.waiverAcceptance.findFirst).toHaveBeenCalledWith({ where: { volunteerId: 'vol-1' }, orderBy: { createdAt: 'desc' }, select: { trainedAt: true } });
+    prisma.waiverAcceptance.findFirst.mockResolvedValue({ trainedAt: ago(30) });
+    expect((await searchPicture('case-max', { searcher: HELPER, now: NOW })).viewer.trained).toBe(true);
+    expect((await searchPicture('case-max', { searcher: MEMBER, now: NOW })).viewer.trained).toBe(true);
+    expect(prisma.waiverAcceptance.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({ where: { userId: 'user-mike' } }));
+  });
+
+  test('someone who has not agreed is not trained, and the owner is not asked to read it to look for their own pet', async () => {
+    expect((await searchPicture('case-max', { searcher: { ...HELPER, waiver: false }, now: NOW })).viewer.trained).toBe(false);
+    expect((await searchPicture('case-max', { searcher: OWNER, now: NOW })).viewer.trained).toBe(true);
+    expect(prisma.waiverAcceptance.findFirst).not.toHaveBeenCalled();
+  });
+
+  test('a record that cannot be read is not trained: the training is shown rather than skipped', async () => {
+    prisma.waiverAcceptance.findFirst.mockRejectedValue(new Error('down'));
+    expect((await searchPicture('case-max', { searcher: HELPER, now: NOW })).viewer.trained).toBe(false);
+  });
+});
+
 describe('searchPicture: how many people are out', () => {
   test('everyone on an area of ground now or done within the last half hour, once each, and not the owner', async () => {
     // Whoever is on an area, or said they searched one in the last half hour (app/lib/searchZones.js).
@@ -436,9 +462,24 @@ describe('searchPicture: how many people are out', () => {
     // Dana and Sarah. Two rows for one person is one person, and the owner searching their own pet's ground is not a helper.
     expect(out.looking).toEqual({ helpers: 2 });
     const { where } = prisma.searchZoneVisit.findMany.mock.calls[0][0];
-    expect(where).toEqual({ caseId: 'case-max', OR: [{ endedAt: null, startedAt: { not: null } }, { outcome: 'SEARCHED', endedAt: { gte: new Date(NOW - 30 * 60 * 1000) } }] });
+    expect(where).toEqual({ caseId: 'case-max', OR: [{ endedAt: null, startedAt: { not: null } }, { outcome: { in: ['SEARCHED', 'STOPPED'] }, endedAt: { gte: new Date(NOW - 30 * 60 * 1000) } }] });
     expect(JSON.stringify(out)).not.toContain('vol-1');
     expect(JSON.stringify(out)).not.toContain('user-sarah');
+  });
+
+  test('"I am stopping" is leaving: someone who searched an area and then stopped is not counted as out for the next half hour', async () => {
+    prisma.searchZoneVisit.findMany.mockResolvedValue([
+      // Dana searched the west side ten minutes ago, then took another area and said she was stopping.
+      { searcherId: 'v:vol-1', outcome: 'SEARCHED', endedAt: ago(10) },
+      { searcherId: 'v:vol-1', outcome: 'STOPPED', endedAt: ago(4) },
+      // Sarah stopped, came back and searched again since: she is out.
+      { searcherId: 'user-sarah', outcome: 'STOPPED', endedAt: ago(25) },
+      { searcherId: 'user-sarah', outcome: 'SEARCHED', endedAt: ago(5) },
+      // Mike stopped once and is on an area now.
+      { searcherId: 'user-mike', outcome: 'STOPPED', endedAt: ago(20) },
+      { searcherId: 'user-mike', outcome: null, endedAt: null },
+    ]);
+    expect((await searchPicture('case-max', { now: NOW })).looking).toEqual({ helpers: 2 });
   });
 
   test('a search from before it was on areas: everyone on a street now or done within the last half hour, once each, and not the owner', async () => {
