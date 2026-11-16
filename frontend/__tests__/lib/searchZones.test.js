@@ -34,9 +34,9 @@ import { ensureGrid } from '@/app/lib/searchBoard';
 import {
   ensureZones, sweepStaleVisits, zoneForBoard, readZones, openAreas, actOnZone, widenCircle, askZone, unaskZonePerson, cannotSearch,
   zoneAskWaitingFor, markZoneAskSeen, zoneSearchersSince, zoneGroundCovered, freshSightings, streetNames,
-  ZONE_ACTIONS, ZONE_STEER_ACTIONS, SEEN_CIRCLES_MAX, ASK_STALE_MS, ASK_NOTE_MAX, CANNOT_WORDS, LATE_MS,
+  ZONE_ACTIONS, ZONE_STEER_ACTIONS, SEEN_CIRCLES_MAX, ASK_STALE_MS, ASK_NOTE_MAX, CANNOT_WORDS, LATE_MS, rankAreas,
 } from '@/app/lib/searchZones';
-import { RING, CIRCLES, areasOf, seenArea, heartOf, minutesFor } from '@/app/lib/searchCircle';
+import { RING, CIRCLES, SEEN_CIRCLE_REACH_METERS, areasOf, seenArea, heartOf, minutesFor } from '@/app/lib/searchCircle';
 import { handleFor } from '@/app/lib/searchTeam';
 import { FIRST_PRIORITY } from '@/app/lib/searchGrid';
 
@@ -259,6 +259,21 @@ describe('ensureZones: the areas are made on first use, and need no map server',
     expect(where.OR).toEqual([{ witnessState: null }, { witnessState: { not: 'NOT_THE_PET' } }]);
   });
 
+  test('a sighting far from the search gets no circle: nobody is sent across a city or a country to it', async () => {
+    // Chicago, for a dog lost in Austin; and one 3 km north, which a helper on foot can still reach.
+    const chicago = sighting({ id: 's-chicago', latitude: 41.8781, longitude: -87.6298, sightedAt: ago(2) });
+    const near = sighting({ id: 's-near', latitude: LOST.lat + 3000 / 111320, sightedAt: ago(5) });
+    const across = sighting({ id: 's-across', latitude: LOST.lat + 6000 / 111320, sightedAt: ago(3) });
+    prisma.searchZone.findMany.mockResolvedValue(['middle', 'north', 'east', 'south', 'west'].map((key) => row(key)));
+    prisma.caseSighting.findMany.mockResolvedValue([chicago, across, near]);
+    const made = await ensureZones(CASE, { now: NOW });
+    expect(SEEN_CIRCLE_REACH_METERS).toBe(5000);
+    expect(prisma.searchZone.createMany.mock.calls[0][0].data.map((d) => d.key)).toEqual(['seen-s-near']);
+    // The far ones stay sightings (on the map, and on the owner's screen); they are not ground.
+    expect(made.sightings.map((x) => x.id)).toEqual(['s-chicago', 's-across', 's-near']);
+    expect(made.seenNear.map((x) => x.id)).toEqual(['s-near']);
+  });
+
   test('a found pet, a report with no place, and a pet that is not there have no search to draw', async () => {
     for (const pet of [{ ...PET, reportType: 'FOUND' }, { ...PET, lastSeenLatitude: null }, null]) {
       prisma.case.findUnique.mockResolvedValue(pet);
@@ -340,6 +355,25 @@ describe('readZones: the board', () => {
     prisma.searchZone.findMany.mockResolvedValue(stored([row('seen-s1', { center: { lat: sighting().latitude, lng: sighting().longitude } })]));
     const out = await readZones(CASE, { now: NOW });
     expect(out.areas.slice(0, 3).map((a) => [a.key, a.priority])).toEqual([['seen-s1', 10], ['south', 10], ['middle', 8]]);
+  });
+
+  test('a circle made for a far sighting before the board left them out drops off it, unless someone is there', async () => {
+    const chicago = sighting({ id: 's-chicago', latitude: 41.8781, longitude: -87.6298, sightedAt: ago(2) });
+    prisma.caseSighting.findMany.mockResolvedValue([chicago]);
+    const far = row('seen-s-chicago', { center: { lat: chicago.latitude, lng: chicago.longitude } });
+    prisma.searchZone.findMany.mockResolvedValue(stored([far]));
+    const out = await readZones(CASE, { now: NOW });
+    expect(out.areas.map((a) => a.key)).toEqual(['middle', 'north', 'east', 'south', 'west']);
+    expect(rankAreas(out.areas)[0].key).toBe('middle');
+    prisma.searchZone.findMany.mockResolvedValue(stored([{ ...far, visits: [on({ zoneId: far.id })] }]));
+    expect((await readZones(CASE, { now: NOW })).areas.map((a) => a.key)).toContain('seen-s-chicago');
+  });
+
+  test('the circle round a sighting says how far it is from where the pet was lost', async () => {
+    prisma.caseSighting.findMany.mockResolvedValue([sighting()]);
+    prisma.searchZone.findMany.mockResolvedValue(stored([row('seen-s1', { center: { lat: sighting().latitude, lng: sighting().longitude } })]));
+    const seen = (await readZones(CASE, { now: NOW })).areas.find((a) => a.key === 'seen-s1');
+    expect(seen.reach).toBe('Within 150 m of where Max was seen, 300 m south of where Max was lost');
   });
 
   test('a circle whose sighting is old leaves the board, unless someone is still there', async () => {

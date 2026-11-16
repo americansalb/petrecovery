@@ -18,6 +18,7 @@
 import { useState } from 'react';
 import { Check, Loader2, MapPin, MousePointerClick, Phone } from 'lucide-react';
 import LocationPicker from '@/app/components/report/LocationPicker';
+import { SIGHTING_ACCURACY_METERS } from '@/app/lib/sightingLimits';
 import { Eyebrow, Heading, Lead, Note, Primary, SeenButton, QuietLink, AdviceBlock, Problem } from '../components/kit';
 import { clockTime, phoneTel, phoneWords } from '../lib/words';
 
@@ -69,8 +70,10 @@ export function Seen({ name, owner, signedIn = false, where, onWhere, near = nul
         <>
           <div className="mt-3 overflow-hidden rounded-2xl bg-white p-3 text-midnight-900">
             {/* On a desk the picker never offers the device's position: it would be a guess from the network.
-                A typed street is looked for around the search first: "W 41st St" means the one by the pet. */}
-            <LocationPicker value={where} onChange={onWhere} variant="lost" canLocate={canLocate} search={typing || !placed} near={near} />
+                A typed street is looked for around the search first: "W 41st St" means the one by the pet, and
+                the pin can be put on a map that opens there. "Use my location" holds to the search's own rule
+                on a rough reading (app/lib/sightingLimits.js). */}
+            <LocationPicker value={where} onChange={onWhere} variant="lost" canLocate={canLocate} search={typing || !placed} near={near} maxAccuracy={SIGHTING_ACCURACY_METERS} />
           </div>
           {placed && !typing && (
             <div>

@@ -6,7 +6,9 @@
  * UNSURE, minutesAgo?, direction?, name?, note? }. Signed in or not; a
  * session only adds the Discussion post in the witness's name. Rate
  * limited like every public write. 201 with { sighting, place, told,
- * caseNumber }, 400 in words, 404, or 409 when the search has ended.
+ * caseNumber }, 400 in words (also for a place too far from where the pet
+ * was lost, app/lib/sightingLimits.js: the form shows the words), 404, or
+ * 409 when the search has ended.
  *
  * The same place sent again within ten minutes of the first send is the
  * same sighting: its time is moved up, nobody is alerted twice, and the
@@ -42,6 +44,11 @@ export async function POST(request, { params }) {
     const out = await recordWitnessSighting(params.caseNumber, checked.value, { userId });
     if (out.error === 'NOT_FOUND') return NextResponse.json({ error: 'This link does not match a pet.' }, { status: 404 });
     if (out.error === 'CLOSED') return NextResponse.json({ error: 'This search has ended. Thank you for looking.' }, { status: 409 });
+    if (out.error === 'TOO_FAR') {
+      // Kept on record: a pin dropped in the wrong place, or someone sending sightings from anywhere.
+      logEvent({ event_type: 'case.sighting_refused', resource_type: 'mission', resource_id: out.caseNumber, action: 'create', result: 'failure', error_code: 'TOO_FAR', actor_user_id: userId, metadata: { witness: !userId, meters: out.meters } }).catch(() => {});
+      return NextResponse.json({ error: out.words, code: 'TOO_FAR' }, { status: 400 });
+    }
     if (out.error === 'TOO_MANY') {
       // The pet's own number for the hour (app/lib/witness.js). Kept on record: it is either a busy search or someone flooding one.
       logEvent({ event_type: 'case.sighting_refused', resource_type: 'mission', resource_id: out.caseNumber, action: 'create', result: 'failure', error_code: 'TOO_MANY', actor_user_id: userId, metadata: { witness: !userId } }).catch(() => {});

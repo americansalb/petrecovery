@@ -27,8 +27,8 @@
  * and the forces looking for the pet. Nobody is handed out by their id.
  */
 import prisma from '@/app/lib/prisma';
-import { CLAIM_TTL_MS, FIRST_PRIORITY, SIGHTING_PRIORITY_WINDOW_MS } from '@/app/lib/searchGrid';
-import { RING, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, reachOf, landmarksIn, urgencyOf, inWords, rankAreas, heldFor } from '@/app/lib/searchCircle';
+import { CLAIM_TTL_MS, FIRST_PRIORITY, SIGHTING_PRIORITY_WINDOW_MS, distanceMeters } from '@/app/lib/searchGrid';
+import { RING, SEEN_CIRCLE_REACH_METERS, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, reachOf, landmarksIn, urgencyOf, inWords, rankAreas, heldFor } from '@/app/lib/searchCircle';
 
 export { rankAreas };
 import { ensureGrid } from '@/app/lib/searchBoard';
@@ -262,9 +262,11 @@ export async function ensureHazards(caseId, { fetchList = fetchHazards, now = Da
 /**
  * The areas of a case's search, made on first use and added to as the
  * search changes: the outer ring once it is widened, and a circle round
- * each fresh sighting. Returns what the reads below need, or null when
- * there is no search to draw (no such pet, a found pet, or a report with
- * no place the pet was lost).
+ * each fresh sighting near the search (SEEN_CIRCLE_REACH_METERS from where
+ * the circle is drawn: a sighting further off is on the map, and is not
+ * ground anyone is sent to). Returns what the reads below need, or null
+ * when there is no search to draw (no such pet, a found pet, or a report
+ * with no place the pet was lost).
  */
 export async function ensureZones(caseId, { now = Date.now() } = {}) {
   const pet = await prisma.case.findUnique({ where: { id: caseId }, select: CASE_FOR_ZONES });
@@ -286,7 +288,8 @@ export async function ensureZones(caseId, { now = Date.now() } = {}) {
   for (const area of areasOf(circle, { widened })) {
     if (!have.has(area.key)) missing.push(rowFor(area, center, circle, caseId));
   }
-  for (const s of sightings.slice(0, SEEN_CIRCLES_MAX)) {
+  const seenNear = sightings.filter((s) => distanceMeters(center, s) <= SEEN_CIRCLE_REACH_METERS);
+  for (const s of seenNear.slice(0, SEEN_CIRCLES_MAX)) {
     const area = seenArea(s.id, circle, name);
     if (!have.has(area.key)) missing.push({ ...rowFor(area, { lat: s.lat, lng: s.lng }, circle, caseId), sightingId: s.id });
   }
@@ -301,7 +304,7 @@ export async function ensureZones(caseId, { now = Date.now() } = {}) {
   if (grid?.hazardsStatus === 'READY' && (missing.length || rows.some((r) => r.hazards == null))) {
     await nameHazards(caseId).catch(() => {});
   }
-  return { pet, circle, center, widened, name, sightings, streetsStatus, hazardsStatus: grid?.hazardsStatus || null };
+  return { pet, circle, center, widened, name, sightings, seenNear, streetsStatus, hazardsStatus: grid?.hazardsStatus || null };
 }
 
 /**
@@ -427,7 +430,7 @@ function historyOf(row, { history = null, withNames = false } = {}) {
 }
 
 export function zoneForBoard(row, ctx = {}) {
-  const { viewer = null, withNames = false, ownerId = null, ownerName = null, caseId = row.caseId, name = 'the pet', sightings = [], now = Date.now() } = ctx;
+  const { viewer = null, withNames = false, ownerId = null, ownerName = null, caseId = row.caseId, name = 'the pet', sightings = [], origin = null, now = Date.now() } = ctx;
   const area = areaOf(row);
   const center = centerOf(row);
   const visits = row.visits || [];
@@ -449,7 +452,8 @@ export function zoneForBoard(row, ctx = {}) {
     ring: row.ring,
     name: row.name,
     title: row.name,
-    reach: reachOf(area, name),
+    // The circle round a sighting says how far it is from where the pet was lost: the helper sees how far they are sent.
+    reach: reachOf(area, name, row.ring === RING.SEEN ? { lost: origin, seen: center } : undefined),
     landmarks: parseList(row.landmarks),
     hazards: parseHazards(row.hazards).map(({ kind, name, what }) => ({ kind, name: name || '', what })),
     outline: outlineOf(area, center),
@@ -556,9 +560,10 @@ export async function readZones(caseId, { viewer = null, withNames = false, owne
     if (list.length < HISTORY_MAX) list.push(visit);
     history.set(visit.zoneId, list);
   }
-  const ctx = { viewer, withNames, ownerId, ownerName, caseId, name: made.name, sightings: made.sightings, now, history };
-  const fresh = new Set(made.sightings.slice(0, SEEN_CIRCLES_MAX).map((s) => s.id));
-  // A sighting's circle is on the board while the sighting is fresh, or while someone is still there.
+  const ctx = { viewer, withNames, ownerId, ownerName, caseId, name: made.name, sightings: made.sightings, origin: made.center, now, history };
+  const fresh = new Set(made.seenNear.slice(0, SEEN_CIRCLES_MAX).map((s) => s.id));
+  // A sighting's circle is on the board while the sighting is fresh and near the search, or while someone is still
+  // there. One made before the board left out far sightings drops off it with nobody on it.
   const shown = (row) => row.ring !== RING.SEEN || fresh.has(row.sightingId) || row.visits.some(onIt);
   // An ask to go to a circle that has left the board is over: the sighting was taken back, or newer ones took its
   // place. Ended here, so the person's phone and the desk's list stop saying they are asked.

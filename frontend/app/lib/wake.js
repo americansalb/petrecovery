@@ -25,11 +25,13 @@ export const WAKE_KINDS = {
 /**
  * `forceIds`: the forces whose members this concerns. `title` and `body`
  * are the words on the phone and in the bell. `url` is where the tap
- * lands. Returns { bell, pushed } counts.
+ * lands. `exceptUserId` is the person who caused it; `exceptUserIds` are
+ * people told about it another way (the owner of a pet seen, who hears it
+ * as the owner and not again as a member). Returns { bell, pushed } counts.
  */
-export async function wakeForces({ forceIds, exceptUserId = null, kind, title, body, url, data = null, everyone = false, now = new Date() }) {
+export async function wakeForces({ forceIds, exceptUserId = null, exceptUserIds = [], kind, title, body, url, data = null, everyone = false, now = new Date() }) {
   try {
-    const { onDuty, offDuty } = await membersByDuty(forceIds, { exceptUserId, now });
+    const { onDuty, offDuty } = await membersByDuty(forceIds, { exceptUserId, exceptUserIds, now });
     const all = [...onDuty, ...offDuty];
     if (!all.length) return { bell: 0, pushed: 0 };
 

@@ -20,8 +20,26 @@ let mapkitInitialized = false;
 let mapkitLoading = false;
 let initPromise = null;
 
+/** How long the MapKit script is waited for before it counts as failed, in milliseconds. */
+export const MAPKIT_LOAD_TIMEOUT_MS = 10000;
 /**
- * Load MapKit JS script dynamically
+ * After a failed load, how long every call is answered at once with the
+ * failure, rather than trying again. The place picker searches as a person
+ * types, and each try would wait on the network for nothing.
+ */
+export const MAPKIT_RETRY_AFTER_MS = 2 * 60 * 1000;
+let lastFailureAt = 0;
+
+/**
+ * Load MapKit JS script dynamically.
+ *
+ * A failed load must never leave a later call waiting (2026-11-16: the
+ * place picker spun for ever from the second search on). A script's load
+ * and error events fire once; a script that failed stayed in the page, and
+ * a later call that found it waited for events that had already fired. So
+ * a script that fails, or does not answer in MAPKIT_LOAD_TIMEOUT_MS, is
+ * taken out of the page, and a script already there is waited for no
+ * longer than that either.
  */
 function loadMapKitScript() {
   return new Promise((resolve, reject) => {
@@ -31,39 +49,46 @@ function loadMapKitScript() {
       return;
     }
 
-    // Check if script is already being loaded
-    const existingScript = document.querySelector(`script[src="${MAPKIT_JS_URL}"]`);
-    if (existingScript) {
-      existingScript.addEventListener('load', () => resolve(window.mapkit));
-      existingScript.addEventListener('error', reject);
-      return;
+    // A script already in the page (another call is loading it), or a new one.
+    let script = document.querySelector(`script[src="${MAPKIT_JS_URL}"]`);
+    const added = !script;
+    if (added) {
+      script = document.createElement('script');
+      script.src = MAPKIT_JS_URL;
+      script.crossOrigin = 'anonymous';
+      script.async = true;
     }
 
-    // Create and load script
-    const script = document.createElement('script');
-    script.src = MAPKIT_JS_URL;
-    script.crossOrigin = 'anonymous';
-    script.async = true;
-
-    script.onload = () => {
-      if (window.mapkit) {
+    let timer = null;
+    let done = false;
+    const finish = (error) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onError);
+      if (!error && window.mapkit) {
         resolve(window.mapkit);
-      } else {
-        reject(new Error('MapKit JS loaded but mapkit object not found'));
+        return;
       }
+      // Its events will not fire again: out of the page, so the next try adds a new one.
+      if (typeof script.remove === 'function') script.remove();
+      reject(error || new Error('MapKit JS loaded but mapkit object not found'));
     };
+    const onLoad = () => finish(null);
+    const onError = () => finish(new Error('Failed to load MapKit JS'));
+    script.addEventListener('load', onLoad);
+    script.addEventListener('error', onError);
+    timer = setTimeout(() => finish(new Error('MapKit JS did not load in time')), MAPKIT_LOAD_TIMEOUT_MS);
 
-    script.onerror = () => {
-      reject(new Error('Failed to load MapKit JS'));
-    };
-
-    document.head.appendChild(script);
+    if (added) document.head.appendChild(script);
   });
 }
 
 /**
  * Initialize MapKit with JWT token
- * Returns a promise that resolves when MapKit is ready
+ * Returns a promise that resolves when MapKit is ready, and rejects at
+ * once for a while after a failed load (MAPKIT_RETRY_AFTER_MS).
  */
 export async function initializeMapKit() {
   // Return existing promise if already initializing
@@ -74,6 +99,11 @@ export async function initializeMapKit() {
   // Return immediately if already initialized
   if (mapkitInitialized && window.mapkit) {
     return window.mapkit;
+  }
+
+  // It failed a moment ago: said at once, not waited for again.
+  if (lastFailureAt && Date.now() - lastFailureAt < MAPKIT_RETRY_AFTER_MS) {
+    throw new Error('MapKit JS is not available right now');
   }
 
   initPromise = (async () => {
@@ -93,12 +123,14 @@ export async function initializeMapKit() {
 
       mapkitInitialized = true;
       mapkitLoading = false;
+      lastFailureAt = 0;
 
       console.log('[AppleMapKit] Initialized successfully');
       return mapkit;
     } catch (error) {
       mapkitLoading = false;
       initPromise = null;
+      lastFailureAt = Date.now();
       console.error('[AppleMapKit] Initialization failed:', error);
       throw error;
     }
@@ -430,7 +462,7 @@ export async function searchAutocomplete(query, options = {}) {
 
   const mapkit = await initializeMapKit();
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const searchOptions = {
       language: 'en-US',
       includePointsOfInterest: true,
@@ -449,8 +481,9 @@ export async function searchAutocomplete(query, options = {}) {
 
     search.autocomplete(query, (error, data) => {
       if (error) {
+        // A failure, not an empty answer: the picker tells "no matches" from "the lookup did not work".
         console.error('[MapKit Autocomplete] Error:', error);
-        resolve([]);
+        reject(error instanceof Error ? error : new Error('MapKit autocomplete failed'));
         return;
       }
 

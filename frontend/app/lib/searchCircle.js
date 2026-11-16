@@ -184,11 +184,36 @@ export function heartOf(area, center) {
 }
 
 /**
- * How far an area reaches, in words: "Within 150 m of where Max was lost",
- * "150 m to 400 m north of where Max was lost".
+ * A distance the way a person says it: "under 50 m", "120 m", "1.6 km",
+ * "3 km", "12 km", "1,578 km". Never "1578.0 km": a tenth of a kilometre
+ * is said only under ten, and a long number is grouped by thousands.
  */
-export function reachOf(area, name = 'the pet') {
-  if (area.ring === RING.SEEN) return `Within ${area.to} m of where ${name} was seen`;
+export function distanceWords(meters) {
+  if (!Number.isFinite(meters)) return '';
+  if (meters < 50) return 'under 50 m';
+  // 995 m and up is said in kilometres, so it is never "1000 m".
+  if (meters < 995) return `${Math.round(meters / 10) * 10} m`;
+  const tenths = Math.round(meters / 100) / 10;
+  if (tenths < 10) return `${Number.isInteger(tenths) ? tenths : tenths.toFixed(1)} km`;
+  return `${String(Math.round(meters / 1000)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} km`;
+}
+
+const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+
+/**
+ * How far an area reaches, in words: "Within 150 m of where Max was lost",
+ * "150 m to 400 m north of where Max was lost". The circle round a
+ * sighting also says how far that is from where the pet was lost, given
+ * both points (`lost`, `seen`): "Within 150 m of where Max was seen, 1.2
+ * km north-east of where Max was lost". A helper handed it sees how far
+ * they are being sent.
+ */
+export function reachOf(area, name = 'the pet', { lost = null, seen = null } = {}) {
+  if (area.ring === RING.SEEN) {
+    const away = lost && seen ? distanceMeters(lost, seen) : NaN;
+    const from = away >= 50 ? `, ${distanceWords(away)} ${COMPASS[Math.round(bearingDegrees(lost, seen) / 45) % 8]} of where ${name} was lost` : '';
+    return `Within ${area.to} m of where ${name} was seen${from}`;
+  }
   if (area.from === 0) return `Within ${area.to} m of where ${name} was lost`;
   return `${area.from} m to ${area.to} m ${area.way} of where ${name} was lost`;
 }
@@ -287,6 +312,19 @@ export function heldFor(minutes) {
 }
 
 /**
+ * How far from the search a circle round a sighting is still ground to
+ * send someone to, in metres: from where the search's circle is drawn, and
+ * from the person being given ground. 5 km is about an hour on foot, and
+ * further out than the findings the circle is sized by put most lost pets
+ * (dogs, 70% within a mile; cats, 3 in 4 within 500 m), with room for a
+ * dog that ran. A sighting further off stays on the map and on the owner's
+ * screen, where "Directions" takes them there; it is not handed to a
+ * helper first, across a city or a country (2026-11-16: a helper in Austin
+ * was handed "Search where Whiskers was seen", 1,578 km away in Chicago).
+ */
+export const SEEN_CIRCLE_REACH_METERS = 5000;
+
+/**
  * The order ground is given out in, for someone who asks for some: the
  * area they were asked to search; then ground the person running the
  * search asked for first, whoever is already on it; then ground that
@@ -297,9 +335,13 @@ export function heldFor(minutes) {
  * sighting that has its one person; and where that circle is as urgent as
  * the side the pet was seen in, the circle comes first however near the
  * side is: one person goes to where the pet was seen before anyone is
- * given the ground round it. `areas` are as the board sends them
+ * given the ground round it. That holds only for a sighting near the
+ * person asking: a circle more than SEEN_CIRCLE_REACH_METERS from them
+ * comes after every other area, unless they were asked to go there or it
+ * was asked for first. `areas` are as the board sends them
  * (app/lib/searchZones.js), `away` gives metres from the person asking to
- * one of them.
+ * one of them (0 where it is not known: the board leaves a sighting far
+ * from the search off it).
  */
 export function rankAreas(areas = [], away = () => 0) {
   const can = areas.filter((a) => !a.mine && !a.full);
@@ -307,13 +349,15 @@ export function rankAreas(areas = [], away = () => 0) {
   const seen = (a) => Number(a.ring === RING.SEEN);
   const urgent = (a, b) => b.priority - a.priority || seen(b) - seen(a) || away(a) - away(b);
   const fewest = (a, b) => people(a) - people(b) || urgent(a, b);
+  const farSeen = (a) => a.ring === RING.SEEN && away(a) > SEEN_CIRCLE_REACH_METERS;
   const asked = can.filter((a) => a.askedOfMe);
   const rest = can.filter((a) => !a.askedOfMe);
   // "Send people here first" holds until the area is searched or the ask is taken back: one person starting it does not end it.
   const first = rest.filter((a) => a.first).sort(fewest);
-  const others = rest.filter((a) => !a.first);
+  const others = rest.filter((a) => !a.first && !farSeen(a));
   const empty = others.filter((a) => needsSearch(a) && people(a) === 0).sort(urgent);
   const shared = others.filter((a) => needsSearch(a) && people(a) > 0).sort(fewest);
   const again = others.filter((a) => !needsSearch(a)).sort((a, b) => people(a) - people(b) || new Date(a.searchedAt || 0) - new Date(b.searchedAt || 0));
-  return [...asked, ...first, ...empty, ...shared, ...again];
+  const distant = rest.filter((a) => !a.first && farSeen(a)).sort((a, b) => away(a) - away(b));
+  return [...asked, ...first, ...empty, ...shared, ...again, ...distant];
 }

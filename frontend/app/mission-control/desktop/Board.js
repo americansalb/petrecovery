@@ -184,7 +184,7 @@ function Sightings({ picture, now, focused, onFocus, onAdd }) {
                   {s.n}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{where ? `Seen ${where}` : 'Marked on the map'}</span>
+                  <span className="block text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{where ? `Seen ${where}` : `Seen at point ${s.n} on the map`}</span>
                   <span className="block text-[13px] font-medium leading-5 text-[var(--mc-muted)]">
                     {dayAndTime(s.at, zone, now)}
                     {s.by ? ` · from ${s.by}` : ''}
