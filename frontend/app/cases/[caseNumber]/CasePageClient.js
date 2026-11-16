@@ -165,7 +165,7 @@ function HotSighting({ s }) {
 
 export default function CasePageClient() {
   const { caseNumber } = useParams();
-  const { data: session, status: authStatus } = useSession();
+  const { status: authStatus } = useSession();
   const wide = useWide();
 
   const [c, setC] = useState(null);
@@ -287,8 +287,11 @@ export default function CasePageClient() {
   const phone = casePhone(c);
   const contactName = c.contact?.name && c.contact.name !== 'The owner' ? c.contact.name : '';
   const signedIn = authStatus === 'authenticated';
-  // The page's data says whether the person asking is the owner. The owner's account id is not sent to the page.
-  const isOwner = signedIn && Boolean(session?.user?.id) && c.viewerIsOwner === true;
+  // The page's data says whether the person asking is the owner, by the rule Mission Control uses: the account
+  // the report was filed to, or the owner's key to this one search, which the browser that sent a report made
+  // without an account keeps (app/lib/ownerKey.js). So a guest owner has their tools here too, without signing
+  // in. The owner's account id is not sent to the page.
+  const isOwner = c.viewerIsOwner === true;
   const lat = Number(c.lastSeenLatitude);
   const lng = Number(c.lastSeenLongitude);
   const hasCoords = c.lastSeenLatitude != null && c.lastSeenLongitude != null && Number.isFinite(lat) && Number.isFinite(lng);
@@ -687,11 +690,11 @@ export default function CasePageClient() {
         </div>
       </main>
 
-      {/* Signed in (the force's members, the owner): the map first, since
+      {/* Signed in (the force's members) or the owner: the map first, since
           that is where the searching happens. A visitor: "I've seen". */}
       {status.key === 'lost' && (
         <StickyActions watchId={ACTIONS_ID}>
-          {signedIn ? (
+          {signedIn || isOwner ? (
             <Link href={missionHref} className={`${DARK_LINK} flex-1`}>
               <MapIcon className="h-4 w-4" aria-hidden="true" />
               Search on the map

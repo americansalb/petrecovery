@@ -10,7 +10,7 @@ import { NextRequest } from 'next/server';
 // hoisted prisma import fires this factory). Aliased as `mockPrisma` below.
 jest.mock('@/app/lib/prisma', () => {
   const mock = {
-    user: { findUnique: jest.fn(), create: jest.fn() },
+    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
     pet: { create: jest.fn() },
     petMedication: { create: jest.fn() },
     // The route creates user (+ optional Health Book pet) transactionally;
@@ -150,8 +150,9 @@ describe('POST /api/auth/register', () => {
   });
 
   describe('User Creation', () => {
-    it('should return 400 when email already exists', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+    // The link itself, and that nothing else changes: __tests__/api/register-existing-email.test.js.
+    it('answers an email that already has an account with the set-password link, and creates nothing', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'existing-user', email: 'existing@example.com', firstName: 'Test' });
 
       const request = createRequest({
         email: 'existing@example.com',
@@ -162,8 +163,10 @@ describe('POST /api/auth/register', () => {
       const response = await POST(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error).toContain('Unable to create account');
+      expect(response.status).toBe(409);
+      expect(data.code).toBe('EMAIL_HAS_ACCOUNT');
+      expect(data.error).toMatch(/already has an account\. We sent a link to it to set your password/);
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
     });
 
     it('should create user and return success', async () => {

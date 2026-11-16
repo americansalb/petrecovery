@@ -13,6 +13,10 @@
 
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import { getBaseUrl } from '@/app/lib/config';
+import { parsePlace } from '@/app/lib/placeLabel';
+import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
+import { known } from '@/app/lib/caseLabels';
+import { speciesLabel } from '@/app/lib/species';
 
 export const SITE_NAME = 'ReunitePets';
 
@@ -156,12 +160,48 @@ export function missionShareCard(mission) {
   return asset ? asset.url : null;
 }
 
-function missionCity(address) {
-  if (!address) return 'Unknown Location';
-  const parts = address.split(',');
-  return parts.length >= 2 ? parts[parts.length - 2]?.trim() || 'Unknown Location' : 'Unknown Location';
+const US_COUNTRY = /^(united states( of america)?|usa|u\.?s\.?a?\.?)$/i;
+
+/**
+ * Where the pet was lost or found, as a card names it: a town or a city,
+ * never a postcode or a street number. This used to take the second-to-last
+ * comma part of the address, which for a "Use my location" report is the
+ * postcode ("LOST: Mia - 78701").
+ *
+ * A US address is read the way the pet's page reads it (parsePlace,
+ * app/lib/placeLabel.js): "Austin, TX". Elsewhere there is no state to find,
+ * so the card names the city or region the address ends in, before the
+ * country: "Ciudad de México" from Nominatim's "Calle de Durango 200, Roma
+ * Norte, Cuauhtémoc, Ciudad de México, 06700, México". A part with a digit
+ * in it is a postcode or a house number and is never the place. Empty when
+ * nothing is left: the card then names no place rather than a guess.
+ */
+export function missionPlace(address) {
+  if (typeof address !== 'string' || !address.trim() || looksLikeCoordinates(address)) return '';
+  const parsed = parsePlace(address);
+  if (parsed?.country === 'US') return parsed.label;
+  const all = address.split(',').map((p) => p.trim()).filter(Boolean);
+  // A US address with no state in it: the town is the last plain name before the country.
+  const us = all.length > 1 && US_COUNTRY.test(all[all.length - 1]);
+  const parts = (us ? all.slice(0, -1) : all).filter((p) => !/\d/.test(p) && !(us && /\bcounty\b/i.test(p)));
+  if (!parts.length) return '';
+  if (us || parts.length < 3) return parts[parts.length - 1];
+  return parts[parts.length - 2];
 }
 
+/**
+ * The kind of animal, as a card says it: "Golden Retriever dog", or "cat"
+ * when the report names no breed. The report form does not ask for a breed,
+ * so most reports store "Unknown", which is a database value and never
+ * shown ("a lost Unknown cat").
+ */
+export function missionKind(mission) {
+  const species = speciesLabel(mission?.petSpecies).toLowerCase();
+  const breed = known(mission?.petBreed);
+  return breed ? `${breed} ${species}` : species;
+}
+
+/** "today", "yesterday", "3 days ago", or '' with no date. */
 function missionTimeMissing(lastSeenAt) {
   if (!lastSeenAt) return '';
   const days = Math.floor((Date.now() - new Date(lastSeenAt).getTime()) / 86400000);
@@ -170,19 +210,28 @@ function missionTimeMissing(lastSeenAt) {
   return `${days} days ago`;
 }
 
+const anOrA = (word) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
+/** The reporter's words, cut at 150 letters, ending as a sentence so the next one reads on. */
+const clip = (text) => {
+  const cut = text.length > 150 ? `${text.substring(0, 150).trimEnd()}...` : text;
+  return /[.!?)]$/.test(cut) ? cut : `${cut}.`;
+};
+
 /**
  * Mission share card. variant:
  *  - 'lost'/'found' picked from reportType automatically
  *  - 'join' frames the same data as a volunteer ask ("Join the search…")
  */
 export function missionShareMetadata(mission, { canonicalPath, index, variant } = {}) {
-  const petName = mission.petName || 'Unknown Pet';
-  const species = mission.petSpecies?.toLowerCase() || 'pet';
-  const breed = mission.petBreed || '';
-  const breedSpecies = `${breed ? breed + ' ' : ''}${species}`;
-  const city = missionCity(mission.lastSeenAddress);
-  const timeMissing = missionTimeMissing(mission.lastSeenAt);
   const isFound = mission.reportType === 'FOUND';
+  const species = speciesLabel(mission.petSpecies).toLowerCase();
+  const name = known(mission.petName);
+  const breed = known(mission.petBreed);
+  const kind = missionKind(mission);
+  const place = missionPlace(mission.lastSeenAddress);
+  const inPlace = place ? ` in ${place}` : '';
+  const timeMissing = missionTimeMissing(mission.lastSeenAt);
+  const petDescription = String(mission.petDescription || '').trim();
 
   let title;
   let description;
@@ -190,24 +239,27 @@ export function missionShareMetadata(mission, { canonicalPath, index, variant } 
   let twitterTitle;
   let twitterDescription;
   if (variant === 'join') {
-    title = `Join the search for ${petName} in ${city} | ${SITE_NAME}`;
-    description = `${petName} is a ${isFound ? 'found' : 'lost'} ${breedSpecies}${timeMissing ? `, ${isFound ? 'found' : 'missing since'} ${timeMissing}` : ''}. Volunteer a few minutes. Every searcher helps bring ${petName} home.`;
+    const seen = timeMissing ? `, ${isFound ? 'found' : 'last seen'} ${timeMissing}` : '';
+    title = `Join the search for ${name || `a ${isFound ? 'found' : 'lost'} ${species}`}${inPlace} | ${SITE_NAME}`;
+    description = `${name ? `${name} is a` : 'A'} ${isFound ? 'found' : 'lost'} ${kind}${seen}. Volunteer a few minutes. Every searcher helps bring ${name || 'them'} home.`;
   } else if (isFound) {
-    title = `Found ${breedSpecies} in ${city} - Is This Your Pet?`;
-    ogTitle = `FOUND: ${breedSpecies} in ${city}`;
-    description = mission.petDescription
-      ? `${mission.petDescription.substring(0, 150)}${mission.petDescription.length > 150 ? '...' : ''} Found ${timeMissing} in ${city}. Is this your pet?`
-      : `A ${breedSpecies} was found ${timeMissing} in ${city}. Is this your pet?`;
+    const found = [timeMissing, place && `in ${place}`].filter(Boolean).join(' ');
+    title = `Found ${kind}${inPlace} - Is This Your Pet?`;
+    ogTitle = `FOUND: ${kind}${inPlace}`;
+    description = petDescription
+      ? `${clip(petDescription)}${found ? ` Found ${found}.` : ''} Is this your pet?`
+      : `${anOrA(kind) === 'an' ? 'An' : 'A'} ${kind} was found${found ? ` ${found}` : ''}. Is this your pet?`;
   } else {
     // Same copy the public case page has always served: descriptive page
     // <title> for search, urgent short og:title for chat cards
-    title = `Help Find ${petName} - Lost ${breedSpecies} in ${city}`;
-    ogTitle = `LOST: ${petName} - ${city}`;
-    twitterTitle = `Help Find ${petName}!`;
-    twitterDescription = `Lost ${breedSpecies} in ${city}.${timeMissing ? ` Last seen ${timeMissing}.` : ''} Please share!`;
-    description = mission.petDescription
-      ? `${mission.petDescription.substring(0, 150)}${mission.petDescription.length > 150 ? '...' : ''} Last seen ${timeMissing}. Help bring ${petName} home!`
-      : `${petName} is a lost ${breedSpecies} last seen ${timeMissing} in ${city}. Help reunite them with their family!`;
+    const who = name || `this ${species}`;
+    title = `Help Find ${who} - Lost ${kind}${inPlace}`;
+    ogTitle = `LOST: ${who}${place ? ` - ${place}` : ''}`;
+    twitterTitle = `Help Find ${who}!`;
+    twitterDescription = `Lost ${kind}${inPlace}.${timeMissing ? ` Last seen ${timeMissing}.` : ''} Please share!`;
+    description = petDescription
+      ? `${clip(petDescription)}${timeMissing ? ` Last seen ${timeMissing}.` : ''} Help bring ${who} home!`
+      : `${name ? `${name} is a` : 'A'} lost ${kind}${timeMissing ? ` last seen ${timeMissing}` : ''}${inPlace}. Help reunite them with their family!`;
   }
 
   // The kit's link-preview image when there is one (it is drawn for exactly this,
@@ -220,16 +272,18 @@ export function missionShareMetadata(mission, { canonicalPath, index, variant } 
     twitterTitle,
     twitterDescription,
     image: card || shareImage(mission.petPhotoUrl),
-    imageAlt: card ? `${isFound ? 'Found' : 'Lost'}: ${petName}, with where and when and how to reach the family` : `${petName} - ${isFound ? 'Found' : 'Lost'} ${species}`,
+    imageAlt: card
+      ? `${isFound ? 'Found' : 'Lost'}: ${name || `a ${species}`}, with where and when and how to reach the family`
+      : [name, `${isFound ? 'Found' : 'Lost'} ${species}`].filter(Boolean).join(' - '),
     canonical: canonicalPath,
     // Only the canonical case page should rank, and only while active
     index: index ?? false,
     keywords: [
       isFound ? 'found pet' : 'lost pet',
       `${isFound ? 'found' : 'lost'} ${species}`,
-      petName,
+      name,
       breed,
-      city,
+      place,
       'missing pet',
       'pet finder',
       'pet recovery',

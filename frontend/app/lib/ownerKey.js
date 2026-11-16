@@ -27,6 +27,7 @@
  */
 import crypto from 'crypto';
 import prisma from '@/app/lib/prisma';
+import { isCaseOpen } from '@/app/lib/caseStatus';
 
 /** How long a key is good for, from the moment the report is made. */
 export const OWNER_KEY_DAYS = 60;
@@ -143,4 +144,15 @@ export async function casesHeldBy(request, { madeHere = false, now = Date.now() 
   return (rows || [])
     .filter((row) => keyIsFresh(row.ownerKeyAt, now) && keyMatches(keyOf.get(row.id), row.ownerKeyHash))
     .map(({ id, caseNumber, petName, status, reportType, expiresAt }) => ({ id, caseNumber, petName, status, reportType, expiresAt: expiresAt || null }));
+}
+
+/**
+ * The lost-pet searches this browser itself reported and that are still open: what the one-search limit for
+ * someone not signed in counts (app/api/reports/create/route.js). A closed search, or one past its date that was
+ * never closed, does not count. The report form asks before its first question (GET /api/owner/open-search), so
+ * a guest who already has one is told then, not after twelve screens.
+ */
+export async function openSearchesMadeHere(request, now = Date.now()) {
+  const held = await casesHeldBy(request, { madeHere: true, now });
+  return held.filter((c) => c.reportType === 'LOST' && isCaseOpen(c.status) && !(c.expiresAt && new Date(c.expiresAt).getTime() < now));
 }
