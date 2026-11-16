@@ -357,7 +357,8 @@ export default function useSearch(missionParam, { desk = false } = {}) {
       await loadBoard().catch(() => null);
       if (!res.ok) return { error: data.error || 'That did not go through. Try again in a moment.', code: data.code || null };
       loadPicture().catch(() => null);
-      return { ok: true, item: data.item };
+      // `paws`: for a search, the paw prints it left.
+      return { ok: true, item: data.item, ...(typeof data.paws === 'number' ? { paws: data.paws } : {}) };
     },
     [missionParam, headers, loadBoard, loadPicture]
   );

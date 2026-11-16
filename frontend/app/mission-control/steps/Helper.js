@@ -162,7 +162,7 @@ const COVER_CHOICES = [
  * (founder, 2026-11-13: "A real search and rescue team would find this
  * superficial and comical"). One tap answers it; nothing waits on it.
  */
-function Debrief({ onSend }) {
+function Debrief({ onSend, paws = PAWS.DEBRIEF }) {
   const [covered, setCovered] = useState(null);
   const [note, setNote] = useState('');
   const [sent, setSent] = useState(false);
@@ -184,7 +184,8 @@ function Debrief({ onSend }) {
   return (
     <div className="mt-3 rounded-2xl bg-[var(--mc-raised)] px-3.5 py-3" role="group" aria-label="About your search">
       <p className="text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">How much of it did you cover?</p>
-      {told && <Paws count={PAWS.DEBRIEF} className="mt-1.5" />}
+      {/* None on a search far shorter than the area takes, which left none itself (app/lib/trail.js). */}
+      {told && <Paws count={paws} className="mt-1.5" />}
       <div className="mt-2 flex gap-2">
         {COVER_CHOICES.map(([value, label]) => (
           <button
@@ -257,7 +258,7 @@ function Ways({ ways = [], owner, className = '' }) {
   );
 }
 
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, doneAtSighting = false, onDebrief = null, trail = null, ways = [], instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
+export function Main({ picture, name, owner, unit, items, counts, minutes, done, donePaws = PAWS.SEARCH, doneTakes = null, stopped = false, onDebrief = null, trail = null, ways = [], instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
@@ -269,6 +270,9 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
   // The card says when it has shown the ask, which is what the desk reads as "seen": a phone that only fetched
   // it, or a computer that does not show it, says nothing.
   useShown(ask && ask.askedSeen === false ? ask.id : null, onAskShown, beatOf(now));
+  // An area searched that left paw prints. One far shorter than the area takes leaves none (app/lib/trail.js), and
+  // she does not cheer it: she says why, and how long the area takes.
+  const cheer = Boolean(done && ground && donePaws > 0);
   return (
     <>
       {/* Sarama guides: she cheers an area searched, says who asked, and greets anyone who has just opened the link. */}
@@ -276,18 +280,21 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       {!desk && (
         <Sarama
           className="mb-3"
-          pose={done && ground ? 'cheer' : ask ? 'point' : 'sit'}
+          pose={cheer ? 'cheer' : ask ? 'point' : 'sit'}
           say={
-            done && ground
-              ? SARAMA.done(PAWS.SEARCH)
-              : ask
-                ? SARAMA.asked(ask.askedBy)
-                : // Who she is, then the brief word for word: their own home first, and what to do on seeing the pet.
-                  [trail?.mine?.paws > 0 ? SARAMA.back(name) : SARAMA.hello(name, missingFor(picture.lastSeen?.at, now)), brief.own, brief.never]
+            cheer
+              ? SARAMA.done(donePaws)
+              : done && ground
+                ? SARAMA.short(doneTakes)
+                : ask
+                  ? SARAMA.asked(ask.askedBy)
+                  : // Who she is, then the brief word for word: their own home first, and what to do on seeing the pet.
+                    // Someone who has just said "I am stopping" is thanked, not greeted as if they had come back.
+                    [stopped ? SARAMA.stopped(name) : trail?.mine?.paws > 0 ? SARAMA.back(name) : SARAMA.hello(name, missingFor(picture.lastSeen?.at, now)), brief.own, brief.never]
           }
         />
       )}
-      {done && ground && <Paws count={PAWS.SEARCH} className="mb-2" />}
+      {cheer && <Paws count={donePaws} className="mb-2" />}
       <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
       <Heading className="mt-1">{ask ? (ground ? `Search ${areaName(ask)}` : `Walk ${ask.name}`) : `Help look for ${name}`}</Heading>
       {ask ? (
@@ -308,11 +315,12 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       ) : done && ground ? (
         <>
         <Lead className="mt-1.5">
-          {/* The count is of the circle's own areas. The circle round a sighting is not one of them, so it is not counted after one. */}
-          {done} is searched. Thank you.{doneAtSighting ? '' : ` ${counts.searched} of the ${counts.total} areas ${counts.searched === 1 ? 'has' : 'have'} been searched so far.`}
+          {/* No count of areas "searched so far": a search fades over a day, so a count of every area ever searched is
+              not what is true now. What is, the areas searched in the last 12 hours, is the trail's goal under this card. */}
+          {done} is searched. Thank you.
         </Lead>
         {/* The debrief: what a search is worth depends on how much of the ground was covered. */}
-        {onDebrief && <Debrief key={done} onSend={onDebrief} />}
+        {onDebrief && <Debrief key={done} onSend={onDebrief} paws={donePaws > 0 ? PAWS.DEBRIEF : 0} />}
         </>
       ) : done ? (
         <Lead className="mt-1.5">
@@ -372,8 +380,13 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
  * Then "Before you go out", the short training, whose one button gives
  * them their area. The screen never calls the training optional, and the
  * server refuses nobody for want of it (founder, 2026-11-12).
+ *
+ * Someone who has agreed and has not been through the training (they
+ * reloaded on it, or agreed before it was shown) is brought in at it
+ * (`from` 'training'): it follows the tick as a step everyone passes
+ * through, and the tick is not asked twice.
  */
-export function Join({ picture, name, owner, viewer, unit, instrument, search, onJoined, onBack }) {
+export function Join({ picture, name, owner, viewer, unit, instrument, search, onJoined, onBack, from = 'agree' }) {
   const signedIn = Boolean(viewer?.signedIn);
   // The app records a walk for someone signed in. A browser records nothing, and neither does the app for a guest.
   const records = instrument === 'field' && signedIn;
@@ -384,7 +397,7 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   // 'agree' is the tick; 'training' is what they read once they have agreed.
-  const [stage, setStage] = useState('agree');
+  const [stage, setStage] = useState(from === 'training' ? 'training' : 'agree');
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const ownerName = owner?.firstName || 'The owner';

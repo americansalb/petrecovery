@@ -36,6 +36,28 @@ describe('one person, in a line', () => {
   });
 });
 
+describe('one person on a search of ground, in a line', () => {
+  const ground = { ...at, unit: 'area' };
+
+  test('the site stopped counting them on an area and they have not said what happened: the desk says what their phone shows them', () => {
+    const late = { id: 'z-west', title: 'West side', since: ago(160), at: ago(25) };
+    expect(personLine({ state: 'free', walked: 1, lastWalkedAt: ago(200), late }, ground)).toBe('Took the west side at 7:20 pm. Has not said if they searched it. Searched 1 area.');
+    // Not "free since" their last search, which was before they took it.
+    expect(personLine({ state: 'free', walked: 1, lastWalkedAt: ago(200), late }, ground)).not.toMatch(/Free since/);
+  });
+
+  test('"I am stopping": said as stopping, with when, and what they searched', () => {
+    const stopped = { id: 'z-west', title: 'West side', at: ago(4) };
+    expect(personLine({ state: 'free', walked: 2, lastWalkedAt: ago(30), stopped }, ground)).toBe('Stopped at 9:56 pm. Searched 2 areas.');
+    expect(personLine({ state: 'free', walked: 0, joinedAt: ago(40), stopped }, ground)).toBe('Stopped at 9:56 pm.');
+  });
+
+  test('free: since their last search, or since they joined', () => {
+    expect(personLine({ state: 'free', walked: 1, lastWalkedAt: ago(10) }, ground)).toBe('Free since 9:50 pm. Searched 1 area.');
+    expect(personLine({ state: 'free', walked: 0, joinedAt: ago(2) }, ground)).toBe('Joined 9:58 pm. No area yet.');
+  });
+});
+
 describe('out much longer than the street takes', () => {
   const walking = (minutes) => ({ state: 'walking', since: ago(minutes) });
 

@@ -194,6 +194,14 @@ describe('PATCH: searching an area', () => {
     expect(actOnBoard).not.toHaveBeenCalled();
   });
 
+  test('"I searched it" says the paw prints that search left, so the card that says thank you shows those and no others', async () => {
+    searcherFor.mockResolvedValue(HELPER);
+    actOnZone.mockResolvedValue({ item: { id: 'z-west', status: 'SEARCHED', mine: false, on: 0 }, title: 'the west side', paws: 0 });
+    expect((await patch({ id: 'z-west', action: 'searched' })).body).toEqual({ success: true, unit: 'area', item: { id: 'z-west', status: 'SEARCHED', mine: false, on: 0 }, paws: 0 });
+    actOnZone.mockResolvedValue({ item: { id: 'z-west', status: 'SEARCHED', mine: false, on: 0 }, title: 'the west side', paws: 3 });
+    expect((await patch({ id: 'z-west', action: 'searched' })).body.paws).toBe(3);
+  });
+
   test('needs a person', async () => {
     const out = await patch({ unit: 'area', id: 'z-west', action: 'claim' });
     expect(out).toEqual({ status: 401, body: { error: 'Join the search first.', code: 'NOT_JOINED' } });

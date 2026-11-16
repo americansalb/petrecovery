@@ -27,12 +27,19 @@ export const SARAMA = {
   hello: (name, missing = '') => (missing ? `I'm Sarama, and I'm looking for ${name}, missing ${missing}. Here is how to help right now.` : `I'm Sarama, and I'm looking for ${name}. Here is how to help right now.`),
   /** Back again, with prints already on this search. */
   back: (name) => `Good to see you again. ${name} still needs us.`,
+  /** Someone who has just said "I am stopping": thanked, and not greeted as if they had just come back. */
+  stopped: (name) => `Thank you for your time looking for ${name}.`,
   join: () => 'Tell me your name and read the rules. Then I will give you some ground.',
   training: () => 'Seven things I want you to know before we go out.',
   /** Someone the owner asked by name. */
   asked: (owner) => `${owner || 'The owner'} asked for you by name.`,
   /** An area searched. */
   done: (paws) => `Well done. That is ${paws} paw prints on this search.`,
+  /**
+   * An area said to be searched far sooner than it takes (app/lib/trail.js): it leaves no paw prints, and she says
+   * why, and how long the area takes, without cheering. `minutes` is how long the area takes one person.
+   */
+  short: (minutes) => `A search this short leaves no paw prints. This area takes one person about ${minutes} minutes.`,
   /** To the person running the search, when nothing is waiting on a decision: what to do next. */
   next: (title) => `Next: ${title}.`,
   nobodyOut: (name) => `Nobody is searching right now. Text the link to neighbors so more people are watching for ${name}.`,

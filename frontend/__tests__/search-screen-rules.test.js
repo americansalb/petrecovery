@@ -275,10 +275,37 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     given.forEach((id, i) => expect(id).not.toBe(i === 0 ? 'middle' : given[i - 1]));
   });
 
-  test('after the circle round a sighting, the thanks do not count it among the areas', () => {
-    expect(shell).toMatch(/setDoneAtSighting\(unit === 'area' && isSeenCircle\(mineRaw\)\);/);
+  test('the thanks for an area count no areas "searched so far": a search fades, and the trail under it counts what is fresh', () => {
     const helper = read('app/mission-control/steps/Helper.js');
-    expect(helper).toMatch(/\{done\} is searched\. Thank you\.\{doneAtSighting \? '' : ` \$\{counts\.searched\} of the \$\{counts\.total\} areas /);
+    const thanks = code(helper).slice(code(helper).indexOf(') : done && ground ? ('), code(helper).indexOf(') : done ? ('));
+    expect(thanks).toMatch(/\{done\} is searched\. Thank you\.\s*<\/Lead>/);
+    expect(thanks).not.toMatch(/counts\./);
+    expect(helper).toMatch(/\{ground && !desk && <Trail trail=\{trail\} items=\{items\} name=\{name\} now=\{now\} className="mt-3" \/>\}/);
+  });
+
+  test('"Before you go out" is shown to anyone who agreed and has not been through it, after a reload too, and the server refuses nobody for want of it', () => {
+    // Founder, 2026-11-12: it follows the tick as a step everyone passes through.
+    expect(code(shell)).toMatch(/const trained = Boolean\(viewer\?\.trained \|\| trainedHere\);/);
+    const start = code(shell).slice(code(shell).indexOf('function startWalk() {'), code(shell).indexOf('async function walked('));
+    expect(start).toMatch(/if \(!viewer \|\| !viewer\.waiver\) \{\s*setJoinFrom\('agree'\);\s*return go\('join'\);\s*\}/);
+    expect(start).toMatch(/if \(!trained\) \{\s*setJoinFrom\('training'\);\s*return go\('join'\);\s*\}\s*return takeStreet\(\);/);
+    // The join card opens at the training for them, and its one button counts as going through it here and now.
+    expect(shell).toMatch(/<Join key=\{joinFrom\} from=\{joinFrom\} /);
+    expect(shell).toMatch(/onJoined=\{\(\) => \{ setTrainedHere\(true\); return takeStreet\(\); \}\}/);
+    const helper = read('app/mission-control/steps/Helper.js');
+    expect(helper).toMatch(/const \[stage, setStage\] = useState\(from === 'training' \? 'training' : 'agree'\);/);
+    // "Give me a job, on foot" from the pet's page does the same.
+    expect(code(shell)).toMatch(/action === 'walk' && !desk && !viewer\?\.isOwner && !\(viewer\?\.waiver && trained\)\) \{\s*setJoinFrom\(viewer\?\.waiver \? 'training' : 'agree'\);/);
+    // The board never reads it.
+    expect(read('app/api/mission/[missionId]/board/route.js')).not.toMatch(/trained/);
+  });
+
+  test('"I am stopping" is leaving: the card thanks them, and says nothing of an area just searched', () => {
+    const stop = code(shell).slice(code(shell).indexOf('async function stopWalking('), code(shell).indexOf('async function cannot('));
+    expect(stop).toMatch(/setDone\(null\);\s*setDoneId\(null\);\s*setStopped\(true\);\s*return go\('main'\);/);
+    // Taking ground again, or searching it, is not having stopped.
+    expect(code(shell).match(/setStopped\(false\);/g)).toHaveLength(2);
+    expect(shell).toMatch(/stopped=\{stopped\}/);
   });
 
   test('when the pet was seen is said with its day: a sighting keeps its circle for three days', () => {

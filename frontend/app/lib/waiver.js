@@ -79,6 +79,23 @@ export async function recordWaiver({ request = null, userId = null, volunteerId 
   }
 }
 
+/**
+ * Whether this person has been through "Before you go out" since they last
+ * agreed: their latest acceptance is stamped as trained. The search screen
+ * shows the training to anyone who has not (it follows the tick as a step
+ * everyone passes through, after a reload too); nothing on the server
+ * refuses a search for want of it. Never throws: unknown is not trained.
+ */
+export async function hasTrained({ userId = null, volunteerId = null } = {}) {
+  if (!userId && !volunteerId) return false;
+  try {
+    const last = await prisma.waiverAcceptance.findFirst({ where: userId ? { userId } : { volunteerId }, orderBy: { createdAt: 'desc' }, select: { trainedAt: true } });
+    return Boolean(last?.trainedAt);
+  } catch {
+    return false;
+  }
+}
+
 /** Stamp the latest acceptance of this person as trained. Resolves to whether a row was stamped. */
 export async function recordTrained({ userId = null, volunteerId = null } = {}) {
   if (!userId && !volunteerId) return false;

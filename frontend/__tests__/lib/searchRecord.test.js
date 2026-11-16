@@ -11,7 +11,8 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { agoShort, areaState, groundCoverage, isFaded, searchLog, searchStrength, FADE_HOURS } from '@/app/mission-control/lib/ground';
+import { agoShort, areaState, groundCoverage, groundNowWords, isFaded, searchLog, searchStrength, FADE_HOURS } from '@/app/mission-control/lib/ground';
+import { freshAreas, FRESH_HOURS } from '@/app/lib/trail';
 
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', '..', file), 'utf8');
 const NOW = new Date('2026-11-13T18:00:00Z').getTime();
@@ -68,6 +69,17 @@ describe('what a search is still worth', () => {
     expect(quick).toBeLessThan(proper / 3);
   });
 
+  test('"I searched it" fourteen seconds after taking the area is drawn as next to nothing, never as a full search', () => {
+    // Kept to the tenth of a minute by the board: fourteen seconds is 0.2.
+    const tapped = searchStrength(area([full(0, { minutes: 0.2, covered: 'MOST' })]), NOW);
+    expect(tapped).toBeLessThan(0.01);
+    expect(tapped).toBeGreaterThan(0);
+    // Under a minute is still a time, not "not known".
+    expect(searchStrength(area([full(0, { minutes: 0 })]), NOW)).toBe(0);
+    // A search whose time is not known is taken to have had the time the area needs.
+    expect(searchStrength(area([full(0, { minutes: null, covered: 'ALL' })]), NOW)).toBeCloseTo(0.8, 2);
+  });
+
   test('two searches count for more than one, and still not for everything', () => {
     const one = searchStrength(area([full(1)]), NOW);
     const two = searchStrength(area([full(1), full(2)]), NOW);
@@ -95,6 +107,38 @@ describe('what a search is still worth', () => {
   });
 });
 
+describe('what is searched now, in words', () => {
+  const own = (key, history, more = {}) => area(history, { id: key, key, ...more });
+  const none = (key) => ({ id: key, key, ring: 1, name: key, minutes: 45, status: 'UNSEARCHED', searchCount: 0, searchedAt: null, history: [] });
+
+  test('the areas searched in the last 12 hours, as the trail\'s goal counts them, and not every area ever searched', () => {
+    // Searched 2 and 9 hours ago, 2 and 3 days ago, and never.
+    const areas = [own('middle', [full(2)], { ring: 0 }), own('north', [full(9)]), own('east', [full(50)]), own('south', [full(72)]), none('west')];
+    expect(groundNowWords(areas, NOW)).toBe('2 of the 5 areas were searched in the last 12 hours.');
+    expect(groundNowWords(areas, NOW)).toMatch(new RegExp(`last ${FRESH_HOURS} hours`));
+  });
+
+  test('one, none lately, none ever, and who is on one now', () => {
+    expect(groundNowWords([own('north', [full(1)]), none('east')], NOW)).toBe('1 of the 2 areas was searched in the last 12 hours.');
+    expect(groundNowWords([own('north', [full(30)]), none('east')], NOW)).toBe('None of the 2 areas was searched in the last 12 hours.');
+    expect(groundNowWords([none('north'), { ...none('east'), status: 'IN_PROGRESS' }], NOW)).toBe('None of the 2 areas has been searched yet, and 1 is being searched now.');
+    expect(groundNowWords([own('north', [full(1)], { status: 'IN_PROGRESS' }), { ...none('east'), status: 'IN_PROGRESS' }], NOW)).toBe('1 of the 2 areas was searched in the last 12 hours, and 2 are being searched now.');
+    expect(groundNowWords([], NOW)).toBe('');
+  });
+
+  test('a search far shorter than the area takes does not count as searched lately, here or in the goal', () => {
+    const tapped = own('north', [full(0.1, { minutes: 0.2 })]);
+    expect(groundNowWords([tapped, none('east')], NOW)).toBe('None of the 2 areas was searched in the last 12 hours.');
+    expect(freshAreas([tapped, none('east')], NOW)).toEqual({ fresh: 0, total: 2 });
+    // Twenty minutes of forty-five covered real ground.
+    expect(freshAreas([own('north', [full(0.1, { minutes: 20 })]), none('east')], NOW)).toEqual({ fresh: 1, total: 2 });
+  });
+
+  test('the circle round a sighting is not one of the areas counted', () => {
+    expect(groundNowWords([own('north', [full(1)]), none('east'), own('seen-s1', [full(1)], { ring: 3 })], NOW)).toBe('1 of the 2 areas was searched in the last 12 hours.');
+  });
+});
+
 describe('the record of an area', () => {
   test('a helper\'s search: when, who, how long, how much, and what they could not get to', () => {
     const [line] = searchLog(area([full(3, { by: 'Dana', minutes: 38, covered: 'MOST', note: 'yards on Elm, nobody home' })]), { timeZone: 'UTC', now: NOW });
@@ -104,6 +148,16 @@ describe('the record of an area', () => {
   test('a search far shorter than the area takes says what the area takes', () => {
     const [line] = searchLog(area([full(1, { by: 'Sam', minutes: 9, covered: null })]), { timeZone: 'UTC', now: NOW });
     expect(line).toBe('1 hour ago, at 5:00 pm: Sam, 9 minutes. The area takes about 45.');
+  });
+
+  test('a search of a few seconds says so, and never "covered most of it" with no time', () => {
+    const [line] = searchLog(area([full(0, { by: 'Sam', minutes: 0.2, covered: 'MOST' })]), { timeZone: 'UTC', now: NOW });
+    expect(line).toBe('Just now, at 6:00 pm: Sam, under a minute, covered most of it. The area takes about 45.');
+  });
+
+  test('a search said after the site had stopped counting them there says how long is not known', () => {
+    const [line] = searchLog(area([full(5, { by: 'Jo', minutes: null, covered: null, late: true })]), { timeZone: 'UTC', now: NOW });
+    expect(line).toBe('5 hours ago, at 1:00 pm: Jo. They said so after the site had stopped counting them there, so how long is not known.');
   });
 
   test('ground put down from the desk says nobody on the site was on it', () => {
@@ -133,8 +187,10 @@ describe('where it is kept and who is sent it', () => {
     expect(zones).toMatch(/where: \{ caseId, outcome: \{ in: \['SEARCHED', 'MARKED'\] \}, endedAt: \{ not: null \} \}/);
     expect(zones).toMatch(/history: historyOf\(row, ctx\),/);
     expect(zones).toMatch(/\.\.\.\(withNames \? \{ by: v\.searcherName \|\| null, note: v\.debrief \|\| null \} : \{\}\)/);
-    // A helper who forgot to say for hours is not read as having searched for hours.
-    expect(zones).toMatch(/spent >= 1 && spent <= 3 \* \(row\.minutes \|\| 60\) \? spent : null/);
+    // A helper who forgot to say for hours is not read as having searched for hours, nor one who said it late as having
+    // searched until the site stopped counting them. And a search of a few seconds is kept as one, to the tenth.
+    expect(zones).toMatch(/minutes: marked \? null : minutesSpent\(v\.startedAt, v\.endedAt, row\.minutes\),/);
+    expect(zones).toMatch(/if \(!\(ms >= 0\) \|\| ranToTheHold\(ms, areaMinutes\) \|\| ms > 3 \* \(areaMinutes \|\| 60\) \* 60000\) return null;\s+return Math\.round\(ms \/ 6000\) \/ 10;/);
   });
 
   test('a debrief goes on the person\'s own last search of that area, and is one of three answers', () => {
@@ -153,7 +209,7 @@ describe('where it is shown', () => {
   const dial = read('app/mission-control/desktop/Dial.js');
 
   test('the helper is asked once, on the card that says thank you: how much, then what they could not get to', () => {
-    expect(helper).toMatch(/\{onDebrief && <Debrief key=\{done\} onSend=\{onDebrief\} \/>\}/);
+    expect(helper).toMatch(/\{onDebrief && <Debrief key=\{done\} onSend=\{onDebrief\} paws=\{donePaws > 0 \? PAWS\.DEBRIEF : 0\} \/>\}/);
     expect(helper).toMatch(/How much of it did you cover\?/);
     expect(helper).toMatch(/\['ALL', 'All of it'\],\s+\['MOST', 'Most of it'\],\s+\['PART', 'Part of it'\],/);
     expect(helper).toMatch(/Anything you could not get to\?/);
@@ -176,12 +232,31 @@ describe('where it is shown', () => {
     expect(command).not.toMatch(/'Searched once'|'Twice or more'/);
   });
 
+  test('a phone draws the same green as the desk: from what each search is still worth, never a fixed one', () => {
+    const shell = read('app/mission-control/SearchScreen.js');
+    expect(shell).toMatch(/strength: i\.searchCount > 0 \? searchStrength\(i, clock\) : 0,/);
+    expect(shell).toMatch(/const clock = Math\.floor\(now \/ 600000\) \* 600000;/);
+    expect(shell).toMatch(/\[unit, items, litId, clock\]/);
+    // Its key says the green fades, as the desk's does, and never a bare "searched".
+    expect(shell).toMatch(/greenLeft \? \['fill', 'Searched just now'\] : null,\s+greenLeft \? \['fade', 'Fades over a day'\] : null,/);
+    expect(shell).not.toMatch(/Already searched/);
+  });
+
   test('the dial, the list and the card use the same strength, and the card lists the searches', () => {
     expect(dial).toMatch(/0\.1 \+ 0\.82 \* searchStrength\(area, now\)/);
     expect(dial).toMatch(/last searched over a day ago/);
     expect(groundCard).toMatch(/0\.12 \+ 0\.8 \* searchStrength\(area, now\)/);
     expect(groundCard).toMatch(/const log = searchLog\(area, \{ timeZone: picture\.timeZone, now \}\);/);
     expect(groundCard).toMatch(/A search counts for less as the hours pass, and for nothing after a day\./);
+  });
+
+  test('the owner\'s card says what is searched now, and neither card counts every area ever searched', () => {
+    const owner = read('app/mission-control/steps/Owner.js');
+    expect(owner).toMatch(/\{ground \? groundNowWords\(items, now\) : /);
+    expect(owner).not.toMatch(/areas \$\{counts\.searched === 1 \? 'has' : 'have'\} been searched/);
+    // The thank-you card has the trail's own count under it, so it says none of its own.
+    expect(helper).not.toMatch(/counts\.total\} areas/);
+    expect(helper).not.toMatch(/been searched so far/);
   });
 
   test('the estimate is never shown as a number or a percentage', () => {
