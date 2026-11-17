@@ -13,6 +13,8 @@
  * (server) load the same file.
  */
 
+import { COAT_COLOR_NAMES } from './coatColors';
+
 export const DETAILS_VERSION = 1;
 
 const SPECIES = ['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'];
@@ -122,6 +124,47 @@ const HEALTH_WORDS = {
   INJURED: 'Injured.',
   PREGNANT: 'Pregnant or nursing.',
 };
+
+/* ------------------------------------------- asked right after posting */
+
+/*
+ * The report form asks only what the first flyer and the search need
+ * (founder, 2026-11-17: seven screens, not twelve). Size, the other coat
+ * colours, health and the reward are asked on the page after posting and
+ * on the pet's page, saved to the report, and the flyer is drawn again
+ * once after the answers (app/lib/cascade/redrawLater.js).
+ *
+ * `Case.petSize` is a required column: a report posted without a size
+ * holds MEDIUM there as a placeholder, and `sizeUnknown` says so, so no
+ * flyer, post or caption calls a Chihuahua medium (knownSize below).
+ * `size` is the owner's answer; saving one clears `sizeUnknown`.
+ */
+export const SIZE_IDS = ['TINY', 'SMALL', 'MEDIUM', 'LARGE', 'GIANT'];
+export const INDOOR_IDS = ['INDOOR', 'OUTDOOR'];
+export const REWARD_IDS = ['YES', 'NO'];
+
+/** The other coat colours: the palette's names, or "NONE" alone. */
+export const OTHER_COLOR_OPTIONS = [
+  ...COAT_COLOR_NAMES.map((name) => ({ value: name, label: name })),
+  { value: 'NONE', label: 'No other colors' },
+];
+
+/** The size the report can stand behind: the column, unless it is the placeholder. */
+export function knownSize(caseRow) {
+  if (!caseRow?.petSize) return '';
+  const d = caseRow.details;
+  if (d && typeof d === 'object' && d.sizeUnknown === true) return '';
+  return String(caseRow.petSize);
+}
+
+/** "Brown" plus the other colours, as the report's colour line: "Brown, White, Tan". */
+export function colorWithOthers(petColor, otherColors) {
+  const main = String(petColor || '').split(',')[0].trim();
+  const rest = (Array.isArray(otherColors) ? otherColors : []).filter(
+    (c) => c && c !== 'NONE' && c.toLowerCase() !== main.toLowerCase()
+  );
+  return [main, ...rest].filter(Boolean).join(', ');
+}
 
 /* -------------------------------------------------------- identification */
 
@@ -295,6 +338,12 @@ export function normalizeDetails(input) {
     places: many(d.places, ids(PLACE_OPTIONS), 'NONE'),
     placesNote: text(d.placesNote, 160),
     notes: text(d.notes, 300),
+    // Asked right after posting (see above).
+    size: one(d.size, SIZE_IDS),
+    sizeUnknown: one(d.size, SIZE_IDS) ? false : bool(d.sizeUnknown),
+    indoor: one(d.indoor, INDOOR_IDS),
+    otherColors: many(d.otherColors, ids(OTHER_COLOR_OPTIONS), 'NONE'),
+    reward: one(d.reward, REWARD_IDS),
   };
 }
 
@@ -421,6 +470,7 @@ export function factsBits(details, { species } = {}) {
   }
   if (d.ageBand === 'YOUNG') out.push(sp === 'DOG' ? 'Puppy' : sp === 'CAT' ? 'Kitten' : 'Under a year old');
   else if (d.ageBand === 'SENIOR') out.push('Senior');
+  if (sp === 'CAT' && d.indoor) out.push(d.indoor === 'INDOOR' ? 'Indoor cat' : 'Goes outside');
   return out;
 }
 
@@ -487,8 +537,20 @@ export function petFieldsFromDetails(details) {
 
 /* ------------------------------------------------------- the checklist */
 
-/** The optional screens, in the order the checklist shows them. */
+/**
+ * The questions after posting, in the order the checklist shows them. The
+ * first five are the ones the report form used to ask before posting (size
+ * for a dog, indoor or outdoor for a cat, the other colours, health, the
+ * reward): they come first, and the page after posting shows all of them.
+ * The rest are the finder questions (docs/REPORT_QUESTIONNAIRE.md).
+ * `species` limits a screen to the pets it is for.
+ */
 export const DETAIL_SCREENS = [
+  { id: 'size', first: true, species: ['DOG'], label: 'Size', question: (n) => `How big is ${n}?` },
+  { id: 'indoor', first: true, species: ['CAT'], label: 'Indoor or outdoor', question: (n) => `Does ${n} go outside?` },
+  { id: 'otherColors', first: true, label: 'Other colors', question: (n) => `Any other colors on ${n}?` },
+  { id: 'health', first: true, label: 'Health', question: (n) => `Does ${n} take medication or have a health condition?` },
+  { id: 'reward', first: true, label: 'Reward', question: () => 'Offering a reward?' },
   { id: 'collar', label: 'Collar and tags', question: (n) => `What is ${n} wearing?` },
   { id: 'microchip', label: 'Microchip', question: (n) => `Is ${n} microchipped?` },
   { id: 'facts', label: 'Sex, age, breed', question: (n) => `A few facts about ${n}` },
@@ -500,10 +562,27 @@ export const DETAIL_SCREENS = [
   { id: 'notes', label: 'Anything else', question: () => 'Anything else a finder should know?' },
 ];
 
+/** The checklist for one pet: the size question for a dog, indoor or outdoor for a cat, the rest for all. */
+export function detailScreens(species) {
+  const sp = speciesKey(species);
+  return DETAIL_SCREENS.filter((s) => !s.species || s.species.includes(sp));
+}
+
 /** Whether one checklist screen has an answer. */
 export function screenAnswered(id, details, { breed } = {}) {
   const d = normalizeDetails(details);
   switch (id) {
+    case 'size':
+      // A report posted with a size (before 2026-11-17, or from a saved pet) has it in the column.
+      return d.size !== null || !d.sizeUnknown;
+    case 'indoor':
+      return d.indoor !== null;
+    case 'otherColors':
+      return d.otherColors.length > 0;
+    case 'health':
+      return d.health.length > 0;
+    case 'reward':
+      return d.reward !== null;
     case 'collar':
       return d.collar !== null;
     case 'microchip':
@@ -528,9 +607,10 @@ export function screenAnswered(id, details, { breed } = {}) {
 }
 
 /** { answered, total, missing: [ids] } for the checklist's progress line. */
-export function detailsProgress(details, { breed } = {}) {
-  const missing = DETAIL_SCREENS.filter((s) => !screenAnswered(s.id, details, { breed })).map((s) => s.id);
-  return { answered: DETAIL_SCREENS.length - missing.length, total: DETAIL_SCREENS.length, missing };
+export function detailsProgress(details, { breed, species } = {}) {
+  const screens = detailScreens(species);
+  const missing = screens.filter((s) => !screenAnswered(s.id, details, { breed })).map((s) => s.id);
+  return { answered: screens.length - missing.length, total: screens.length, missing };
 }
 
 /* --------------------------------------------------------------- reward */

@@ -31,17 +31,20 @@ import TagDetailsStep, { MARKS_MAX } from '@/app/components/report/found/TagDeta
 import OpenSearchNotice from '@/app/components/report/OpenSearchNotice';
 import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
 import { fitInter } from '@/app/lib/cascade/render/flyers/plan';
+import { lostScreenOrder } from '@/app/components/report/lost/screens';
 
 const APP = path.join(__dirname, '..', 'app');
 const read = (rel) => fs.readFileSync(path.join(APP, rel), 'utf8');
 const wizard = read('report/new/page.js');
 
 describe('a signed-in owner is asked the phone finders call', () => {
-  test('after health the next screen is the phone, then the reward', () => {
-    expect(wizard).toMatch(/health: isLoggedIn \? 'phone' : 'contact'/);
-    expect(wizard).toMatch(/phone: 'reward'/);
+  test('the phone takes the contact screen\'s place, just before the review', () => {
+    // Seven screens (founder, 2026-11-17); the reward is asked after posting now.
+    expect(lostScreenOrder({ isLoggedIn: true })).toEqual(['photo', 'pet', 'color', 'place', 'behaviour', 'phone', 'review']);
+    expect(lostScreenOrder({ isLoggedIn: true, hasPets: true })).toEqual(['pet', 'photo', 'color', 'place', 'behaviour', 'phone', 'review']);
+    expect(lostScreenOrder({ isLoggedIn: false })).toEqual(['photo', 'pet', 'color', 'place', 'behaviour', 'contact', 'review']);
     // It is counted in the progress and kept when a draft is resumed.
-    expect(wizard).toMatch(/isLoggedIn \? 'phone' : 'contact',\s*'reward', 'review'/);
+    expect(wizard).toMatch(/lostScreenOrder\(\{ isLoggedIn, hasPets \}\)/);
     expect(wizard).toMatch(/phone: isValidPhone\(d\.contact\?\.phone\)/);
   });
 

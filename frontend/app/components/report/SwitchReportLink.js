@@ -10,7 +10,7 @@ import Link from 'next/link';
 export default function SwitchReportLink({ to }) {
   const lost = to === 'lost';
   return (
-    <p className="mt-6 text-center text-sm text-midnight-500">
+    <p className="mt-6 text-center text-[15px] text-midnight-600">
       {lost ? 'Looking for your own pet? ' : 'Found someone else’s pet? '}
       <Link
         href={lost ? '/report/new' : '/report/found'}

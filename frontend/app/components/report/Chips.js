@@ -39,7 +39,7 @@ export default function Chips({
     onChange([...current.filter((x) => !exclusive.includes(x)), v]);
   };
 
-  const pad = size === 'sm' ? 'px-3 py-1.5 text-[13px]' : 'px-3.5 py-2.5 text-sm';
+  const pad = size === 'sm' ? 'px-3 py-1.5 text-[15px]' : 'px-3.5 py-2.5 text-[15px]';
 
   return (
     <div role={multi ? 'group' : 'radiogroup'} aria-label={ariaLabel} className="flex flex-wrap gap-2">
@@ -57,7 +57,7 @@ export default function Chips({
           >
             {on && <Check size={14} strokeWidth={3} aria-hidden="true" />}
             <span>{opt.label}</span>
-            {opt.sublabel && <span className="text-xs font-medium text-midnight-400">{opt.sublabel}</span>}
+            {opt.sublabel && <span className="text-[15px] font-medium text-midnight-500">{opt.sublabel}</span>}
           </button>
         );
       })}

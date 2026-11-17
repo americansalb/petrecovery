@@ -210,7 +210,7 @@ function Hero({ openCount, neighbors }) {
           Let&apos;s get them <span className="shadow-[inset_0_-0.24em_0_#facc15]">home.</span>
         </h1>
         <p className="max-w-[640px] text-[17px] leading-relaxed text-midnight-600 md:text-[clamp(18px,1.6vw,21px)]">
-          Report it in about a minute. Neighbors in your town&apos;s Rescue Force see it and
+          Report it in a few minutes. Neighbors in your town&apos;s Rescue Force see it and
           search with you until your pet is safe.
         </p>
 
@@ -258,7 +258,7 @@ function Hero({ openCount, neighbors }) {
             <CheckCircle2 className="w-4 h-4 md:w-[18px] md:h-[18px] text-emerald-700" /> Free to use
           </li>
           <li className="inline-flex items-center gap-1.5 md:gap-2">
-            <Clock className="w-4 h-4 md:w-[18px] md:h-[18px] text-emerald-700" /> Takes about a minute
+            <Clock className="w-4 h-4 md:w-[18px] md:h-[18px] text-emerald-700" /> Takes a few minutes
           </li>
           <li className="inline-flex items-center gap-1.5 md:gap-2">
             <Users className="w-4 h-4 md:w-[18px] md:h-[18px] text-emerald-700" />

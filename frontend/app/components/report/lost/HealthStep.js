@@ -36,7 +36,7 @@ export default function HealthStep({ variant = 'lost', name, value = {}, onChang
       >
         No, {name} is healthy
       </button>
-      <p className="text-sm font-semibold text-midnight-500">Or tap what applies:</p>
+      <p className="text-[15px] font-semibold text-midnight-600">Or tap what applies:</p>
       <Chips
         variant={variant}
         multi
@@ -49,7 +49,7 @@ export default function HealthStep({ variant = 'lost', name, value = {}, onChang
 
       {(meds || other) && (
         <div>
-          <label htmlFor="health-note" className="mb-1.5 block text-sm font-semibold text-midnight-700">
+          <label htmlFor="health-note" className="mb-1.5 block text-[15px] font-semibold text-midnight-700">
             {meds ? 'What, and how often?' : 'What is it?'}
           </label>
           <input
@@ -67,7 +67,7 @@ export default function HealthStep({ variant = 'lost', name, value = {}, onChang
 
       {line && (
         <OnTheFlyer line={line}>
-          {meds && <p className="mt-1.5 text-sm text-midnight-600">The report is marked urgent, and the Rescue Forces see why.</p>}
+          {meds && <p className="mt-1.5 text-[15px] text-midnight-600">The report is marked urgent, and the Rescue Forces see why.</p>}
         </OnTheFlyer>
       )}
     </div>

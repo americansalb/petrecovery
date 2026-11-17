@@ -2,25 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { Check, Plus } from 'lucide-react';
+import { COAT_COLORS } from '@/app/lib/coatColors';
 
-// Simple, recognizable colors - no abstract names
-const COLORS = [
-  { name: 'Black', color: '#1a1a1a' },
-  { name: 'Dark Gray', color: '#4a4a4a' },
-  { name: 'Gray', color: '#808080' },
-  { name: 'Light Gray', color: '#c0c0c0', border: true },
-  { name: 'White', color: '#ffffff', border: true },
-  { name: 'Dark Brown', color: '#3d2314' },
-  { name: 'Brown', color: '#8b4513' },
-  { name: 'Light Brown', color: '#a67b5b' },
-  { name: 'Tan', color: '#d2b48c' },
-  { name: 'Beige', color: '#e8dcc8', border: true },
-  { name: 'Cream', color: '#fffdd0', border: true },
-  { name: 'Golden', color: '#daa520' },
-  { name: 'Orange', color: '#ff8c00' },
-  { name: 'Red', color: '#b22222' },
-  { name: 'Ginger', color: '#b06500' },
-];
+// Simple, recognizable colors - no abstract names (app/lib/coatColors.js)
+const COLORS = COAT_COLORS.map((c) => ({ name: c.name, color: c.hex, border: c.border }));
 
 export default function ColorSelector({ value, onChange }) {
   const [selectedColors, setSelectedColors] = useState([]);
