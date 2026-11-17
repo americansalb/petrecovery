@@ -11,7 +11,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { agoShort, areaState, groundCoverage, groundNowWords, isFaded, searchLog, searchStrength, FADE_HOURS } from '@/app/mission-control/lib/ground';
+import { agoShort, areaState, groundCoverage, groundNow, groundNowWords, isFaded, searchLog, searchStrength, FADE_HOURS } from '@/app/mission-control/lib/ground';
 import { freshAreas, FRESH_HOURS } from '@/app/lib/trail';
 
 const read = (file) => fs.readFileSync(path.join(__dirname, '..', '..', file), 'utf8');
@@ -137,6 +137,11 @@ describe('what is searched now, in words', () => {
   test('the circle round a sighting is not one of the areas counted', () => {
     expect(groundNowWords([own('north', [full(1)]), none('east'), own('seen-s1', [full(1)], { ring: 3 })], NOW)).toBe('1 of the 2 areas was searched in the last 12 hours.');
   });
+
+  test('the owner\'s figures count the same: searched lately, of the circle\'s own areas', () => {
+    expect(groundNow([own('north', [full(1)]), own('east', [full(30)]), none('south'), own('seen-s1', [full(1)], { ring: 3 })], NOW)).toEqual({ total: 3, lately: 1, on: 0, ever: true });
+    expect(groundNow([none('north'), { ...none('east'), status: 'IN_PROGRESS' }], NOW)).toEqual({ total: 2, lately: 0, on: 1, ever: false });
+  });
 });
 
 describe('the record of an area', () => {
@@ -252,7 +257,12 @@ describe('where it is shown', () => {
 
   test('the owner\'s card says what is searched now, and neither card counts every area ever searched', () => {
     const owner = read('app/mission-control/steps/Owner.js');
-    expect(owner).toMatch(/\{ground \? groundNowWords\(items, now\) : /);
+    // The owner's figures are the areas searched in the last 12 hours, with the age in the label: never a bare
+    // "searched", and never every area ever searched.
+    expect(owner).toMatch(/const g = groundNow\(items, now\);/);
+    expect(owner).toMatch(/lately=\{g\.lately\}/);
+    expect(owner).toMatch(/\{ figure: `\$\{lately\} of \$\{total\}`, label: `areas searched in the last \$\{FRESH_HOURS\} hours` \}/);
+    expect(owner).not.toMatch(/searchCount > 0\)\.length/);
     expect(owner).not.toMatch(/areas \$\{counts\.searched === 1 \? 'has' : 'have'\} been searched/);
     // The thank-you card has the trail's own count under it, so it says none of its own.
     expect(helper).not.toMatch(/counts\.total\} areas/);

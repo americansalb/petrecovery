@@ -793,9 +793,35 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
 
   test('the owner\'s steps are the engine\'s own list, under the engine\'s own name for it', () => {
     const card = cardsOf(owner).find((c) => c.name === 'OwnerNow').source;
-    expect(card).toMatch(/const steps = \[\.\.\.advice\.steps, \.\.\.advice\.more\]\.slice\(0, 5\);/);
+    // Three, on the card itself: they were behind a "What to do now" link, and on a small phone the list ran off
+    // the bottom of the card with nothing to say it went on (2026-11-17).
+    expect(card).toMatch(/const steps = \[\.\.\.advice\.steps, \.\.\.advice\.more\]\.slice\(0, 3\);/);
     expect(card).toMatch(/<Eyebrow>\{advice\.source\}<\/Eyebrow>/);
     expect(card).toMatch(/\{item\.lead\}/);
+    // The engine's reasoning under a lead-in is its own words too, whole or not at all.
+    expect(card).toMatch(/\{item\.rest && item\.rest\.length <= REST_SHOWN && <span[^>]*>\{item\.rest\}<\/span>\}/);
+    expect(code(card)).not.toMatch(/What to do now|Hide the steps/);
+  });
+
+  test('the owner\'s card gives the owner something to do: the plan\'s next step, an area to search, the link', () => {
+    const card = cardsOf(owner).find((c) => c.name === 'OwnerNow').source;
+    // The next step is the plan's, the one the desk's Sarama says, with what the site made for it (gearFor).
+    expect(owner).toMatch(/import \{ nextStep, KEPT_KINDS \} from '@\/app\/lib\/searchPlan';/);
+    expect(card).toMatch(/const next = useMemo\(\(\) => \(plan \? nextStep\(plan\.kinds, plan\.tasks\) : null\), \[plan\]\);/);
+    expect(owner).toMatch(/\{SARAMA\.next\(step\.title\)\}/);
+    expect(owner).toMatch(/<Gear items=\{\(step\.gear \|\| \[\]\)\.slice\(0, 2\)\}/);
+    expect(read('app/mission-control/desktop/Command.js')).toMatch(/const next = nextStep\(plan\.kinds, plan\.tasks\);/);
+    // The owner searches through the same claim a helper makes: the middle of the circle, named and not ranked.
+    expect(card).toMatch(/const middle = ground \? items\.find\(\(i\) => i\.ring === RING\.MIDDLE\) \|\| null : null;/);
+    expect(code(shell)).toMatch(/onSearchHome=\{\(area\) => takeStreet\(null, area\)\}/);
+    expect(code(shell)).toMatch(/const ranked = chosen \? \[chosen\] : rank\(items, here \|\| position, unit\)/);
+    // No waiver step in between for the owner: the server lets the owner search their own pet's ground.
+    expect(read('app/lib/searcher.js')).toMatch(/waiver: waiverIsCurrent\(user\.waiverAcceptedAt, user\.waiverVersionAccepted\) \|\| isOwner,/);
+    // Nobody searches from a desk, and the desk has the next step in "Needs you".
+    expect(card).toMatch(/const canSearch = !desk && ground/);
+    expect(card).toMatch(/usePlan\(desk \? null : readPlan\)/);
+    // The buttons wait for the plan, so its next step arriving does not push them down under a finger.
+    expect(card).toMatch(/\{settled && \(/);
   });
 
   test('the line on the map is the brief\'s own first sentence', () => {

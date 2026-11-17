@@ -123,17 +123,21 @@ export default function DashboardPage() {
      owners report first and never add one). Without the reports an owner
      who reported Pip opened this page to nothing about Pip. */
   const listed = new Set(missingPets.map((p) => p.missing.caseId));
+  /* A pet reported lost with no saved profile is still this person's
+     animal: it is counted under "Your animals" too, so the page never says
+     "You haven't added an animal yet" under "Pip has been missing 3d". */
+  const reportedOnly = missions
+    .filter((m) => m.isOwner && !listed.has(m.id) && m.missionNumber)
+    .map((m) => ({
+      key: m.id, name: m.petName || 'Your pet', photo: m.petPhotoUrl, caseNumber: m.missionNumber,
+      species: m.petSpecies, hoursMissing: m.hoursMissing, mission: m,
+    }));
   const missingNow = [
     ...missingPets.map((p) => ({
       key: p.id, name: p.name, photo: p.primaryPhotoUrl, caseNumber: p.missing.caseNumber,
       hoursMissing: p.missing.hoursMissing, mission: p.mission,
     })),
-    ...missions
-      .filter((m) => m.isOwner && !listed.has(m.id) && m.missionNumber)
-      .map((m) => ({
-        key: m.id, name: m.petName || 'Your pet', photo: m.petPhotoUrl, caseNumber: m.missionNumber,
-        hoursMissing: m.hoursMissing, mission: m,
-      })),
+    ...reportedOnly,
   ];
   const helping = missions.filter((m) => !m.isOwner);
   const urgentNearby = nearbyAlerts.filter((a) => (parseInt(a.hoursMissing, 10) || 999) < 48);
@@ -313,7 +317,7 @@ export default function DashboardPage() {
                 >
                   Your animals
                 </Label>
-                {pets.length === 0 && (
+                {pets.length === 0 && reportedOnly.length === 0 && (
                   <p className="text-sm text-midnight-500 mb-3">
                     You haven&rsquo;t added an animal yet. Their record is what makes
                     a match possible if they ever go missing.
@@ -348,6 +352,27 @@ export default function DashboardPage() {
                             <span className="text-midnight-600">Home</span>
                           </>
                         )}
+                      </span>
+                    </Link>
+                  ))}
+                  {/* Reported lost with no saved profile: the report is their record, so the row opens it. */}
+                  {reportedOnly.map((p) => (
+                    <Link key={p.key} href={`/cases/${encodeURIComponent(p.caseNumber)}`} className="flex items-center gap-3.5 px-4 py-3 hover:bg-slate-50 transition">
+                      {p.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.photo} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                      ) : (
+                        <span className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                          <PawPrint className="w-[18px] h-[18px] text-midnight-300" />
+                        </span>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-midnight-900 text-[15px] leading-tight truncate">{p.name}</p>
+                        <p className="text-[13px] text-midnight-400 truncate">{SPECIES_LABEL[p.species] || 'Pet'}</p>
+                      </div>
+                      <span className="text-[13px] font-medium shrink-0 inline-flex items-center gap-1.5">
+                        <i className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        <span className="text-red-600">Missing {elapsed(p.hoursMissing)}</span>
                       </span>
                     </Link>
                   ))}

@@ -99,9 +99,12 @@ export function useAccountModes() {
 
 /**
  * `variant` picks the surface: "menu" sits inside the consumer account
- * dropdown, "sidebar" sits in the portal's dark footer.
+ * dropdown, "sidebar" sits in the portal's dark footer. `listed` is the
+ * pages the menu around it already links to (its own "My Pets", its list
+ * of the person's rescue forces): a mode that goes to one of them is left
+ * out, so the menu never names the same place twice.
  */
-export default function AccountModeSwitcher({ current, variant = 'menu', onNavigate }) {
+export default function AccountModeSwitcher({ current, variant = 'menu', onNavigate, listed = [] }) {
   const router = useRouter();
   const modes = useAccountModes();
   const [open, setOpen] = useState(false);
@@ -184,7 +187,7 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
   // Only the OTHER worlds: you are already where you are, and a switcher
   // that lists your current location as a link is noise. No concept
   // header either - the rows are plain destinations.
-  const others = modes.filter((m) => m.id !== current);
+  const others = modes.filter((m) => m.id !== current && !listed.includes(m.href));
 
   return (
     <div className="border-b border-midnight-100 py-1">

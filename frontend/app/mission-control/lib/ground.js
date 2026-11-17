@@ -339,14 +339,27 @@ export function groundLines({ areas = [], circle = null, name = 'the pet', now =
  * counted either, as it does not keep the map green.
  */
 export function groundNowWords(areas = [], now = Date.now()) {
-  const own = circleAreas(areas);
-  if (!own.length) return '';
-  const on = own.filter((a) => a.status === 'IN_PROGRESS').length;
+  const { total, lately, on, ever } = groundNow(areas, now);
+  if (!total) return '';
   const being = on ? `, and ${on === 1 ? '1 is' : `${on} are`} being searched now` : '';
-  if (!own.some((a) => a.searchCount > 0)) return `None of the ${own.length} areas has been searched yet${being}.`;
-  const lately = own.filter((a) => searchedLately(a, now)).length;
-  const searched = lately === 0 ? `None of the ${own.length} areas was searched` : `${lately} of the ${own.length} areas ${lately === 1 ? 'was' : 'were'} searched`;
+  if (!ever) return `None of the ${total} areas has been searched yet${being}.`;
+  const searched = lately === 0 ? `None of the ${total} areas was searched` : `${lately} of the ${total} areas ${lately === 1 ? 'was' : 'were'} searched`;
   return `${searched} in the last ${FRESH_HOURS} hours${being}.`;
+}
+
+/**
+ * The same count as figures, for the owner's card: { total, lately, on,
+ * ever }. `lately` is the circle's own areas searched in the last twelve
+ * hours, never every area ever searched: a search before that has faded.
+ */
+export function groundNow(areas = [], now = Date.now()) {
+  const own = circleAreas(areas);
+  return {
+    total: own.length,
+    lately: own.filter((a) => searchedLately(a, now)).length,
+    on: own.filter((a) => a.status === 'IN_PROGRESS').length,
+    ever: own.some((a) => a.searchCount > 0),
+  };
 }
 
 /**

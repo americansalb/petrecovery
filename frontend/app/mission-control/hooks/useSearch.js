@@ -339,7 +339,8 @@ export default function useSearch(missionParam, { desk = false } = {}) {
       const res = await send(`/api/mission/${encodeURIComponent(missionParam)}/plan`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res) return { error: NO_SIGNAL };
       const data = await readJson(res);
-      return res.ok ? { ok: true } : { error: data.error || 'That did not go through. Try again in a moment.' };
+      // The task as the server keeps it, so a task just set up can be kept straight after (its id).
+      return res.ok ? { ok: true, task: data.task || null } : { error: data.error || 'That did not go through. Try again in a moment.' };
     },
     [missionParam]
   );

@@ -47,7 +47,7 @@ describe('sectionFor', () => {
     // The line above the advice does not say a fence was jumped.
     const advice = adviceFor({ petSpecies: 'DOG', lastSeenAt: ago(120) }, NOW);
     expect(advice.source).toBe('ReunitePets advice: a dog, days 3 to 7');
-    expect(advice.steps[0].full).toMatch(/^VISIT EVERY SHELTER IN PERSON/);
+    expect(advice.steps[0].full).toMatch(/^Visit every shelter in person/);
   });
 
   test('where nothing is written for this long, the nearest earlier section is used and the line does not name a time', () => {
@@ -100,10 +100,10 @@ describe('adviceFor', () => {
     const advice = adviceFor(cases[0], NOW);
     expect(advice.source).toBe('ReunitePets advice: a dog that ran out an open door, first day');
     expect(advice.steps.map((s) => s.lead)).toEqual([
-      'CHECK YOUR ENTIRE HOUSE FIRST',
-      'IMMEDIATELY walk your EXACT daily walk route',
+      'Check your entire house first',
+      'Immediately walk your exact daily walk route',
       "Check houses where they've received attention, treats, or have dog friends.",
-      'Leave your front door WIDE OPEN with something heavy propping it',
+      'Leave your front door wide open with something heavy propping it',
     ]);
     expect(advice.steps[0].rest.startsWith("This sounds crazy but many 'door dashing' dogs are actually still inside")).toBe(true);
     expect(advice.more.length).toBeGreaterThan(0);
@@ -112,14 +112,27 @@ describe('adviceFor', () => {
   test('day four after a fence: dawn and dusk', () => {
     const advice = adviceFor(cases[1], NOW);
     expect(advice.source).toBe('ReunitePets advice: a dog that jumped a fence, days 3 to 7');
-    expect(advice.more.some((m) => m.lead === 'SEARCH AT DAWN (5-7am) AND DUSK (7-9pm)')).toBe(true);
+    expect(advice.more.some((m) => m.lead === 'Search at dawn (5-7am) and dusk (7-9pm)')).toBe(true);
   });
 
   test('the sections getAdvice cannot reach are read from the tree', () => {
-    expect(adviceFor(cases[3], NOW).steps[0].lead).toBe('CHECK PROPERTY THOROUGHLY');
-    expect(adviceFor(cases[6], NOW).steps[0].lead).toBe('CHECK TERRITORY BOUNDARIES');
-    expect(adviceFor(cases[7], NOW).steps[0].lead).toBe('STAY WHERE THEY FLEW FROM');
+    expect(adviceFor(cases[3], NOW).steps[0].lead).toBe('Check your home and yard first');
+    expect(adviceFor(cases[6], NOW).steps[0].lead).toBe('Check territory boundaries');
+    expect(adviceFor(cases[7], NOW).steps[0].lead).toBe('Stay where they flew from');
     expect(adviceFor(cases[7], NOW).source).toBe('ReunitePets advice: a bird that flew away, first hours');
+  });
+
+  test('the engine writes in sentence case: nothing on an owner\'s card is in capitals', () => {
+    // An owner on a phone read "CHECK PROPERTY THOROUGHLY" and "Assume all scenarios and check everything" as the
+    // first steps for a lost dog (2026-11-17). Short names (AC, TV, ID, MARN, UPS, LED, BBQ, AM) are kept.
+    const ACRONYM = /^(AC|TV|ID|MARN|UPS|LED|BBQ|AM|PM|GPS)$/;
+    const shouting = ENGINE.filter((line) => (line.match(/\b[A-Z][A-Z'/&-]*[A-Z]\b/g) || []).some((word) => !ACRONYM.test(word)));
+    expect(shouting).toEqual([]);
+    // The steps for a dog nobody saw leave say what to do and where.
+    const steps = adviceFor(cases[3], NOW).steps.map((s) => s.full).join(' ');
+    expect(steps).not.toMatch(/Assume all scenarios|check everything/i);
+    expect(steps).toMatch(/garage, shed or basement/);
+    expect(steps).toMatch(/check their own garages and sheds/);
   });
 
   test('the mistakes are the engine\'s list for every pet, then for the species', () => {
@@ -158,7 +171,7 @@ describe('splitAdvice and firstSentence', () => {
 
   test('firstSentence is the first sentence, unchanged', () => {
     const item = PetRecoveryAdvice.dog.scenarios.door_left_open.less_than_day.immediate_checklist[0];
-    expect(firstSentence(item)).toBe("Call their name in a HAPPY, excited voice - use your 'happy walk time' voice, not your 'you're in trouble' voice.");
+    expect(firstSentence(item)).toBe("Call their name in a happy, excited voice - use your 'happy walk time' voice, not your 'you're in trouble' voice.");
     expect(firstSentence('One line')).toBe('One line');
   });
 });
