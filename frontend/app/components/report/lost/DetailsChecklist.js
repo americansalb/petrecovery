@@ -24,7 +24,7 @@ export default function DetailsChecklist({ details, breed, name, onOpen, title =
         <h2 id="details-checklist-heading" className="text-[19px] font-extrabold leading-6 text-midnight-900">
           {title}
         </h2>
-        <span className="shrink-0 text-[13px] font-bold text-midnight-500">
+        <span className="shrink-0 text-[13px] font-bold text-midnight-500 max-md:text-sm">
           {left === 0 ? 'All answered' : `${left} left`}
         </span>
       </div>
@@ -53,7 +53,7 @@ export default function DetailsChecklist({ details, breed, name, onOpen, title =
                 <span className={`flex-1 text-[15px] ${done ? 'font-medium text-midnight-500' : 'font-semibold text-midnight-900'}`}>
                   {done ? s.label : s.question(name)}
                 </span>
-                <span className="text-xs font-bold uppercase tracking-wide text-midnight-500">{done ? 'Edit' : 'Add'}</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-midnight-500 max-md:text-sm">{done ? 'Edit' : 'Add'}</span>
                 <ChevronRight size={16} className="text-midnight-300" aria-hidden="true" />
               </button>
             </li>

@@ -177,6 +177,17 @@ export async function GET(request, { params }) {
     }
     const viewerIsOwner = Boolean(viewerId && viewerId === missionData.reporterId) || holdsOwnerKey(request, missionData);
 
+    // How many neighbors were alerted about the pet, for the owner alone (their phone page says it, as the
+    // search screen does: app/lib/searchPicture.js). Nobody else is sent it. A count that fails is left out.
+    let neighborsAlerted = null;
+    if (viewerIsOwner) {
+      try {
+        neighborsAlerted = await prisma.alert.count({ where: { caseId: missionData.id } });
+      } catch {
+        neighborsAlerted = null;
+      }
+    }
+
     // Build response
     const response = {
       id: missionData.id,
@@ -218,6 +229,7 @@ export async function GET(request, { params }) {
       // Whether the person asking is the owner, so the page can show the owner's own panel. The owner's account
       // id itself is not sent: it went to anyone who opened the page.
       viewerIsOwner,
+      ...(viewerIsOwner ? { neighborsAlerted } : {}),
       // Engagement metrics
       viewCount: missionData.viewCount || 0,
       shareCount: missionData.shareCount || 0,

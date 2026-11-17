@@ -43,7 +43,7 @@ function AssetChip({ href, label, icon: Icon }) {
       target="_blank"
       rel="noopener noreferrer"
       download
-      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border-2 border-midnight-300 bg-white px-3.5 text-[13px] font-bold text-midnight-900 hover:border-midnight-500 transition-colors"
+      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border-2 border-midnight-300 bg-white px-3.5 text-[13px] font-bold text-midnight-900 max-md:text-sm hover:border-midnight-500 transition-colors"
     >
       <Icon size={15} />
       {label}
@@ -91,7 +91,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'COMPLETE', fa
               <QrCode size={15} className="text-midnight-500" />
               <p className="font-bold text-midnight-800 text-sm">Scan to open this page</p>
             </div>
-            <p className="text-xs text-midnight-600 leading-relaxed">
+            <p className="text-xs max-md:text-sm text-midnight-600 leading-relaxed">
               Point a phone camera at this code to open this page. It is printed on every flyer too.
             </p>
             <a
@@ -99,7 +99,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'COMPLETE', fa
               target="_blank"
               rel="noopener noreferrer"
               download
-              className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-midnight-700 hover:text-midnight-900"
+              className="inline-flex items-center gap-1.5 mt-2 text-xs max-md:text-sm font-semibold text-midnight-700 hover:text-midnight-900"
             >
               <Download size={13} /> Download QR
             </a>
@@ -118,7 +118,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'COMPLETE', fa
               <AssetChip key={f.kind} href={f.url} label={f.label} icon={Download} />
             ))}
           </div>
-          <p className="text-xs text-midnight-500 mt-2">Each one has the map and a QR code back to this page.</p>
+          <p className="text-xs max-md:text-sm text-midnight-500 mt-2">Each one has the map and a QR code back to this page.</p>
         </div>
       )}
 
@@ -133,21 +133,21 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'COMPLETE', fa
               <a href={square.url} target="_blank" rel="noopener noreferrer" download className="block w-[150px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img loading="lazy" src={square.url} alt={`Square share image for ${petName || 'this pet'}`} className="w-[150px] h-[150px] rounded-lg border border-midnight-200 object-cover" />
-                <span className="mt-1.5 block text-center text-xs font-bold text-midnight-700">Square</span>
+                <span className="mt-1.5 block text-center text-xs max-md:text-sm font-bold text-midnight-700">Square</span>
               </a>
             )}
             {story && (
               <a href={story.url} target="_blank" rel="noopener noreferrer" download className="block w-[84px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img loading="lazy" src={story.url} alt={`Story share image for ${petName || 'this pet'}`} className="w-[84px] h-[150px] rounded-lg border border-midnight-200 object-cover" />
-                <span className="mt-1.5 block text-center text-xs font-bold text-midnight-700">Story</span>
+                <span className="mt-1.5 block text-center text-xs max-md:text-sm font-bold text-midnight-700">Story</span>
               </a>
             )}
             {link && (
               <a href={link.url} target="_blank" rel="noopener noreferrer" download className="block w-[150px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img loading="lazy" src={link.url} alt={`Link preview image for ${petName || 'this pet'}`} className="w-[150px] h-[79px] rounded-lg border border-midnight-200 object-cover" />
-                <span className="mt-1.5 block text-center text-xs font-bold text-midnight-700">Link preview</span>
+                <span className="mt-1.5 block text-center text-xs max-md:text-sm font-bold text-midnight-700">Link preview</span>
               </a>
             )}
           </div>
@@ -157,8 +157,8 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'COMPLETE', fa
                 captions[p] ? (
                   <div key={p} className="flex items-start gap-2 p-2.5 rounded-xl bg-midnight-50">
                     <div className="flex-1 min-w-0">
-                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-midnight-500 mb-0.5 capitalize">{p}</p>
-                      <p className="text-xs text-midnight-700 line-clamp-3">{captions[p]}</p>
+                      <p className="text-[0.65rem] font-bold max-md:text-sm uppercase tracking-wide text-midnight-500 mb-0.5 capitalize">{p}</p>
+                      <p className="text-xs max-md:text-sm text-midnight-700 line-clamp-3">{captions[p]}</p>
                     </div>
                     <CopyButton text={captions[p]} />
                   </div>

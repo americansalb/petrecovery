@@ -14,7 +14,7 @@ export default function ScamNote({ compact = false, title = 'Watch for scams' })
         <ShieldAlert size={18} className="text-amber-600" aria-hidden="true" />
         {title}
       </h2>
-      <ul className={`mt-2 space-y-1.5 text-midnight-800 ${compact ? 'text-[13px]' : 'text-sm'}`}>
+      <ul className={`mt-2 space-y-1.5 text-midnight-800 ${compact ? 'text-[13px] max-md:text-sm' : 'text-sm'}`}>
         {SCAM_WARNING.map((line) => (
           <li key={line} className="flex gap-2">
             <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />

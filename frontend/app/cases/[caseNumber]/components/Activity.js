@@ -118,7 +118,7 @@ export default function Activity({ sightings = [], updates = [], done = [], mark
   const shown = showAll ? items : items.slice(0, SHOWN_AT_FIRST);
 
   return (
-    <section aria-labelledby="activity-heading" className="rounded-2xl bg-white p-5 ring-1 ring-midnight-200 sm:p-6">
+    <section aria-labelledby="activity-heading" className="rounded-2xl bg-white p-5 ring-1 ring-midnight-200 max-sm:p-4 sm:p-6">
       <h2 id="activity-heading" className="text-lg font-semibold text-midnight-900">
         What happened
       </h2>
@@ -126,7 +126,7 @@ export default function Activity({ sightings = [], updates = [], done = [], mark
       {items.length === 0 ? (
         <p className="mt-2 text-midnight-500">{emptyText}</p>
       ) : (
-        <ol className="mt-4 space-y-5">
+        <ol className="mt-4 space-y-5 max-md:mt-3 max-md:space-y-4">
           {shown.map((item) => (
             <li key={item.key}>{item.node}</li>
           ))}
