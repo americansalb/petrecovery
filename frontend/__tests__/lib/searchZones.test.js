@@ -92,11 +92,20 @@ describe('zoneForBoard: one area as the board sends it', () => {
   test('where it is, how long it takes, and its edge for the map', () => {
     const out = zoneForBoard(row('west', { landmarks: '["Jefferson St","Shoal Creek Blvd"]' }), ctx());
     expect(out).toMatchObject({
-      id: 'z-west', key: 'west', ring: 1, name: 'West side', title: 'West side', reach: '150 m to 400 m west of where Max was lost', landmarks: ['Jefferson St', 'Shoal Creek Blvd'],
+      // Austin: a search in the US says its distances in feet and miles.
+      id: 'z-west', key: 'west', ring: 1, name: 'West side', title: 'West side', reach: '500 to 1,300 ft west of where Max was lost', landmarks: ['Jefferson St', 'Shoal Creek Blvd'],
       from: 150, to: 400, a: 225, b: 315, minutes: 45, priority: 6, first: false, status: 'UNSEARCHED', on: 0, coming: 0, full: false, searchCount: 0, marked: false, mine: false,
     });
     expect(out.outline[0]).toEqual(out.outline[out.outline.length - 1]);
     expect(out.center.lng).toBeLessThan(LOST.lng);
+  });
+
+  test('a search outside the US says its distances in metres', () => {
+    // Coyoacán, Mexico City.
+    const coyoacan = { lat: 19.3467, lng: -99.1617 };
+    expect(zoneForBoard(row('west', { center: coyoacan }), ctx()).reach).toBe('150 m to 400 m west of where Max was lost');
+    expect(zoneForBoard(row('middle', { center: coyoacan }), ctx()).reach).toBe('Within 150 m of where Max was lost');
+    expect(zoneForBoard(row('middle'), ctx()).reach).toBe('Within 500 ft of where Max was lost');
   });
 
   test('its state comes from who is on it and whether it has been searched, never from a claim', () => {
@@ -197,7 +206,7 @@ describe('zoneForBoard: one area as the board sends it', () => {
     const circle = (over = {}) => row('seen-s1', { center: { lat: seen[0].lat, lng: seen[0].lng }, ...over });
 
     test('it is named for what it is, and comes before everything the search orders', () => {
-      expect(zoneForBoard(circle(), ctx({ sightings: seen }))).toMatchObject({ ring: RING.SEEN, name: 'Where Max was seen', reach: 'Within 150 m of where Max was seen', minutes: 30, priority: 10, full: false, sightingId: 's1', sightingAt: ago(12) });
+      expect(zoneForBoard(circle(), ctx({ sightings: seen }))).toMatchObject({ ring: RING.SEEN, name: 'Where Max was seen', reach: 'Within 500 ft of where Max was seen', minutes: 30, priority: 10, full: false, sightingId: 's1', sightingAt: ago(12) });
     });
 
     test('with someone there it is full for everyone else, and not for the person there', () => {
@@ -414,7 +423,7 @@ describe('readZones: the board', () => {
     prisma.caseSighting.findMany.mockResolvedValue([sighting()]);
     prisma.searchZone.findMany.mockResolvedValue(stored([row('seen-s1', { center: { lat: sighting().latitude, lng: sighting().longitude } })]));
     const seen = (await readZones(CASE, { now: NOW })).areas.find((a) => a.key === 'seen-s1');
-    expect(seen.reach).toBe('Within 150 m of where Max was seen, 300 m south of where Max was lost');
+    expect(seen.reach).toBe('Within 500 ft of where Max was seen, 1,000 ft south of where Max was lost');
   });
 
   test('a circle whose sighting is old leaves the board, unless someone is still there', async () => {
@@ -517,7 +526,7 @@ describe('readZones: the board', () => {
     const jobs = await openAreas(CASE, { viewer: 'u-mike', now: NOW });
     expect(jobs.map((j) => j.label)).toEqual(['South side', 'North side', 'East side', 'West side', 'The middle']);
     // With what the order is worked out from, so the page that ranks them again for the nearest gets the same order.
-    expect(jobs[0]).toMatchObject({ id: 'z-south', unit: 'area', ring: 1, status: 'UNSEARCHED', priority: 10, first: false, again: false, minutes: 45, reach: '150 m to 400 m south of where Max was lost', on: 0, askedOfMe: false });
+    expect(jobs[0]).toMatchObject({ id: 'z-south', unit: 'area', ring: 1, status: 'UNSEARCHED', priority: 10, first: false, again: false, minutes: 45, reach: '500 to 1,300 ft south of where Max was lost', on: 0, askedOfMe: false });
     expect(jobs[0].centerLatitude).toBeLessThan(LOST.lat);
   });
 });

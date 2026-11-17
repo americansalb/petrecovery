@@ -33,6 +33,12 @@
  * still be offered, for a button of its own: false once the browser has
  * said no.
  *
+ * `onQuery(text)` tells the screen what is typed in the search box, and ''
+ * once a place is picked from the list or the pin is put another way. A
+ * street that is typed and never picked is not a place: the sighting form
+ * holds its Send button while there is one (2026-11-17: "Barton Springs
+ * Rd" typed and not picked sent the phone's own spot, with no address).
+ *
  * `maxAccuracy` (metres): a device reading rougher than this does not set
  * the pin. The sighting form passes the search's own rule
  * (app/lib/sightingLimits.js), so "Use my location" here holds to the same
@@ -172,6 +178,7 @@ export default function LocationPicker({
   mapless = false, // true: the search box alone; the place is shown on a map the screen already has
   maxAccuracy = null, // metres: a device reading rougher than this does not set the pin
   onLocateOffer, // (offered) whenever whether "Use my location" can be offered changes, for the screen's own button
+  onQuery, // (text) what is typed in the search box; '' once a place is picked or the pin is put another way
 }) {
   const mapHex = variant === 'found' ? '#10b981' : '#ef4444';
   const [query, setQuery] = useState('');
@@ -204,6 +211,8 @@ export default function LocationPicker({
   onLocatedRef.current = onLocated;
   const onLocateOfferRef = useRef(onLocateOffer);
   onLocateOfferRef.current = onLocateOffer;
+  const onQueryRef = useRef(onQuery);
+  onQueryRef.current = onQuery;
   const lastFixRef = useRef(null); // the last device fix, to bias a typed search before a pin exists
 
   const nearPoint = nearby && Number.isFinite(nearby.lat) && Number.isFinite(nearby.lng) ? { lat: nearby.lat, lng: nearby.lng } : null;
@@ -272,7 +281,20 @@ export default function LocationPicker({
     }
   }, [storageKey, value]);
 
+  // The pin was put somewhere (picked from the list, a tap, a drag, "Use my location"): that is the place now, and
+  // whatever was typed and not picked goes, with its list and any lookup still running.
+  const dropTyped = () => {
+    searchSeqRef.current += 1;
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    setQuery('');
+    setResults([]);
+    setNoResults(false);
+    setLookupFailed(false);
+    onQueryRef.current?.('');
+  };
+
   const applyPosition = async (lat, lng, knownAddress) => {
+    dropTyped();
     if (knownAddress) {
       const cityGuess = (() => {
         const parts = knownAddress.split(',');
@@ -408,6 +430,7 @@ export default function LocationPicker({
 
   const runSearch = (q) => {
     setQuery(q);
+    onQueryRef.current?.(q);
     setLocateError(null);
     setNoResults(false);
     setLookupFailed(false);
@@ -446,12 +469,16 @@ export default function LocationPicker({
     searchSeqRef.current += 1;
     setResults([]);
     setQuery('');
+    onQueryRef.current?.('');
     setNoResults(false);
     setLookupFailed(false);
     setIsSearching(true);
     try {
       let { latitude: lat, longitude: lng } = result;
-      let address = result.address || result.name;
+      // The match's own name leads its address where the address leaves it out: a street found by its name
+      // ("Barton Springs Road") came back with only "Austin, Texas", and that was the place sent.
+      const named = result.name && result.address && !result.address.toLowerCase().includes(String(result.name).toLowerCase());
+      let address = named ? `${result.name}, ${result.address}` : result.address || result.name;
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         const place = await within(getPlaceFromAutocomplete(result)).catch(() => null);
         if (place?.latitude && place?.longitude) {
@@ -563,7 +590,8 @@ export default function LocationPicker({
 
       {/* Map / empty state */}
       <div className={`relative z-10 flex-1 min-h-[240px] rounded-2xl overflow-hidden border border-midnight-100 shadow-card ${mapless ? 'hidden' : ''}`}>
-        <div ref={mapRef} className="absolute inset-0" />
+        {/* Its own layer: the map's zoom buttons and credit stay under the panel laid over a map with no pin. */}
+        <div ref={mapRef} className="absolute inset-0 z-0" />
         {!value && !pinning && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-midnight-50 to-midnight-100">
             <div className="text-center px-6 max-w-xs">

@@ -15,9 +15,10 @@
  * (the finder guide, app/lib/caseDetails.js), shown as the pet's page
  * shows it. This file writes no advice of its own.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, Loader2, MapPin, MousePointerClick, Phone } from 'lucide-react';
 import LocationPicker from '@/app/components/report/LocationPicker';
+import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import { SIGHTING_ACCURACY_METERS } from '@/app/lib/sightingLimits';
 import { Eyebrow, Heading, Lead, Note, Primary, SeenButton, QuietLink, AdviceBlock, Problem } from '../components/kit';
 import { clockTime, phoneTel, phoneWords } from '../lib/words';
@@ -30,11 +31,53 @@ export const WHEN = [
   { minutes: 1440, label: 'Yesterday' },
 ];
 
+/**
+ * What Send sends, in the words over the button: the place, or that nothing is placed yet and what to do.
+ * `unpicked` is a street typed and not picked from the list, which is not a place. `here` is true while the place
+ * is the phone's own reading.
+ */
+function sendingWords(where, { unpicked = false, here = false } = {}) {
+  const placed = Boolean(where && Number.isFinite(Number(where.lat)));
+  if (unpicked) return { place: 'nothing yet', how: 'Pick the street from the list, or put the pin on the map.' };
+  if (!placed) return { place: 'nothing yet', how: 'Type the street, or put the pin on the map.' };
+  const address = String(where.address || '').trim();
+  const named = address && !looksLikeCoordinates(address) ? address : '';
+  if (here) return { place: named ? `where you are now, by ${named}` : 'where you are now', how: '' };
+  return { place: named || 'the pin on the map', how: '' };
+}
+
 /** Where and when, on one screen, with one button. */
 export function Seen({ name, owner, signedIn = false, where, onWhere, near = null, locating = false, canLocate = true, mapPick = false, minutes, onMinutes, onSend, busy, problem }) {
   // With the spot already on the map, typing is the second way and stays out of sight until asked for.
   const [typing, setTyping] = useState(false);
+  // A street typed and not yet picked from the list. It is not a place: Send waits until a match is picked or the
+  // pin is put on the map. Before, a typed street that was never picked was ignored, and Send sent the phone's own
+  // spot with no address (2026-11-17).
+  const [unpicked, setUnpicked] = useState(false);
   const placed = Boolean(where && Number.isFinite(Number(where.lat)));
+  // Typing a place takes the pin off: the phone's spot, or a pin put before, is not what the person means now.
+  function typed(text) {
+    const some = Boolean(String(text || '').trim());
+    setUnpicked(some);
+    if (some && placed) onWhere(null);
+  }
+  // A place set from outside the picker while a street is typed. On a desk it is a click on the map, which is the
+  // place. On a phone it is the phone's own spot coming back with "Just now", and the typed street still stands.
+  useEffect(() => {
+    if (!unpicked || !placed) return;
+    if (mapPick) setUnpicked(false);
+    else onWhere(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [where?.lat, where?.lng]);
+  // The phone's own reading, as the form was opened with it: while that is the place, Send says "where you are now".
+  const [reading, setReading] = useState(null);
+  useEffect(() => {
+    if (!locating && placed && !reading) setReading({ lat: Number(where.lat), lng: Number(where.lng) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locating]);
+  const here = Boolean(!mapPick && placed && reading && reading.lat === Number(where.lat) && reading.lng === Number(where.lng));
+  const ready = placed && !unpicked;
+  const sending = sendingWords(where, { unpicked, here });
   return (
     <div className="flex min-h-full flex-col px-4 pb-[calc(10px+env(safe-area-inset-bottom))] pt-4">
       <Heading className="!text-[25px] !leading-8">Where did you see {name}?</Heading>
@@ -58,7 +101,7 @@ export function Seen({ name, owner, signedIn = false, where, onWhere, near = nul
           </div>
           {typing ? (
             <div className="mt-2.5 overflow-visible rounded-2xl bg-white p-3 text-midnight-900">
-              <LocationPicker value={where} onChange={onWhere} variant="lost" canLocate={false} search near={near} mapless />
+              <LocationPicker value={where} onChange={onWhere} variant="lost" canLocate={false} search near={near} mapless onQuery={typed} />
             </div>
           ) : (
             <div>
@@ -73,7 +116,7 @@ export function Seen({ name, owner, signedIn = false, where, onWhere, near = nul
                 A typed street is looked for around the search first: "W 41st St" means the one by the pet, and
                 the pin can be put on a map that opens there. "Use my location" holds to the search's own rule
                 on a rough reading (app/lib/sightingLimits.js). */}
-            <LocationPicker value={where} onChange={onWhere} variant="lost" canLocate={canLocate} search={typing || !placed} near={near} maxAccuracy={SIGHTING_ACCURACY_METERS} />
+            <LocationPicker value={where} onChange={onWhere} variant="lost" canLocate={canLocate} search={typing || !placed || unpicked} near={near} maxAccuracy={SIGHTING_ACCURACY_METERS} onQuery={typed} />
           </div>
           {placed && !typing && (
             <div>
@@ -108,7 +151,18 @@ export function Seen({ name, owner, signedIn = false, where, onWhere, near = nul
       <div className="mt-auto pt-4">
         {/* Beside the button, where the eye is after pressing it. */}
         <Problem className="mb-2.5">{problem}</Problem>
-        <Primary onClick={onSend} busy={busy} disabled={locating}>
+        {/* What goes when Send is pressed, said over it: a typed street is not sent until it is picked. A desk's card
+            above already says where it is marked. */}
+        {!mapPick && !locating && (
+          <div className="mb-2.5" aria-live="polite">
+            <p className="line-clamp-2 text-[15px] font-semibold leading-[22px] text-[var(--mc-ink)]">
+              <span className="text-[var(--mc-soft)]">Sending: </span>
+              {sending.place}
+            </p>
+            {sending.how && !problem && <p className="text-[13px] font-medium leading-[18px] text-[var(--mc-soft)]">{sending.how}</p>}
+          </div>
+        )}
+        <Primary onClick={onSend} busy={busy} disabled={locating || !ready}>
           Send to {owner?.firstName || 'the owner'}
         </Primary>
         {/* Someone signed in is recorded as themselves, as on the pet's page. The screen says so. */}

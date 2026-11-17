@@ -41,7 +41,7 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { distanceMeters } from '@/app/lib/searchGrid';
 import { rankAreas, needsSearch } from '@/app/lib/searchCircle';
@@ -71,7 +71,7 @@ import { wordsForCard, wordsForOwner, dealtLine } from './lib/team';
 import { AreaName, circleAreas, minutesRange, searchStrength } from './lib/ground';
 import { PAWS } from '@/app/lib/trail';
 
-/** The space between the sheet and the map's key above it, and between the sheet and the map's credit when there is no key. */
+/** The space between the sheet and the map's key and credit, which share the line above it. */
 const KEY_GAP = 8;
 
 const SearchMap = dynamic(() => import('./components/SearchMap'), {
@@ -200,8 +200,8 @@ function Screen({ mission }) {
   const handleFrom = useRef(null);
   // The part of the card that scrolls.
   const sheetScroll = useRef(null);
-  const [keyHeight, setKeyHeight] = useState(0);
-  const keyWatch = useRef(null);
+  // On a phone the map's key is a small "Key" chip, opened by a tap: a key always open took a third of the map.
+  const [keyOpen, setKeyOpen] = useState(false);
 
   const desk = instrument === INSTRUMENTS.COMMAND;
   const app = instrument === INSTRUMENTS.FIELD;
@@ -649,11 +649,18 @@ function Screen({ mission }) {
     return { lat: at.lat, lng: at.lng, label: `Lost here ${dayAndTime(at.at, zone, now)}` };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picture?.lastSeen?.lat, picture?.lastSeen?.lng, picture?.lastSeen?.at, zone, Math.floor(now / 60000)]);
-  const mapSightings = useMemo(
-    () => (picture?.sightings || []).slice(0, 6).map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, label: `Seen ${dayAndTime(s.at, zone, now)}`, hot: hot?.id === s.id })),
+  // On a phone only one sighting carries words: the one leading this person's screen, or else the newest. The
+  // others are dots, and a tap on one shows when it was (`title`). Six labels on a strip of map lay on top of each
+  // other and ran off the screen (2026-11-17).
+  const mapSightings = useMemo(() => {
+    const shown = (picture?.sightings || []).slice(0, 6);
+    const named = shown.some((s) => s.id === hot?.id) ? hot.id : shown[0]?.id;
+    return shown.map((s) => {
+      const when = `Seen ${dayAndTime(s.at, zone, now)}`;
+      return { id: s.id, lat: s.lat, lng: s.lng, label: s.id === named ? when : '', title: when, hot: hot?.id === s.id };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [picture?.sightings, zone, hot?.id, Math.floor(now / 60000)]
-  );
+  }, [picture?.sightings, zone, hot?.id, Math.floor(now / 60000)]);
   // What is lit on this person's map: the area they are on, or else the one they were asked to search.
   const litId = mineRaw?.id || askedRaw?.id || null;
   // A search fades over a day, so the map is drawn again as time passes: every ten minutes, as on the desk, and not
@@ -725,19 +732,6 @@ function Screen({ mission }) {
     sheetWatch.current = new ResizeObserver(() => setSheetHeight(el.offsetHeight));
     sheetWatch.current.observe(el);
     setSheetHeight(el.offsetHeight);
-  }, []);
-  // The height of the map's key, so the map's credit sits above it and the two never share a line.
-  const keyRef = useCallback((el) => {
-    if (keyWatch.current) keyWatch.current.disconnect();
-    keyWatch.current = null;
-    if (!el) {
-      setKeyHeight(0);
-      return;
-    }
-    setKeyHeight(el.offsetHeight);
-    if (typeof ResizeObserver === 'undefined') return;
-    keyWatch.current = new ResizeObserver(() => setKeyHeight(el.offsetHeight));
-    keyWatch.current.observe(el);
   }, []);
 
   // ----- Gates -----
@@ -908,14 +902,19 @@ function Screen({ mission }) {
       fit={fit}
       fitKey={fitKey}
       padding={{ top: showChip ? 60 : fitSheet > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: fitSheet + (fitSheet > 460 ? 30 : 44), left: 64 }}
-      creditBottom={sheetHeight + KEY_GAP + (keyHeight ? keyHeight + 6 : 0)}
+      // The key's chip sits on the left of the line above the card, and the credit on the right of it.
+      creditBottom={sheetHeight + KEY_GAP}
       label={`Map of the search for ${name}`}
+      // Every label kept inside the map and clear of the line at the top, the key, the card and the credit.
+      tidy
+      coverKey={`${showChip && !sheetOpen ? 1 : 0}|${keyBits.length}|${keyOpen ? 1 : 0}|${sheetOpen ? 1 : 0}`}
     />
   );
+  // The key's rows, shown while its chip is open. Kept in the page while closed, so its words are still there.
   const mapKey = keyBits.length > 0 && (
-    <div className="pointer-events-none flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-semibold text-[var(--mc-soft)]">
+    <ul id="mc-map-key" hidden={!keyOpen} className="rounded-lg border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3 py-2 text-[13px] font-semibold leading-5 text-[var(--mc-soft)] shadow-lg">
       {keyBits.map(([kind, words]) => (
-        <span key={words} className="flex items-center gap-1.5 rounded-md bg-[var(--mc-surface)]/85 px-1.5 py-0.5">
+        <li key={words} className="flex items-center gap-2 py-0.5">
           {kind === 'fill' ? (
             <span className="h-3 w-5 rounded-[3px]" style={{ border: '1px solid var(--mc-done)', background: 'color-mix(in srgb, var(--mc-done) 45%, transparent)' }} aria-hidden="true" />
           ) : kind === 'fade' ? (
@@ -929,9 +928,9 @@ function Screen({ mission }) {
             <span className="w-5 border-t-4 border-dotted border-teal-400" aria-hidden="true" />
           )}
           {words}
-        </span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 
   // A phone screen is pinned to the window and never scrolls as a page: only the card scrolls, and reaching its end
@@ -968,17 +967,28 @@ function Screen({ mission }) {
       <div className="relative min-h-0 flex-1">
         <div className="absolute inset-0 z-0">{map}</div>
         {showChip && !sheetOpen && (
-          <p className="absolute left-3 top-3 z-[400] max-w-[calc(100%-24px)] rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3.5 py-2 text-[13px] font-bold leading-[18px] text-[var(--mc-ink)] shadow-lg">
+          <p data-map-cover="" className="absolute left-3 top-3 z-[400] max-w-[calc(100%-24px)] rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3.5 py-2 text-[13px] font-bold leading-[18px] text-[var(--mc-ink)] shadow-lg">
             {brief.neverFirst}
           </p>
         )}
         {mapKey && !sheetOpen && (
-          <div ref={keyRef} className="pointer-events-none absolute left-3 right-3 z-[400]" style={{ bottom: sheetHeight + KEY_GAP }}>
+          <div data-map-cover="" className="absolute left-3 z-[400] flex max-w-[calc(100%-24px)] flex-col items-start gap-1.5" style={{ bottom: sheetHeight + KEY_GAP }}>
             {mapKey}
+            <button
+              type="button"
+              aria-expanded={keyOpen}
+              aria-controls="mc-map-key"
+              onClick={() => setKeyOpen((open) => !open)}
+              className="flex h-9 items-center gap-1 rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] pl-3.5 pr-2.5 text-[13px] font-bold leading-[18px] text-[var(--mc-ink)] shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400"
+            >
+              Key
+              {keyOpen ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}
+            </button>
           </div>
         )}
         <section
           ref={sheetRef}
+          data-map-cover=""
           aria-label="Your step"
           className="absolute inset-x-0 bottom-0 z-[450] flex flex-col rounded-t-3xl bg-[var(--mc-surface)] shadow-[0_-8px_30px_rgba(2,6,23,0.5)]"
           style={{ maxHeight: sheetOpen ? SHEET_OPEN : SHEET_CLOSED }}

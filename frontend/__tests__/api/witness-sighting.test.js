@@ -275,7 +275,7 @@ describe('a sighting implausibly far from where the pet was lost is not taken', 
     prisma.case.findFirst.mockResolvedValue(WHISKERS);
     const out = await recordWitnessSighting('AUS-2026-0002', checkWitnessSighting(CHICAGO).value, { now: NOW });
     expect(out).toMatchObject({ error: 'TOO_FAR', caseNumber: 'AUS-2026-0002' });
-    expect(out.words).toBe('That spot is 1,581 km from where Whiskers was lost, too far to send to the search. Check the pin or the street, and send it again.');
+    expect(out.words).toBe('That spot is 982 miles from where Whiskers was lost, too far to send to the search. Check the pin or the street, and send it again.');
     expect(prisma.caseSighting.create).not.toHaveBeenCalled();
     expect(prisma.caseSighting.update).not.toHaveBeenCalled();
     expect(prisma.case.update).not.toHaveBeenCalled();
@@ -287,7 +287,7 @@ describe('a sighting implausibly far from where the pet was lost is not taken', 
     const res = await call(CHICAGO);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body).toEqual({ error: expect.stringMatching(/^That spot is 1,581 km from where Whiskers was lost/), code: 'TOO_FAR' });
+    expect(body).toEqual({ error: expect.stringMatching(/^That spot is 982 miles from where Whiskers was lost/), code: 'TOO_FAR' });
     expect(body.error).not.toMatch(/\d\.\d km|—/);
     expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ event_type: 'case.sighting_refused', error_code: 'TOO_FAR' }));
     expect(prisma.caseSighting.create).not.toHaveBeenCalled();

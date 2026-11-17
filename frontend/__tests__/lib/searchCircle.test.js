@@ -9,7 +9,7 @@
  */
 import {
   CIRCLES, DEFAULT_CIRCLE, RING, MINUTES_PER_HECTARE, MINUTES_PER_HECTARE_CLOSE_CAT, SEEN_CIRCLE_REACH_METERS,
-  distanceWords, circleFor, areasOf, inArea, areaAt, hectaresOf, minutesFor, seenArea, inWords, pointAt, outlineOf, heartOf, reachOf, landmarksIn, urgencyOf, planCircle, rankAreas, needsSearch, outLongAfter, heldFor,
+  distanceWords, unitsForZone, circleFor, areasOf, inArea, areaAt, hectaresOf, minutesFor, seenArea, inWords, pointAt, outlineOf, heartOf, reachOf, landmarksIn, urgencyOf, planCircle, rankAreas, needsSearch, outLongAfter, heldFor,
 } from '@/app/lib/searchCircle';
 import { distanceMeters } from '@/app/lib/searchGrid';
 
@@ -191,8 +191,45 @@ describe('an area in words', () => {
   });
 
   test('a distance is said as a person says it', () => {
-    expect([30, 140, 994, 995, 1640, 3000, 12400, 85000, 1578000].map(distanceWords)).toEqual(['under 50 m', '140 m', '990 m', '1 km', '1.6 km', '3 km', '12 km', '85 km', '1,578 km']);
+    expect([30, 140, 994, 995, 1640, 3000, 12400, 85000, 1578000].map((m) => distanceWords(m))).toEqual(['under 50 m', '140 m', '990 m', '1 km', '1.6 km', '3 km', '12 km', '85 km', '1,578 km']);
     expect(distanceWords(undefined)).toBe('');
+  });
+
+  // 2026-11-17: a helper in Austin was told "150 m to 400 m east of where Max was lost".
+  describe('in the US, in feet and miles', () => {
+    const us = (m) => distanceWords(m, 'imperial');
+
+    test('the search\'s own time zone decides: every US zone is feet and miles, anywhere else metres', () => {
+      for (const zone of ['America/Chicago', 'America/New_York', 'America/Los_Angeles', 'America/Phoenix', 'Pacific/Honolulu', 'America/Anchorage']) expect(unitsForZone(zone)).toBe('imperial');
+      for (const zone of ['America/Mexico_City', 'America/La_Paz', 'America/Toronto', 'Europe/London', 'America/Puerto_Rico', '', null, undefined]) expect(unitsForZone(zone)).toBe('metric');
+    });
+
+    test('short distances in feet, rounded as people say them; past about a thousand feet, miles', () => {
+      expect([20, 50, 150, 300, 310, 400, 500, 800, 1200, 1609, 1950, 16000, 1578000].map(us)).toEqual([
+        'under 150 ft', '150 ft', '500 ft', '1,000 ft', '0.2 miles', 'a quarter mile', '0.3 miles', 'half a mile', 'three quarters of a mile', '1 mile', '1.2 miles', '9.9 miles', '981 miles',
+      ]);
+      for (const m of [995, 1640, 9960, 85000, 1578000]) expect(us(m)).not.toMatch(/\.0 mile|\d{4} mile| m\b|km/);
+    });
+
+    test('how far an area reaches', () => {
+      const [middle, north] = areasOf(DOG);
+      expect(reachOf(middle, 'Max', { units: 'imperial' })).toBe('Within 500 ft of where Max was lost');
+      expect(reachOf(north, 'Max', { units: 'imperial' })).toBe('500 to 1,300 ft north of where Max was lost');
+      expect(reachOf(areasOf(DOG, { widened: true })[6], 'Max', { units: 'imperial' })).toBe('A quarter mile to half a mile north-east of where Max was lost');
+      const [catMiddle, , catEast] = areasOf(CIRCLES.CAT, { widened: true });
+      expect(reachOf(catMiddle, 'Luna', { units: 'imperial' })).toBe('Within 150 ft of where Luna was lost');
+      expect(reachOf(catEast, 'Luna', { units: 'imperial' })).toBe('150 to 500 ft east of where Luna was lost');
+      expect(reachOf(areasOf(CIRCLES.CAT, { widened: true }).find((a) => a.key === 'outer-east'), 'Luna', { units: 'imperial' })).toBe('500 to 1,600 ft east of where Luna was lost');
+      const seen = seenArea('s', DOG, 'Max');
+      expect(reachOf(seen, 'Max', { lost: LOST, seen: pointAt(LOST, 1240, 45), units: 'imperial' })).toBe('Within 500 ft of where Max was seen, three quarters of a mile north-east of where Max was lost');
+      // Nothing in metres is left in a US search's words.
+      for (const area of [...areasOf(DOG, { widened: true }), ...areasOf(CIRCLES.CAT, { widened: true })]) expect(reachOf(area, 'Max', { units: 'imperial' })).not.toMatch(/\d m\b|km/);
+    });
+
+    test('a planned search carries the same words', () => {
+      const { areas } = planCircle({ center: LOST, species: 'DOG', name: 'Max', units: 'imperial' });
+      expect(areas.find((a) => a.key === 'east').reach).toBe('500 to 1,300 ft east of where Max was lost');
+    });
   });
 
   test('its name inside a sentence', () => {
