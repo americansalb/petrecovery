@@ -396,10 +396,15 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     const drawn = map.match(/L\.(polyline|polygon|rectangle|circle|marker)\([^\n]*/g);
     expect(drawn.filter((line) => line.startsWith('L.polygon(')).length).toBeGreaterThanOrEqual(2);
     const taking = drawn.filter((line) => !/interactive: (false|desk)/.test(line));
-    // Two things do: a street's wide unseen line on a desk, and the pin of a sighting being placed, which is dragged.
-    expect(taking).toHaveLength(2);
+    // Three things do: a street's wide unseen line on a desk; a sighting drawn with no words beside it, which shows
+    // when it was to a tap or a pointer and does nothing else (2026-11-17: on a phone only the newest sighting is
+    // named, and the others are dots); and the pin of a sighting being placed, which is dragged.
+    expect(taking).toHaveLength(3);
     expect(taking[0]).toMatch(/^L\.polyline\(street\.path, \{ color: '#000000', weight: 20, opacity: 0/);
-    expect(taking[1]).toMatch(/^L\.marker\(\[pin\.lat, pin\.lng\], \{/);
+    expect(taking[1]).toMatch(/^L\.marker\(\[s\.lat, s\.lng\], \{ icon: tagged\(L, \{ dot, text: s\.label\b.*\}\), interactive: bare, keyboard: false, title: bare \? s\.title : ''/);
+    expect(map).toMatch(/const bare = !s\.label && Boolean\(s\.title\);/);
+    expect(map).toMatch(/if \(bare\) mark\.bindTooltip\(tip\(s\.title, ''\)/);
+    expect(taking[2]).toMatch(/^L\.marker\(\[pin\.lat, pin\.lng\], \{/);
     // The pin exists only while a place is being chosen, which only a desk's map is told.
     expect(map).toMatch(/if \(!pick \|\| !pin \|\| !Number\.isFinite\(pin\.lat\) \|\| !Number\.isFinite\(pin\.lng\)\) return;/);
     // And the phone's map is never told it is a desk, or given anything to call.
@@ -535,7 +540,8 @@ describe('three instruments: a desk is never asked where it is and is never hand
 
   test('the form does not offer "Use my location" on a desk', () => {
     expect(shell).toMatch(/<Seen\b.*canLocate=\{!desk\}/);
-    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{onWhere\} variant="lost" canLocate=\{canLocate\} search=\{typing \|\| !placed\} near=\{near\} maxAccuracy=\{SIGHTING_ACCURACY_METERS\} \/>/);
+    // What is typed is told to the form, which holds Send until a match is picked (2026-11-17).
+    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{onWhere\} variant="lost" canLocate=\{canLocate\} search=\{typing \|\| !placed \|\| unpicked\} near=\{near\} maxAccuracy=\{SIGHTING_ACCURACY_METERS\} onQuery=\{typed\} \/>/);
     // A typed street is looked for around the search, since a desk has no position of its own to lean on.
     expect(shell).toMatch(/<Seen\b.*near=\{hot \|\| picture\.lastSeen\}/);
     const picker = read('app/components/report/LocationPicker.js');
@@ -716,7 +722,8 @@ describe('what a desk says about the search is a count, a time, a distance or a 
     expect(know).toMatch(/import \{ coverage, groundLines, missingFor, researchFor, sightingLines \} from '\.\.\/lib\/insight';/);
     // On ground the sentences are the ground's own tested file (lib/ground.js); on streets, the streets' (lib/insight.js).
     expect(know).toMatch(/import \{ groundCoverage, groundLines as areaLines \} from '\.\.\/lib\/ground';/);
-    expect(know).toMatch(/const ground = unit === 'area' \? areaLines\(\{ areas: items, circle, name, now \}\) : groundLines\(\{ items, unit, name \}\);/);
+    // The search's own time zone goes with it: a search in the US is said in feet and miles.
+    expect(know).toMatch(/const ground = unit === 'area' \? areaLines\(\{ areas: items, circle, name, timeZone: picture\.timeZone, now \}\) : groundLines\(\{ items, unit, name \}\);/);
     // The only number about people is how many are on ground right now, which the areas themselves say.
     expect(know).toMatch(/<Stat value=\{g\.people\} label="searching now" \/>/);
     expect(know).toMatch(/<Stat value=\{c\.walking\} label="walking now" \/>/);

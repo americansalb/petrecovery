@@ -261,6 +261,8 @@ describe('the ground in numbers and sentences', () => {
 
   test('a wider search says how wide', () => {
     expect(groundLines({ areas: five(), circle: { ...CIRCLE, radius: 800, widened: true }, name: 'Max' })[0]).toMatch(/within 800 m of where Max was lost/);
+    // A search in the US says it in feet and miles: the search's own time zone decides.
+    expect(groundLines({ areas: five(), circle: CIRCLE, name: 'Max', timeZone: ZONE })[0]).toBe('5 areas of ground within a quarter mile of where Max was lost. None has been searched yet.');
   });
 
   test('no areas, no sentences', () => {
@@ -410,7 +412,7 @@ describe('"Needs you" on ground', () => {
     const [card] = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [ring, ...five()], people: [person('Dana', { state: 'walking', on: { unit: 'area', id: 'z-seen', title: 'Where Max was seen' }, since: ago(8) })] }));
     expect(card).toMatchObject({
       id: 'seen-s1', kind: 'sighting', tone: 'seen', label: 'Sighting · 12 minutes ago', title: 'Seen at W 42nd St and Ramsey Ave',
-      body: '300 m south of where Max was lost. Dana is there. One person goes to a sighting, never a group.',
+      body: '1,000 ft south of where Max was lost. Dana is there. One person goes to a sighting, never a group.',
       primary: { words: 'Write to Dana', do: { type: 'write', handle: 'h-Dana' } },
     });
     expect(card.more).toEqual([{ words: 'Show it on the map', do: { type: 'show', sightingId: 's1' } }]);
@@ -419,7 +421,7 @@ describe('"Needs you" on ground', () => {
   test('with nobody there, one named free person is asked to go, and nobody else', () => {
     const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(12), place: 'Ramsey Ave' };
     const cards = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [person('Jo', { joinedAt: ago(4) })] }));
-    expect(cards[0].body).toBe('300 m south of where Max was lost. Jo is free. One person goes to a sighting, never a group.');
+    expect(cards[0].body).toBe('1,000 ft south of where Max was lost. Jo is free. One person goes to a sighting, never a group.');
     expect(cards[0].primary).toEqual({ words: 'Ask Jo to go', do: { type: 'ask', handle: 'h-Jo', areaId: 'z-seen' } });
     // One card about Jo, and a second free person is offered other ground: nobody is asked to the sighting twice.
     const two = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [person('Jo', { joinedAt: ago(4) }), person('Priya', { joinedAt: ago(6) })] }));
@@ -431,7 +433,7 @@ describe('"Needs you" on ground', () => {
     const jo = person('Jo', { walked: 1, lastWalkedAt: ago(20), stopped: { id: 'z-west', title: 'West side', at: ago(4) } });
     const cards = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()], people: [jo] }));
     expect(cards.map((c) => c.kind)).toEqual(['sighting']);
-    expect(cards[0].body).toBe('300 m south of where Max was lost. Nobody is free right now. The next person who asks for ground is given it.');
+    expect(cards[0].body).toBe('1,000 ft south of where Max was lost. Nobody is free right now. The next person who asks for ground is given it.');
     expect(JSON.stringify(cards)).not.toMatch(/Ask Jo/);
     // Someone free beside them is the one asked.
     const priya = person('Priya', { joinedAt: ago(6) });
@@ -454,24 +456,24 @@ describe('"Needs you" on ground', () => {
     const ring = seenCircle({ going: { at: ago(8) }, asked: [{ name: 'Jo', handle: 'h-Jo', at: ago(3), seenAt: ago(2), holds: true }], coming: 1, full: true });
     const [card] = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [ring, ...five()] }));
     // Two people are going, by the owner's own word: the card does not go on to say that one person goes.
-    expect(card.body).toBe('300 m south of where Max was lost. You set off for it at 9:52 pm. Jo was asked to go at 9:57 pm and has seen that. Nobody else is given it.');
+    expect(card.body).toBe('1,000 ft south of where Max was lost. You set off for it at 9:52 pm. Jo was asked to go at 9:57 pm and has seen that. Nobody else is given it.');
     expect(card.body).not.toMatch(/One person goes/);
   });
 
   test('when the owner set off, or someone was asked, the card says so and asks nobody else', () => {
     const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(12), place: 'Ramsey Ave', ownerGoingAt: ago(8) };
     const going = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle({ going: { at: ago(8) }, full: false }), ...five()], people: [person('Jo', { joinedAt: ago(4) })] }))[0];
-    expect(going.body).toBe('300 m south of where Max was lost. You set off for it at 9:52 pm. One person goes to a sighting, never a group.');
+    expect(going.body).toBe('1,000 ft south of where Max was lost. You set off for it at 9:52 pm. One person goes to a sighting, never a group.');
     expect(going.primary.do.type).toBe('show');
     const asked = needsForGround(base({ picture: picture({ sightings: [{ ...seen, ownerGoingAt: null }] }), areas: [seenCircle({ asked: [{ name: 'Jo', handle: 'h-Jo', at: ago(3), seenAt: null, holds: true }] }), ...five()] }))[0];
-    expect(asked.body).toBe('300 m south of where Max was lost. Jo was asked to go at 9:57 pm. One person goes to a sighting, never a group.');
+    expect(asked.body).toBe('1,000 ft south of where Max was lost. Jo was asked to go at 9:57 pm. One person goes to a sighting, never a group.');
     expect(asked.primary.do.type).toBe('show');
   });
 
   test('with nobody free, the next person who asks is given it, which the card says', () => {
     const seen = { id: 's1', lat: LOST.lat - 300 / 111320, lng: LOST.lng, at: ago(12), place: 'Ramsey Ave' };
     const [card] = needsForGround(base({ picture: picture({ sightings: [seen] }), areas: [seenCircle(), ...five()] }));
-    expect(card.body).toBe('300 m south of where Max was lost. Nobody is free right now. The next person who asks for ground is given it.');
+    expect(card.body).toBe('1,000 ft south of where Max was lost. Nobody is free right now. The next person who asks for ground is given it.');
   });
 
   test('a sighting more than an hour old is on the map and in the messages, not here', () => {
@@ -489,9 +491,9 @@ describe('"Needs you" on ground', () => {
     const all = five({ middle: searched(3, ago(10)), north: searched(1, ago(105)), east: searched(1, ago(50)), south: searched(2, ago(40)), west: searched(1, ago(75)) });
     const [card] = needsForGround(base({ areas: all }));
     expect(card).toMatchObject({
-      id: 'covered', kind: 'covered', label: 'The circle is covered', title: 'Every area within 400 m has been searched',
-      body: 'The middle 3 times, the south side twice, the rest once. Widening adds 8 areas, from 400 m to 800 m.',
-      primary: { words: 'Widen to 800 m', do: { type: 'widen' } },
+      id: 'covered', kind: 'covered', label: 'The circle is covered', title: 'Every area within a quarter mile has been searched',
+      body: 'The middle 3 times, the south side twice, the rest once. Widening adds 8 areas, from a quarter mile to half a mile.',
+      primary: { words: 'Widen to half a mile', do: { type: 'widen' } },
     });
     expect(card.more.map((m) => m.words)).toEqual(['Search these again', 'Not now']);
     expect(card.more[0].do).toEqual({ type: 'againAll' });
@@ -505,7 +507,7 @@ describe('"Needs you" on ground', () => {
   test('once widened and covered, the one thing left is to search again', () => {
     const all = five({ middle: searched(1, ago(10)), north: searched(1, ago(105)), east: searched(1, ago(50)), south: searched(1, ago(40)), west: searched(1, ago(75)) });
     const [card] = needsForGround(base({ areas: all, circle: { ...CIRCLE, radius: 800, widened: true } }));
-    expect(card.title).toBe('Every area within 800 m has been searched');
+    expect(card.title).toBe('Every area within half a mile has been searched');
     expect(card.body).toBe('Each once.');
     expect(card.primary).toEqual({ words: 'Search these again', do: { type: 'againAll' } });
     expect(card.more.map((m) => m.words)).toEqual(['Not now']);

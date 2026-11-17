@@ -169,15 +169,19 @@ export function AdviceBlock({ source, lines = [], className = '' }) {
  *
  * The strip under the buttons is the sheet's own bottom padding, and what
  * scrolls would show in it: the shadow, in the sheet's colour, covers it.
- * The row written after the buttons (BottomRow) is drawn over that shadow
- * (app/globals.css, `[data-pinned] ~ *`), or it is covered at rest too.
+ * What comes after the buttons (the owner's number and "Share", "I am
+ * stopping") is drawn over that shadow (app/globals.css, `[data-pinned] ~ *`):
+ * scrolled to the end of the card it sits right under them, and the shadow
+ * hid it there, so "Call" and "Share" could be reached by no one who could
+ * not see them (2026-11-17, a 375 px phone). Only the main button and
+ * "I've seen" stay pinned; everything else is reached by scrolling the card.
  */
 export function Pinned({ on = true, children }) {
   if (!on) return <>{children}</>;
   return (
     <div
       data-pinned=""
-      className="sticky bottom-[calc(10px+env(safe-area-inset-bottom))] z-10 -mx-4 mt-4 bg-[var(--mc-surface)] px-4 shadow-[0_48px_0_0_var(--mc-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:-top-4 before:h-4 before:bg-gradient-to-t before:from-[var(--mc-surface)] before:to-transparent before:content-['']"
+      className="sticky bottom-[calc(10px+env(safe-area-inset-bottom))] z-10 -mx-4 mt-4 bg-[var(--mc-surface)] px-4 shadow-[0_48px_0_0_var(--mc-surface)] before:pointer-events-none before:absolute before:inset-x-0 before:-top-4 before:h-4 before:bg-gradient-to-t before:from-[var(--mc-surface)] before:to-transparent before:content-[''] [&~*]:relative [&~*]:z-[11]"
     >
       {children}
     </div>

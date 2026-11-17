@@ -28,7 +28,8 @@
  */
 import prisma from '@/app/lib/prisma';
 import { CLAIM_TTL_MS, FIRST_PRIORITY, SIGHTING_PRIORITY_WINDOW_MS, distanceMeters } from '@/app/lib/searchGrid';
-import { RING, SEEN_CIRCLE_REACH_METERS, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, reachOf, landmarksIn, urgencyOf, inWords, rankAreas, heldFor, isShortSearch, lapsedAt, LATE_MS } from '@/app/lib/searchCircle';
+import { RING, SEEN_CIRCLE_REACH_METERS, circleFor, areasOf, seenArea, minutesFor, heartOf, outlineOf, reachOf, landmarksIn, urgencyOf, inWords, rankAreas, heldFor, isShortSearch, lapsedAt, LATE_MS, unitsForZone } from '@/app/lib/searchCircle';
+import { zoneFor } from '@/app/lib/caseZone';
 
 export { rankAreas, LATE_MS };
 import { ensureGrid } from '@/app/lib/searchBoard';
@@ -492,6 +493,9 @@ export function zoneForBoard(row, ctx = {}) {
   const status = on.length ? 'IN_PROGRESS' : row.againAt ? 'NEEDS_REVISIT' : row.searchCount > 0 ? 'SEARCHED' : 'UNSEARCHED';
   const full = seenCircleFull(row, { except: viewer, sighting, ownerId, now });
   const going = sighting?.ownerGoingAt && now - new Date(sighting.ownerGoingAt).getTime() < OWNER_GOING_MS ? { at: sighting.ownerGoingAt } : null;
+  // Feet and miles for a search in the US, metres elsewhere: from where the pet was lost, or the circle's own centre.
+  const ground = origin || center;
+  const units = unitsForZone(zoneFor({ lastSeenLatitude: ground.lat, lastSeenLongitude: ground.lng }));
   const out = {
     id: row.id,
     key: row.key,
@@ -499,7 +503,7 @@ export function zoneForBoard(row, ctx = {}) {
     name: row.name,
     title: row.name,
     // The circle round a sighting says how far it is from where the pet was lost: the helper sees how far they are sent.
-    reach: reachOf(area, name, row.ring === RING.SEEN ? { lost: origin, seen: center } : undefined),
+    reach: reachOf(area, name, row.ring === RING.SEEN ? { lost: origin, seen: center, units } : { units }),
     landmarks: parseList(row.landmarks),
     hazards: parseHazards(row.hazards).map(({ kind, name, what }) => ({ kind, name: name || '', what })),
     outline: outlineOf(area, center),

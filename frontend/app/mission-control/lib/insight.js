@@ -11,7 +11,7 @@
  * the pet is.
  */
 import { distanceMeters } from '@/app/lib/searchGrid';
-import { distanceWords } from '@/app/lib/searchCircle';
+import { distanceWords, unitsForZone } from '@/app/lib/searchCircle';
 import { nearestOnPath, SIGHTING_REACH_METERS } from '@/app/lib/streetWalks';
 import { wholeDays } from '@/app/lib/elapsed';
 import { clockTime, dayAndTime, placeWords } from './words';
@@ -140,9 +140,18 @@ export function directionWord(a, b) {
   return COMPASS[Math.round((((degrees % 360) + 360) % 360) / 45) % 8];
 }
 
-/** "120 m", "1.6 km", "12 km": a straight-line distance, rounded as people say it (app/lib/searchCircle.js, distanceWords). */
-export function metersWords(meters) {
-  return distanceWords(meters);
+/**
+ * "120 m", "1.6 km", "12 km": a straight-line distance, rounded as people say it (app/lib/searchCircle.js,
+ * distanceWords). In feet and miles for a search in the US: `units` is unitsForZone(picture.timeZone).
+ */
+export function metersWords(meters, units = 'metric') {
+  return distanceWords(meters, units);
+}
+
+/** The same at the start of a sentence: "A quarter mile south of where Max was lost." */
+export function MetersWords(meters, units = 'metric') {
+  const words = distanceWords(meters, units);
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /** A time as a sentence says it: "at 9:30 pm" today, "on Tue at 8:00 pm" this week, "on Nov 3" before that. */
@@ -179,7 +188,8 @@ export function sightingLines({ sightings = [], lastSeen = null, timeZone, now =
   const newest = seen[seen.length - 1];
   const where = placeWords(newest.place);
   const far = origin ? distanceMeters(origin, newest) : NaN;
-  const fromLost = origin && Number.isFinite(far) ? `${metersWords(far)} ${far >= 50 ? `${directionWord(origin, newest)} of` : 'from'} where ${name} was lost` : '';
+  const units = unitsForZone(timeZone);
+  const fromLost = origin && Number.isFinite(far) ? `${metersWords(far, units)} ${far >= 50 ? `${directionWord(origin, newest)} of` : 'from'} where ${name} was lost` : '';
   if (seen.length === 1) {
     lines.push(`1 sighting, ${whenWords(newest.at, timeZone, now)}${where ? ` ${where}` : ''}${fromLost ? `, ${fromLost}` : ''}.`);
     return lines;
@@ -216,9 +226,10 @@ export function streetFacts(street, { lastSeen = null, sightings = [], timeZone,
   const facts = [];
   const center = street.center;
   const origin = lastSeen && Number.isFinite(lastSeen.lat) ? { lat: lastSeen.lat, lng: lastSeen.lng } : null;
+  const units = unitsForZone(timeZone);
   if (origin && center) {
     const d = distanceMeters(origin, center);
-    facts.push(d < 50 ? `Right where ${name} was lost.` : `${metersWords(d)} ${directionWord(origin, center)} of where ${name} was lost.`);
+    facts.push(d < 50 ? `Right where ${name} was lost.` : `${MetersWords(d, units)} ${directionWord(origin, center)} of where ${name} was lost.`);
   }
   // Measured from the street's own line, as the order of the streets is: a long street is next to a sighting anywhere along it.
   const apart = (s) => {
@@ -230,7 +241,7 @@ export function streetFacts(street, { lastSeen = null, sightings = [], timeZone,
     .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng) && apart(s) <= NEAR_SIGHTING_METERS)
     .sort((a, b) => new Date(b.at) - new Date(a.at))[0];
   // The distance itself, so "near" is never left to mean more than it does.
-  if (near) facts.push(apart(near) < 30 ? `${name} was seen on it ${whenWords(near.at, timeZone, now)}.` : `${metersWords(apart(near))} from where ${name} was seen ${whenWords(near.at, timeZone, now)}.`);
+  if (near) facts.push(apart(near) < 30 ? `${name} was seen on it ${whenWords(near.at, timeZone, now)}.` : `${MetersWords(apart(near), units)} from where ${name} was seen ${whenWords(near.at, timeZone, now)}.`);
   const who = (n) => n || 'Someone';
   if (street.status === 'IN_PROGRESS') facts.push(`${who(street.claimedByName)} has been on it since ${clockTime(street.claimedAt, timeZone)}.`);
   if (street.searchedAt) {

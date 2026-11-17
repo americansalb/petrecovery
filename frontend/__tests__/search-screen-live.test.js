@@ -16,7 +16,7 @@
 import React from 'react';
 import { render, act, fireEvent } from '@testing-library/react';
 
-const made = { groups: [], polygons: [] };
+const made = { groups: [], polygons: [], markers: [] };
 jest.mock('leaflet', () => {
   const shape = () => ({
     addTo() {
@@ -48,8 +48,17 @@ jest.mock('leaflet', () => {
     polyline: shape,
     rectangle: shape,
     circle: shape,
-    marker: shape,
-    divIcon: () => ({}),
+    // What a mark is drawn with, so a test can read its words and whether it answers a tap.
+    marker: (at, options) => {
+      const mark = { at, options, tooltip: null, ...shape() };
+      mark.bindTooltip = (content) => {
+        mark.tooltip = content;
+        return mark;
+      };
+      made.markers.push(mark);
+      return mark;
+    },
+    divIcon: (options) => ({ html: options?.html || null }),
     control: { zoom: () => ({ addTo() {} }) },
     latLngBounds: () => ({
       pad() {
@@ -92,6 +101,7 @@ beforeAll(() => {
 beforeEach(() => {
   made.groups.length = 0;
   made.polygons.length = 0;
+  made.markers.length = 0;
   place.word = { top: 400, bottom: 440 };
   // What a phone has put away ("Got it") is kept in the browser: each test starts with nothing put away.
   window.localStorage.clear();
@@ -309,6 +319,23 @@ describe('a word written to someone is on their card, and the card says when it 
     view = render(<SearchScreen mission="AUS-1" />);
     await settle();
     expect(pinnedWords(view)).toMatch(/Start/);
+  });
+
+  test('everything after the kept buttons is reached by scrolling the card, and is drawn over the cover under them', async () => {
+    // 2026-11-17, a 375 px phone: scrolled to the end of the first card, "Call Avery" and "Share" sat under the
+    // buttons' cover (the strip that hides what scrolls under them) and could not be seen.
+    useSearch.mockReturnValue(hook({ picture: picture({ owner: { firstName: 'Avery', phone: '5125550100' } }) }));
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const pinned = view.container.querySelector('[data-pinned]');
+    // Only the main button and "I've seen" are kept in place.
+    expect(pinned.textContent).not.toMatch(/Call Avery|Share/);
+    const after = [];
+    for (let el = pinned.nextElementSibling; el; el = el.nextElementSibling) after.push(el.textContent);
+    expect(after.join(' ')).toMatch(/Call Avery.*Share/);
+    // What follows the kept buttons is lifted over the cover they cast below themselves.
+    expect(pinned.className).toMatch(/shadow-\[0_48px_0_0_var\(--mc-surface\)\]/);
+    expect(pinned.className).toMatch(/\[&~\*\]:relative \[&~\*\]:z-\[11\]/);
   });
 
   test('a desk keeps nothing in place: its card is one of several in a column', async () => {
@@ -704,6 +731,50 @@ describe('a phone on a search of ground', () => {
     await act(async () => fireEvent.click(view.getByRole('button', { name: 'I can search an area' })));
     expect(card(view)).toMatch(/Join the search/);
     expect(state.act).not.toHaveBeenCalled();
+  });
+
+  // 2026-11-17, on a 375 px phone: nine labels on a strip of map, seven pairs on top of each other, and the key over
+  // the pins. Now only where the pet was lost and the newest sighting carry words, and the key is a chip.
+  test('the map names only where the pet was lost and the newest sighting; an older one is a dot that says when on a tap', async () => {
+    const seen = (id, minutes, lat) => ({ id, at: at(minutes), lat, lng: -97.7455, place: null });
+    const sightings = [seen('s3', 200, 30.312), seen('s2', 300, 30.313), seen('s1', 400, 30.316)];
+    useSearch.mockReturnValue(onGround([area('north', 30.318)], { picture: picture({ sightings }) }));
+    render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const words = (mark) => mark.options.icon?.html?.querySelector?.('[data-words]')?.textContent || '';
+    const marks = made.markers.filter((m) => sightings.some((s) => s.lat === m.at[0]));
+    expect(marks).toHaveLength(3);
+    const named = marks.filter((m) => words(m));
+    expect(named).toHaveLength(1);
+    expect(named[0].at[0]).toBe(30.312);
+    expect(words(named[0])).toMatch(/^Seen /);
+    for (const dot of marks.filter((m) => !words(m))) {
+      expect(dot.options.interactive).toBe(true);
+      expect(dot.options.title).toMatch(/^Seen /);
+      expect(dot.tooltip.textContent).toBe(dot.options.title);
+    }
+    // Where the pet was lost keeps its words.
+    expect(made.markers.some((m) => /^Lost here /.test(words(m)))).toBe(true);
+  });
+
+  test('on a phone the key is a "Key" chip: its words are there, and shown when it is pressed', async () => {
+    useSearch.mockReturnValue(onGround([area('north', 30.318, searchedAt(10)), area('south', 30.312)]));
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    const chip = view.getByRole('button', { name: 'Key' });
+    const key = view.container.querySelector('#mc-map-key');
+    expect(chip.getAttribute('aria-expanded')).toBe('false');
+    expect(chip.getAttribute('aria-controls')).toBe('mc-map-key');
+    expect(key.hidden).toBe(true);
+    expect(key.textContent).toMatch(/Searched just now.*Fades over a day/);
+    await act(async () => fireEvent.click(chip));
+    expect(chip.getAttribute('aria-expanded')).toBe('true');
+    expect(key.hidden).toBe(false);
+    // The chip, the line at the top and the card are what the map's labels keep clear of.
+    expect(chip.closest('[data-map-cover]')).toBeTruthy();
+    expect(view.container.querySelector('section[aria-label="Your step"]').hasAttribute('data-map-cover')).toBe(true);
+    await act(async () => fireEvent.click(chip));
+    expect(key.hidden).toBe(true);
   });
 
   test('the owner\'s card says how much is searched now, not how much was ever searched', async () => {

@@ -29,7 +29,8 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, ExternalLink, Flag, Loader2, Maximize, RotateCcw } from 'lucide-react';
-import { metersWords } from '../lib/insight';
+import { metersWords, MetersWords } from '../lib/insight';
+import { unitsForZone } from '@/app/lib/searchCircle';
 import { clockTime } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 import { areaFacts, areaLine, areaName, areaState, circleAreas, isSeenCircle, listName, searchLog, searchStrength } from '../lib/ground';
@@ -111,6 +112,7 @@ function turnWords(area, next) {
 export default function Ground({ picture, items, circle, next, now, leads, selected, hovered, onSelect, onHover, onWiden, widening = false, onSteer = null }) {
   const name = picture.pet?.name || 'the pet';
   const zone = picture.timeZone;
+  const units = unitsForZone(zone);
   const rows = inListOrder(items);
   const own = circleAreas(items);
   const placed = picture.lastSeen && Number.isFinite(picture.lastSeen.lat);
@@ -141,7 +143,7 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-3">
       <div className="px-4 pb-2 pt-3">
-        <h2 className="text-[16px] font-bold leading-[22px] text-[var(--mc-ink)]">{circle ? `Within ${metersWords(circle.radius)} of where ${name} was lost` : `Around where ${name} was lost`}</h2>
+        <h2 className="text-[16px] font-bold leading-[22px] text-[var(--mc-ink)]">{circle ? `Within ${metersWords(circle.radius, units)} of where ${name} was lost` : `Around where ${name} was lost`}</h2>
         <p className="mt-0.5 text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">
           {own.length} areas of ground. A helper who asks is given the one that needs it most. Several people can search one area at once.
         </p>
@@ -213,13 +215,13 @@ export default function Ground({ picture, items, circle, next, now, leads, selec
           <p className="flex items-baseline justify-between gap-2">
             <span className="text-[15px] font-bold leading-5 text-[var(--mc-ink)]">Further out</span>
             <span className="shrink-0 text-[13px] font-semibold leading-5 text-[var(--mc-muted)]">
-              {metersWords(circle.edge)} to {metersWords(circle.wide)}
+              {MetersWords(circle.edge, units)} to {metersWords(circle.wide, units)}
             </span>
           </p>
           <p className="text-[14px] font-medium leading-5 text-[var(--mc-soft)]">8 more areas. Not part of the search yet.</p>
           {leads ? (
             <button type="button" onClick={onWiden} disabled={widening} className={`${CONTROL} mt-2 disabled:opacity-60`}>
-              {widening ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Maximize size={15} aria-hidden="true" />} Widen to {metersWords(circle.wide)}
+              {widening ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Maximize size={15} aria-hidden="true" />} Widen to {metersWords(circle.wide, units)}
             </button>
           ) : (
             <p className="mt-1 text-[13px] font-medium leading-[18px] text-[var(--mc-muted)]">{picture.owner?.firstName || 'The owner'} decides when the search is widened.</p>
