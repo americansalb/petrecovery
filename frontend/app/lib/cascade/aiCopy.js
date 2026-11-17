@@ -14,6 +14,7 @@ import { checkGlobalLimitAsync } from '@/app/lib/rateLimit';
 import { resolveFlyerCopy } from './render/flyers/copy';
 import { caseUrl } from './render/qr.js';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
+import { knownSize } from '@/app/lib/caseDetails';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const TIMEOUT_MS = 15000;
@@ -198,7 +199,7 @@ async function callClaude(caseData) {
     species: speciesWord,
     breed: caseData.petBreed,
     color: caseData.petColor,
-    size: caseData.petSize,
+    size: knownSize(caseData) || null,
     distinctiveMarks: caseData.distinctiveMarks || null,
     microchipped: Boolean(caseData.microchipId),
     lastSeenArea: caseData.lastSeenAddress,

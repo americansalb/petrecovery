@@ -15,7 +15,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { normalizePhotoUrl } from '@/app/lib/utils';
-import { normalizeDetails, needsMedication, healthUrgency, petFieldsFromDetails, HOW_OUT_OPTIONS } from '@/app/lib/caseDetails';
+import { normalizeDetails, needsMedication, healthUrgency, petFieldsFromDetails, colorWithOthers, HOW_OUT_OPTIONS } from '@/app/lib/caseDetails';
 import { verifyDetailsToken, DETAILS_TOKEN_HEADER } from '@/app/lib/detailsToken';
 import { scheduleKitRedraw } from '@/app/lib/cascade/redrawLater';
 import { ownerByKey } from '@/app/lib/ownerKey';
@@ -375,8 +375,9 @@ export async function DELETE(request, { params }) {
 /**
  * PATCH /api/missions/[id] - the owner (or an admin) changes what the
  * report says: a better photo, a line about the pet, the phone finders
- * call. Nothing else on the report moves here; where it was lost and when
- * are what the search is built on.
+ * call, and the answers asked after posting (size, the other colors,
+ * health, the reward and the finder questions). Nothing else on the report
+ * moves here; where it was lost and when are what the search is built on.
  */
 const DESCRIPTION_MAX = 1000;
 
@@ -400,7 +401,7 @@ export async function PATCH(request, { params }) {
     }
     const existing = await prisma.case.findUnique({
       where: { id },
-      select: { id: true, reporterId: true, caseNumber: true, petId: true, priority: true, details: true, hasReward: true, rewardScamAcknowledgedAt: true },
+      select: { id: true, reporterId: true, caseNumber: true, petId: true, priority: true, details: true, hasReward: true, rewardScamAcknowledgedAt: true, petColor: true },
     });
     if (!existing) return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     const isOwner = Boolean(session?.user?.id) && existing.reporterId === session.user.id;
@@ -453,6 +454,13 @@ export async function PATCH(request, { params }) {
       const urgency = healthUrgency(merged);
       if (urgency && rank[urgency] > (rank[existing.priority] ?? 1)) data.priority = urgency;
       if (merged.howOut) data.escapeScenario = merged.howOut;
+      // Asked right after posting (app/lib/caseDetails.js): the size fills the column the placeholder held, and
+      // the other colors join the main one in the report's color line. Both are on the flyer.
+      if (body.details.size !== undefined && merged.size) data.petSize = merged.size;
+      if (body.details.otherColors !== undefined) {
+        const line = colorWithOthers(existing.petColor, merged.otherColors);
+        if (line) data.petColor = line;
+      }
       redraw = true;
     }
     if (body.escapeScenario !== undefined) {
@@ -496,6 +504,8 @@ export async function PATCH(request, { params }) {
         petDescription: true,
         ownerPhone: true,
         petBreed: true,
+        petColor: true,
+        petSize: true,
         escapeScenario: true,
         priority: true,
         details: true,
@@ -506,7 +516,7 @@ export async function PATCH(request, { params }) {
     });
     // The saved pet keeps its own columns in step with the answers.
     if (merged && existing.petId) {
-      const extras = petFieldsFromDetails(merged);
+      const extras = { ...petFieldsFromDetails(merged), size: data.petSize, color: data.petColor };
       const petData = Object.fromEntries(Object.entries(extras).filter(([, v]) => v));
       if (Object.keys(petData).length) await prisma.pet.update({ where: { id: existing.petId }, data: petData }).catch(() => {});
     }

@@ -145,6 +145,23 @@ test('the answers are stored in shape, medication makes the case urgent, and the
   expect(body.hasReward).toBe(true);
 });
 
+test('posted without a size (the form asks it after posting): the column holds a placeholder the answers flag', async () => {
+  const res = await post({ petSize: undefined, details: { temperament: 'SHY' } });
+  expect(res.status).toBeLessThan(300);
+  const { data } = mockTx.case.create.mock.calls[0][0];
+  expect(data.petSize).toBe('MEDIUM');
+  expect(data.details).toMatchObject({ temperament: 'SHY', sizeUnknown: true, size: null, health: [], reward: null });
+  expect(data.hasReward).toBe(false);
+  expect(data.priority).toBe('NORMAL');
+  expect((await res.json()).details.sizeUnknown).toBe(true);
+  // A saved pet's size, or an older form's, is a real answer: no flag.
+  await post({ details: { temperament: 'SHY' } });
+  expect(mockTx.case.create.mock.calls[1][0].data.details.sizeUnknown).toBe(false);
+  // A cat's indoor answer from a saved pet is kept with the answers.
+  await post({ petType: 'CAT', petSize: undefined, isIndoorCat: true });
+  expect(mockTx.case.create.mock.calls[2][0].data.details).toMatchObject({ indoor: 'INDOOR', sizeUnknown: true });
+});
+
 test('no answers and no reward: nothing invented, priority as before', async () => {
   await post({});
   const { data } = mockTx.case.create.mock.calls[0][0];

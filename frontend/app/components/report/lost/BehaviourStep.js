@@ -42,7 +42,7 @@ export default function BehaviourStep({ variant = 'lost', species, name, value =
                 className={`w-full rounded-xl border-2 border-midnight-100 bg-white px-3.5 py-3 text-[16px] leading-relaxed outline-none ${theme.focusRing}`}
                 autoFocus
               />
-              <div className="mt-1.5 flex items-center justify-between text-xs text-midnight-500">
+              <div className="mt-1.5 flex items-center justify-between text-[15px] text-midnight-500">
                 <span>{(value.approachNote || '').length} of 160</span>
                 <button
                   type="button"
@@ -62,7 +62,7 @@ export default function BehaviourStep({ variant = 'lost', species, name, value =
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="mt-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border-2 border-midnight-200 bg-white px-3 text-sm font-semibold text-midnight-700 hover:border-midnight-400"
+                className="mt-3 inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border-2 border-midnight-200 bg-white px-3 text-[15px] font-semibold text-midnight-700 hover:border-midnight-400"
               >
                 <Pencil size={14} />
                 Change the wording

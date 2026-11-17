@@ -67,8 +67,18 @@ posting.
 - One question per screen. The tap is the answer. Typing only where a
   choice cannot do the job (name, phone, a note).
 - Every optional question has a visible skip and a "Not sure" answer.
-- The three questions that change the flyer most (behaviour, health,
-  reward) are asked before posting, one tap each.
+- Before posting the form asks only what the first flyer and the search
+  need, in seven screens (founder, 2026-11-17, after a phone audit counted
+  18 taps and 12 question screens): photo; dog or cat, and the name; the
+  main colour; when and where; how the pet is with people (the search
+  plan and the helper brief follow it); the phone finders call; post.
+  Size, the other colours, health and the reward moved to after posting:
+  they head the checklist on the page after posting and on the pet's
+  page, and the flyer is drawn again once after the answers
+  (`app/lib/cascade/redrawLater.js`). A report posted without a size holds
+  MEDIUM in `Case.petSize` (a required column) and `details.sizeUnknown`
+  says it is a placeholder, so no flyer, post or caption prints it
+  (`knownSize` in `app/lib/caseDetails.js`).
 - Everything else is asked after posting, as a checklist the owner can
   work through in any order: on the page after posting and on the pet's
   page in the owner's panel, one tap each, with what is answered and what
@@ -81,15 +91,23 @@ posting.
   are redrawn in the background when a detail changes.
 - Wording is species-aware. A cat is not asked whether it jumps fences.
 - The form shows where you are. A progress line fills across the whole
-  report, and the label under it says the group and one running count
-  over the whole report ("For finders, 7 of 12"). It used to count inside
+  report, and the label under it says the screen and one running count
+  over the whole report ("When and where, 4 of 7"). The count is fixed
+  before the first screen shows and never changes after an answer (it
+  went from "1 of 11" to "2 of 12" once). It used to count inside
   the group ("Your pet, 3 of 3"), and two of the ten people in the
   2026-11-09 walks read "3 of 3" as done. On a computer the sidebar lists
   the screens of the current group.
 - The common answer is the one yellow button, and where the tap is the
   answer the screen moves on by itself (2026-11-09, after ten persona
-  walks of the live site): on the where screen the yellow button is "Use
-  my location" and the screen moves on once the device answers (the typed
+  walks of the live site). A screen whose answer is a tap has no footer
+  at all, and Back is at the top left on every screen after the first.
+  On the place screen "Use my location" is offered once, in the map's
+  card, and it no longer moves on: the spot the whole search circle is
+  drawn around is shown on the map with "Is this where {name} got out?
+  Drag the pin to fix it." and one Confirm (2026-11-17: one tap used to
+  centre the search wherever an owner who had driven around for an hour
+  stood), and the review shows a small map of it (the typed
   street stays beside it, Enter takes the first match, and the search is
   biased to the device's country and position instead of fenced to the
   US); on the photo screen the yellow button opens the camera roll and
@@ -109,10 +127,11 @@ posting.
 - One yellow button per screen: Continue, and Post on the last step. A
   skip sits beside it, never under it. A chosen answer is navy, not red:
   red on the lost flow read as an error.
-- The flyer is drawn from the answers as they are given
-  (`app/components/report/FlyerPreview.js`): in the sidebar on a
-  computer, and as the whole review screen, "Here is Max's flyer", where
-  every line taps back to its question.
+- The flyer is drawn from the answers (`app/components/report/FlyerPreview.js`)
+  and shown on the review screen only, "Here is Max's flyer", where every
+  line taps back to its question. A small "flyer so far" card under every
+  question was removed (2026-11-17): nobody could read it.
+- Text on the form is at least 15px on a phone, body text 16px.
 
 ## 4. The questions
 
@@ -122,21 +141,20 @@ Names in `code` are the ids in `Case.details`. `{name}` is the pet.
 
 | Screen | Asks | Answer |
 | --- | --- | --- |
-| species | What kind of pet | dog, cat, bird, rabbit, other (tap) |
-| name | Name | text |
-| size | Dog: size. Cat: indoor only or goes outside | tap |
-| when | When last seen | the time bands (tap) |
-| where | Where last seen | "Use my location" (one tap, moves on) or a typed street, then the pin |
 | photo | A photo | the yellow button opens the picker; "Skip for now" beside it |
-| colors | Colours | chips, prefilled from the photo |
-| `temperament` | How {name} acts around strangers | tap, moves on, see 4.2 |
-| `health` | Medication or a health condition | one big No, or chips, see 4.3 |
-| contact | Name, then text (default) or email | text; Enter moves on |
-| reward | Offering a reward | tap, see 4.4 |
-| review | Ready to post, plus the details checklist | post |
+| pet | What kind of pet, and the name | dog, cat, bird, rabbit, other (tap, filled from the photo when it is clear), then text |
+| color | The main colour | one tap, filled from the photo; "Another color" to type one |
+| place | When, then where | the time bands as chips (only under an hour is urgent, as the create route does); "Use my location" or a typed street, then the pin, and Confirm |
+| `temperament` | How {name} is with people | tap, moves on, see 4.2 |
+| contact | Name, then text (default) or email; signed in: the phone finders call | text; Enter moves on |
+| review | The flyer, a small map of the spot, Post | post |
 
-Twelve screens for a guest with a dog, seven of them a single tap. The
-checklist (4.5) is not in this list: it comes after posting.
+Seven screens for everyone (a signed-in owner with saved pets picks the
+pet first, then the photo; a saved pet's colour screen is passed over).
+Asked right after posting, first in the checklist (4.5): size (a dog) or
+indoor or outdoor (a cat) as `size` / `indoor`, the other colours as
+`otherColors` (joined to the main one in `Case.petColor`), `health` (4.3)
+and the reward (4.4, recorded as `reward` beside the columns).
 
 ### 4.2 Behaviour: `temperament`, `fears`, `approachNote`
 
@@ -234,6 +252,11 @@ in the owner's panel on the pet's page, and in the day-1 follow-up email.
 
 | Screen | Asks | Answers |
 | --- | --- | --- |
+| `size` (dog) | How big is {name}? | Tiny / Small / Medium / Large / Giant, with weights. Fills `Case.petSize` and clears `sizeUnknown`. |
+| `indoor` (cat) | Does {name} go outside? | Indoor only / Goes outside. On the flyer as "Indoor cat" or "Goes outside". |
+| `otherColors` | Any other colors on {name}? | The palette (`app/lib/coatColors.js`) or "No other colors". Joined to the main colour in `Case.petColor`. |
+| `health` | Medication or a health condition | 4.3. Medication makes the case urgent. |
+| `reward` | Offering a reward? | 4.4, with the scam note. Recorded as `reward` YES or NO beside `hasReward`, so the checklist knows it was asked. |
 | `collar` | What {name} is wearing | No collar / A collar / A harness / Both. With a collar or harness: colour chips (red, blue, black, pink, purple, green, brown, yellow, orange, white or grey, patterned); tag: with our phone number / name only / no tag. "Dragging a leash" checkbox. |
 | `microchip` | Microchipped? | Yes / No / Not sure. If yes: "Our phone number on the chip is current" yes / no / not sure, and a reminder to call the registry. Chip number optional and never shown publicly. |
 | `facts` | Sex, fixed, age | Male / Female / Not sure. Neutered or spayed: yes / no / not sure. Puppy or kitten (under 1) / Adult / Senior (8 and up). |
@@ -244,7 +267,10 @@ in the owner's panel on the pet's page, and in the day-1 follow-up email.
 | `places` | Places {name} knows nearby | A friend's or family home / Their old home / A park or walking route / Our vet or groomer / A school or shop they love, plus addresses. |
 | `notes` | Anything else a finder should know | 300 characters. |
 
-Nine screens. The checklist shows "4 of 9 answered" and lists the
+The first five (four for any one pet) were asked before posting until
+2026-11-17; they head the list, and the page after posting shows all of
+them while they are open, whatever its limit. Then the nine finder
+screens. The checklist shows "4 of 9 answered" and lists the
 unanswered ones first.
 
 ## 5. Where each answer goes

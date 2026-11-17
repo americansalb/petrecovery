@@ -18,6 +18,7 @@ import {
   finderGuide,
   petFieldsFromDetails,
   detailsProgress,
+  detailScreens,
   DETAIL_SCREENS,
   TEMPERAMENT_OPTIONS,
   markOptions,
@@ -149,13 +150,26 @@ describe('the sentences', () => {
 
 describe('the checklist', () => {
   test('counts what was answered, breed included, and lists the rest', () => {
-    expect(DETAIL_SCREENS.map((s) => s.id)).toEqual(['collar', 'microchip', 'facts', 'marks', 'howOut', 'lure', 'fears', 'places', 'notes']);
-    const none = detailsProgress({});
-    expect(none).toEqual({ answered: 0, total: 9, missing: DETAIL_SCREENS.map((s) => s.id) });
-    const some = detailsProgress({ collar: 'NONE', fears: ['NONE'], places: ['NONE'], notes: 'x' }, { breed: 'Beagle' });
+    // First the questions the report form asks after posting (2026-11-17), then the nine finder questions.
+    const FINDER = ['collar', 'microchip', 'facts', 'marks', 'howOut', 'lure', 'fears', 'places', 'notes'];
+    expect(DETAIL_SCREENS.map((s) => s.id)).toEqual(['size', 'indoor', 'otherColors', 'health', 'reward', ...FINDER]);
+    expect(DETAIL_SCREENS.filter((s) => s.first).map((s) => s.id)).toEqual(['size', 'indoor', 'otherColors', 'health', 'reward']);
+    // A dog is asked its size, a cat whether it goes outside, any other pet neither.
+    expect(detailScreens('DOG').map((s) => s.id)).toEqual(['size', 'otherColors', 'health', 'reward', ...FINDER]);
+    expect(detailScreens('CAT').map((s) => s.id)).toEqual(['indoor', 'otherColors', 'health', 'reward', ...FINDER]);
+    expect(detailScreens('BIRD').map((s) => s.id)).toEqual(['otherColors', 'health', 'reward', ...FINDER]);
+    // A report posted without a size has the placeholder flagged: the size is unanswered until the owner gives it.
+    const none = detailsProgress({ sizeUnknown: true }, { species: 'DOG' });
+    expect(none).toEqual({ answered: 0, total: 13, missing: detailScreens('DOG').map((s) => s.id) });
+    const some = detailsProgress({ sizeUnknown: true, collar: 'NONE', fears: ['NONE'], places: ['NONE'], notes: 'x' }, { breed: 'Beagle', species: 'DOG' });
     expect(some.answered).toBe(5);
-    expect(some.missing).toEqual(['microchip', 'marks', 'howOut', 'lure']);
-    expect(detailsProgress({}, { breed: 'Unknown' }).answered).toBe(0);
+    expect(some.missing).toEqual(['size', 'otherColors', 'health', 'reward', 'microchip', 'marks', 'howOut', 'lure']);
+    expect(detailsProgress({ sizeUnknown: true }, { breed: 'Unknown', species: 'DOG' }).answered).toBe(0);
+    // Answered: a size (which clears the flag), other colors or none, health, a reward yes or no.
+    const after = detailsProgress({ size: 'LARGE', sizeUnknown: true, otherColors: ['NONE'], health: ['NONE'], reward: 'NO' }, { species: 'DOG' });
+    expect(after.missing).toEqual(FINDER);
+    // A report posted with a size (before the change, or from a saved pet) counts it as answered.
+    expect(detailsProgress({}, { species: 'DOG' }).missing).not.toContain('size');
     expect(markOptions('CAT').some((o) => o.value === 'tipped_ear')).toBe(true);
     expect(markOptions('DOG').some((o) => o.value === 'tipped_ear')).toBe(false);
     expect(scamAcknowledgement('Max')).toMatch(/before Max is back in my hands/);

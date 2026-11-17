@@ -69,6 +69,7 @@ export default function PhotoStep({
   variant = 'lost',
   petName,
   controlRef, // a ref the parent fills to open the picker from its own button
+  analyzedNote = 'Got it. The colors from the photo are filled in on the next step.',
 }) {
   const theme = WIZARD_THEMES[variant];
   const [uploading, setUploading] = useState(false);
@@ -208,7 +209,7 @@ export default function PhotoStep({
                 <p className="font-bold text-midnight-900 text-lg">
                   Tap to add {petName ? `a photo of ${petName}` : 'a photo'}
                 </p>
-                <p className="text-sm text-midnight-400 mt-1">From your camera or your photos. Any size.</p>
+                <p className="text-[15px] text-midnight-500 mt-1">From your camera or your photos. Any size.</p>
               </>
             )}
           </div>
@@ -223,7 +224,7 @@ export default function PhotoStep({
               alt={petName ? `Photo of ${petName}` : 'Pet photo'}
               className="w-full aspect-[4/3] object-cover"
             />
-            <span className="absolute top-3 left-3 px-3 py-1.5 rounded-full bg-flash-400 text-midnight-900 text-xs font-bold flex items-center gap-1.5">
+            <span className="absolute top-3 left-3 px-3 py-1.5 rounded-full bg-flash-400 text-midnight-900 text-[15px] font-bold flex items-center gap-1.5">
               <Check size={12} strokeWidth={3} /> Main photo
             </span>
           </div>
@@ -259,7 +260,7 @@ export default function PhotoStep({
                 ) : (
                   <>
                     <ImagePlus size={18} className="text-midnight-400" />
-                    <span className="text-[0.65rem] font-medium text-midnight-400">Add</span>
+                    <span className="text-[15px] font-medium text-midnight-500">Add</span>
                   </>
                 )}
                 <input {...inputProps} ref={pickerRef} />
@@ -268,26 +269,26 @@ export default function PhotoStep({
           </div>
 
           {photos.length > 1 && (
-            <p className="text-xs text-midnight-400 mt-2">Tap a thumbnail to make it the main photo.</p>
+            <p className="text-[15px] text-midnight-500 mt-2">Tap a thumbnail to make it the main photo.</p>
           )}
         </div>
       )}
 
       {/* AI hint */}
       {analyzing && (
-        <p className="flex items-center gap-2 mt-4 text-sm text-midnight-500">
+        <p className="flex items-center gap-2 mt-4 text-[15px] text-midnight-500">
           <Loader2 size={15} className="animate-spin" />
           Reading colors from the photo…
         </p>
       )}
       {analyzed && !analyzing && (
-        <p className={`flex items-center gap-2 mt-4 text-sm font-medium ${theme.accentText}`}>
+        <p className={`flex items-center gap-2 mt-4 text-[15px] font-medium ${theme.accentText}`}>
           <Sparkles size={15} />
-          Got it - we&apos;ll suggest colors on the next step.
+          {analyzedNote}
         </p>
       )}
 
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-3 text-[15px] text-red-600">{error}</p>}
     </div>
   );
 }

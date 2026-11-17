@@ -52,10 +52,10 @@ export default function OptionCardGrid({
             )}
             <span className="block font-bold text-midnight-900 leading-snug lg:text-lg">{opt.label}</span>
             {opt.sublabel && (
-              <span className="block text-xs text-midnight-500 mt-1 leading-snug lg:text-sm">{opt.sublabel}</span>
+              <span className="block text-[15px] text-midnight-500 mt-1 leading-snug">{opt.sublabel}</span>
             )}
             {opt.urgent && (
-              <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[0.65rem] font-bold uppercase tracking-wide">
+              <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-bold uppercase tracking-wide">
                 Urgent
               </span>
             )}

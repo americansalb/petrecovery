@@ -111,6 +111,33 @@ describe('the questionnaire (docs/REPORT_QUESTIONNAIRE.md)', () => {
     expect(data).toEqual({ hasReward: false, rewardAmount: null });
   });
 
+  test('asked after posting: the size fills the column and clears the placeholder, the other colors join the main one, the flyer is redrawn once', async () => {
+    prisma.case.findUnique.mockResolvedValue({ id: 'case-max', reporterId: 'avery', caseNumber: 'AUS-2026-0001', petId: 'pet-max', priority: 'NORMAL', petColor: 'Brown', details: { v: 1, sizeUnknown: true, temperament: 'SHY' } });
+    expect((await call({ details: { size: 'SMALL' } })).status).toBe(200);
+    let { data } = prisma.case.update.mock.calls[0][0];
+    expect(data.petSize).toBe('SMALL');
+    expect(data.details).toMatchObject({ size: 'SMALL', sizeUnknown: false, temperament: 'SHY' });
+    expect(prisma.pet.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'pet-max' }, data: { size: 'SMALL' } }));
+
+    expect((await call({ details: { otherColors: ['White', 'Brown', 'Purple'] } })).status).toBe(200);
+    ({ data } = prisma.case.update.mock.calls[1][0]);
+    expect(data.details.otherColors).toEqual(['White', 'Brown']);
+    expect(data.petColor).toBe('Brown, White');
+    expect(data.petSize).toBeUndefined();
+
+    expect((await call({ details: { otherColors: ['NONE'] } })).status).toBe(200);
+    expect(prisma.case.update.mock.calls[2][0].data.petColor).toBe('Brown');
+
+    // The reward answer is kept with the others, so the checklist knows it was asked.
+    expect((await call({ details: { reward: 'NO' }, hasReward: false })).status).toBe(200);
+    ({ data } = prisma.case.update.mock.calls[3][0]);
+    expect(data).toMatchObject({ hasReward: false, rewardAmount: null });
+    expect(data.details.reward).toBe('NO');
+    // Each save asks for the one redraw a minute after the last change (app/lib/cascade/redrawLater.js), never a loop.
+    expect(scheduleKitRedraw).toHaveBeenCalledTimes(4);
+    expect(scheduleKitRedraw.mock.calls.every(([id]) => id === 'case-max')).toBe(true);
+  });
+
   test('the breed and how they got out, with bad values refused in words', async () => {
     expect((await call({ petBreed: ' Beagle ', escapeScenario: 'away_from_home' })).status).toBe(200);
     expect(prisma.case.update.mock.calls[0][0].data).toEqual({ petBreed: 'Beagle', escapeScenario: 'away_from_home' });
