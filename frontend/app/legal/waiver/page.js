@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { LIABILITY_WAIVER_DOC } from '@/prisma/legal/liability-waiver';
+import { legalBlocks, boldRuns } from '@/app/lib/legalBlocks';
 
 /**
  * The Liability Waiver, readable by anyone.
@@ -13,7 +14,8 @@ import { LIABILITY_WAIVER_DOC } from '@/prisma/legal/liability-waiver';
  * The text is prisma/legal/liability-waiver.js, the file boot syncs into
  * the database (prisma/sync-legal-docs.js), so this page and the accepted
  * version are the same document. Its markdown uses only headings, lists,
- * bold and rules, rendered here as elements: no HTML is injected.
+ * bold and rules, read by app/lib/legalBlocks.js (as the join card on a
+ * search reads it) and rendered here as elements: no HTML is injected.
  */
 
 export const metadata = {
@@ -23,66 +25,51 @@ export const metadata = {
 
 /** "**bold** text" -> text with <strong> runs. */
 function inline(text, keyPrefix) {
-  return text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, i) =>
-    part.startsWith('**') && part.endsWith('**') ? (
+  return boldRuns(text).map((run, i) =>
+    run.bold ? (
       <strong key={`${keyPrefix}-${i}`} className="font-semibold text-midnight-900">
-        {part.slice(2, -2)}
+        {run.text}
       </strong>
     ) : (
-      part
+      run.text
     )
   );
 }
 
 function renderDocument(content) {
-  const blocks = [];
-  let list = null;
-  const flush = () => {
-    if (list) {
-      blocks.push(
-        <ul key={`ul-${blocks.length}`} className="my-3 list-disc space-y-1.5 pl-6 text-midnight-700">
-          {list}
+  return legalBlocks(content).map((block, n) => {
+    if (block.kind === 'list') {
+      return (
+        <ul key={`ul-${n}`} className="my-3 list-disc space-y-1.5 pl-6 text-midnight-700">
+          {block.items.map((item, i) => (
+            <li key={`li-${n}-${i}`}>{inline(item, `li-${n}-${i}`)}</li>
+          ))}
         </ul>
       );
-      list = null;
     }
-  };
-
-  content.split('\n').forEach((raw, n) => {
-    const line = raw.trim();
-    if (line.startsWith('- ')) {
-      list = list || [];
-      list.push(<li key={`li-${n}`}>{inline(line.slice(2), `li-${n}`)}</li>);
-      return;
-    }
-    flush();
-    if (!line) return;
-    if (line === '---') {
-      blocks.push(<hr key={`hr-${n}`} className="my-8 border-midnight-200" />);
-    } else if (line.startsWith('### ')) {
-      blocks.push(
+    if (block.kind === 'rule') return <hr key={`hr-${n}`} className="my-8 border-midnight-200" />;
+    if (block.kind === 'h3') {
+      return (
         <h3 key={`h3-${n}`} className="mt-5 text-lg font-semibold text-midnight-900">
-          {inline(line.slice(4), `h3-${n}`)}
+          {inline(block.text, `h3-${n}`)}
         </h3>
       );
-    } else if (line.startsWith('## ')) {
-      blocks.push(
+    }
+    if (block.kind === 'h2') {
+      return (
         <h2 key={`h2-${n}`} className="mt-9 text-xl font-bold text-midnight-900 md:text-2xl">
-          {inline(line.slice(3), `h2-${n}`)}
+          {inline(block.text, `h2-${n}`)}
         </h2>
       );
-    } else if (line.startsWith('# ')) {
-      // The page heading already carries the title.
-    } else {
-      blocks.push(
-        <p key={`p-${n}`} className="my-3 leading-relaxed text-midnight-700">
-          {inline(line, `p-${n}`)}
-        </p>
-      );
     }
+    // The page heading already carries the title.
+    if (block.kind === 'h1') return null;
+    return (
+      <p key={`p-${n}`} className="my-3 leading-relaxed text-midnight-700">
+        {inline(block.text, `p-${n}`)}
+      </p>
+    );
   });
-  flush();
-  return blocks;
 }
 
 export default function WaiverPage() {

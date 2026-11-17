@@ -277,10 +277,43 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
 
   test('the thanks for an area count no areas "searched so far": a search fades, and the trail under it counts what is fresh', () => {
     const helper = read('app/mission-control/steps/Helper.js');
-    const thanks = code(helper).slice(code(helper).indexOf(') : done && ground ? ('), code(helper).indexOf(') : done ? ('));
-    expect(thanks).toMatch(/\{done\} is searched\. Thank you\.\s*<\/Lead>/);
+    const thanks = code(helper).slice(code(helper).indexOf(') : thanks ? ('), code(helper).indexOf(') : closing ? ('));
+    // The area with when it was searched, never a bare "searched" (founder, 2026-11-13: "You can mark an area as
+    // searched but never know when it was searched etc?").
+    expect(thanks).toMatch(/\{done\} searched \{doneWhen \|\| 'just now'\}\.\s*<\/Lead>/);
+    expect(helper).toMatch(/const doneWhen = doneAt \? whenWords\(doneAt, picture\.timeZone, Math\.max\(now \|\| 0, doneAt\)\) : '';/);
+    expect(thanks).not.toMatch(/is searched/);
     expect(thanks).not.toMatch(/counts\./);
-    expect(helper).toMatch(/\{ground && !desk && <Trail trail=\{trail\} items=\{items\} name=\{name\} now=\{now\} className="mt-3" \/>\}/);
+    // The trail is under it. Not on the short card that thanks someone who has had enough for now.
+    expect(helper).toMatch(/\{ground && !desk && !closing && <Trail trail=\{trail\} items=\{items\} name=\{name\} now=\{now\} className="mt-3" \/>\}/);
+  });
+
+  test('the thanks is theirs, and has two ways on: another area, and "I\'m done for now", which does what "I am stopping" does', () => {
+    // Founder, on the phone: "Terrible UX over the phone wow". The thanks went back to "Help look for Max" and had
+    // no way to say they were done.
+    const helper = read('app/mission-control/steps/Helper.js');
+    const main = code(helper).slice(code(helper).indexOf('export function Main('), code(helper).indexOf('export function Join('));
+    expect(main).toMatch(/thanks \? \(first \? `Thank you, \$\{first\}` : 'Thank you'\)/);
+    expect(main).toMatch(/ground \? \(done \? 'Search another area' : 'I can search an area'\)/);
+    expect(main).toMatch(/\{thanks && onStop && \(\s*<div className="flex justify-center">\s*<QuietLink onClick=\{onStop\}[^>]*>\s*I&apos;m done for now\s*<\/QuietLink>/);
+    // Inside the buttons kept on the screen, so both ways on are in view at once on a small phone.
+    expect(main.indexOf("I&apos;m done for now")).toBeGreaterThan(main.indexOf('<Pinned on={!desk}>'));
+    expect(main.indexOf("I&apos;m done for now")).toBeLessThan(main.indexOf('</Pinned>'));
+    expect(shell).toMatch(/onStop=\{stopWalking\} trail=\{search\.trail\}/);
+    expect(shell).toMatch(/viewer=\{viewer\} unit=\{unit\}/);
+  });
+
+  test('having had enough for now is a short card: thanks, the link to send on, and a quiet way back in', () => {
+    const helper = read('app/mission-control/steps/Helper.js');
+    const main = code(helper).slice(code(helper).indexOf('export function Main('), code(helper).indexOf('export function Join('));
+    expect(main).toMatch(/const closing = Boolean\(!ask && !done && stopped\);/);
+    expect(main).toMatch(/closing \? `Thank you for looking for \$\{name\}`/);
+    expect(main).toMatch(/closing \? \(\s*<Lead className="mt-1\.5">Send the link to neighbors\. It shows them where to look and how to send a sighting\.<\/Lead>/);
+    expect(main).toMatch(/<Primary onClick=\{closing \? onShare : onWalk\} busy=\{!closing && busy\} icon=\{closing \? Share2 : undefined\}>\s*\{closing \? 'Share the link' :/);
+    expect(main).toMatch(/closing && hasBoard \? <QuietLink onClick=\{onWalk\}>Search again<\/QuietLink>/);
+    // Not the card that asks people to help: no "Help look for" heading, no newcomer's line from Sarama, no trail.
+    expect(main).toMatch(/: ask \|\| done \|\| stopped \|\| trail\?\.mine\?\.paws > 0 \? null : brief\.own;/);
+    expect(main).toMatch(/\{!thanks && !closing && <Eyebrow>/);
   });
 
   test('"Before you go out" is shown to anyone who agreed and has not been through it, after a reload too, and the server refuses nobody for want of it', () => {
@@ -303,6 +336,8 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
   test('"I am stopping" is leaving: the card thanks them, and says nothing of an area just searched', () => {
     const stop = code(shell).slice(code(shell).indexOf('async function stopWalking('), code(shell).indexOf('async function cannot('));
     expect(stop).toMatch(/setDone\(null\);\s*setDoneId\(null\);\s*setStopped\(true\);\s*return go\('main'\);/);
+    // Ground they hold is handed back. From the thanks ("I'm done for now") they hold none, and only the card changes.
+    expect(stop).toMatch(/if \(mineRaw\) \{\s*setBusy\('stop'\);[\s\S]*?search\.act\(unit, mineRaw\.id, 'release'\)/);
     // Taking ground again, or searching it, is not having stopped.
     expect(code(shell).match(/setStopped\(false\);/g)).toHaveLength(2);
     expect(shell).toMatch(/stopped=\{stopped\}/);
@@ -530,9 +565,12 @@ describe('three instruments: a desk is never asked where it is and is never hand
   test('a desk shows the code to scan in place of the button that hands out a street', () => {
     const main = helper.slice(helper.indexOf('export function Main'), helper.indexOf('export function Join'));
     expect(main).toMatch(/const desk = instrument === 'command';/);
-    expect(main.match(/onClick=\{onWalk\}/g)).toHaveLength(1);
-    // The walk button is in the branch a desk never takes.
-    expect(code(main)).toMatch(/\{desk \? \(\s*qr && \([\s\S]*?\)\s*\) : \(\s*hasBoard && \(\s*<Primary onClick=\{onWalk\}/);
+    // The walk button is in the branch a desk never takes. The same yellow button shares the link on the short card
+    // for someone who has had enough for now, whose quiet "Search again" is the one other way to ground: a desk is
+    // never handed ground, so never has that card.
+    expect(main.match(/onWalk\}/g)).toHaveLength(2);
+    expect(code(main)).toMatch(/\{desk \? \(\s*qr && \([\s\S]*?\)\s*\) : \(\s*\(closing \|\| hasBoard\) && \(\s*<Primary onClick=\{closing \? onShare : onWalk\}/);
+    expect(code(main)).toMatch(/closing && hasBoard \? <QuietLink onClick=\{onWalk\}>Search again<\/QuietLink>/);
   });
 });
 

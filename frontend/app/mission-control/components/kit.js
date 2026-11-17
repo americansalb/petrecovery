@@ -169,6 +169,8 @@ export function AdviceBlock({ source, lines = [], className = '' }) {
  *
  * The strip under the buttons is the sheet's own bottom padding, and what
  * scrolls would show in it: the shadow, in the sheet's colour, covers it.
+ * The row written after the buttons (BottomRow) is drawn over that shadow
+ * (app/globals.css, `[data-pinned] ~ *`), or it is covered at rest too.
  */
 export function Pinned({ on = true, children }) {
   if (!on) return <>{children}</>;

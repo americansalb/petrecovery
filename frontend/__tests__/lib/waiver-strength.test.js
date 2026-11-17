@@ -126,16 +126,38 @@ describe('the join screen', () => {
     // Founder, 2026-11-13: "If you put too many warnings you are putting the idea in people's heads. That is
     // part of the reason you put it kinda tucked away in waiver no one reads".
     const tick = helper.indexOf('{SAFETY_AGREEMENT}');
-    const toggle = helper.indexOf("'Read them'");
+    const toggle = helper.indexOf('Read them');
     const button = helper.indexOf('I agree', toggle);
     expect(tick).toBeGreaterThan(-1);
     expect(tick).toBeLessThan(toggle);
     expect(toggle).toBeLessThan(button);
-    expect(helper).toMatch(/\{waiver\?\.content \|\| 'Loading the waiver\.'\}/);
+    // One tap away: "Read them" opens the rules and the waiver over the whole screen, and they close back to the tick.
+    expect(helper).toMatch(/\{reading && <ReadSheet rules=\{SAFETY_RULES\} waiver=\{waiver\} onClose=\{\(\) => setReading\(false\)\} \/>\}/);
     expect(helper).not.toMatch(/WAIVER_IN_SHORT|right to sue|at your own risk/);
     // The release itself is in the waiver, in capitals, where it belongs.
     expect(text).toMatch(/INCLUDING WHERE IT IS CAUSED BY THE NEGLIGENCE OF A RELEASED PARTY/);
     expect(text).toMatch(/You search at your own risk\./);
+  });
+
+  test('"Read them" sets the text the site serves as headings, paragraphs and lists, and changes none of its words', () => {
+    // On a phone it was poured raw into a box 224 px tall, "# Liability Waiver ..." and "- You will ..." (founder, on
+    // the phone: "Terrible UX over the phone wow"). The words are still the waiver's own, version and all.
+    const sheet = read('app/mission-control/components/ReadSheet.js');
+    expect(sheet).toMatch(/const blocks = legalBlocks\(waiver\?\.content \|\| ''\);/);
+    expect(sheet).toMatch(/createPortal\(/);
+    expect(sheet).toMatch(/role="dialog" aria-modal="true"/);
+    expect(sheet).toMatch(/text-base font-medium leading-6/);
+    expect(sheet).toMatch(/Loading the waiver\./);
+    expect(sheet).not.toMatch(/dangerouslySetInnerHTML|whitespace-pre/);
+    const { legalBlocks } = require('@/app/lib/legalBlocks');
+    const blocks = legalBlocks(text);
+    expect(blocks[0]).toEqual({ kind: 'h1', text: 'Liability Waiver and Assumption of Risk' });
+    expect(blocks.filter((b) => b.kind === 'h2').map((b) => b.text)).toEqual(expect.arrayContaining(['In short', '6. Release', '10. Your agreement']));
+    // Every line of the waiver is set whole, with only its mark taken off; nothing is left with a mark on it.
+    const said = blocks.flatMap((b) => (b.kind === 'list' ? b.items : b.text ? [b.text] : []));
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => l.replace(/^(#{1,3} |- )/, ''));
+    expect(said).toEqual(lines);
+    for (const line of said) expect(line).not.toMatch(/^(#|- )/);
   });
 
   test('the tick says the person is an adult', () => {

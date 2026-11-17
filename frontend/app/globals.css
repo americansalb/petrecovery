@@ -1148,6 +1148,14 @@ html:has(.mc-screen),
 html:has(.mc-screen) body {
   background-color: #0f172a;
 }
+/* What follows a phone card's pinned buttons (the owner's number, "Share", "I am stopping", "Search
+   again") is drawn over the cover under them (mission-control/components/kit.js, Pinned). The cover
+   hides the card scrolling past beneath the buttons, and it drew over that last row too, so on every
+   card the row was there to tap and could not be seen (2026-11-17, at 375 by 667). */
+[data-pinned] ~ * {
+  position: relative;
+  z-index: 20;
+}
 .mc-dark {
   --mc-ground: #0b1220;
   --mc-surface: #0f172a;

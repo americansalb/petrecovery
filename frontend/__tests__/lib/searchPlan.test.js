@@ -145,7 +145,8 @@ describe('a task comes with what the site already made for the pet', () => {
     expect(tasks).toMatch(/select: \{ kind: true, place: true \}/);
     expect(read('app/api/mission/[missionId]/board/route.js')).toMatch(/ways: await sharedTasks\(pet\.id, pet\.petName \|\| 'the pet'\)\.catch\(\(\) => \[\]\),/);
     const helper = read('app/mission-control/steps/Helper.js');
-    expect(helper).toMatch(/\{!desk && !ask && <Ways ways=\{ways\} owner=\{owner\} className="mt-3" \/>\}/);
+    // On the first card and the thanks; not on the short card for someone who has had enough for now.
+    expect(helper).toMatch(/\{!desk && !ask && !closing && <Ways ways=\{ways\} owner=\{owner\} className="mt-3" \/>\}/);
     expect(helper).toMatch(/<Gear items=\{way\.gear\} className="mt-2" \/>/);
   });
 });

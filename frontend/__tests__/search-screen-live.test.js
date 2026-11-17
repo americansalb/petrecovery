@@ -534,7 +534,7 @@ describe('a phone on a search of ground', () => {
     expect(view.container.textContent).not.toMatch(/Searched just now|Already searched/);
   });
 
-  test('"I searched it" seconds after taking an area: no cheer and no paw prints, and Sarama says why', async () => {
+  test('"I searched it" seconds after taking an area: no cheer and no paw prints, and Sarama says nothing of it', async () => {
     const mine = area('east', 30.315, { status: 'IN_PROGRESS', on: 1, mine: true });
     const after = onGround([area('east', 30.315, searchedAt(0, { minutes: 0.2 }))]);
     const state = onGround([mine], { act: jest.fn(async () => { useSearch.mockReturnValue(after); return { ok: true, paws: 0 }; }) });
@@ -543,12 +543,36 @@ describe('a phone on a search of ground', () => {
     await settle();
     await act(async () => fireEvent.click(view.getByRole('button', { name: 'I searched it' })));
     expect(state.act).toHaveBeenCalledWith('area', 'z-east', 'searched');
-    expect(card(view)).toMatch(/A search this short leaves no paw prints\. This area takes one person about 45 minutes\./);
-    expect(card(view)).toMatch(/The east side is searched\. Thank you\./);
-    expect(card(view)).not.toMatch(/Well done|\+3/);
+    expect(card(view)).toMatch(/Thank you, Dana/);
+    expect(card(view)).not.toMatch(/paw prints|Well done|\+3|Sarama says/);
     expect(view.queryByRole('img', { name: /paw print/ })).toBeNull();
+    // The debrief is still asked.
+    expect(card(view)).toMatch(/How much of it did you cover\?/);
     // No count of the areas "searched so far" either: the trail's own count is what is true now.
     expect(card(view)).not.toMatch(/searched so far/);
+  });
+
+  test('the thanks is theirs: their name, the area with when it was searched, the debrief, and two ways on', async () => {
+    const mine = area('east', 30.315, { status: 'IN_PROGRESS', on: 1, mine: true });
+    const after = onGround([area('east', 30.315, searchedAt(0))]);
+    const state = onGround([mine], { act: jest.fn(async () => { useSearch.mockReturnValue(after); return { ok: true, paws: 3 }; }) });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I searched it' })));
+    const text = card(view);
+    expect(text).toMatch(/^Thank you, Dana/);
+    // Never a bare "searched": the time is said with it.
+    expect(text).toMatch(/The east side searched at \d{1,2}:\d\d (am|pm)\./);
+    expect(text).not.toMatch(/is searched|Help look for Max/);
+    expect(text).toMatch(/How much of it did you cover\?/);
+    expect(view.getByRole('button', { name: 'Search another area' })).toBeTruthy();
+    // "I'm done for now" does what "I am stopping" does, with nothing held to hand back.
+    state.act.mockClear();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: "I'm done for now" })));
+    expect(state.act).not.toHaveBeenCalled();
+    expect(card(view)).toMatch(/^Thank you for looking for Max/);
+    expect(view.getByRole('button', { name: 'Search again' })).toBeTruthy();
   });
 
   test('a real search is cheered, with the prints the server counted', async () => {
@@ -563,25 +587,35 @@ describe('a phone on a search of ground', () => {
     expect(view.getByRole('img', { name: '3 paw prints' })).toBeTruthy();
   });
 
-  test('"I am stopping" is leaving: Sarama thanks them, and does not greet them as if they had come back', async () => {
+  test('"I am stopping" is leaving: a short card thanks them, says how to share the link, and does not ask them to help', async () => {
     const trail = { paws: 7, helpers: 1, mine: { searches: 2, debriefs: 1, paws: 7, rank: 'Scout' } };
+    const viewer = { ...picture().viewer, trained: true };
     const mine = area('east', 30.315, { status: 'IN_PROGRESS', on: 1, mine: true });
-    const after = onGround([area('east', 30.315)], { trail });
-    const state = onGround([mine], { trail, act: jest.fn(async () => { useSearch.mockReturnValue(after); return { ok: true }; }) });
+    const after = onGround([area('east', 30.315)], { trail, picture: picture({ viewer }), viewer });
+    const state = onGround([mine], { trail, picture: picture({ viewer }), viewer, act: jest.fn(async () => { useSearch.mockReturnValue(after); return { ok: true }; }) });
     useSearch.mockReturnValue(state);
     const view = render(<SearchScreen mission="AUS-1" />);
     await settle();
     await act(async () => fireEvent.click(view.getByRole('button', { name: 'I am stopping' })));
     expect(state.act).toHaveBeenCalledWith('area', 'z-east', 'release');
-    expect(card(view)).toMatch(/Thank you for your time looking for Max\./);
-    expect(card(view)).not.toMatch(/Good to see you again/);
+    const text = card(view);
+    expect(text).toMatch(/^Thank you for looking for Max/);
+    expect(text).toMatch(/Send the link to neighbors\. It shows them where to look and how to send a sighting\./);
+    expect(view.getByRole('button', { name: 'Share the link' })).toBeTruthy();
+    expect(view.getByRole('button', { name: 'Search again' })).toBeTruthy();
+    // Not the card that asks people to help, and no second thanks from Sarama under the heading's.
+    expect(text).not.toMatch(/Help look for Max|I can search an area|Thank you for your time|Sarama says|Keep the map green/);
+    // "Search again" takes ground again, through the same door as anyone.
+    after.act = jest.fn(async () => ({ ok: true }));
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'Search again' })));
+    expect(after.act).toHaveBeenCalledWith('area', 'z-east', 'claim');
     // Opening the link again another time is coming back: she says nothing then, rather than a greeting that sits
     // in the way of the card (founder, 2026-11-17: "saRama keeps getting in the way").
     view.unmount();
     useSearch.mockReturnValue(after);
     const again = render(<SearchScreen mission="AUS-1" />);
     await settle();
-    expect(card(again)).not.toMatch(/Good to see you again|Thank you for your time/);
+    expect(card(again)).not.toMatch(/Good to see you again|Thank you for/);
     expect(card(again)).toMatch(/Help look for Max/);
   });
 
@@ -600,6 +634,56 @@ describe('a phone on a search of ground', () => {
     await act(async () => fireEvent.click(view.getByRole('button', { name: 'I understand. Give me an area' })));
     expect(state.trained).toHaveBeenCalledTimes(1);
     expect(state.act).toHaveBeenCalledWith('area', expect.any(String), 'claim');
+  });
+
+  test('"Before you go out" shows every point by its title, each one tap from what it means, and nothing is skipped', async () => {
+    const { searchTraining } = require('@/app/lib/safetyRules');
+    const points = searchTraining('Max');
+    const viewer = { ...picture().viewer, waiver: true, trained: false };
+    useSearch.mockReturnValue(onGround([area('north', 30.318)], { picture: picture({ viewer }), viewer, act: jest.fn(async () => ({ ok: true })) }));
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I can search an area' })));
+    const items = [...view.container.querySelectorAll('[aria-label="Your step"] ol > li')];
+    expect(items.map((li) => li.textContent)).toEqual(points.map((p, i) => `${i + 1}${p.title}${p.text}`));
+    // Each title is a button; what it means is under it, hidden until it is tapped, and one is open at a time.
+    const chase = view.getByRole('button', { name: /Do not chase or grab/ });
+    const phone = view.getByRole('button', { name: /Phone away while you move/ });
+    const said = (button) => view.container.querySelector(`#${button.getAttribute('aria-controls')}`);
+    expect(chase.getAttribute('aria-expanded')).toBe('false');
+    expect(said(chase).hidden).toBe(true);
+    await act(async () => fireEvent.click(chase));
+    expect(chase.getAttribute('aria-expanded')).toBe('true');
+    expect(said(chase).hidden).toBe(false);
+    expect(said(chase).textContent).toBe(points[3].text);
+    await act(async () => fireEvent.click(phone));
+    expect(said(phone).hidden).toBe(false);
+    expect(said(chase).hidden).toBe(true);
+    // The last point is its title alone: nothing to open.
+    expect(view.queryByRole('button', { name: /local emergency number/ })).toBeNull();
+    expect(card(view)).not.toMatch(/optional|skip|later/i);
+  });
+
+  test('"Read them" opens the rules and the waiver over the whole screen, set to be read, and closes back to the tick', async () => {
+    const content = '# Liability Waiver and Assumption of Risk\n\nVersion 3.\n\n## In short\n\n- You search at your own risk.\n- Nobody is watching where you are.';
+    global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ version: '3', content }) }));
+    const viewer = { ...picture().viewer, waiver: false, trained: false };
+    useSearch.mockReturnValue(onGround([area('north', 30.318)], { picture: picture({ viewer }), viewer }));
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'I can search an area' })));
+    await settle();
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'Read them' })));
+    const dialog = view.getByRole('dialog', { name: 'Safety rules and waiver' });
+    // On the page's body, not inside the card's sheet.
+    expect(dialog.closest('[aria-label="Your step"]')).toBeNull();
+    expect([...dialog.querySelectorAll('h3, h4')].map((h) => h.textContent)).toEqual(['Safety rules', 'Liability Waiver and Assumption of Risk', 'In short']);
+    expect([...dialog.querySelectorAll('li')].map((li) => li.textContent)).toEqual(expect.arrayContaining(['You search at your own risk.', 'Nobody is watching where you are.']));
+    // No mark of the markdown is left on what is read.
+    expect(dialog.textContent).not.toMatch(/# |- You/);
+    await act(async () => fireEvent.click(view.getAllByRole('button', { name: 'Close' })[0]));
+    expect(view.queryByRole('dialog')).toBeNull();
+    expect(card(view)).toMatch(/Join the search/);
   });
 
   test('someone who has been through it is given ground at once, and someone who has not agreed is asked to first', async () => {

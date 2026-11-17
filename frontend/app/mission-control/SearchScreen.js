@@ -164,11 +164,13 @@ function Screen({ mission }) {
   const [done, setDone] = useState(null);
   // The area just searched, so the card that says thank you can take its debrief.
   const [doneId, setDoneId] = useState(null);
+  // When they said so, which the card that says thank you gives with the area: never a bare "searched".
+  const [doneAt, setDoneAt] = useState(null);
   // The paw prints that search left, as the server counted them (app/lib/trail.js: none for a search far shorter
-  // than the area takes), and how long the area takes, which Sarama says when it left none.
+  // than the area takes).
   const [donePaws, setDonePaws] = useState(PAWS.SEARCH);
-  const [doneTakes, setDoneTakes] = useState(null);
-  // They just said "I am stopping": the first card thanks them, and does not greet them as if they had come back.
+  // They just said "I am stopping", or "I'm done for now" on the thanks: a short card thanks them, and does not ask
+  // them to help as if they had not.
   const [stopped, setStopped] = useState(false);
   // Where the join card opens: at the tick, or, for someone who has agreed and not yet read "Before you go out", at
   // that. And whether they read it here, before the server's word that they did has come back.
@@ -314,6 +316,12 @@ function Screen({ mission }) {
     setSheetOpen(view === 'join');
     if (sheetScroll.current) sheetScroll.current.scrollTop = 0;
   }, [view, mineRaw?.id, ownerCard]);
+  // The card that says thank you may be as tall as the screen allows: on a small phone its debrief, "Search another
+  // area" and "I'm done for now" are then on the screen together. After the effect above, which closes the sheet as
+  // the area stops being theirs.
+  useEffect(() => {
+    if (doneAt) setSheetOpen(true);
+  }, [doneAt]);
 
   // A witness coming back to the page finds what they sent, and what the owner did about it.
   const resumed = useRef(false);
@@ -515,30 +523,36 @@ function Screen({ mission }) {
       if (result.error) return setProblem(result.error);
       if (gps?.recording) gps.stop().catch(() => {});
       setDone(title);
+      setDoneAt(Date.now());
       setDoneId(unit === 'area' ? mineRaw.id : null);
       // The prints the server says this search left, and three where it does not say.
       setDonePaws(typeof result.paws === 'number' ? result.paws : PAWS.SEARCH);
-      setDoneTakes(mineRaw.minutes || null);
       setStopped(false);
       return go('main');
     } finally {
       setBusy(null);
     }
   }
+  // "I am stopping" on their ground hands it back. "I'm done for now" on the thanks holds nothing to hand back, and
+  // only the card changes.
   async function stopWalking() {
-    if (!mineRaw || busy) return undefined;
-    setBusy('stop');
-    try {
-      const result = await search.act(unit, mineRaw.id, 'release');
-      if (result.error) return setProblem(result.error);
-      if (gps?.recording) gps.stop().catch(() => {});
-      setDone(null);
-      setDoneId(null);
-      setStopped(true);
-      return go('main');
-    } finally {
-      setBusy(null);
+    if (busy) return undefined;
+    if (mineRaw) {
+      setBusy('stop');
+      try {
+        const result = await search.act(unit, mineRaw.id, 'release');
+        if (result.error) return setProblem(result.error);
+        if (gps?.recording) gps.stop().catch(() => {});
+      } finally {
+        setBusy(null);
+      }
     }
+    // The short card that thanks them sits over the map, as the first card does.
+    setSheetOpen(false);
+    setDone(null);
+    setDoneId(null);
+    setStopped(true);
+    return go('main');
   }
   // Asked to walk a street, and cannot: it goes back to the search, and the people running it are told.
   async function cannot() {
@@ -826,7 +840,7 @@ function Screen({ mission }) {
     // button is going through it, here and now, whatever the server has heard.
     step = <Join key={joinFrom} from={joinFrom} picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => { setTrainedHere(true); return takeStreet(); }} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} donePaws={donePaws} doneTakes={doneTakes} stopped={stopped} onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null} trail={search.trail} ways={search.ways} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Main picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} doneAt={doneAt} donePaws={donePaws} stopped={stopped} onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null} onStop={stopWalking} trail={search.trail} ways={search.ways} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   }
 
   const overlays = (
