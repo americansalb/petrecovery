@@ -2,7 +2,8 @@
  * GET /api/owner/open-search
  *
  * The lost-pet search this browser already has open, for someone not signed
- * in: { open: { caseNumber, petName, url, hasEmail } } or { open: null }.
+ * in: { open: { caseNumber, petName, url, hasEmail, lostAt } } or { open: null }.
+ * With more than one, the newest.
  *
  * Someone not signed in can have one search open at a time, counted by the
  * owner's key the browser kept when it sent the report (app/lib/ownerKey.js).
@@ -18,6 +19,11 @@
  * address mail can go to (app/lib/placeholderEmail.js), never the address:
  * the notice offers setting a password by email only to someone who gave
  * one. A phone-only guest's account has a placeholder address.
+ *
+ * Two places ask: the report form, before its first question, and the strip
+ * under the top bar on every page (app/components/OwnerSearchStrip.js), which
+ * names the pet and how long it has been lost (`lostAt`, when it was last
+ * seen) and links to the search. Both are built from this answer alone.
  */
 
 import { NextResponse } from 'next/server';
@@ -28,6 +34,11 @@ import { openSearchesMadeHere } from '@/app/lib/ownerKey';
 import { isDeliverableEmail } from '@/app/lib/placeholderEmail';
 
 export const dynamic = 'force-dynamic';
+
+function isoOrNull(value) {
+  const at = value ? new Date(value) : null;
+  return at && Number.isFinite(at.getTime()) ? at.toISOString() : null;
+}
 
 export async function GET(request) {
   const noStore = { headers: { 'Cache-Control': 'no-store' } };
@@ -47,6 +58,7 @@ export async function GET(request) {
           // The same place the refusal at Post sends them: their own search, where they are the owner.
           url: `/mission-control?mission=${encodeURIComponent(mine.caseNumber)}`,
           hasEmail: isDeliverableEmail(filedTo?.reporter?.email),
+          lostAt: isoOrNull(mine.lastSeenAt || mine.createdAt),
         },
       },
       noStore

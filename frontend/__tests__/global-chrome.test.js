@@ -15,6 +15,16 @@
  *      place, app/lib/navChrome.js, each shipping its own visible way
  *      back out.
  *
+ * And one approved strip UNDER the bar, never in it (founder,
+ * 2026-11-17: "show a slim '<Pet>'s search' banner under the top bar on
+ * every page, only in the browser that reported it. ... The bar itself
+ * stays identical; a strip below it links to their search."):
+ * app/components/OwnerSearchStrip.js, mounted right after <Navigation />,
+ * shown only to a signed-out browser holding the owner's key to an open
+ * lost search it reported. The checks at the bottom hold the bar frozen
+ * and the strip the only addition; __tests__/owner-search-strip.test.js
+ * renders it in a browser.
+ *
  * Like link-previews.test.js this is a static source check: fast, no DOM,
  * runs in CI. Adding a full-screen takeover? Register it in navChrome.js.
  * Need a page-local sticky element? Anchor it BELOW the bar (`sticky
@@ -295,5 +305,95 @@ describe('nav components defer to the shared policy', () => {
       '/rasuwa',
     ]);
     expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter', '/rasuwa', ...IMMERSIVE_GAME_ROUTES]);
+  });
+});
+
+describe("the one strip under the bar: a guest owner's way back to their search (founder, 2026-11-17)", () => {
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const { stripWords, stripHref, mayChangeOn } = require('@/app/lib/ownerStrip');
+  const { OwnerSearchStripView } = require('@/app/components/OwnerSearchStrip');
+  const strip = read('components/OwnerSearchStrip.js');
+  const layout = read('layout.js');
+  const navigation = read('components/Navigation.js');
+  const bottomNav = read('components/GlobalBottomNav.js');
+  const HOUR = 3600000;
+  const NOW = new Date('2026-11-17T18:00:00Z').getTime();
+
+  test('the root layout mounts it once, right after the bar and before the page, outside the bar', () => {
+    // A JSX comment may sit between them; nothing else may.
+    const comment = '(?:\\{\\/\\*[\\s\\S]*?\\*\\/\\}\\s*)?';
+    expect(layout).toMatch(new RegExp(`<Navigation \\/>\\s*${comment}<OwnerSearchStrip \\/>\\s*${comment}<main>`));
+    expect(layout.match(/<OwnerSearchStrip\b/g)).toHaveLength(1);
+    expect(layout).toMatch(/import OwnerSearchStrip from '\.\/components\/OwnerSearchStrip';/);
+  });
+
+  test('the bar and the tab bar do not know it exists: they stay frozen', () => {
+    for (const src of [navigation, bottomNav]) {
+      expect(src).not.toMatch(/OwnerSearchStrip|ownerStrip|open-search|ownerKey|rp_owner_|rp_made_/);
+    }
+  });
+
+  test('it hides only via isImmersiveRoute, with no route list of its own, and never pins itself to the top', () => {
+    expect(strip).toMatch(/isImmersiveRoute\(pathname\)/);
+    expect(strip).not.toMatch(/['"`]\/(mission-control|my-shelter|rasuwa|geo|report|login)\b/);
+    // It scrolls with the page, so subtabs at `sticky top-16` still sit right under the bar.
+    const classes = strip.match(/className="[^"]*"/g) || [];
+    expect(classes.length).toBeGreaterThan(0);
+    for (const c of classes) expect(c).not.toMatch(/\b(sticky|fixed|absolute)\b/);
+    expect(strip).not.toMatch(/position:\s*['"](sticky|fixed)/);
+  });
+
+  test("it is drawn only from the server's answer for this browser's own key, and only to someone signed out", () => {
+    // One question, to the route that reads this browser's own HttpOnly key cookie and nothing else.
+    expect(strip.match(/fetch\(/g)).toHaveLength(1);
+    expect(strip).toMatch(/fetch\('\/api\/owner\/open-search', \{ cache: 'no-store' \}\)/);
+    // Nothing kept in the browser, and no cookie read by script.
+    expect(strip).not.toMatch(/document\.cookie|localStorage|sessionStorage/);
+    // Signed in, or not known yet: nothing drawn and nothing asked.
+    expect(strip).toMatch(/if \(status !== 'unauthenticated' \|\| isImmersiveRoute\(pathname\)\) return null;/);
+    expect(strip).toMatch(/if \(status !== 'unauthenticated'\) \{[\s\S]*?setOpen\(null\);\s*return;/);
+  });
+
+  test('its words come from the answer alone: no answer, no strip', () => {
+    for (const open of [null, undefined, {}, { open: null }, { petName: 'Rufus' }, { caseNumber: '' }, { caseNumber: 7 }]) {
+      expect(stripWords(open, NOW)).toBeNull();
+    }
+    const threeDays = new Date(NOW - 3 * 24 * HOUR - 5 * HOUR).toISOString();
+    expect(stripWords({ caseNumber: 'AUS-2026-0007', petName: ' Rufus ', lostAt: threeDays }, NOW)).toEqual({
+      name: "Rufus's search",
+      status: 'Missing 3 days',
+      href: '/mission-control?mission=AUS-2026-0007',
+    });
+    expect(stripWords({ caseNumber: 'AUS-1', petName: 'Mia', lostAt: new Date(NOW - 5 * HOUR).toISOString() }, NOW).status).toBe('Missing 5 hours');
+    // The strip often sits on the pet's own page: both say the same time, from the same function.
+    const { caseTimeline } = require('@/app/lib/caseLabels');
+    for (const ago of [20 * 60000, 100 * 60000, 23 * HOUR, 26 * HOUR, 40 * 24 * HOUR]) {
+      const lastSeenAt = new Date(NOW - ago);
+      expect(stripWords({ caseNumber: 'AUS-1', petName: 'Mia', lostAt: lastSeenAt.toISOString() }, NOW).status).toBe(caseTimeline({ reportType: 'LOST', status: 'ACTIVE', lastSeenAt }, NOW));
+    }
+    // No name, no date: still the way back, in plain words.
+    expect(stripWords({ caseNumber: 'AUS-1', petName: '', lostAt: null }, NOW)).toEqual({ name: "Your pet's search", status: '', href: '/mission-control?mission=AUS-1' });
+    expect(stripHref('A&B 1')).toBe('/mission-control?mission=A%26B%201');
+  });
+
+  test('it asks again only after the report form or the search screen, where a search is made or closed', () => {
+    for (const p of ['/report/new', '/report/found', '/mission-control', '/mission-control/x']) expect(mayChangeOn(p)).toBe(true);
+    for (const p of ['/', '/lost-and-found', '/cases/AUS-1', '/reports', '/mission-controller', '', null]) expect(mayChangeOn(p)).toBe(false);
+  });
+
+  test('it is one slim line: 44px to tap, 16px type, one link to the search and nothing else', () => {
+    const words = stripWords({ caseNumber: 'AUS-2026-0007', petName: 'Rufus', lostAt: new Date(NOW - 3 * 24 * HOUR).toISOString() }, NOW);
+    const html = renderToStaticMarkup(<OwnerSearchStripView words={words} />);
+    expect(html).toContain('href="/mission-control?mission=AUS-2026-0007"');
+    expect(html).toContain('Rufus&#x27;s search');
+    expect(html).toContain('Missing 3 days');
+    expect(html).toMatch(/\bh-11\b/); // 44px, with a 1px rule under it
+    expect(html).toMatch(/\btext-base\b/);
+    expect(html.match(/<a\b/g)).toHaveLength(1);
+    expect(html).not.toMatch(/<button|\bsticky\b|\bfixed\b|\bh-1[2-9]\b|\bpy-/);
+    expect(renderToStaticMarkup(<OwnerSearchStripView words={null} />)).toBe('');
+    // No em dashes in frontend source.
+    expect(strip).not.toContain('—');
+    expect(read('lib/ownerStrip.js')).not.toContain('—');
   });
 });

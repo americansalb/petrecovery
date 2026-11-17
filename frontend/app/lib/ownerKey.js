@@ -129,7 +129,7 @@ export async function ownerByKey(request, caseId, now = Date.now()) {
 
 /**
  * The cases this browser holds a good key for: [{ id, caseNumber, petName,
- * status, reportType, expiresAt }]. It is how the site knows a browser
+ * status, reportType, expiresAt, createdAt, lastSeenAt }]. It is how the site knows a browser
  * already has a search open, without asking who is using it. With
  * `madeHere`, only the ones this browser itself reported (see MADE).
  */
@@ -139,20 +139,25 @@ export async function casesHeldBy(request, { madeHere = false, now = Date.now() 
   if (!held.length) return [];
   const keyOf = new Map(held.map(([name, value]) => [name.slice(PREFIX.length), value]));
   const rows = await prisma.case
-    .findMany({ where: { id: { in: [...keyOf.keys()] } }, select: { id: true, caseNumber: true, petName: true, status: true, reportType: true, expiresAt: true, ownerKeyHash: true, ownerKeyAt: true } })
+    .findMany({ where: { id: { in: [...keyOf.keys()] } }, select: { id: true, caseNumber: true, petName: true, status: true, reportType: true, expiresAt: true, createdAt: true, lastSeenAt: true, ownerKeyHash: true, ownerKeyAt: true } })
     .catch(() => []);
   return (rows || [])
     .filter((row) => keyIsFresh(row.ownerKeyAt, now) && keyMatches(keyOf.get(row.id), row.ownerKeyHash))
-    .map(({ id, caseNumber, petName, status, reportType, expiresAt }) => ({ id, caseNumber, petName, status, reportType, expiresAt: expiresAt || null }));
+    .map(({ id, caseNumber, petName, status, reportType, expiresAt, createdAt, lastSeenAt }) => ({ id, caseNumber, petName, status, reportType, expiresAt: expiresAt || null, createdAt, lastSeenAt }));
 }
 
 /**
  * The lost-pet searches this browser itself reported and that are still open: what the one-search limit for
  * someone not signed in counts (app/api/reports/create/route.js). A closed search, or one past its date that was
  * never closed, does not count. The report form asks before its first question (GET /api/owner/open-search), so
- * a guest who already has one is told then, not after twelve screens.
+ * a guest who already has one is told then, not after twelve screens. The same answer, newest first, is the
+ * strip under the top bar that takes the guest back to their search on every page.
  */
 export async function openSearchesMadeHere(request, now = Date.now()) {
   const held = await casesHeldBy(request, { madeHere: true, now });
-  return held.filter((c) => c.reportType === 'LOST' && isCaseOpen(c.status) && !(c.expiresAt && new Date(c.expiresAt).getTime() < now));
+  // Newest first: the strip under the top bar (app/components/OwnerSearchStrip.js) names one search, the latest.
+  const made = (c) => new Date(c.createdAt || 0).getTime() || 0;
+  return held
+    .filter((c) => c.reportType === 'LOST' && isCaseOpen(c.status) && !(c.expiresAt && new Date(c.expiresAt).getTime() < now))
+    .sort((a, b) => made(b) - made(a));
 }
