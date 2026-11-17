@@ -8,8 +8,9 @@
  *   someone who wants to help   two buttons; then their area of ground
  *                               and "I searched it"
  *   someone who saw the pet     where and when, and "Send"; then "Sent"
- *   the owner                   who is looking and "Text the link";
- *                               on a sighting, "Directions"
+ *   the owner                   where it stands, the plan's next step,
+ *                               their own area to search and "Text the
+ *                               link"; on a sighting, "Directions"
  *
  * One yellow button to a card, and it is the next step. The line at the
  * top always says where the search stands, so nothing ever interrupts a
@@ -443,7 +444,10 @@ function Screen({ mission }) {
   const passed = useRef(new Set());
   // A street is theirs as soon as they are given it. Taking a new one hands back the old (the server does both).
   // Answers { ok } or { error }, and never leaves the button spinning: a dropped signal is words on the card.
-  async function takeStreet(exceptId = null) {
+  // `chosen` is one area by name: the owner's "Search the area around home", the middle of the circle, through the
+  // same claim. The owner signs no waiver for their own pet (app/lib/searcher.js), and a named area is not ranked,
+  // so the phone is not asked where it is.
+  async function takeStreet(exceptId = null, chosen = null) {
     // A desk is never handed a street: a tablet turned on its side while on the join card is a desk from then on.
     if (busy || desk) return { error: '' };
     setBusy('walk');
@@ -452,12 +456,12 @@ function Screen({ mission }) {
     setDoneId(null);
     setStopped(false);
     try {
-      const here = await locate();
+      const here = chosen ? null : await locate();
       // Passing on a street lasts for one round of "Different street". A fresh ask starts clean, so the
       // street someone passed on an hour ago is offered again before any street is walked twice.
       if (exceptId) passed.current.add(exceptId);
       else passed.current = new Set();
-      const ranked = rank(items, here || position, unit).filter((i) => i.id !== exceptId);
+      const ranked = chosen ? [chosen] : rank(items, here || position, unit).filter((i) => i.id !== exceptId);
       // Ground that still needs a search: never searched, or put up for another look.
       const unwalked = (i) => (unit === 'area' ? needsSearch(i) : i.status !== 'SEARCHED');
       let list = ranked.filter((i) => !passed.current.has(i.id));
@@ -824,7 +828,34 @@ function Screen({ mission }) {
   } else if (isOwner && hot) {
     step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (isOwner) {
-    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} items={items} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
+    // Where the search stands, the plan's next step, the owner's own area to search, the link, and the advice.
+    step = (
+      <OwnerNow
+        picture={picture}
+        name={name}
+        now={now}
+        unit={unit}
+        items={items}
+        counts={counts}
+        mine={mine}
+        done={done}
+        onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null}
+        instrument={instrument}
+        readPlan={search.readPlan}
+        writePlan={search.writePlan}
+        onSearchHome={(area) => takeStreet(null, area)}
+        onSearchMore={() => takeStreet()}
+        onSearched={walked}
+        onStop={stopWalking}
+        busy={busy}
+        onShare={share}
+        onHome={() => setEndOpen(true)}
+        problem={problem}
+        heard={heard}
+        onReply={answerHelper}
+        onPutAway={gotIt}
+      />
+    );
   } else if (mine && ground) {
     step = <Area picture={picture} name={name} mine={mine} instrument={instrument} gps={gps} open={sheetOpen} onOpen={() => setSheetOpen(true)} onSearched={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (mine) {

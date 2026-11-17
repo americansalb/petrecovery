@@ -208,7 +208,15 @@ describe('Sarama', () => {
     expect(needs).toMatch(/\{guide\.next\.lead\}/);
     expect(needs).toMatch(/Set it up in Tasks/);
     const command = read('app/mission-control/desktop/Command.js');
-    expect(command).toMatch(/const next = \(plan\.kinds \|\| \[\]\)\.find\(\(k\) => k\.kind !== 'OTHER' && !have\.has\(k\.kind\)\) \|\| null;/);
+    // The next step is the plan's first task nobody has set up (app/lib/searchPlan.js, nextStep): the owner's phone
+    // card reads the same one.
+    expect(command).toMatch(/const next = nextStep\(plan\.kinds, plan\.tasks\);/);
+    const { nextStep } = require('@/app/lib/searchPlan');
+    const kinds = [{ kind: 'FLYERS' }, { kind: 'OTHER' }, { kind: 'POSTS' }];
+    expect(nextStep(kinds, [])).toEqual({ kind: 'FLYERS' });
+    expect(nextStep(kinds, [{ kind: 'FLYERS', status: 'DONE' }])).toEqual({ kind: 'POSTS' });
+    expect(nextStep(kinds, [{ kind: 'FLYERS', status: 'OPEN' }, { kind: 'POSTS', status: 'OPEN' }])).toBeNull();
+    expect(read('app/mission-control/steps/Owner.js')).toMatch(/nextStep\(plan\.kinds, plan\.tasks\)/);
     expect(command).toMatch(/onTasks=\{guide\?\.next \? \(\) => setTab\('tasks'\) : null\}/);
     expect(SARAMA.nobodyOut('Max')).toBe('Nobody is searching right now. Text the link to neighbors so more people are watching for Max.');
     expect(SARAMA.nextArea('the west side')).toBe('When a neighbor offers to search, they are sent to the west side first.');
@@ -220,6 +228,11 @@ describe('Sarama', () => {
     expect(needs).not.toMatch(/SaramaPose|<Sarama /);
     expect(needs).toMatch(/guide\.next\.lead/);
     expect(needs).not.toMatch(/pose=|<Paws/);
+    // The owner's phone card says her next step in words too, and nothing on it cheers: no picture, no paw prints,
+    // not even for the owner's own search of an area.
+    const ownerCard = read('app/mission-control/steps/Owner.js');
+    expect(ownerCard).toMatch(/\{SARAMA\.next\(step\.title\)\}/);
+    expect(ownerCard).not.toMatch(/SaramaPose|<Sarama |pose=|<Paws|SARAMA\.done/);
     expect(read('app/globals.css')).toMatch(/\.sarama-still \.sarama-tail \{ animation: none; \}/);
   });
 

@@ -59,3 +59,21 @@ test('a search someone else owns is not shown as the person\'s own missing pet',
   expect(screen.queryByText('Open search')).toBeNull();
   expect(screen.getByText(/you searched 4 areas/)).toBeTruthy();
 });
+
+test('an owner with an open lost report is not told they have no animal: the reported pet is counted', async () => {
+  // The page said "You haven't added an animal yet" right under "Pip has been missing 3d" (2026-11-17).
+  serve({ missions: [mission()] });
+  render(<DashboardPage />);
+  expect(await screen.findByText('Your animals')).toBeTruthy();
+  expect(screen.queryByText(/haven.t added an animal yet/)).toBeNull();
+  // Pip has a row of their own under "Your animals", which opens the report: it is Pip's record.
+  const row = screen.getByText('Missing 2d').closest('a');
+  expect(row.getAttribute('href')).toBe('/cases/AUS-2026-0042');
+  expect(row.textContent).toMatch(/Pip/);
+});
+
+test('someone with no animal and no report of their own is still asked to add one', async () => {
+  serve({ missions: [mission({ isOwner: false, myAreas: 1 })] });
+  render(<DashboardPage />);
+  expect(await screen.findByText(/haven.t added an animal yet/)).toBeTruthy();
+});

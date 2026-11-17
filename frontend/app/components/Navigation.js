@@ -145,6 +145,9 @@ export default function Navigation() {
     setActiveDropdown(activeDropdown === name ? null : name);
   };
 
+  // The pages the mobile menu already links to by name: its "My Pets" and the forces under "My Rescue Forces".
+  const menuListed = session ? ['/pets', ...userSquads.slice(0, 5).map((squad) => `/rescue-forces/${squad.id}`)] : [];
+
   return (
     <>
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
@@ -258,7 +261,7 @@ export default function Navigation() {
                         {/* Your places (your shelter, your rescue force).
                             This is where anything person-specific goes now
                             that the bar itself never changes. */}
-                        <AccountModeSwitcher onNavigate={() => setActiveDropdown(null)} />
+                        <AccountModeSwitcher onNavigate={() => setActiveDropdown(null)} listed={['/pets']} />
                         <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
                           <User className="w-4 h-4" />
                           <span className="font-medium">My Profile</span>
@@ -401,7 +404,8 @@ export default function Navigation() {
         <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
           {/* Your places (your shelter, your rescue force) come first:
               person-specific rows live here, never in the bar. */}
-          <AccountModeSwitcher onNavigate={() => setMobileMenuOpen(false)} />
+          {/* Not a second "My pets" or a second row for a force the menu already lists under My Rescue Forces. */}
+          <AccountModeSwitcher onNavigate={() => setMobileMenuOpen(false)} listed={menuListed} />
 
           {/* The same five links as the desktop bar, same order. */}
           <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">

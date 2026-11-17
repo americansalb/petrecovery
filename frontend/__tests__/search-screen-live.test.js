@@ -783,7 +783,32 @@ describe('a phone on a search of ground', () => {
     useSearch.mockReturnValue(onGround(items, { picture: owner, viewer: owner.viewer }));
     const view = render(<SearchScreen mission="AUS-1" />);
     await settle();
-    expect(card(view)).toMatch(/1 of the 4 areas was searched in the last 12 hours\./);
-    expect(card(view)).not.toMatch(/3 of the 4 areas/);
+    // In figures, with the age in the label: "1 of 4", "areas searched in the last 12 hours".
+    const standing = view.container.querySelector('dl[aria-label="Where the search stands"]').textContent;
+    expect(standing).toMatch(/areas searched in the last 12 hours1 of 4/);
+    expect(card(view)).not.toMatch(/3 of 4|3 of the 4 areas/);
+  });
+
+  test('the owner can search too: the area around home, through the same claim, with no waiver to sign', async () => {
+    const owner = picture({ viewer: { kind: 'user', firstName: 'Avery', isOwner: true, seesNames: true, leads: true, waiver: true, trained: false, signedIn: true } });
+    const middle = area('middle', 30.3148, { ring: 0, name: 'The middle', reach: 'Within 150 m of where Max was lost', minutes: 30 });
+    const state = onGround([middle, area('north', 30.318)], { picture: owner, viewer: owner.viewer, act: jest.fn(async () => ({ ok: true })) });
+    useSearch.mockReturnValue(state);
+    const view = render(<SearchScreen mission="AUS-1" />);
+    await settle();
+    expect(card(view)).not.toMatch(/What to do now/);
+    // Three steps of the engine's advice are on the card, without a tap.
+    expect(view.container.querySelectorAll('section[aria-label="What to do"] li')).toHaveLength(3);
+    await act(async () => fireEvent.click(view.getByRole('button', { name: 'Search the area around home' })));
+    expect(state.act).toHaveBeenCalledWith('area', 'z-middle', 'claim');
+    // Named, not ranked: the phone is not asked where it is, and nobody is sent to the join card.
+    expect(state.locate).not.toHaveBeenCalled();
+    expect(card(view)).not.toMatch(/Join the search|Before you go out/);
+    // On it, the card is that area and its one button says it is searched.
+    useSearch.mockReturnValue({ ...state, items: [{ ...middle, mine: true, status: 'IN_PROGRESS', on: 1 }, area('north', 30.318)], mine: { ...middle, mine: true, status: 'IN_PROGRESS', on: 1 } });
+    await act(async () => view.rerender(<SearchScreen mission="AUS-1" />));
+    expect(card(view)).toMatch(/You are searchingThe middleWithin 150 m of where Max was lost\. About 30 minutes\./);
+    expect(view.getByRole('button', { name: 'I searched it' })).toBeTruthy();
+    expect(view.getByRole('button', { name: 'I am stopping' })).toBeTruthy();
   });
 });

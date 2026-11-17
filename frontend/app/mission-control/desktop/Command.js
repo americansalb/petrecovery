@@ -54,6 +54,7 @@ import { needsYou, quietLine } from '../lib/needs';
 import { unanswered } from '../lib/team';
 import { agoShort, areaName, areaState, givenNextAreas, mapLabel, needsForGround, quietGround, searchStrength } from '../lib/ground';
 import { SARAMA } from '../lib/sarama';
+import { nextStep } from '@/app/lib/searchPlan';
 import { Advice, Know, Numbers } from './Know';
 import Board from './Board';
 import Needs from './Needs';
@@ -447,8 +448,8 @@ export default function Command({ picture, items, unit, circle = null, now, line
   const guide = useMemo(() => {
     if (!plan?.plan) return null;
     const name = picture.pet?.name || 'the pet';
-    const have = new Set((plan.tasks || []).map((t) => t.kind));
-    const next = (plan.kinds || []).find((k) => k.kind !== 'OTHER' && !have.has(k.kind)) || null;
+    // The owner's phone reads the same next step (steps/Owner.js).
+    const next = nextStep(plan.kinds, plan.tasks);
     const out = people.filter((p) => p.state === 'walking').length;
     const first = ground ? givenNextAreas(items)[0] : null;
     return {

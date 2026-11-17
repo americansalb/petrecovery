@@ -191,19 +191,24 @@ function Hero({ openCount, neighbors }) {
     <section className="relative overflow-hidden bg-[#EEF2F8]">
       <MapBackdrop />
       <div className="relative max-w-[1080px] mx-auto px-5 pt-7 pb-10 md:px-6 md:pt-20 md:pb-24 flex flex-col items-start md:items-center gap-[18px] md:gap-6 text-left md:text-center">
-        {openCount > 0 && (
-          <a
-            href="#missing"
-            className="inline-flex items-center gap-2 md:gap-2.5 rounded-full bg-[#FDECEA] hover:bg-[#FBDDD9] text-[#9F1D12] text-sm md:text-[15px] font-semibold pl-3 pr-3.5 py-2 md:pl-3.5 md:pr-4 transition-colors"
-          >
-            <span className="w-2.5 h-2.5 rounded-full bg-[#E5372A] animate-pulse-soft shrink-0" />
-            <span>
-              {openCount} {openCount === 1 ? 'pet is' : 'pets are'} waiting to come home
-              <span className="hidden md:inline"> right now</span>
-            </span>
-            <ArrowRight className="w-4 h-4 shrink-0" />
-          </a>
-        )}
+        {/* The count arrives after the page does. Its line is held from the first paint, so the headline and
+            "My pet is lost" under it do not jump down under a finger when it lands (it moved them 62px, about
+            1.7 s in, on a phone). */}
+        <div className="h-9 md:h-10 flex items-center">
+          {openCount > 0 && (
+            <a
+              href="#missing"
+              className="inline-flex h-9 md:h-10 items-center gap-2 md:gap-2.5 whitespace-nowrap rounded-full bg-[#FDECEA] hover:bg-[#FBDDD9] text-[#9F1D12] text-sm md:text-[15px] font-semibold pl-3 pr-3.5 md:pl-3.5 md:pr-4 transition-colors"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-[#E5372A] animate-pulse-soft shrink-0" />
+              <span>
+                {openCount} {openCount === 1 ? 'pet is' : 'pets are'} waiting to come home
+                <span className="hidden md:inline"> right now</span>
+              </span>
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </a>
+          )}
+        </div>
 
         <h1 className={cn(heading, 'text-midnight-900 max-w-[980px] text-[42px] leading-[1.02] tracking-[-0.035em] md:text-[clamp(44px,6vw,84px)] md:leading-none')}>
           <span className="md:block">Lost or found a pet?</span>{' '}
