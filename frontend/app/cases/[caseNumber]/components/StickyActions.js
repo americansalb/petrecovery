@@ -11,12 +11,17 @@
  * they come and go together. At bottom-0 the tab bar covered most of this
  * bar and swallowed taps meant for it. If the tab bar height changes,
  * change this with it.
+ *
+ * `compact` is the phone's bar: one row, 56px tall, buttons that never
+ * wrap (the caller truncates their words), and out of the way while the
+ * site footer is on screen, whose last links it would otherwise cover.
  */
 
 import { useEffect, useState } from 'react';
 
-export default function StickyActions({ watchId, children }) {
+export default function StickyActions({ watchId, children, compact = false }) {
   const [show, setShow] = useState(false);
+  const [atFooter, setAtFooter] = useState(false);
 
   useEffect(() => {
     const target = document.getElementById(watchId);
@@ -31,7 +36,24 @@ export default function StickyActions({ watchId, children }) {
     return () => observer.disconnect();
   }, [watchId]);
 
-  if (!show) return null;
+  useEffect(() => {
+    if (!compact) return undefined;
+    const footer = document.querySelector('footer');
+    if (!footer || typeof IntersectionObserver === 'undefined') return undefined;
+    // Only once the footer is above the tab bar and this bar (64px and 56px): until then it is under them.
+    const observer = new IntersectionObserver(([entry]) => setAtFooter(entry.isIntersecting), { rootMargin: '0px 0px -120px 0px' });
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, [compact]);
+
+  if (!show || (compact && atFooter)) return null;
+  if (compact) {
+    return (
+      <div className="fixed inset-x-0 bottom-16 z-40 flex h-14 items-center border-t border-midnight-200 bg-white/95 px-4 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <div className="mx-auto flex w-full max-w-lg items-center gap-2">{children}</div>
+      </div>
+    );
+  }
   return (
     <div className="fixed inset-x-0 bottom-16 z-40 border-t border-midnight-200 bg-white/95 px-4 py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
       <div className="mx-auto flex max-w-lg items-center gap-2">{children}</div>

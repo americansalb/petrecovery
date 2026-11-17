@@ -90,7 +90,7 @@ export default function HowToHelp({ name, caseId, caseNumber, signedIn, isOwner 
         <p className="mt-1 text-midnight-600">
           <Link
             href={`/rescue-forces/${force.id}`}
-            className="inline min-h-0 min-w-0 font-semibold text-midnight-800 underline underline-offset-2 hover:text-midnight-950"
+            className="inline min-h-0 min-w-0 font-semibold text-midnight-800 underline underline-offset-2 hover:text-midnight-950 max-md:inline-block max-md:min-h-[44px] max-md:py-2.5"
           >
             {force.name}
           </Link>{' '}
@@ -182,7 +182,7 @@ export default function HowToHelp({ name, caseId, caseNumber, signedIn, isOwner 
 
       {done.length > 0 && (
         <div className="mt-2 border-t border-midnight-100 pt-4">
-          <h3 className="text-xs font-extrabold uppercase tracking-wide text-midnight-500">Already done</h3>
+          <h3 className="text-xs font-extrabold uppercase tracking-wide text-midnight-500 max-md:text-sm">Already done</h3>
           <ul className="mt-2 space-y-2.5">
             {done.slice(0, DONE_SHOWN).map((d) => (
               <li key={d.id} className="flex items-start gap-3">

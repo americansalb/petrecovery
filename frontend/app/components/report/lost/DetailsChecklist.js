@@ -61,7 +61,7 @@ export default function DetailsChecklist({ details, breed, species, name, onOpen
                 <span className={`flex-1 text-[16px] ${done ? 'font-medium text-midnight-500' : 'font-semibold text-midnight-900'}`}>
                   {done ? s.label : s.question(name)}
                 </span>
-                <span className="text-[13px] font-bold uppercase tracking-wide text-midnight-500">{done ? 'Edit' : 'Add'}</span>
+                <span className="text-[13px] font-bold uppercase tracking-wide text-midnight-500 max-md:text-sm">{done ? 'Edit' : 'Add'}</span>
                 <ChevronRight size={16} className="text-midnight-300" aria-hidden="true" />
               </button>
             </li>
