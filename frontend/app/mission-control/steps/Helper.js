@@ -41,7 +41,7 @@ import Word, { Answer, useShown, beatOf, keepInView } from '../components/Word';
 import { lookingLine } from '../lib/words';
 import { searcherBrief } from '../lib/briefLines';
 import { areaName, isSeenCircle, whereWords, whereShort, hazardLines } from '../lib/ground';
-import { missingFor, whenWords } from '../lib/insight';
+import { whenWords } from '../lib/insight';
 
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL || '';
 // What the button says is what the people running the search are told in this person's name (app/lib/searchAsk.js, CANNOT_WORDS).
@@ -273,28 +273,19 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
   // An area searched that left paw prints. One far shorter than the area takes leaves none (app/lib/trail.js), and
   // she does not cheer it: she says why, and how long the area takes.
   const cheer = Boolean(done && ground && donePaws > 0);
+  const saramaSays = cheer
+    ? SARAMA.done(donePaws)
+    : done && ground
+      ? SARAMA.short(doneTakes)
+      : ask
+        ? null
+        : stopped
+          ? SARAMA.stopped(name)
+          : trail?.mine?.paws > 0 || done
+            ? null
+            : brief.own;
   return (
     <>
-      {/* Sarama guides: she cheers an area searched, says who asked, and greets anyone who has just opened the link. */}
-      {/* Not on a desk: a desk is handed no ground, and whoever runs the search has their own guidance there. */}
-      {!desk && (
-        <Sarama
-          className="mb-3"
-          pose={cheer ? 'cheer' : ask ? 'point' : 'sit'}
-          say={
-            cheer
-              ? SARAMA.done(donePaws)
-              : done && ground
-                ? SARAMA.short(doneTakes)
-                : ask
-                  ? SARAMA.asked(ask.askedBy)
-                  : // Who she is, then the brief word for word: their own home first, and what to do on seeing the pet.
-                    // Someone who has just said "I am stopping" is thanked, not greeted as if they had come back.
-                    [stopped ? SARAMA.stopped(name) : trail?.mine?.paws > 0 ? SARAMA.back(name) : SARAMA.hello(name, missingFor(picture.lastSeen?.at, now)), brief.own, brief.never]
-          }
-        />
-      )}
-      {cheer && <Paws count={donePaws} className="mb-2" />}
       <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
       <Heading className="mt-1">{ask ? (ground ? `Search ${areaName(ask)}` : `Walk ${ask.name}`) : `Help look for ${name}`}</Heading>
       {ask ? (
@@ -339,6 +330,15 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
       ) : (
         <Lead className="mt-1.5">If you see {name}, send where. It reaches {owner?.firstName || 'the owner'} at once.</Lead>
       )}
+      {/* Sarama, under the card's own heading, only where she says what the card does not (founder, 2026-11-17:
+          "saRama keeps getting in the way"): she cheers an area searched, says why a very short one left no paw
+          prints, thanks someone who stopped, and tells a newcomer where to look first, the brief word for word.
+          What to do on seeing the pet is on the map above, in the brief's own first sentence. No greeting, no "who
+          asked" (the line above says it) and nothing to someone coming back. Not on a desk. */}
+      {!desk && saramaSays && (
+        <Sarama className="mt-3" pose={cheer ? 'cheer' : saramaSays === brief.own ? 'sniff' : 'sit'} say={saramaSays} />
+      )}
+      {cheer && <Paws count={donePaws} className="mt-2" />}
       {/* The game: their own paw prints and rank, the team's, and the goal everyone shares. Not on a desk, which is handed no ground. */}
       {ground && !desk && <Trail trail={trail} items={items} name={name} now={now} className="mt-3" />}
       {/* What else whoever runs the search has put on the list that needs no ground, each with the file the site made for it. */}
@@ -441,7 +441,6 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
 
   return (
     <>
-      <Sarama className="mb-3" pose="ask" say={SARAMA.join()} />
       <div className="flex items-start justify-between gap-3">
         <Heading>Join the search</Heading>
         <QuietLink onClick={onBack} className="!min-h-[28px] shrink-0">
@@ -521,7 +520,6 @@ export function Training({ name, unit, instrument, busy, onGo }) {
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   return (
     <>
-      <Sarama className="mb-3" say={SARAMA.training()} />
       <Heading>Before you go out</Heading>
       <ol className="mt-3 flex flex-col gap-3">
         {searchTraining(name).map((point, i) => (

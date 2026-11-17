@@ -142,9 +142,13 @@ people helping, with the same files, once they are on the list. Enforced by `fro
 
 Founder, 2026-11-13: "one of the things we are missing is our mascot
 Sarama, beautifully guiding everyone. This has to feel like a fun game and
-drive engagement, not feel like a chore." Sarama, the search dog, is on
-every card a helper sees and is the one voice on the search screen that
-speaks as "I" (the rule against a talking product does not cover her). Her
+drive engagement, not feel like a chore." Sarama, the search dog, is the
+one voice on the search screen that speaks as "I" (the rule against a
+talking product does not cover her). She is small (36 px, a few lines),
+sits under a card's own heading, and appears only where she says
+something the card does not (founder, 2026-11-17, on the phone:
+"saRama keeps getting in the way"): never a greeting, never what the
+heading or the map already says, not on joining or "Before you go out". Her
 lines are all in `frontend/app/mission-control/lib/sarama.js`: short, warm
 and plain, no puns, no promise that a search works, nobody hurried. What
 she says must be useful (founder, 2026-11-13: "seems like you designed her

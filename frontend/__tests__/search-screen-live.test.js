@@ -575,12 +575,14 @@ describe('a phone on a search of ground', () => {
     expect(state.act).toHaveBeenCalledWith('area', 'z-east', 'release');
     expect(card(view)).toMatch(/Thank you for your time looking for Max\./);
     expect(card(view)).not.toMatch(/Good to see you again/);
-    // Opening the link again another time is coming back.
+    // Opening the link again another time is coming back: she says nothing then, rather than a greeting that sits
+    // in the way of the card (founder, 2026-11-17: "saRama keeps getting in the way").
     view.unmount();
     useSearch.mockReturnValue(after);
     const again = render(<SearchScreen mission="AUS-1" />);
     await settle();
-    expect(card(again)).toMatch(/Good to see you again\. Max still needs us\./);
+    expect(card(again)).not.toMatch(/Good to see you again|Thank you for your time/);
+    expect(card(again)).toMatch(/Help look for Max/);
   });
 
   test('"Before you go out" is not skipped by a reload: agreed, not trained, and asking for ground shows it first', async () => {
