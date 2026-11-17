@@ -120,6 +120,18 @@ export function gearFor(kind, kit) {
   return out;
 }
 
+/**
+ * The next step of the plan: the first task, in the plan's order for this
+ * animal, that nobody has set up yet. `kinds` is the plan route's list
+ * ({ kind, title, what, gear } each, best first) and `tasks` the tasks set
+ * up so far, open or done. "Something else" is never a next step. The
+ * desk and the owner's phone read the same step from this.
+ */
+export function nextStep(kinds = [], tasks = []) {
+  const have = new Set((tasks || []).map((t) => t.kind));
+  return (kinds || []).find((k) => k.kind !== 'OTHER' && !have.has(k.kind)) || null;
+}
+
 const upper = (text) => String(text || '').toUpperCase();
 
 /**

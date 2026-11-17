@@ -163,26 +163,28 @@ describe('what the sightings have in common', () => {
   });
 
   test('one: when, where, and how far from where the pet was lost', () => {
-    expect(say([seen(30, south(300))])).toEqual(['1 sighting, at 9:30 pm on W 42nd St, 300 m south of where Max was lost.']);
+    expect(say([seen(30, south(300))])).toEqual(['1 sighting, at 9:30 pm on W 42nd St, 1,000 ft south of where Max was lost.']);
     // Yesterday's is said with its day.
-    expect(say([seen(26 * 60, south(300))])).toEqual(['1 sighting, on Tue at 8:00 pm on W 42nd St, 300 m south of where Max was lost.']);
+    expect(say([seen(26 * 60, south(300))])).toEqual(['1 sighting, on Tue at 8:00 pm on W 42nd St, 1,000 ft south of where Max was lost.']);
+    // A search outside the US says it in metres (Mexico City keeps Austin's clock in November).
+    expect(sightingLines({ sightings: [seen(30, south(300))], lastSeen: LOST, timeZone: 'America/Mexico_City', now: NOW, name: 'Max' })).toEqual(['1 sighting, at 9:30 pm on W 42nd St, 300 m south of where Max was lost.']);
   });
 
   test('a pattern is stated only where every sighting fits it', () => {
     // Three sightings, each farther south, all at night.
     const south3 = [seen(26 * 60, south(200)), seen(60, south(450)), seen(30, south(800))];
     expect(say(south3)).toEqual([
-      '3 sightings since Tue 8:00 pm. The latest was at 9:30 pm on W 42nd St, 800 m south of where Max was lost.',
+      '3 sightings since Tue 8:00 pm. The latest was at 9:30 pm on W 42nd St, half a mile south of where Max was lost.',
       'Each was farther from where Max was lost than the one before.',
       'All 3 were south of where Max was lost.',
       'All 3 were between 8 pm and 6 am.',
     ]);
     // One of them north: no direction is claimed. One nearer than the last: no "farther each time".
     const mixed = [seen(26 * 60, south(200)), seen(60, { lat: LOST.lat + 0.003, lng: LOST.lng }), seen(30, south(100))];
-    expect(say(mixed)).toEqual(['3 sightings since Tue 8:00 pm. The latest was at 9:30 pm on W 42nd St, 100 m south of where Max was lost.', 'All 3 were between 8 pm and 6 am.']);
+    expect(say(mixed)).toEqual(['3 sightings since Tue 8:00 pm. The latest was at 9:30 pm on W 42nd St, 350 ft south of where Max was lost.', 'All 3 were between 8 pm and 6 am.']);
     // One in the afternoon: nothing is said about the time of day.
     const afternoon = [seen(7 * 60, south(200)), seen(30, south(500))];
-    expect(say(afternoon)).toEqual(['2 sightings since 3:00 pm. The latest was at 9:30 pm on W 42nd St, 500 m south of where Max was lost.', 'Both were south of where Max was lost.']);
+    expect(say(afternoon)).toEqual(['2 sightings since 3:00 pm. The latest was at 9:30 pm on W 42nd St, 0.3 miles south of where Max was lost.', 'Both were south of where Max was lost.']);
     // Both in the day: said as the hours they fall in, with no word about the light.
     const day = [seen(13 * 60, south(200)), seen(7 * 60, south(500))];
     expect(say(day)[2]).toBe('Both were between 6 am and 8 pm.');
@@ -204,22 +206,23 @@ describe('one street', () => {
   const facts = (over, extra = {}) => streetFacts(street(over), { lastSeen: LOST, sightings: [], timeZone: ZONE, now: NOW, name: 'Max', ...extra });
 
   test('where it is, and that nobody has walked it', () => {
-    expect(facts({})).toEqual(['120 m south of where Max was lost.', 'Nobody has walked this street.']);
+    expect(facts({})).toEqual(['400 ft south of where Max was lost.', 'Nobody has walked this street.']);
+    expect(facts({}, { timeZone: 'America/Mexico_City' })[0]).toBe('120 m south of where Max was lost.');
     expect(facts({ center: south(10) })[0]).toBe('Right where Max was lost.');
   });
 
   test('a sighting next to it is said, and one far off is not', () => {
     const near = [{ id: 's', at: ago(30), ...south(200) }];
     // The street is 120 m south of where Max was lost, and the sighting 200 m south: 80 m apart.
-    expect(facts({}, { sightings: near })).toContain('80 m from where Max was seen at 9:30 pm.');
+    expect(facts({}, { sightings: near })).toContain('250 ft from where Max was seen at 9:30 pm.');
     // It is named as far out as a fresh sighting moves a street up the order (300 m), and no farther.
-    expect(facts({}, { sightings: [{ id: 's', at: ago(30), ...south(410) }] }).join(' ')).toMatch(/290 m from where Max was seen/);
+    expect(facts({}, { sightings: [{ id: 's', at: ago(30), ...south(410) }] }).join(' ')).toMatch(/950 ft from where Max was seen/);
     const far = [{ id: 's', at: ago(30), ...south(900) }];
     expect(facts({}, { sightings: far }).join(' ')).not.toMatch(/was seen/);
     // A street with a line of its own is measured from the line: seen at its far end is seen on it, however long it is.
     const long = { path: [[LOST.lat - 0.001, LOST.lng], [LOST.lat - 0.009, LOST.lng]], center: south(560) };
     expect(facts(long, { sightings: [{ id: 's', at: ago(30), ...south(990) }] })).toContain('Max was seen on it at 9:30 pm.');
-    expect(facts(long, { sightings: [{ id: 's', at: ago(30), lat: LOST.lat - 0.008, lng: LOST.lng + 0.0012 }] }).join(' ')).toMatch(/1[12]0 m from where Max was seen at 9:30 pm\./);
+    expect(facts(long, { sightings: [{ id: 's', at: ago(30), lat: LOST.lat - 0.008, lng: LOST.lng + 0.0012 }] }).join(' ')).toMatch(/(350|400) ft from where Max was seen at 9:30 pm\./);
     expect(facts({}, { sightings: [{ id: 's', at: ago(30), ...south(440) }] }).join(' ')).not.toMatch(/was seen/);
   });
 

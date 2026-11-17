@@ -46,7 +46,7 @@ export default function OtherPets({ force, pets }) {
         </h2>
         <Link
           href={`/rescue-forces/${force.id}`}
-          className="inline min-h-0 min-w-0 shrink-0 text-sm font-semibold text-midnight-600 underline-offset-4 hover:text-midnight-900 hover:underline"
+          className="inline min-h-0 min-w-0 shrink-0 text-sm font-semibold text-midnight-600 underline-offset-4 hover:text-midnight-900 hover:underline max-md:inline-flex max-md:min-h-[44px] max-md:items-center"
         >
           See all
         </Link>
@@ -57,7 +57,7 @@ export default function OtherPets({ force, pets }) {
             <Link href={`/cases/${encodeURIComponent(p.caseNumber)}`} className="block rounded-2xl text-center">
               <Face pet={p} />
               <span className="mt-1.5 block truncate text-sm font-bold text-midnight-900">{p.name}</span>
-              <span className={`block truncate text-xs font-semibold ${PET_TEXT[p.status] || PET_TEXT.closed}`}>
+              <span className={`block truncate text-xs font-semibold max-md:text-sm ${PET_TEXT[p.status] || PET_TEXT.closed}`}>
                 {LABEL[p.status] || 'Closed'}
               </span>
             </Link>

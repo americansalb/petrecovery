@@ -29,6 +29,7 @@
  */
 import { distanceMeters, SIGHTING_PRIORITY_WINDOW_MS } from './searchGrid';
 import { bearingDegrees } from './streetWalks';
+import { countryForZone } from './geo/searchBias';
 
 /** One person going round ground on foot once, looking low. A park with no street in it takes as long as a block of houses. */
 export const MINUTES_PER_HECTARE = 4;
@@ -183,20 +184,75 @@ export function heartOf(area, center) {
   return pointAt(center, (area.from + area.to) / 2, area.a + span / 2);
 }
 
+export const FEET_PER_METER = 3.28084;
+export const METERS_PER_MILE = 1609.344;
+
 /**
- * A distance the way a person says it: "under 50 m", "120 m", "1.6 km",
- * "3 km", "12 km", "1,578 km". Never "1578.0 km": a tenth of a kilometre
- * is said only under ten, and a long number is grouped by thousands.
+ * How a search says its distances: 'imperial', in feet and miles, for a
+ * search in the United States, and 'metric' everywhere else. Decided by
+ * the search's time zone, which comes from where the pet was lost
+ * (app/lib/caseZone.js); the search screen's picture carries it as
+ * `timeZone`. A helper in Austin was told "150 m to 400 m east"
+ * (2026-11-17).
  */
-export function distanceWords(meters) {
+export function unitsForZone(zone) {
+  return countryForZone(zone) === 'us' ? 'imperial' : 'metric';
+}
+
+const grouped = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+/** Feet, rounded as a person says them: to 50 under a thousand, to 100 above. "500", "1,300". */
+function feetNumber(meters) {
+  const feet = meters * FEET_PER_METER;
+  const step = feet < 975 ? 50 : 100;
+  return grouped(Math.round(feet / step) * step);
+}
+
+/** Miles as a person says them: "a quarter mile", "half a mile", "0.3 miles", "1.2 miles", "12 miles". */
+function milesWords(meters) {
+  const miles = meters / METERS_PER_MILE;
+  if (Math.abs(miles - 0.25) <= 0.03) return 'a quarter mile';
+  if (Math.abs(miles - 0.5) <= 0.05) return 'half a mile';
+  if (Math.abs(miles - 0.75) <= 0.06) return 'three quarters of a mile';
+  const tenths = Math.round(miles * 10) / 10;
+  if (tenths < 10) return `${Number.isInteger(tenths) ? tenths : tenths.toFixed(1)} ${tenths === 1 ? 'mile' : 'miles'}`;
+  return `${grouped(Math.round(miles))} miles`;
+}
+
+/**
+ * A distance the way a person says it. Metric: "under 50 m", "120 m",
+ * "1.6 km", "3 km", "12 km", "1,578 km". Never "1578.0 km": a tenth of a
+ * kilometre is said only under ten, and a long number is grouped by
+ * thousands. Imperial (`units`, unitsForZone): "under 150 ft", "500 ft",
+ * "1,000 ft", then miles from about a fifth of one: "a quarter mile",
+ * "0.3 miles", "1.2 miles", "981 miles".
+ */
+export function distanceWords(meters, units = 'metric') {
   if (!Number.isFinite(meters)) return '';
+  if (units === 'imperial') {
+    if (meters * FEET_PER_METER < 150) return 'under 150 ft';
+    if (meters < 0.19 * METERS_PER_MILE) return `${feetNumber(meters)} ft`;
+    return milesWords(meters);
+  }
   if (meters < 50) return 'under 50 m';
   // 995 m and up is said in kilometres, so it is never "1000 m".
   if (meters < 995) return `${Math.round(meters / 10) * 10} m`;
   const tenths = Math.round(meters / 100) / 10;
   if (tenths < 10) return `${Number.isInteger(tenths) ? tenths : tenths.toFixed(1)} km`;
-  return `${String(Math.round(meters / 1000)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} km`;
+  return `${grouped(Math.round(meters / 1000))} km`;
 }
+
+/**
+ * From one distance out to another: "150 m to 400 m"; in the US "500 to
+ * 1,300 ft", or past a few hundred yards "a quarter mile to half a mile".
+ */
+function spanWords(from, to, units) {
+  if (units !== 'imperial') return `${from} m to ${to} m`;
+  if (to * FEET_PER_METER < 2000) return `${feetNumber(from)} to ${feetNumber(to)} ft`;
+  return `${distanceWords(from, units)} to ${distanceWords(to, units)}`;
+}
+
+const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 
@@ -206,16 +262,20 @@ const COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-we
  * sighting also says how far that is from where the pet was lost, given
  * both points (`lost`, `seen`): "Within 150 m of where Max was seen, 1.2
  * km north-east of where Max was lost". A helper handed it sees how far
- * they are being sent.
+ * they are being sent. In the US (`units` 'imperial') the same in feet and
+ * miles: "500 to 1,300 ft north of where Max was lost", "Within 500 ft of
+ * where Max was seen, three quarters of a mile north-east of where Max was
+ * lost".
  */
-export function reachOf(area, name = 'the pet', { lost = null, seen = null } = {}) {
+export function reachOf(area, name = 'the pet', { lost = null, seen = null, units = 'metric' } = {}) {
+  const within = (meters) => (units === 'imperial' ? distanceWords(meters, units) : `${meters} m`);
   if (area.ring === RING.SEEN) {
     const away = lost && seen ? distanceMeters(lost, seen) : NaN;
-    const from = away >= 50 ? `, ${distanceWords(away)} ${COMPASS[Math.round(bearingDegrees(lost, seen) / 45) % 8]} of where ${name} was lost` : '';
-    return `Within ${area.to} m of where ${name} was seen${from}`;
+    const from = away >= 50 ? `, ${distanceWords(away, units)} ${COMPASS[Math.round(bearingDegrees(lost, seen) / 45) % 8]} of where ${name} was lost` : '';
+    return `Within ${within(area.to)} of where ${name} was seen${from}`;
   }
-  if (area.from === 0) return `Within ${area.to} m of where ${name} was lost`;
-  return `${area.from} m to ${area.to} m ${area.way} of where ${name} was lost`;
+  if (area.from === 0) return `Within ${within(area.to)} of where ${name} was lost`;
+  return capital(`${spanWords(area.from, area.to, units)} ${area.way} of where ${name} was lost`);
 }
 
 /**
@@ -264,13 +324,13 @@ export function urgencyOf(area, center, { sightings = [], now = Date.now() } = {
  * circle with its minutes, its reach in words, its landmarks, its edge and
  * how urgent it is, most urgent first.
  */
-export function planCircle({ center, species, name = 'the pet', streets = [], sightings = [], widened = false, now = Date.now() }) {
+export function planCircle({ center, species, name = 'the pet', streets = [], sightings = [], widened = false, units = 'metric', now = Date.now() }) {
   if (!center || !Number.isFinite(center.lat) || !Number.isFinite(center.lng)) return { circle: null, areas: [] };
   const circle = circleFor(species);
   const areas = areasOf(circle, { widened }).map((area) => ({
     ...area,
     minutes: minutesFor(area, circle),
-    reach: reachOf(area, name),
+    reach: reachOf(area, name, { units }),
     landmarks: landmarksIn(area, center, streets),
     outline: outlineOf(area, center),
     heart: heartOf(area, center),

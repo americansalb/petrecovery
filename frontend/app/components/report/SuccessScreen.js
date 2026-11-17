@@ -3,14 +3,20 @@
 /**
  * SuccessScreen - the page after posting, for both reports.
  *
- * It answers the owner's questions in order. Is it live, and how do I get
- * back here: the link, which was emailed or texted. Is there a lead
- * already: a matching report nearby goes first. What do I do now: post
- * it, print it, call the shelters, each with the real thing inside (the
- * share image, the flyer, the numbers). What would make it better: the
- * questions left, one tap each. Then the one warning that matters once
- * the calls start, and the way to the pet's page. One yellow button per
- * screen.
+ * It covers the whole screen (app/report/layout.js), so the way out is
+ * pinned at its top and never scrolls away: for a lost pet, one yellow
+ * button to the pet's search, where the owner can search and see who is
+ * looking, and the pet's page beside it (founder, 2026-11-17, on a phone:
+ * "Terrible UX over the phone wow"; the page was nearly four screens long
+ * with its only way out at the bottom).
+ *
+ * Then it answers the owner's questions in order. Is it live, and how do
+ * I get back here: the lines say what was sent where. What do I do now:
+ * share the link, the first card. Is there a lead already: a matching
+ * report nearby. Everything else (post it, print it, call the shelters,
+ * the questions left, the warning about scams) is folded under one card
+ * that names what is in it, each with the real thing inside (the share
+ * image, the flyer, the numbers). One yellow button per screen.
  *
  * Lost: the kit arrives from useRecoveryKit as the cascade draws it, so
  * the tiles fill in while the owner reads. Found: the matches are the
@@ -114,6 +120,9 @@ const FLASH =
   'inline-flex items-center justify-center gap-2 min-h-[52px] rounded-xl bg-gradient-to-b from-flash-300 to-flash-400 px-4 text-[15px] font-extrabold text-midnight-900 hover:from-flash-400 hover:to-flash-500 transition-colors';
 const OUTLINE =
   'inline-flex items-center justify-center gap-2 min-h-[44px] rounded-xl border-2 border-midnight-300 bg-white px-3.5 text-[13px] font-bold text-midnight-900 hover:border-midnight-500 transition-colors';
+/** A second button on the dark bar: outlined, never yellow. */
+const ON_DARK =
+  'inline-flex items-center justify-center gap-2 min-h-[52px] rounded-xl border-2 border-midnight-600 px-4 text-center text-[15px] font-bold leading-tight text-white hover:border-midnight-400 transition-colors';
 const SPECIES_WORD = { DOG: 'dog', CAT: 'cat', BIRD: 'bird', RABBIT: 'rabbit', OTHER: 'pet' };
 
 function useShareLink(caseNumber) {
@@ -134,8 +143,36 @@ function useShareLink(caseNumber) {
   return { url, label, canShare, share };
 }
 
-function Header({ variant, title, link, lines, aside }) {
-  const theme = WIZARD_THEMES[variant];
+/**
+ * The way out, pinned at the top of the screen: it does not scroll with the page. A lost pet's search is the
+ * yellow button, the pet's page the second. A found report has its page, and no search.
+ */
+function Exits({ lost, name, caseNumber }) {
+  const page = `/cases/${encodeURIComponent(caseNumber)}`;
+  return (
+    <nav aria-label="Where to go from here" className="shrink-0 border-b border-midnight-800 bg-midnight-900 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-8">
+      <div className="mx-auto flex max-w-6xl gap-2.5">
+        {lost ? (
+          <>
+            <Link href={`/mission-control?mission=${encodeURIComponent(caseNumber)}`} className={`${FLASH} min-w-0 flex-[3] text-center leading-tight lg:flex-none lg:px-6`}>
+              Go to {name}&apos;s search
+            </Link>
+            <Link href={page} className={`${ON_DARK} min-w-0 flex-[2] lg:flex-none`}>
+              Open {name}&apos;s page
+            </Link>
+          </>
+        ) : (
+          <Link href={page} className={`${ON_DARK} flex-1 lg:flex-none`}>
+            Open the report page
+          </Link>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+/** The link to the pet's page, written out so it can be read and kept, with a way to copy it. */
+function LinkRow({ link, copyButton = true }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     try {
@@ -146,42 +183,122 @@ function Header({ variant, title, link, lines, aside }) {
       /* ignore */
     }
   };
-  const linkRow = link.url ? (
-    <div className="flex items-center gap-2 rounded-xl border border-midnight-700 bg-midnight-800 py-1 pl-3.5 pr-1.5">
+  if (!link.url) return null;
+  return (
+    <div className="flex min-h-[48px] items-center gap-2 rounded-xl border border-midnight-200 bg-midnight-50 py-1 pl-3.5 pr-1.5">
+      <span className="min-w-0 flex-1 truncate font-mono text-[15px] font-semibold text-midnight-900">{link.label}</span>
+      {copyButton && (
+        <button type="button" onClick={copy} className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 px-2 text-[13px] font-bold text-midnight-900">
+          {copied ? <Check size={16} /> : <Copy size={16} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** The first card: the link to share, and the buttons that share it. */
+function ShareCard({ name, link, title }) {
+  const facebook = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`;
+  return (
+    <section className={`${CARD} flex min-w-0 flex-col gap-3`} aria-labelledby="share-heading">
+      <h2 id="share-heading" className="text-[19px] font-extrabold leading-6 text-midnight-900">
+        Share {name}&apos;s link
+      </h2>
+      <p className={BODY}>Text it to neighbors and post it in local groups. Anyone who opens it can tell you where they saw {name}.</p>
+      {/* With no share sheet the main button copies, so the row does not carry a second copy button. */}
+      <LinkRow link={link} copyButton={link.canShare} />
+      <div className="flex gap-2.5">
+        <button type="button" onClick={() => link.share(title)} className={`${NAVY} flex-1 whitespace-nowrap`}>
+          {link.canShare ? <Share2 size={17} /> : <Copy size={17} />}
+          {link.canShare ? 'Share the link' : 'Copy the link'}
+        </button>
+        <a href={facebook} target="_blank" rel="noopener noreferrer" className={`${OUTLINE} min-h-[52px] px-4 text-[15px]`}>
+          Facebook
+        </a>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Everything after the first card, folded: one card that names what is in it, a few words a line, and opens it.
+ * Nobody reads four screens on a phone straight after posting (founder, 2026-11-17).
+ */
+function More({ items, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <section className={CARD}>
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-h-[44px] w-full items-start justify-between gap-3 text-left">
+          <span className="min-w-0">
+            <span className="block text-[19px] font-extrabold leading-6 text-midnight-900">More you can do now</span>
+            <span className="mt-1.5 block space-y-0.5 text-[15px] leading-snug text-midnight-600">
+              {items.map((item) => (
+                <span key={item} className="block">
+                  {item}
+                </span>
+              ))}
+            </span>
+          </span>
+          <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 text-[15px] font-bold text-midnight-900">
+            {open ? 'Hide' : 'Show'}
+            {open ? <ChevronUp size={18} aria-hidden="true" /> : <ChevronDown size={18} aria-hidden="true" />}
+          </span>
+        </button>
+      </section>
+      {open && children}
+    </>
+  );
+}
+
+/**
+ * What happened, under the bar. A found report's link is here, under its title, where its lines say it is
+ * ("Copy it above"); a lost pet's is the first card below, where its lines say it is.
+ */
+function Header({ variant, title, lines, link = null }) {
+  const theme = WIZARD_THEMES[variant];
+  return (
+    <header className="bg-midnight-900 text-white">
+      <div className="mx-auto max-w-6xl space-y-3 px-5 pb-5 pt-4 sm:px-8 lg:space-y-3.5 lg:pb-9 lg:pt-8">
+        <div className="flex items-center gap-2.5">
+          <span className={`inline-block rounded-md px-2.5 py-0.5 font-mono text-[11px] font-black uppercase tracking-[0.16em] -rotate-2 ${theme.stampChip}`}>
+            {theme.stamp}
+          </span>
+        </div>
+        <h1 className="text-[25px] font-extrabold leading-8 tracking-tight lg:text-[34px] lg:leading-10">{title}</h1>
+        {link && <DarkLinkRow link={link} />}
+        {lines.map((line, i) => (
+          <p key={i} className="text-[15px] leading-[22px] text-midnight-300 lg:text-[17px] lg:leading-relaxed">
+            {line}
+          </p>
+        ))}
+      </div>
+    </header>
+  );
+}
+
+/** A found report's link on the dark header, with a way to copy it. */
+function DarkLinkRow({ link }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    try {
+      navigator.clipboard?.writeText(link.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* ignore */
+    }
+  };
+  if (!link.url) return null;
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-midnight-700 bg-midnight-800 py-1 pl-3.5 pr-1.5 lg:max-w-md">
       <span className="min-w-0 flex-1 truncate font-mono text-[15px] font-semibold text-white">{link.label}</span>
-      <button
-        type="button"
-        onClick={copy}
-        className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 px-2 text-[13px] font-bold text-flash-400"
-      >
+      <button type="button" onClick={copy} className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 px-2 text-[13px] font-bold text-flash-400">
         {copied ? <Check size={16} /> : <Copy size={16} />}
         {copied ? 'Copied' : 'Copy'}
       </button>
     </div>
-  ) : null;
-  return (
-    <header className="bg-midnight-900 text-white">
-      <div className="mx-auto max-w-6xl px-5 pt-[max(2.75rem,env(safe-area-inset-top))] pb-6 sm:px-8 lg:grid lg:grid-cols-[1fr_420px] lg:items-start lg:gap-12 lg:pt-10 lg:pb-9">
-        <div className="space-y-3.5">
-          <div className="flex items-center gap-2.5">
-            <span className={`inline-block rounded-md px-2.5 py-0.5 font-mono text-[11px] font-black uppercase tracking-[0.16em] -rotate-2 ${theme.stampChip}`}>
-              {theme.stamp}
-            </span>
-          </div>
-          <h1 className="text-[27px] font-extrabold leading-8 tracking-tight lg:text-[34px] lg:leading-10">{title}</h1>
-          <div className="lg:hidden">{linkRow}</div>
-          {lines.map((line, i) => (
-            <p key={i} className="text-[15px] leading-relaxed text-midnight-300 lg:text-[17px]">
-              {line}
-            </p>
-          ))}
-        </div>
-        <div className="hidden lg:block space-y-2.5">
-          {linkRow}
-          {aside}
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -332,24 +449,21 @@ function FoundNearby({ matches, name, word }) {
   );
 }
 
-function Footer({ caseUrl, label, note, isLoggedIn }) {
+/** The last line: a note, and the dashboard for someone signed in. The report's page is in the bar pinned at the top. */
+function Footer({ note, isLoggedIn }) {
+  if (!note && !isLoggedIn) return null;
   return (
-    <div className="pt-1">
-      <Link href={caseUrl} className={`${NAVY} w-full min-h-[54px] text-[17px] font-extrabold`}>
-        {label}
-      </Link>
-      <p className="mt-3 text-center text-[15px] leading-relaxed text-midnight-600">
-        {note}
-        {isLoggedIn && (
-          <>
-            {' '}
-            <Link href="/dashboard" className="font-bold text-midnight-900 underline underline-offset-4 decoration-midnight-300">
-              Back to dashboard
-            </Link>
-          </>
-        )}
-      </p>
-    </div>
+    <p className="pt-1 text-center text-[15px] leading-relaxed text-midnight-600">
+      {note}
+      {isLoggedIn && (
+        <>
+          {' '}
+          <Link href="/dashboard" className="inline-flex min-h-[44px] items-center font-bold text-midnight-900 underline underline-offset-4 decoration-midnight-300">
+            Back to dashboard
+          </Link>
+        </>
+      )}
+    </p>
   );
 }
 
@@ -358,7 +472,6 @@ function LostBody({
 }) {
   const { kit, working, refetch } = useRecoveryKit(caseNumber, { initialStatus: activation?.status || 'PENDING' });
   const [allShelters, setAllShelters] = useState(false);
-  const caseUrl = `/cases/${caseNumber}`;
   const social = kit?.assets?.social || [];
   const flyers = kit?.assets?.flyers || [];
   const square = social.find((s) => s.kind === 'SOCIAL_SQUARE');
@@ -370,149 +483,137 @@ function LostBody({
   const caption = kit?.copy?.captions?.facebook || '';
   const matches = kit?.matches || [];
   const shelters = kit?.shelters || [];
-  const facebook = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`;
-  const shareIsPrimary = matches.length === 0;
+  const hub = Boolean(caseId && (detailsToken || isLoggedIn));
+  // What the fold holds, a few words a line, so the owner knows what is under it without opening it.
+  const more = ['Post it where neighbors look', 'Print the flyer', 'Call the shelters near the spot', ...(hub ? ['Make the flyer stronger'] : []), 'Before the calls start'];
 
   return (
     <>
+      <ShareCard name={name} link={link} title={`Help find ${name}`} />
       {matches.length > 0 && <FoundNearby matches={matches} name={name} word={word} />}
-      <p className={`${EYEBROW} pl-1`}>Do this now</p>
-      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5 lg:items-stretch">
-        <StepCard n={1} title="Post it where neighbors look">
-          <p className={BODY}>Facebook, Nextdoor, the neighborhood group chat. One share often reaches the person who sees {name}.</p>
-          <div className="flex items-start gap-3">
-            <SocialTile asset={square} working={working} redrawing={redrawing} petName={name} />
-            {story?.url && (
-              <a href={story.url} target="_blank" rel="noopener noreferrer" download className="block w-[84px]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={story.url} alt={`Story share image for ${name}`} className="h-[150px] w-[84px] rounded-lg border border-midnight-200 object-cover" />
-                <span className="mt-1.5 block text-center text-[13px] font-bold text-midnight-700">Story size</span>
-              </a>
-            )}
-          </div>
-          {!working && !square?.url && letter && <RedrawButton redraw={redraw} />}
-          {caption && (
-            <div className="min-w-0 space-y-2 rounded-xl bg-midnight-50 p-3">
-              <p className={EYEBROW}>Your post</p>
-              <p className="line-clamp-3 text-[14px] leading-snug text-midnight-900 [overflow-wrap:anywhere]">{caption}</p>
-              <CopyButton text={caption} label="Copy post" />
-            </div>
-          )}
-          <div className="flex gap-2.5">
-            <button
-              type="button"
-              onClick={() => link.share(`Help find ${name}`)}
-              className={`${shareIsPrimary ? FLASH : NAVY} flex-1 whitespace-nowrap`}
-            >
-              {link.canShare ? <Share2 size={17} /> : <Copy size={17} />}
-              {link.canShare ? 'Share the link' : 'Copy the link'}
-            </button>
-            <a href={facebook} target="_blank" rel="noopener noreferrer" className={`${OUTLINE} min-h-[52px] px-4 text-[15px]`}>
-              Facebook
-            </a>
-          </div>
-          {kit?.shareTargets?.length > 0 && (
-            <div className="border-t border-midnight-100 pt-1 lg:mt-auto">
-              <LocalGroups targets={kit.shareTargets} caption={caption} />
-            </div>
-          )}
-        </StepCard>
-
-        <StepCard n={2} title="Print the flyer and put it up">
-          <div className="flex items-start gap-3.5">
-            <div className="w-[120px] shrink-0 overflow-hidden rounded-md shadow-card">
-              <FlyerPreview {...flyer} variant="lost" width={120} />
-            </div>
-            <div className="min-w-0 flex-1 space-y-2">
-              <p className={BODY}>Letter with tear-off tabs, two half sheets, an 11 by 17 poster. Each has the map and the QR code back to {name}&apos;s page.</p>
-              <p className="text-[13px] leading-snug text-midnight-600">Corners, mailboxes, store windows, at eye level.</p>
-            </div>
-          </div>
-          {letter ? (
-            <a href={letter.url} target="_blank" rel="noopener noreferrer" className={NAVY}>
-              <Printer size={17} />
-              Open the flyer (PDF)
-            </a>
-          ) : (
-            <>
-              <p className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-midnight-50 px-4 text-[14px] font-semibold text-midnight-500">
-                {(working || redrawing) && <Loader2 size={16} className="animate-spin" />}
-                {working ? KIT_WORDS.flyerDrawing : redrawing ? KIT_WORDS.flyerRedrawing : KIT_WORDS.flyerMissing}
-              </p>
-              {!working && <RedrawButton redraw={redraw} />}
-            </>
-          )}
-        </StepCard>
-
-        <StepCard n={3} title="Call the shelters near the spot today">
-          <p className={BODY}>Ask them to note {name}&apos;s report and your number. Call again in two days.</p>
-          {shelters.length > 0 ? (
-            <div>
-              {(allShelters ? shelters : shelters.slice(0, 3)).map((s, i) => (
-                <div key={`${s.name}-${i}`} className="flex items-center gap-3 border-t border-midnight-100 py-2.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-bold text-midnight-900">{s.name}</p>
-                    <p className="truncate text-[13px] text-midnight-500">
-                      {s.address}
-                      {s.distanceMi != null ? `, ${s.distanceMi} mi` : ''}
-                    </p>
-                  </div>
-                  {s.phone && (
-                    <a href={`tel:${s.phone}`} className={`${NAVY} min-h-[44px] px-3.5 text-[13px]`}>
-                      <Phone size={14} />
-                      Call
-                    </a>
-                  )}
-                </div>
-              ))}
-              {shelters.length > 3 && (
-                <button
-                  type="button"
-                  onClick={() => setAllShelters((a) => !a)}
-                  className="flex min-h-[44px] w-full items-center justify-center border-t border-midnight-100 text-[15px] font-bold text-midnight-900 underline underline-offset-4 decoration-midnight-300"
-                >
-                  {allShelters ? 'Fewer' : `All ${shelters.length} shelters`}
-                </button>
+      <More items={more}>
+        <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5 lg:items-stretch">
+          <StepCard n={1} title="Post it where neighbors look">
+            <p className={BODY}>Facebook, Nextdoor, the neighborhood group chat. One share often reaches the person who sees {name}.</p>
+            <div className="flex items-start gap-3">
+              <SocialTile asset={square} working={working} redrawing={redrawing} petName={name} />
+              {story?.url && (
+                <a href={story.url} target="_blank" rel="noopener noreferrer" download className="block w-[84px]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={story.url} alt={`Story share image for ${name}`} className="h-[150px] w-[84px] rounded-lg border border-midnight-200 object-cover" />
+                  <span className="mt-1.5 block text-center text-[13px] font-bold text-midnight-700">Story size</span>
+                </a>
               )}
             </div>
-          ) : kit?.sheltersGuidance ? (
-            <p className={BODY}>{kit.sheltersGuidance}</p>
+            {!working && !square?.url && letter && <RedrawButton redraw={redraw} />}
+            {caption && (
+              <div className="min-w-0 space-y-2 rounded-xl bg-midnight-50 p-3">
+                <p className={EYEBROW}>Your post</p>
+                <p className="line-clamp-3 text-[14px] leading-snug text-midnight-900 [overflow-wrap:anywhere]">{caption}</p>
+                <CopyButton text={caption} label="Copy post" />
+              </div>
+            )}
+            {kit?.shareTargets?.length > 0 && (
+              <div className="border-t border-midnight-100 pt-1 lg:mt-auto">
+                <LocalGroups targets={kit.shareTargets} caption={caption} />
+              </div>
+            )}
+          </StepCard>
+
+          <StepCard n={2} title="Print the flyer and put it up">
+            <div className="flex items-start gap-3.5">
+              <div className="w-[120px] shrink-0 overflow-hidden rounded-md shadow-card">
+                <FlyerPreview {...flyer} variant="lost" width={120} />
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                <p className={BODY}>Letter with tear-off tabs, two half sheets, an 11 by 17 poster. Each has the map and the QR code back to {name}&apos;s page.</p>
+                <p className="text-[13px] leading-snug text-midnight-600">Corners, mailboxes, store windows, at eye level.</p>
+              </div>
+            </div>
+            {letter ? (
+              <a href={letter.url} target="_blank" rel="noopener noreferrer" className={NAVY}>
+                <Printer size={17} />
+                Open the flyer (PDF)
+              </a>
+            ) : (
+              <>
+                <p className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-midnight-50 px-4 text-[14px] font-semibold text-midnight-500">
+                  {(working || redrawing) && <Loader2 size={16} className="animate-spin" />}
+                  {working ? KIT_WORDS.flyerDrawing : redrawing ? KIT_WORDS.flyerRedrawing : KIT_WORDS.flyerMissing}
+                </p>
+                {!working && <RedrawButton redraw={redraw} />}
+              </>
+            )}
+          </StepCard>
+
+          <StepCard n={3} title="Call the shelters near the spot today">
+            <p className={BODY}>Ask them to note {name}&apos;s report and your number. Call again in two days.</p>
+            {shelters.length > 0 ? (
+              <div>
+                {(allShelters ? shelters : shelters.slice(0, 3)).map((s, i) => (
+                  <div key={`${s.name}-${i}`} className="flex items-center gap-3 border-t border-midnight-100 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-bold text-midnight-900">{s.name}</p>
+                      <p className="truncate text-[13px] text-midnight-500">
+                        {s.address}
+                        {s.distanceMi != null ? `, ${s.distanceMi} mi` : ''}
+                      </p>
+                    </div>
+                    {s.phone && (
+                      <a href={`tel:${s.phone}`} className={`${NAVY} min-h-[44px] px-3.5 text-[13px]`}>
+                        <Phone size={14} />
+                        Call
+                      </a>
+                    )}
+                  </div>
+                ))}
+                {shelters.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setAllShelters((a) => !a)}
+                    className="flex min-h-[44px] w-full items-center justify-center border-t border-midnight-100 text-[15px] font-bold text-midnight-900 underline underline-offset-4 decoration-midnight-300"
+                  >
+                    {allShelters ? 'Fewer' : `All ${shelters.length} shelters`}
+                  </button>
+                )}
+              </div>
+            ) : kit?.sheltersGuidance ? (
+              <p className={BODY}>{kit.sheltersGuidance}</p>
+            ) : (
+              <p className="flex items-center gap-2 text-[14px] text-midnight-500">
+                {working && <Loader2 size={16} className="animate-spin" />}
+                {working ? KIT_WORDS.sheltersFinding : KIT_WORDS.sheltersMissing}
+              </p>
+            )}
+          </StepCard>
+        </div>
+
+        <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:gap-5">
+          {hub ? (
+            <DetailsHub
+              caseId={caseId}
+              token={detailsToken}
+              species={species}
+              name={name}
+              details={details}
+              breed={breed}
+              title="Make the flyer stronger"
+              intro={`One tap each. Each answer goes on ${name}'s flyer and page within a minute.`}
+              limit={3}
+            />
           ) : (
-            <p className="flex items-center gap-2 text-[14px] text-midnight-500">
-              {working && <Loader2 size={16} className="animate-spin" />}
-              {working ? KIT_WORDS.sheltersFinding : KIT_WORDS.sheltersMissing}
-            </p>
+            <div className="hidden lg:block" />
           )}
-        </StepCard>
-      </div>
+          <ScamNote compact title="Before the calls start" />
+        </div>
+      </More>
 
-      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr] lg:gap-5">
-        {caseId && (detailsToken || isLoggedIn) ? (
-          <DetailsHub
-            caseId={caseId}
-            token={detailsToken}
-            species={species}
-            name={name}
-            details={details}
-            breed={breed}
-            title="Make the flyer stronger"
-            intro={`One tap each. Each answer goes on ${name}'s flyer and page within a minute.`}
-            limit={3}
-          />
-        ) : (
-          <div className="hidden lg:block" />
-        )}
-        <ScamNote compact title="Before the calls start" />
-      </div>
-
-      <Footer caseUrl={caseUrl} label={`Open ${name}'s page`} note="Sightings, the map and your tools live there." isLoggedIn={isLoggedIn} />
-
+      <Footer note="" isLoggedIn={isLoggedIn} />
     </>
   );
 }
 
-function FoundBody({ caseNumber, word, matches, isLoggedIn, link, replyNote }) {
-  const caseUrl = `/cases/${caseNumber}`;
+function FoundBody({ word, matches, isLoggedIn, link, replyNote }) {
   const facebook = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`;
   const shown = matches.slice(0, 5);
   return (
@@ -583,7 +684,7 @@ function FoundBody({ caseNumber, word, matches, isLoggedIn, link, replyNote }) {
         </StepCard>
       </div>
 
-      <Footer caseUrl={caseUrl} label="Open the report page" note={replyNote || ''} isLoggedIn={isLoggedIn} />
+      <Footer note={replyNote || ''} isLoggedIn={isLoggedIn} />
     </>
   );
 }
@@ -629,7 +730,8 @@ export default function SuccessScreen({
           {assignedSquad?.id && (
             <>
               {' '}
-              <Link href={`/rescue-forces/${assignedSquad.id}`} className="font-semibold text-white underline underline-offset-4 decoration-midnight-500">
+              {/* A whole finger's height, not the height of the line of text it sits in. */}
+              <Link href={`/rescue-forces/${assignedSquad.id}`} className="inline-flex min-h-[44px] items-center align-middle font-semibold text-white underline underline-offset-4 decoration-midnight-500">
                 See the force
               </Link>
             </>
@@ -650,43 +752,37 @@ export default function SuccessScreen({
   if (!caseNumber) {
     return (
       <div className="flex-1 overflow-y-auto">
-        <Header variant={variant} title={lost ? `${name}'s report is live.` : 'Thank you. The report is live.'} link={link} lines={lines} />
+        <Header variant={variant} title={lost ? `${name}'s report is live.` : 'Thank you. The report is live.'} lines={lines} />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-midnight-50 animate-slide-up">
-      <Header
-        variant={variant}
-        title={lost ? `${name}'s report is live.` : 'Thank you. The report is live.'}
-        link={link}
-        lines={lines}
-        aside={
-          <Link href={`/cases/${caseNumber}`} className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border-2 border-midnight-600 px-4 text-[15px] font-bold text-white hover:border-midnight-400 transition-colors">
-            {lost ? `Open ${name}'s page` : 'Open the report page'}
-          </Link>
-        }
-      />
-      <div className="mx-auto max-w-6xl space-y-4 px-4 py-4 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-8 lg:space-y-5 lg:py-7">
-        {lost ? (
-          <LostBody
-            caseNumber={caseNumber}
-            caseId={caseId}
-            name={name}
-            word={word}
-            species={species}
-            breed={breed}
-            details={details}
-            detailsToken={detailsToken}
-            isLoggedIn={isLoggedIn}
-            activation={activation}
-            flyer={flyer}
-            link={link}
-          />
-        ) : (
-          <FoundBody caseNumber={caseNumber} word={word} matches={matches} isLoggedIn={isLoggedIn} link={link} replyNote={replyNote} />
-        )}
+    <div className="flex min-h-0 flex-1 flex-col bg-midnight-900">
+      {/* Pinned: the page scrolls under it, so the way out is always on the screen. */}
+      <Exits lost={lost} name={name} caseNumber={caseNumber} />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-midnight-50 animate-slide-up">
+        <Header variant={variant} title={lost ? `${name}'s report is live.` : 'Thank you. The report is live.'} lines={lines} link={lost ? null : link} />
+        <div className="mx-auto max-w-6xl space-y-4 px-4 py-4 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-8 lg:space-y-5 lg:py-7">
+          {lost ? (
+            <LostBody
+              caseNumber={caseNumber}
+              caseId={caseId}
+              name={name}
+              word={word}
+              species={species}
+              breed={breed}
+              details={details}
+              detailsToken={detailsToken}
+              isLoggedIn={isLoggedIn}
+              activation={activation}
+              flyer={flyer}
+              link={link}
+            />
+          ) : (
+            <FoundBody word={word} matches={matches} isLoggedIn={isLoggedIn} link={link} replyNote={replyNote} />
+          )}
+        </div>
       </div>
     </div>
   );

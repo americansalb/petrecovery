@@ -26,6 +26,7 @@ import { Check, Eye } from 'lucide-react';
 import { dayAndTime, clockTime, placeWords } from '../lib/words';
 import { directionWord, lookFirst, metersWords, stateWords } from '../lib/insight';
 import { distanceMeters } from '@/app/lib/searchGrid';
+import { unitsForZone } from '@/app/lib/searchCircle';
 import People from './People';
 import Messages from './Messages';
 import Ground from './Ground';
@@ -80,6 +81,7 @@ function Streets({ picture, items, unit, next, selected, hovered, onSelect, onHo
   const [show, setShow] = useState('all');
   const thing = unit === 'block' ? 'block' : 'street';
   const origin = picture.lastSeen && Number.isFinite(picture.lastSeen.lat) ? picture.lastSeen : null;
+  const units = unitsForZone(picture.timeZone);
   const open = lookFirst(items);
   const walking = items.filter((i) => i.status === 'IN_PROGRESS');
   const walked = items.filter((i) => i.status === 'SEARCHED').sort((a, b) => new Date(b.searchedAt) - new Date(a.searchedAt));
@@ -124,7 +126,7 @@ function Streets({ picture, items, unit, next, selected, hovered, onSelect, onHo
         {rows.map((street) => {
           const on = street.id === selected;
           const away = origin && street.center ? distanceMeters(origin, street.center) : NaN;
-          const where = Number.isFinite(away) ? (away < 50 ? 'where lost' : `${metersWords(away)} ${directionWord(origin, street.center)}`) : '';
+          const where = Number.isFinite(away) ? (away < 50 ? 'where lost' : `${metersWords(away, units)} ${directionWord(origin, street.center)}`) : '';
           return (
             <li key={street.id} ref={on ? picked : null}>
               <button

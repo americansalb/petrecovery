@@ -30,9 +30,10 @@
  * that is what the desk reads as "seen".
  */
 import { useEffect, useRef, useState } from 'react';
-import { ChevronUp, Share2, TriangleAlert } from 'lucide-react';
+import { ChevronDown, ChevronUp, Share2, TriangleAlert } from 'lucide-react';
 import Sarama, { Paws, Trail, SaramaPose } from '../components/Sarama';
 import Gear from '../components/Gear';
+import ReadSheet from '../components/ReadSheet';
 import { SARAMA } from '../lib/sarama';
 import { PAWS } from '@/app/lib/trail';
 import { SAFETY_RULES, SAFETY_AGREEMENT, searchTraining } from '@/app/lib/safetyRules';
@@ -226,12 +227,6 @@ function Debrief({ onSend, paws = PAWS.DEBRIEF }) {
 }
 
 /**
- * What anyone with the link sees: the streets, and two buttons. For
- * someone the person running the search has asked to walk a street
- * (`asked`), the same card says which street and whose ask it is, and its
- * one button starts it.
- */
-/**
  * The tasks anyone can help with besides searching ground: flyers, posts and door to door, once whoever runs
  * the search has put them on the list (app/lib/searchTasks.js). Each comes with what the site made for it, so
  * someone going door to door has the half sheets to hand out (founder, 2026-11-13: "Door to door people need
@@ -258,7 +253,21 @@ function Ways({ ways = [], owner, className = '' }) {
   );
 }
 
-export function Main({ picture, name, owner, unit, items, counts, minutes, done, donePaws = PAWS.SEARCH, doneTakes = null, stopped = false, onDebrief = null, trail = null, ways = [], instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
+/**
+ * What anyone with the link sees: the ground, and two buttons. For
+ * someone the person running the search has asked to search an area or
+ * walk a street (`asked`), the same card says which and whose ask it is,
+ * and its one button starts it.
+ *
+ * The same card thanks someone. After "I searched it" (`done`): their own
+ * first name, the area and when it was searched (never a bare "searched"),
+ * the debrief, and two ways on: another area, or "I'm done for now". After
+ * "I am stopping" or "I'm done for now" (`stopped`): a short card that
+ * thanks them, says how to send the link on, and has a quiet way back in.
+ * Both used to be the card that asks people to help, as if they had not
+ * (founder, on the phone: "Terrible UX over the phone wow").
+ */
+export function Main({ picture, name, owner, viewer = null, unit, items, counts, minutes, done, doneAt = null, donePaws = PAWS.SEARCH, stopped = false, onDebrief = null, onStop = null, trail = null, ways = [], instrument, onWalk, onSeen, onShare, busy, problem, qr, asked = null, onCannot = null, onAskShown = null, said = [], saidLine = '', onSay = null, onShown = null, onPutAway = null, now }) {
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
   const hasBoard = items.length > 0;
@@ -270,24 +279,21 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
   // The card says when it has shown the ask, which is what the desk reads as "seen": a phone that only fetched
   // it, or a computer that does not show it, says nothing.
   useShown(ask && ask.askedSeen === false ? ask.id : null, onAskShown, beatOf(now));
+  // An area just searched: the card that says thank you, with the debrief.
+  const thanks = Boolean(!ask && done && ground);
+  // They have had enough for now: thanked, and not asked again to help.
+  const closing = Boolean(!ask && !done && stopped);
+  const first = String(viewer?.firstName || '').trim().split(/\s+/)[0];
+  // When the area was searched, as the record has it: a search is never shown without its time.
+  const doneWhen = doneAt ? whenWords(doneAt, picture.timeZone, Math.max(now || 0, doneAt)) : '';
   // An area searched that left paw prints. One far shorter than the area takes leaves none (app/lib/trail.js), and
-  // she does not cheer it: she says why, and how long the area takes.
+  // she does not cheer it.
   const cheer = Boolean(done && ground && donePaws > 0);
-  const saramaSays = cheer
-    ? SARAMA.done(donePaws)
-    : done && ground
-      ? SARAMA.short(doneTakes)
-      : ask
-        ? null
-        : stopped
-          ? SARAMA.stopped(name)
-          : trail?.mine?.paws > 0 || done
-            ? null
-            : brief.own;
+  const saramaSays = cheer ? SARAMA.done(donePaws) : ask || done || stopped || trail?.mine?.paws > 0 ? null : brief.own;
   return (
     <>
-      <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>
-      <Heading className="mt-1">{ask ? (ground ? `Search ${areaName(ask)}` : `Walk ${ask.name}`) : `Help look for ${name}`}</Heading>
+      {!thanks && !closing && <Eyebrow>{ask ? `${asker} asked you` : lookingLine(picture.looking?.helpers || 0)}</Eyebrow>}
+      <Heading className="mt-1">{ask ? (ground ? `Search ${areaName(ask)}` : `Walk ${ask.name}`) : thanks ? (first ? `Thank you, ${first}` : 'Thank you') : closing ? `Thank you for looking for ${name}` : `Help look for ${name}`}</Heading>
       {ask ? (
         <>
           <Lead className="mt-1.5">
@@ -303,16 +309,19 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
           {/* Before they say yes: what the map shows there. */}
           {ground && <Care area={ask} className="mt-3" />}
         </>
-      ) : done && ground ? (
+      ) : thanks ? (
         <>
-        <Lead className="mt-1.5">
-          {/* No count of areas "searched so far": a search fades over a day, so a count of every area ever searched is
-              not what is true now. What is, the areas searched in the last 12 hours, is the trail's goal under this card. */}
-          {done} is searched. Thank you.
-        </Lead>
-        {/* The debrief: what a search is worth depends on how much of the ground was covered. */}
-        {onDebrief && <Debrief key={done} onSend={onDebrief} paws={donePaws > 0 ? PAWS.DEBRIEF : 0} />}
+          <Lead className="mt-1.5">
+            {/* With its time, as the record keeps it. No count of areas "searched so far": a search fades over a day, so
+                a count of every area ever searched is not what is true now. What is, the areas searched in the last 12
+                hours, is the trail's goal under this card. */}
+            {done} searched {doneWhen || 'just now'}.
+          </Lead>
+          {/* The debrief: what a search is worth depends on how much of the ground was covered. */}
+          {onDebrief && <Debrief key={done} onSend={onDebrief} paws={donePaws > 0 ? PAWS.DEBRIEF : 0} />}
         </>
+      ) : closing ? (
+        <Lead className="mt-1.5">Send the link to neighbors. It shows them where to look and how to send a sighting.</Lead>
       ) : done ? (
         <Lead className="mt-1.5">
           {done} is searched. Thank you. {counts.searched} of {counts.total} {thing}s {counts.searched === 1 ? 'is' : 'are'} searched so far.
@@ -331,18 +340,20 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
         <Lead className="mt-1.5">If you see {name}, send where. It reaches {owner?.firstName || 'the owner'} at once.</Lead>
       )}
       {/* Sarama, under the card's own heading, only where she says what the card does not (founder, 2026-11-17:
-          "saRama keeps getting in the way"): she cheers an area searched, says why a very short one left no paw
-          prints, thanks someone who stopped, and tells a newcomer where to look first, the brief word for word.
-          What to do on seeing the pet is on the map above, in the brief's own first sentence. No greeting, no "who
-          asked" (the line above says it) and nothing to someone coming back. Not on a desk. */}
+          "saRama keeps getting in the way"): she cheers an area searched that left paw prints, and tells a newcomer
+          where to look first, the brief word for word. A search far shorter than the area takes left no prints, and
+          no prints is enough: she says nothing of it. What to do on seeing the pet is on the map above, in the
+          brief's own first sentence. No greeting, no "who asked" (the line above says it), no thanks the heading
+          already says, and nothing to someone coming back. Not on a desk. */}
       {!desk && saramaSays && (
         <Sarama className="mt-3" pose={cheer ? 'cheer' : saramaSays === brief.own ? 'sniff' : 'sit'} say={saramaSays} />
       )}
       {cheer && <Paws count={donePaws} className="mt-2" />}
-      {/* The game: their own paw prints and rank, the team's, and the goal everyone shares. Not on a desk, which is handed no ground. */}
-      {ground && !desk && <Trail trail={trail} items={items} name={name} now={now} className="mt-3" />}
+      {/* The game: their own paw prints and rank, the team's, and the goal everyone shares. Not on a desk, which is
+          handed no ground, and not on the short card that thanks someone who has had enough for now. */}
+      {ground && !desk && !closing && <Trail trail={trail} items={items} name={name} now={now} className="mt-3" />}
       {/* What else whoever runs the search has put on the list that needs no ground, each with the file the site made for it. */}
-      {!desk && !ask && <Ways ways={ways} owner={owner} className="mt-3" />}
+      {!desk && !ask && !closing && <Ways ways={ways} owner={owner} className="mt-3" />}
       {/* With an ask on the card too: a word written to this person is always where they can read it. */}
       <Said said={said} line={saidLine} picture={picture} now={now} onSay={onSay} onShown={onShown} onPutAway={onPutAway} also={ask?.id || null} />
       {/* On a phone the buttons stay on the screen, whatever was said above them. */}
@@ -358,15 +369,27 @@ export function Main({ picture, name, owner, unit, items, counts, minutes, done,
             </div>
           )
         ) : (
-          hasBoard && (
-            <Primary onClick={onWalk} busy={busy}>
-              {ask ? 'Start' : ground ? (done ? 'I can search another area' : 'I can search an area') : done ? `I can walk another ${thing}` : `I can walk a ${thing}`}
+          (closing || hasBoard) && (
+            // Someone who has had enough for now is not asked to search again: the one thing left to do is send the link on.
+            <Primary onClick={closing ? onShare : onWalk} busy={!closing && busy} icon={closing ? Share2 : undefined}>
+              {closing ? 'Share the link' : ask ? 'Start' : ground ? (done ? 'Search another area' : 'I can search an area') : done ? `I can walk another ${thing}` : `I can walk a ${thing}`}
             </Primary>
           )
         )}
-        <SeenButton name={name} onClick={onSeen} className={desk || hasBoard ? 'mt-2.5' : ''} />
+        <SeenButton name={name} onClick={onSeen} className={desk || hasBoard || closing ? 'mt-2.5' : ''} />
+        {/* The other way on from the thanks, kept beside "Search another area" so both are on the screen at once. It
+            does what "I am stopping" does. */}
+        {thanks && onStop && (
+          <div className="flex justify-center">
+            <QuietLink onClick={onStop} className="!min-h-[40px]">
+              I&apos;m done for now
+            </QuietLink>
+          </div>
+        )}
       </Pinned>
-      <BottomRow owner={owner}>{ask && onCannot ? <QuietLink onClick={onCannot}>{CANNOT_WORDS}</QuietLink> : <ShareLink onShare={onShare} />}</BottomRow>
+      <BottomRow owner={owner}>
+        {ask && onCannot ? <QuietLink onClick={onCannot}>{CANNOT_WORDS}</QuietLink> : closing && hasBoard ? <QuietLink onClick={onWalk}>Search again</QuietLink> : <ShareLink onShare={onShare} />}
+      </BottomRow>
     </>
   );
 }
@@ -474,28 +497,19 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
         </span>
         <span className="text-[15px] font-medium leading-[22px] text-[var(--mc-soft)]">{SAFETY_AGREEMENT}</span>
       </label>
+      {/* The rules and the waiver open over the whole screen, set to be read on a phone, and close back to the tick.
+          They were a small box inside the card, of raw markdown, that scrolled inside a sheet that scrolls. */}
       <button
         type="button"
-        onClick={() => setReading((v) => !v)}
-        aria-expanded={reading}
-        className="ml-[38px] inline-flex min-h-[36px] items-center text-[15px] font-bold leading-5 text-[var(--mc-ink)] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400"
+        onClick={() => setReading(true)}
+        aria-haspopup="dialog"
+        className="ml-[38px] inline-flex min-h-[44px] items-center text-[15px] font-bold leading-5 text-[var(--mc-ink)] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400"
       >
-        {reading ? 'Hide them' : 'Read them'}
+        Read them
       </button>
-      {reading && (
-        <div className="mt-1 max-h-56 overflow-y-auto rounded-2xl bg-[var(--mc-raised)] p-3.5 text-sm leading-5 text-[var(--mc-soft)]">
-          <p className="font-bold text-[var(--mc-ink)]">Safety rules</p>
-          <ul className="mt-1.5 list-disc space-y-1 pl-5">
-            {SAFETY_RULES.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
-          <p className="mt-3 font-bold text-[var(--mc-ink)]">Liability waiver{waiver?.version ? ` (version ${waiver.version})` : ''}</p>
-          <p className="mt-1.5 whitespace-pre-wrap">{waiver?.content || 'Loading the waiver.'}</p>
-        </div>
-      )}
-      <Problem className="mt-2">{problem}</Problem>
-      <Primary onClick={submit} busy={busy} className="mt-3">
+      {reading && <ReadSheet rules={SAFETY_RULES} waiver={waiver} onClose={() => setReading(false)} />}
+      <Problem className="mt-1">{problem}</Problem>
+      <Primary onClick={submit} busy={busy} className="mt-2">
         I agree
       </Primary>
       {/* Who sees what, said once and truthfully for the person reading it. */}
@@ -514,28 +528,59 @@ export function Join({ picture, name, owner, viewer, unit, instrument, search, o
  * optional and has no way round it on the screen; the server refuses
  * nobody for want of it (founder, 2026-11-12: "a bit of optional training
  * on rescue ... but not say its optional").
+ *
+ * Each point is its title, and a tap on it shows what it means, so every
+ * title and the button are on a small phone's screen at once. Written out
+ * in full, the seventh sat under the button and a 375 by 667 phone showed
+ * three and a half (founder, on the phone: "Phone experience should be for
+ * the phone"). Every point is shown; none is dropped or reworded
+ * (app/lib/safetyRules.js, searchTraining). One is open at a time.
  */
 export function Training({ name, unit, instrument, busy, onGo }) {
   const ground = unit === 'area';
   const thing = ground ? 'area' : unit === 'block' ? 'block' : 'street';
+  const [open, setOpen] = useState(null);
   return (
     <>
       <Heading>Before you go out</Heading>
-      <ol className="mt-3 flex flex-col gap-3">
-        {searchTraining(name).map((point, i) => (
-          <li key={point.title} className="flex gap-3">
-            <span aria-hidden="true" className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--mc-raised)] text-[13px] font-extrabold leading-none text-[var(--mc-ink)]">
-              {i + 1}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[15px] font-bold leading-[21px] text-[var(--mc-ink)]">{point.title}</span>
-              {point.text && <span className="block text-[15px] font-medium leading-[21px] text-[var(--mc-soft)]">{point.text}</span>}
-            </span>
-          </li>
-        ))}
+      <ol className="mt-2 divide-y divide-[var(--mc-line)] border-y border-[var(--mc-line)]">
+        {searchTraining(name).map((point, i) => {
+          const shown = open === i;
+          const title = (
+            <>
+              <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--mc-raised)] text-[13px] font-extrabold leading-none text-[var(--mc-ink)]">
+                {i + 1}
+              </span>
+              <span className="min-w-0 flex-1 text-[15px] font-bold leading-5 text-[var(--mc-ink)]">{point.title}</span>
+              {point.text && <ChevronDown size={18} aria-hidden="true" className={`shrink-0 text-[var(--mc-soft)] transition-transform ${shown ? 'rotate-180' : ''}`} />}
+            </>
+          );
+          return (
+            <li key={point.title}>
+              {point.text ? (
+                <button
+                  type="button"
+                  onClick={() => setOpen(shown ? null : i)}
+                  aria-expanded={shown}
+                  aria-controls={`mc-point-${i}`}
+                  className="flex min-h-[44px] w-full items-center gap-3 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-flash-400"
+                >
+                  {title}
+                </button>
+              ) : (
+                <p className="flex min-h-[44px] items-center gap-3 py-1.5">{title}</p>
+              )}
+              {point.text && (
+                <p id={`mc-point-${i}`} hidden={!shown} className="pb-2.5 pl-9 text-[15px] font-medium leading-[21px] text-[var(--mc-soft)]">
+                  {point.text}
+                </p>
+              )}
+            </li>
+          );
+        })}
       </ol>
       <Pinned on={instrument !== 'command'}>
-        <Primary onClick={onGo} busy={busy} className="mt-4">
+        <Primary onClick={onGo} busy={busy} className={instrument === 'command' ? 'mt-4' : ''}>
           I understand. Give me {ground ? 'an area' : `a ${thing}`}
         </Primary>
       </Pinned>

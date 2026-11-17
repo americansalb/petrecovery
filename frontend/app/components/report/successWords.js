@@ -21,8 +21,8 @@ export function lostLinkLine({ contactEmail, contactPhone, phoneLabel, accountCr
     const sent = told?.text;
     if (sent === 'sent') return ['We texted ', phone, ` the link that runs ${name}'s search. When someone reports seeing ${name}, we text you there.`];
     if (sent === 'sending') return ['We are texting the link to ', phone, '.'];
-    if (sent === 'failed') return ['We could not text ', phone, '. Copy the link above and keep it.'];
-    return ['Copy the link above and keep it.'];
+    if (sent === 'failed') return ['We could not text ', phone, '. Copy the link below and keep it.'];
+    return ['Copy the link below and keep it.'];
   }
   if (!contactEmail) return null;
   const email = { strong: contactEmail };
@@ -33,7 +33,7 @@ export function lostLinkLine({ contactEmail, contactPhone, phoneLabel, accountCr
   if (!isLoggedIn) {
     const sent = told?.email;
     if (sent === 'sent') return ['We emailed this link to ', email, '. Sightings are emailed there too.'];
-    if (sent === 'failed') return ['We could not email the link to ', email, '. Copy it above and keep it.'];
+    if (sent === 'failed') return ['We could not email the link to ', email, '. Copy it below and keep it.'];
     return ['We are emailing this link to ', email, '. Sightings are emailed there too.'];
   }
   return ['Sightings are emailed to ', email, '.'];

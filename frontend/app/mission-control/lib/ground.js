@@ -12,12 +12,12 @@
  * is, and nothing tells a helper to stop: every action is the person at
  * the desk asking or writing in their own name.
  */
-import { RING, inWords, inArea, rankAreas, isShortSearch } from '@/app/lib/searchCircle';
+import { RING, inWords, inArea, rankAreas, isShortSearch, unitsForZone } from '@/app/lib/searchCircle';
 import { searchedLately, FRESH_HOURS } from '@/app/lib/trail';
 import { distanceMeters } from '@/app/lib/searchGrid';
 import { wholeDays } from '@/app/lib/elapsed';
 import { agoWords, clockTime, placeWords } from './words';
-import { activity, directionWord, durationWords, metersWords, whenWords } from './insight';
+import { activity, directionWord, durationWords, metersWords, MetersWords, whenWords } from './insight';
 import { outLong, unanswered } from './team';
 import { SIGHTING_NEEDS_MS, FREE_NEEDS_MS, FREE_GRACE_MS } from './needs';
 
@@ -311,11 +311,14 @@ export function groundCoverage(areas = [], now = Date.now()) {
   };
 }
 
-/** The ground in sentences, for "What the search shows". `circle` is the board's ({ radius, ... }). */
-export function groundLines({ areas = [], circle = null, name = 'the pet', now = Date.now() } = {}) {
+/**
+ * The ground in sentences, for "What the search shows". `circle` is the board's ({ radius, ... }); `timeZone` the
+ * search's, which says whether its distances are in feet and miles.
+ */
+export function groundLines({ areas = [], circle = null, name = 'the pet', timeZone = null, now = Date.now() } = {}) {
   const c = groundCoverage(areas, now);
   if (!c.total) return [];
-  const within = circle?.radius ? ` within ${metersWords(circle.radius)}` : '';
+  const within = circle?.radius ? ` within ${metersWords(circle.radius, unitsForZone(timeZone))}` : '';
   const lines = [];
   // The areas searched in the last twelve hours, as the owner's card and the goal everyone shares count them
   // (groundNowWords, app/lib/trail.js): a search before that has faded, and is not counted as ground covered.
@@ -339,14 +342,27 @@ export function groundLines({ areas = [], circle = null, name = 'the pet', now =
  * counted either, as it does not keep the map green.
  */
 export function groundNowWords(areas = [], now = Date.now()) {
-  const own = circleAreas(areas);
-  if (!own.length) return '';
-  const on = own.filter((a) => a.status === 'IN_PROGRESS').length;
+  const { total, lately, on, ever } = groundNow(areas, now);
+  if (!total) return '';
   const being = on ? `, and ${on === 1 ? '1 is' : `${on} are`} being searched now` : '';
-  if (!own.some((a) => a.searchCount > 0)) return `None of the ${own.length} areas has been searched yet${being}.`;
-  const lately = own.filter((a) => searchedLately(a, now)).length;
-  const searched = lately === 0 ? `None of the ${own.length} areas was searched` : `${lately} of the ${own.length} areas ${lately === 1 ? 'was' : 'were'} searched`;
+  if (!ever) return `None of the ${total} areas has been searched yet${being}.`;
+  const searched = lately === 0 ? `None of the ${total} areas was searched` : `${lately} of the ${total} areas ${lately === 1 ? 'was' : 'were'} searched`;
   return `${searched} in the last ${FRESH_HOURS} hours${being}.`;
+}
+
+/**
+ * The same count as figures, for the owner's card: { total, lately, on,
+ * ever }. `lately` is the circle's own areas searched in the last twelve
+ * hours, never every area ever searched: a search before that has faded.
+ */
+export function groundNow(areas = [], now = Date.now()) {
+  const own = circleAreas(areas);
+  return {
+    total: own.length,
+    lately: own.filter((a) => searchedLately(a, now)).length,
+    on: own.filter((a) => a.status === 'IN_PROGRESS').length,
+    ever: own.some((a) => a.searchCount > 0),
+  };
 }
 
 /**
@@ -442,7 +458,7 @@ function sightingCard({ picture, areas, people, name, now }) {
   const origin = picture.lastSeen && Number.isFinite(picture.lastSeen.lat) ? picture.lastSeen : null;
   const where = placeWords(seen.place);
   const far = origin ? distanceMeters(origin, seen) : NaN;
-  const fromLost = Number.isFinite(far) ? `${metersWords(far)} ${far >= 50 ? `${directionWord(origin, seen)} of` : 'from'} where ${name} was lost.` : '';
+  const fromLost = Number.isFinite(far) ? `${MetersWords(far, unitsForZone(zone))} ${far >= 50 ? `${directionWord(origin, seen)} of` : 'from'} where ${name} was lost.` : '';
   const show = { words: 'Show it on the map', do: { type: 'show', sightingId: seen.id } };
   // One named person goes to a sighting, never a group: the card says who that is, and asks nobody else.
   const one = 'One person goes to a sighting, never a group.';
@@ -568,13 +584,14 @@ export function needsForGround({ picture, areas = [], circle = null, people = []
     const key = `covered-${own.length}-${own.reduce((sum, a) => sum + a.searchCount, 0)}`;
     const widen = !circle.widened && circle.wide > circle.edge;
     const again = { words: 'Search these again', do: { type: 'againAll' } };
+    const units = unitsForZone(picture?.timeZone);
     cards.push({
       id: 'covered',
       kind: 'covered',
       label: 'The circle is covered',
-      title: `Every area within ${metersWords(circle.radius)} has been searched`,
-      body: `${coveredWords(own)}${widen ? ` Widening adds 8 areas, from ${metersWords(circle.edge)} to ${metersWords(circle.wide)}.` : ''}`,
-      primary: widen ? { words: `Widen to ${metersWords(circle.wide)}`, do: { type: 'widen' } } : again,
+      title: `Every area within ${metersWords(circle.radius, units)} has been searched`,
+      body: `${coveredWords(own)}${widen ? ` Widening adds 8 areas, from ${metersWords(circle.edge, units)} to ${metersWords(circle.wide, units)}.` : ''}`,
+      primary: widen ? { words: `Widen to ${metersWords(circle.wide, units)}`, do: { type: 'widen' } } : again,
       more: [...(widen ? [again] : []), { words: 'Not now', do: { type: 'done', key } }],
     });
   }

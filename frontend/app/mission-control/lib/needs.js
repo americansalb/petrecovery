@@ -24,9 +24,10 @@
  * puts the card away on this computer.
  */
 import { distanceMeters } from '@/app/lib/searchGrid';
+import { unitsForZone } from '@/app/lib/searchCircle';
 import { nearestOnPath } from '@/app/lib/streetWalks';
 import { agoWords, clockTime, placeWords } from './words';
-import { directionWord, givenNext, metersWords } from './insight';
+import { directionWord, givenNext, metersWords, MetersWords } from './insight';
 import { outLong, shortTitle, unanswered } from './team';
 
 const MINUTE = 60 * 1000;
@@ -73,13 +74,14 @@ function sightingCard({ picture, items, people, name, unit, now }) {
   const origin = picture.lastSeen && Number.isFinite(picture.lastSeen.lat) ? picture.lastSeen : null;
   const where = placeWords(seen.place);
   const far = origin ? distanceMeters(origin, seen) : NaN;
-  const fromLost = Number.isFinite(far) ? `${metersWords(far)} ${far >= 50 ? `${directionWord(origin, seen)} of` : 'from'} where ${name} was lost.` : '';
+  const units = unitsForZone(picture.timeZone);
+  const fromLost = Number.isFinite(far) ? `${MetersWords(far, units)} ${far >= 50 ? `${directionWord(origin, seen)} of` : 'from'} where ${name} was lost.` : '';
   const show = { words: 'Show it on the map', do: { type: 'show', sightingId: seen.id } };
   const around = items
     .map((street) => ({ street, meters: apart(street, seen) }))
     .filter((x) => x.meters <= AROUND_METERS)
     .sort((a, b) => a.meters - b.meters);
-  const beside = (x) => (x.meters < 30 ? '' : `, ${metersWords(x.meters)} from it`);
+  const beside = (x) => (x.meters < 30 ? '' : `, ${metersWords(x.meters, units)} from it`);
   const facts = [fromLost];
   let primary = show;
   const more = [];
@@ -101,7 +103,7 @@ function sightingCard({ picture, items, people, name, unit, now }) {
     facts.push(there.person.state === 'walking' ? `${there.person.name} is walking ${street}${beside(there)}.` : `${there.person.name} was asked to walk ${street} at ${clockTime(there.person.asked.at, picture.timeZone)}.`);
   } else if (open) {
     const street = shortTitle(open.street.title);
-    facts.push(open.meters < 30 ? `${street} is still to walk.` : `${street}, ${metersWords(open.meters)} from it, is still to walk.`);
+    facts.push(open.meters < 30 ? `${street} is still to walk.` : `${street}, ${metersWords(open.meters, units)} from it, is still to walk.`);
     // The free person whose last street was nearest: the nearest thing to where they are that the search knows.
     // Only someone who joined or walked lately: a person who was here two days ago is not someone to keep a street for.
     const lately = (p) => {
@@ -116,7 +118,7 @@ function sightingCard({ picture, items, people, name, unit, now }) {
       })
       .sort((a, b) => a.meters - b.meters)[0];
     if (pick) {
-      facts.push(Number.isFinite(pick.meters) ? `${pick.person.name} is free and last walked ${metersWords(pick.meters)} from there.` : `${pick.person.name} is free.`);
+      facts.push(Number.isFinite(pick.meters) ? `${pick.person.name} is free and last walked ${metersWords(pick.meters, units)} from there.` : `${pick.person.name} is free.`);
       more.push(show);
       primary = { words: `Ask ${pick.person.name} to walk ${street}`, do: { type: 'ask', handle: pick.person.handle, streetId: open.street.id } };
     } else if (open.street.first) {

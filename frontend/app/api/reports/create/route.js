@@ -161,7 +161,14 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-    const answers = normalizeDetails(details);
+    // The report form asks the size after posting (founder, 2026-11-17), so a report usually arrives without one.
+    // Case.petSize must hold something: it holds MEDIUM, and the answers say it is a placeholder, so no flyer or
+    // post calls the pet medium (knownSize in app/lib/caseDetails.js). A cat's indoor answer is kept with them.
+    const answers = normalizeDetails({
+      ...(details && typeof details === 'object' && !Array.isArray(details) ? details : {}),
+      ...(size ? {} : { sizeUnknown: true }),
+      ...(petType?.toUpperCase() === 'CAT' && typeof isIndoorCat === 'boolean' ? { indoor: isIndoorCat ? 'INDOOR' : 'OUTDOOR' } : {}),
+    });
     const hasAnswers = !isEmptyDetails(answers);
     const petExtras = petFieldsFromDetails(answers);
     collarInfo = collarInfo || petExtras.collarInfo;

@@ -1139,14 +1139,23 @@ img {
 .mc-far .mc-area-name {
   display: none;
 }
-/* Around a dark search screen the page itself is dark too. A phone browser shows the page's own
-   background behind its toolbar and under the clock (iOS Safari's floating bar), and the site's
-   pale one there drew white bands above and below the screen (2026-11-14). Same as --mc-surface.
-   .mc-screen marks the phone screen's own root, not every .mc-dark (the pet page borrows that
-   palette for a dialog, and its page must stay as it is). */
+/* Around the phone's search screen the page itself is the screen's own colour. A phone browser
+   shows the page's background behind its toolbar and under the clock (iOS Safari's floating bar),
+   and a different colour there drew bands above and below the screen (2026-11-14). The phone
+   screen is light (founder, 2026-11-17: "Light on phones"), so this is --mc-surface of .mc-light.
+   .mc-screen marks the phone screen's own root, not every palette class (the pet page borrows one
+   for a dialog, and its page must stay as it is). */
 html:has(.mc-screen),
 html:has(.mc-screen) body {
-  background-color: #0f172a;
+  background-color: #ffffff;
+}
+/* What follows a phone card's pinned buttons (the owner's number, "Share", "I am stopping", "Search
+   again") is drawn over the cover under them (mission-control/components/kit.js, Pinned). The cover
+   hides the card scrolling past beneath the buttons, and it drew over that last row too, so on every
+   card the row was there to tap and could not be seen (2026-11-17, at 375 by 667). */
+[data-pinned] ~ * {
+  position: relative;
+  z-index: 20;
 }
 .mc-dark {
   --mc-ground: #0b1220;

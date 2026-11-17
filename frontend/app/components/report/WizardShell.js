@@ -7,8 +7,9 @@
  * checklist (the current group opened to show its screens), and the flyer
  * drawn from the answers so far. Mobile: a compact top bar with Back, the
  * stamp and Close. On both, a progress line that fills across the whole
- * report and a label that says where you are inside the group ("For
- * finders, 4 of 11"), so the long middle of the report never looks stuck.
+ * report and a label that says where you are ("Where and when, 4 of 7").
+ * Back sits in the same place on every screen after the first, so a screen
+ * with no footer (one that moves on at a tap) still has its way back.
  * Layout is pure CSS breakpoints - no window-width JS.
  *
  * Lives inside app/report/layout.js's `fixed inset-0` overlay, so the shell
@@ -99,7 +100,7 @@ export default function WizardShell({
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="flex items-baseline justify-between gap-3 text-[13px] leading-tight">
+      <div className="flex items-baseline justify-between gap-3 text-[15px] leading-tight">
         <span className="font-bold text-midnight-900 truncate">{active.label}</span>
         {progress && progress.total > 0 && (
           <span className="shrink-0 text-midnight-500">
@@ -258,12 +259,12 @@ export default function WizardShell({
         {/* Top bar */}
         <header className="shrink-0 px-4 sm:px-6 lg:px-8 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 lg:pb-3 lg:border-b lg:border-midnight-100">
           <div className="flex items-center gap-3 min-h-[44px]">
-            <div className="w-16 flex justify-start">
+            <div className="w-20 flex justify-start">
               {onBack ? (
                 <button
                   type="button"
                   onClick={onBack}
-                  className="flex items-center gap-0.5 min-h-[44px] text-midnight-500 hover:text-midnight-900 font-medium text-sm transition-colors"
+                  className="flex items-center gap-0.5 min-h-[44px] pr-2 text-midnight-700 hover:text-midnight-900 font-semibold text-[16px] transition-colors"
                 >
                   <ChevronLeft size={20} />
                   Back
@@ -290,7 +291,7 @@ export default function WizardShell({
             </div>
             <div className="hidden lg:block flex-1 max-w-2xl mx-auto">{progressLine}</div>
 
-            <div className="w-16 flex justify-end">
+            <div className="w-20 flex justify-end">
               {onBack && (
                 <Link
                   href={closeHref}

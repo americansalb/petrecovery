@@ -15,7 +15,7 @@ import { resolveFlyerCopy } from './copy';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
 import { caseShortLabel } from '@/app/lib/caseShortLink';
 import { answerOf } from '@/app/lib/lastSeenAnswer';
-import { approachLine, healthLine, needsMedication as medicationNeeded, lookForBits, factsBits, lureLine } from '@/app/lib/caseDetails';
+import { approachLine, healthLine, needsMedication as medicationNeeded, lookForBits, factsBits, lureLine, knownSize } from '@/app/lib/caseDetails';
 
 function areaFromAddress(address) {
   if (!address) return 'this neighborhood';
@@ -136,7 +136,8 @@ function photosFrom(shared) {
 /** "Golden Retriever · Large · Male, not neutered · Senior · Microchipped" */
 function factsLine(caseData, pet) {
   const details = caseData.details || null;
-  const sizeWord = caseData.petSize ? String(caseData.petSize).toLowerCase() : '';
+  // Not the placeholder a report posted without a size holds (app/lib/caseDetails.js knownSize).
+  const sizeWord = knownSize(caseData).toLowerCase();
   const age = Number(pet?.age);
   const answered = details ? factsBits(details, { species: caseData.petSpecies }) : [];
   const bits = [
@@ -206,7 +207,8 @@ export function normalizeFlyerData(caseData, shared = {}) {
   const name = caseData.petName || 'Unknown';
   const pet = caseData.pet || null;
 
-  const sizeWord = caseData.petSize ? String(caseData.petSize).toLowerCase() : '';
+  // Not the placeholder a report posted without a size holds (app/lib/caseDetails.js knownSize).
+  const sizeWord = knownSize(caseData).toLowerCase();
   const chips = [
     caseData.petBreed && caseData.petBreed !== 'Unknown' ? caseData.petBreed : null,
     caseData.petColor,

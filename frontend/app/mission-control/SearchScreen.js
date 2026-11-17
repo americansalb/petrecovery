@@ -8,8 +8,9 @@
  *   someone who wants to help   two buttons; then their area of ground
  *                               and "I searched it"
  *   someone who saw the pet     where and when, and "Send"; then "Sent"
- *   the owner                   who is looking and "Text the link";
- *                               on a sighting, "Directions"
+ *   the owner                   where it stands, the plan's next step,
+ *                               their own area to search and "Text the
+ *                               link"; on a sighting, "Directions"
  *
  * One yellow button to a card, and it is the next step. The line at the
  * top always says where the search stands, so nothing ever interrupts a
@@ -41,7 +42,7 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { distanceMeters } from '@/app/lib/searchGrid';
 import { rankAreas, needsSearch } from '@/app/lib/searchCircle';
@@ -71,7 +72,7 @@ import { wordsForCard, wordsForOwner, dealtLine } from './lib/team';
 import { AreaName, circleAreas, minutesRange, searchStrength } from './lib/ground';
 import { PAWS } from '@/app/lib/trail';
 
-/** The space between the sheet and the map's key above it, and between the sheet and the map's credit when there is no key. */
+/** The space between the sheet and the map's key and credit, which share the line above it. */
 const KEY_GAP = 8;
 
 const SearchMap = dynamic(() => import('./components/SearchMap'), {
@@ -102,7 +103,7 @@ const NO_WORDS = [];
 
 function Centered({ children }) {
   return (
-    <div className="mc-dark mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)] px-5">
+    <div className="mc-light mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)] px-5">
       <div className="w-full max-w-md text-center">{children}</div>
     </div>
   );
@@ -164,11 +165,13 @@ function Screen({ mission }) {
   const [done, setDone] = useState(null);
   // The area just searched, so the card that says thank you can take its debrief.
   const [doneId, setDoneId] = useState(null);
+  // When they said so, which the card that says thank you gives with the area: never a bare "searched".
+  const [doneAt, setDoneAt] = useState(null);
   // The paw prints that search left, as the server counted them (app/lib/trail.js: none for a search far shorter
-  // than the area takes), and how long the area takes, which Sarama says when it left none.
+  // than the area takes).
   const [donePaws, setDonePaws] = useState(PAWS.SEARCH);
-  const [doneTakes, setDoneTakes] = useState(null);
-  // They just said "I am stopping": the first card thanks them, and does not greet them as if they had come back.
+  // They just said "I am stopping", or "I'm done for now" on the thanks: a short card thanks them, and does not ask
+  // them to help as if they had not.
   const [stopped, setStopped] = useState(false);
   // Where the join card opens: at the tick, or, for someone who has agreed and not yet read "Before you go out", at
   // that. And whether they read it here, before the server's word that they did has come back.
@@ -200,8 +203,8 @@ function Screen({ mission }) {
   const handleFrom = useRef(null);
   // The part of the card that scrolls.
   const sheetScroll = useRef(null);
-  const [keyHeight, setKeyHeight] = useState(0);
-  const keyWatch = useRef(null);
+  // On a phone the map's key is a small "Key" chip, opened by a tap: a key always open took a third of the map.
+  const [keyOpen, setKeyOpen] = useState(false);
 
   const desk = instrument === INSTRUMENTS.COMMAND;
   const app = instrument === INSTRUMENTS.FIELD;
@@ -314,6 +317,12 @@ function Screen({ mission }) {
     setSheetOpen(view === 'join');
     if (sheetScroll.current) sheetScroll.current.scrollTop = 0;
   }, [view, mineRaw?.id, ownerCard]);
+  // The card that says thank you may be as tall as the screen allows: on a small phone its debrief, "Search another
+  // area" and "I'm done for now" are then on the screen together. After the effect above, which closes the sheet as
+  // the area stops being theirs.
+  useEffect(() => {
+    if (doneAt) setSheetOpen(true);
+  }, [doneAt]);
 
   // A witness coming back to the page finds what they sent, and what the owner did about it.
   const resumed = useRef(false);
@@ -435,7 +444,10 @@ function Screen({ mission }) {
   const passed = useRef(new Set());
   // A street is theirs as soon as they are given it. Taking a new one hands back the old (the server does both).
   // Answers { ok } or { error }, and never leaves the button spinning: a dropped signal is words on the card.
-  async function takeStreet(exceptId = null) {
+  // `chosen` is one area by name: the owner's "Search the area around home", the middle of the circle, through the
+  // same claim. The owner signs no waiver for their own pet (app/lib/searcher.js), and a named area is not ranked,
+  // so the phone is not asked where it is.
+  async function takeStreet(exceptId = null, chosen = null) {
     // A desk is never handed a street: a tablet turned on its side while on the join card is a desk from then on.
     if (busy || desk) return { error: '' };
     setBusy('walk');
@@ -444,12 +456,12 @@ function Screen({ mission }) {
     setDoneId(null);
     setStopped(false);
     try {
-      const here = await locate();
+      const here = chosen ? null : await locate();
       // Passing on a street lasts for one round of "Different street". A fresh ask starts clean, so the
       // street someone passed on an hour ago is offered again before any street is walked twice.
       if (exceptId) passed.current.add(exceptId);
       else passed.current = new Set();
-      const ranked = rank(items, here || position, unit).filter((i) => i.id !== exceptId);
+      const ranked = chosen ? [chosen] : rank(items, here || position, unit).filter((i) => i.id !== exceptId);
       // Ground that still needs a search: never searched, or put up for another look.
       const unwalked = (i) => (unit === 'area' ? needsSearch(i) : i.status !== 'SEARCHED');
       let list = ranked.filter((i) => !passed.current.has(i.id));
@@ -515,30 +527,36 @@ function Screen({ mission }) {
       if (result.error) return setProblem(result.error);
       if (gps?.recording) gps.stop().catch(() => {});
       setDone(title);
+      setDoneAt(Date.now());
       setDoneId(unit === 'area' ? mineRaw.id : null);
       // The prints the server says this search left, and three where it does not say.
       setDonePaws(typeof result.paws === 'number' ? result.paws : PAWS.SEARCH);
-      setDoneTakes(mineRaw.minutes || null);
       setStopped(false);
       return go('main');
     } finally {
       setBusy(null);
     }
   }
+  // "I am stopping" on their ground hands it back. "I'm done for now" on the thanks holds nothing to hand back, and
+  // only the card changes.
   async function stopWalking() {
-    if (!mineRaw || busy) return undefined;
-    setBusy('stop');
-    try {
-      const result = await search.act(unit, mineRaw.id, 'release');
-      if (result.error) return setProblem(result.error);
-      if (gps?.recording) gps.stop().catch(() => {});
-      setDone(null);
-      setDoneId(null);
-      setStopped(true);
-      return go('main');
-    } finally {
-      setBusy(null);
+    if (busy) return undefined;
+    if (mineRaw) {
+      setBusy('stop');
+      try {
+        const result = await search.act(unit, mineRaw.id, 'release');
+        if (result.error) return setProblem(result.error);
+        if (gps?.recording) gps.stop().catch(() => {});
+      } finally {
+        setBusy(null);
+      }
     }
+    // The short card that thanks them sits over the map, as the first card does.
+    setSheetOpen(false);
+    setDone(null);
+    setDoneId(null);
+    setStopped(true);
+    return go('main');
   }
   // Asked to walk a street, and cannot: it goes back to the search, and the people running it are told.
   async function cannot() {
@@ -649,11 +667,18 @@ function Screen({ mission }) {
     return { lat: at.lat, lng: at.lng, label: `Lost here ${dayAndTime(at.at, zone, now)}` };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picture?.lastSeen?.lat, picture?.lastSeen?.lng, picture?.lastSeen?.at, zone, Math.floor(now / 60000)]);
-  const mapSightings = useMemo(
-    () => (picture?.sightings || []).slice(0, 6).map((s) => ({ id: s.id, lat: s.lat, lng: s.lng, label: `Seen ${dayAndTime(s.at, zone, now)}`, hot: hot?.id === s.id })),
+  // On a phone only one sighting carries words: the one leading this person's screen, or else the newest. The
+  // others are dots, and a tap on one shows when it was (`title`). Six labels on a strip of map lay on top of each
+  // other and ran off the screen (2026-11-17).
+  const mapSightings = useMemo(() => {
+    const shown = (picture?.sightings || []).slice(0, 6);
+    const named = shown.some((s) => s.id === hot?.id) ? hot.id : shown[0]?.id;
+    return shown.map((s) => {
+      const when = `Seen ${dayAndTime(s.at, zone, now)}`;
+      return { id: s.id, lat: s.lat, lng: s.lng, label: s.id === named ? when : '', title: when, hot: hot?.id === s.id };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [picture?.sightings, zone, hot?.id, Math.floor(now / 60000)]
-  );
+  }, [picture?.sightings, zone, hot?.id, Math.floor(now / 60000)]);
   // What is lit on this person's map: the area they are on, or else the one they were asked to search.
   const litId = mineRaw?.id || askedRaw?.id || null;
   // A search fades over a day, so the map is drawn again as time passes: every ten minutes, as on the desk, and not
@@ -726,19 +751,6 @@ function Screen({ mission }) {
     sheetWatch.current.observe(el);
     setSheetHeight(el.offsetHeight);
   }, []);
-  // The height of the map's key, so the map's credit sits above it and the two never share a line.
-  const keyRef = useCallback((el) => {
-    if (keyWatch.current) keyWatch.current.disconnect();
-    keyWatch.current = null;
-    if (!el) {
-      setKeyHeight(0);
-      return;
-    }
-    setKeyHeight(el.offsetHeight);
-    if (typeof ResizeObserver === 'undefined') return;
-    keyWatch.current = new ResizeObserver(() => setKeyHeight(el.offsetHeight));
-    keyWatch.current.observe(el);
-  }, []);
 
   // ----- Gates -----
   if (!missionParam) {
@@ -792,7 +804,7 @@ function Screen({ mission }) {
   // The search is over: one screen for everyone.
   if (!picture.open) {
     return (
-      <div className="mc-dark mc-screen flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
+      <div className="mc-light mc-screen flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
           <Home picture={picture} name={name} owner={owner} petHref={petHref} now={now} />
         </div>
@@ -816,7 +828,34 @@ function Screen({ mission }) {
   } else if (isOwner && hot) {
     step = <OwnerSighting picture={picture} name={name} hot={hot} now={now} onGoing={going} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
   } else if (isOwner) {
-    step = <OwnerNow picture={picture} name={name} now={now} unit={unit} items={items} counts={counts} onShare={share} onHome={() => setEndOpen(true)} problem={problem} heard={heard} onReply={answerHelper} onPutAway={gotIt} />;
+    // Where the search stands, the plan's next step, the owner's own area to search, the link, and the advice.
+    step = (
+      <OwnerNow
+        picture={picture}
+        name={name}
+        now={now}
+        unit={unit}
+        items={items}
+        counts={counts}
+        mine={mine}
+        done={done}
+        onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null}
+        instrument={instrument}
+        readPlan={search.readPlan}
+        writePlan={search.writePlan}
+        onSearchHome={(area) => takeStreet(null, area)}
+        onSearchMore={() => takeStreet()}
+        onSearched={walked}
+        onStop={stopWalking}
+        busy={busy}
+        onShare={share}
+        onHome={() => setEndOpen(true)}
+        problem={problem}
+        heard={heard}
+        onReply={answerHelper}
+        onPutAway={gotIt}
+      />
+    );
   } else if (mine && ground) {
     step = <Area picture={picture} name={name} mine={mine} instrument={instrument} gps={gps} open={sheetOpen} onOpen={() => setSheetOpen(true)} onSearched={walked} onOther={() => takeStreet(mineRaw.id)} onStop={stopWalking} onSeen={openSeen} busy={busy} problem={problem} canOther={!desk && candidates.length > 0} asked={asked} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   } else if (mine) {
@@ -826,7 +865,7 @@ function Screen({ mission }) {
     // button is going through it, here and now, whatever the server has heard.
     step = <Join key={joinFrom} from={joinFrom} picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} instrument={instrument} search={search} onJoined={() => { setTrainedHere(true); return takeStreet(); }} onBack={() => go('main')} />;
   } else {
-    step = <Main picture={picture} name={name} owner={owner} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} donePaws={donePaws} doneTakes={doneTakes} stopped={stopped} onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null} trail={search.trail} ways={search.ways} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
+    step = <Main picture={picture} name={name} owner={owner} viewer={viewer} unit={unit} items={items} counts={counts} minutes={minutesWords} done={done} doneAt={doneAt} donePaws={donePaws} stopped={stopped} onDebrief={doneId ? (covered, note) => search.debrief(doneId, covered, note) : null} onStop={stopWalking} trail={search.trail} ways={search.ways} instrument={instrument} onWalk={startWalk} onSeen={openSeen} onShare={share} busy={busy === 'walk'} problem={problem} qr={qr} asked={asked} onCannot={cannot} onAskShown={sawAsk} said={said} saidLine={saidLine} onPutAway={gotWords} onSay={canSay ? search.say : null} onShown={sawWord} now={now} />;
   }
 
   const overlays = (
@@ -896,7 +935,7 @@ function Screen({ mission }) {
   ].filter(Boolean);
   const map = (
     <SearchMap
-      theme="dark"
+      theme="light"
       lastSeen={mapLastSeen}
       sightings={mapSightings}
       areas={mapAreas}
@@ -908,14 +947,19 @@ function Screen({ mission }) {
       fit={fit}
       fitKey={fitKey}
       padding={{ top: showChip ? 60 : fitSheet > 460 ? 28 : 44, right: hotNear ? 128 : 64, bottom: fitSheet + (fitSheet > 460 ? 30 : 44), left: 64 }}
-      creditBottom={sheetHeight + KEY_GAP + (keyHeight ? keyHeight + 6 : 0)}
+      // The key's chip sits on the left of the line above the card, and the credit on the right of it.
+      creditBottom={sheetHeight + KEY_GAP}
       label={`Map of the search for ${name}`}
+      // Every label kept inside the map and clear of the line at the top, the key, the card and the credit.
+      tidy
+      coverKey={`${showChip && !sheetOpen ? 1 : 0}|${keyBits.length}|${keyOpen ? 1 : 0}|${sheetOpen ? 1 : 0}`}
     />
   );
+  // The key's rows, shown while its chip is open. Kept in the page while closed, so its words are still there.
   const mapKey = keyBits.length > 0 && (
-    <div className="pointer-events-none flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-semibold text-[var(--mc-soft)]">
+    <ul id="mc-map-key" hidden={!keyOpen} className="rounded-lg border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3 py-2 text-[13px] font-semibold leading-5 text-[var(--mc-soft)] shadow-lg">
       {keyBits.map(([kind, words]) => (
-        <span key={words} className="flex items-center gap-1.5 rounded-md bg-[var(--mc-surface)]/85 px-1.5 py-0.5">
+        <li key={words} className="flex items-center gap-2 py-0.5">
           {kind === 'fill' ? (
             <span className="h-3 w-5 rounded-[3px]" style={{ border: '1px solid var(--mc-done)', background: 'color-mix(in srgb, var(--mc-done) 45%, transparent)' }} aria-hidden="true" />
           ) : kind === 'fade' ? (
@@ -929,16 +973,16 @@ function Screen({ mission }) {
             <span className="w-5 border-t-4 border-dotted border-teal-400" aria-hidden="true" />
           )}
           {words}
-        </span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 
   // A phone screen is pinned to the window and never scrolls as a page: only the card scrolls, and reaching its end
   // does not drag the page. The page moving under it is what put the top bar under the phone's clock and showed the
   // site's pale background beneath the buttons (2026-11-14, iOS Safari). The insets keep the bar and the buttons
   // clear of the clock, the notch and the browser's own bars (viewportFit in page.js).
-  const pinned = 'mc-dark mc-screen fixed inset-0 flex flex-col overflow-hidden pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]';
+  const pinned = 'mc-light mc-screen fixed inset-0 flex flex-col overflow-hidden pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]';
   if (full) {
     return (
       <div className={`${pinned} bg-[var(--mc-surface)]`}>
@@ -968,17 +1012,28 @@ function Screen({ mission }) {
       <div className="relative min-h-0 flex-1">
         <div className="absolute inset-0 z-0">{map}</div>
         {showChip && !sheetOpen && (
-          <p className="absolute left-3 top-3 z-[400] max-w-[calc(100%-24px)] rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3.5 py-2 text-[13px] font-bold leading-[18px] text-[var(--mc-ink)] shadow-lg">
+          <p data-map-cover="" className="absolute left-3 top-3 z-[400] max-w-[calc(100%-24px)] rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] px-3.5 py-2 text-[13px] font-bold leading-[18px] text-[var(--mc-ink)] shadow-lg">
             {brief.neverFirst}
           </p>
         )}
         {mapKey && !sheetOpen && (
-          <div ref={keyRef} className="pointer-events-none absolute left-3 right-3 z-[400]" style={{ bottom: sheetHeight + KEY_GAP }}>
+          <div data-map-cover="" className="absolute left-3 z-[400] flex max-w-[calc(100%-24px)] flex-col items-start gap-1.5" style={{ bottom: sheetHeight + KEY_GAP }}>
             {mapKey}
+            <button
+              type="button"
+              aria-expanded={keyOpen}
+              aria-controls="mc-map-key"
+              onClick={() => setKeyOpen((open) => !open)}
+              className="flex h-9 items-center gap-1 rounded-full border border-[var(--mc-line)] bg-[var(--mc-surface)] pl-3.5 pr-2.5 text-[13px] font-bold leading-[18px] text-[var(--mc-ink)] shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400"
+            >
+              Key
+              {keyOpen ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronUp size={16} aria-hidden="true" />}
+            </button>
           </div>
         )}
         <section
           ref={sheetRef}
+          data-map-cover=""
           aria-label="Your step"
           className="absolute inset-x-0 bottom-0 z-[450] flex flex-col rounded-t-3xl bg-[var(--mc-surface)] shadow-[0_-8px_30px_rgba(2,6,23,0.5)]"
           style={{ maxHeight: sheetOpen ? SHEET_OPEN : SHEET_CLOSED }}
@@ -1020,7 +1075,7 @@ export default function SearchScreen({ mission = null }) {
   return (
     <Suspense
       fallback={
-        <div className="mc-dark mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)]">
+        <div className="mc-light mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)]">
           <Loader2 size={36} className="animate-spin text-flash-400" aria-hidden="true" />
         </div>
       }

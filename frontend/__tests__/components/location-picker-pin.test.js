@@ -193,7 +193,17 @@ describe('where the map opens with nothing to go on', () => {
 describe('the wizards follow the picker', () => {
   const read = (rel) => fs.readFileSync(path.join(__dirname, '..', '..', 'app', rel), 'utf8');
 
-  test.each(['report/new/page.js', 'report/found/page.js'])('%s offers "Use my location" in its footer only while the picker does', (file) => {
+  // The lost form offers it once, in the picker's own card, and never moves on from it: the spot is shown on the
+  // map and confirmed (2026-11-17, phone audit: two buttons, and one tap centred the search wherever the owner
+  // stood). __tests__/report-wizard-seven.test.js holds that.
+  test('report/new/page.js has no "Use my location" of its own: the picker\'s is the only one', () => {
+    const page = read('report/new/page.js');
+    expect(page).not.toMatch(/'Use my location'/);
+    expect(page).not.toMatch(/locationControl|onLocated=|onLocateOffer=/);
+    expect(page).toMatch(/<LocationPicker[\s\S]*?value=\{location\}[\s\S]*?onChange=\{setLocation\}[\s\S]*?\/>/);
+  });
+
+  test.each(['report/found/page.js'])('%s offers "Use my location" in its footer only while the picker does', (file) => {
     const page = read(file);
     expect(page).toMatch(/const \[canLocate, setCanLocate\] = useState\(true\);/);
     expect(page).toMatch(/<LocationPicker[\s\S]*?onLocateOffer=\{setCanLocate\}[\s\S]*?\/>/);

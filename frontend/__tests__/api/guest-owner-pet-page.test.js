@@ -133,6 +133,24 @@ describe("the pet's page data says who the owner is, by Mission Control's rule",
     expect((await pageData(`rp_owner_case-1=${mine.key}`)).body.viewerIsOwner).toBe(true);
   });
 
+  test('how many neighbors were alerted goes to the owner alone', async () => {
+    prisma.alert = { count: jest.fn().mockResolvedValue(12) };
+    try {
+      expect((await pageData(`rp_owner_case-1=${mine.key}`)).body.neighborsAlerted).toBe(12);
+      expect(prisma.alert.count).toHaveBeenCalledWith({ where: { caseId: 'case-1' } });
+      prisma.alert.count.mockClear();
+      expect((await pageData('')).body).not.toHaveProperty('neighborsAlerted');
+      expect(prisma.alert.count).not.toHaveBeenCalled();
+      // A count that fails leaves the line out; the page still loads.
+      prisma.alert.count.mockRejectedValue(new Error('down'));
+      const failed = await pageData(`rp_owner_case-1=${mine.key}`);
+      expect(failed.status).toBe(200);
+      expect(failed.body.neighborsAlerted).toBeNull();
+    } finally {
+      delete prisma.alert;
+    }
+  });
+
   test('the key, its hash and the owner\'s account id never leave the server', async () => {
     const { body } = await pageData(`rp_owner_case-1=${mine.key}`);
     const sent = JSON.stringify(body);

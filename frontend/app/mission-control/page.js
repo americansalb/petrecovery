@@ -23,7 +23,7 @@ import SearchScreen from './SearchScreen';
  * does: the rest of the site does not pad for a notch. Merged with the root
  * layout's viewport.
  */
-export const viewport = { viewportFit: 'cover' };
+export const viewport = { viewportFit: 'cover', themeColor: '#ffffff' };
 
 export async function generateMetadata({ searchParams }) {
   const param = searchParams?.mission || searchParams?.caseId;

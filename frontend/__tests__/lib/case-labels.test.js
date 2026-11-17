@@ -15,6 +15,8 @@ import {
   casePhone,
   shortDate,
   timeAgo,
+  caseBadge,
+  lastSeenDay,
 } from '@/app/lib/caseLabels';
 
 const DAY = 86400000;
@@ -160,5 +162,42 @@ describe("shortDate in the pet's zone", () => {
   test('the year is judged in the same zone', () => {
     // 11 pm in Austin on Dec 31, 2025 is already 2026 in UTC.
     expect(shortDate('2026-01-01T05:00:00Z', now, 'America/Chicago')).toBe('Dec 31, 2025');
+  });
+});
+
+describe("the phone page's first lines", () => {
+  const now = new Date('2026-11-16T18:00:00Z').getTime();
+  const H = 3600000;
+
+  test('the status on the photo says how long, in the words the page uses', () => {
+    expect(caseBadge({ status: 'ACTIVE', reportType: 'LOST', lastSeenAt: new Date(now - 3 * DAY - H) }, now)).toBe('Lost · 3 days');
+    expect(caseBadge({ status: 'ACTIVE', reportType: 'LOST', lastSeenAt: new Date(now - 5 * H) }, now)).toBe('Lost · 5 hours');
+    expect(caseBadge({ status: 'ACTIVE', reportType: 'FOUND', lastSeenAt: new Date(now - 2 * DAY) }, now)).toBe('Found · 2 days ago');
+    expect(caseBadge({ status: 'REUNITED', lastSeenAt: new Date(now - 2 * DAY) }, now)).toBe('Reunited');
+    expect(caseBadge({ status: 'CLOSED_OTHER', resolution: 'SEARCH_CEASED' }, now)).toBe('Closed');
+  });
+
+  test("a time the owner gave reads as the day and the time, in the pet's zone", () => {
+    // Created 18 hours later: no band of the wizard's, so a real time.
+    const c = { lastSeenAt: '2026-11-13T06:48:00Z', createdAt: '2026-11-14T00:48:00Z' };
+    expect(lastSeenDay(c, now, 'America/Chicago')).toBe('Fri, Nov 13, 12:48 am');
+  });
+
+  test('a band of hours gives the day only, never a made-up clock time', () => {
+    const created = new Date('2026-11-14T18:00:00Z');
+    const c = { createdAt: created, lastSeenAt: new Date(created.getTime() - 3 * H) }; // "a few hours"
+    expect(lastSeenDay(c, now, 'America/Chicago')).toBe('Sat, Nov 14');
+  });
+
+  test('a band of days says about, or before for more than a week, as the flyer does', () => {
+    const created = new Date('2026-11-14T18:00:00Z');
+    expect(lastSeenDay({ createdAt: created, lastSeenAt: new Date(created.getTime() - 48 * H) }, now, 'America/Chicago')).toBe('about Nov 12');
+    expect(lastSeenDay({ createdAt: created, lastSeenAt: new Date(created.getTime() - 168 * H) }, now, 'America/Chicago')).toBe('before Nov 7');
+  });
+
+  test('another year is named, and nothing is made up when there is no date', () => {
+    const c = { lastSeenAt: '2025-06-01T17:00:00Z', createdAt: '2025-06-02T09:00:00Z' };
+    expect(lastSeenDay(c, now, 'America/Chicago')).toBe('Sun, Jun 1, 2025, 12:00 pm');
+    expect(lastSeenDay({}, now)).toBe('');
   });
 });

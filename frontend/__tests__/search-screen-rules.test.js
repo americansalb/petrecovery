@@ -277,10 +277,43 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
 
   test('the thanks for an area count no areas "searched so far": a search fades, and the trail under it counts what is fresh', () => {
     const helper = read('app/mission-control/steps/Helper.js');
-    const thanks = code(helper).slice(code(helper).indexOf(') : done && ground ? ('), code(helper).indexOf(') : done ? ('));
-    expect(thanks).toMatch(/\{done\} is searched\. Thank you\.\s*<\/Lead>/);
+    const thanks = code(helper).slice(code(helper).indexOf(') : thanks ? ('), code(helper).indexOf(') : closing ? ('));
+    // The area with when it was searched, never a bare "searched" (founder, 2026-11-13: "You can mark an area as
+    // searched but never know when it was searched etc?").
+    expect(thanks).toMatch(/\{done\} searched \{doneWhen \|\| 'just now'\}\.\s*<\/Lead>/);
+    expect(helper).toMatch(/const doneWhen = doneAt \? whenWords\(doneAt, picture\.timeZone, Math\.max\(now \|\| 0, doneAt\)\) : '';/);
+    expect(thanks).not.toMatch(/is searched/);
     expect(thanks).not.toMatch(/counts\./);
-    expect(helper).toMatch(/\{ground && !desk && <Trail trail=\{trail\} items=\{items\} name=\{name\} now=\{now\} className="mt-3" \/>\}/);
+    // The trail is under it. Not on the short card that thanks someone who has had enough for now.
+    expect(helper).toMatch(/\{ground && !desk && !closing && <Trail trail=\{trail\} items=\{items\} name=\{name\} now=\{now\} className="mt-3" \/>\}/);
+  });
+
+  test('the thanks is theirs, and has two ways on: another area, and "I\'m done for now", which does what "I am stopping" does', () => {
+    // Founder, on the phone: "Terrible UX over the phone wow". The thanks went back to "Help look for Max" and had
+    // no way to say they were done.
+    const helper = read('app/mission-control/steps/Helper.js');
+    const main = code(helper).slice(code(helper).indexOf('export function Main('), code(helper).indexOf('export function Join('));
+    expect(main).toMatch(/thanks \? \(first \? `Thank you, \$\{first\}` : 'Thank you'\)/);
+    expect(main).toMatch(/ground \? \(done \? 'Search another area' : 'I can search an area'\)/);
+    expect(main).toMatch(/\{thanks && onStop && \(\s*<div className="flex justify-center">\s*<QuietLink onClick=\{onStop\}[^>]*>\s*I&apos;m done for now\s*<\/QuietLink>/);
+    // Inside the buttons kept on the screen, so both ways on are in view at once on a small phone.
+    expect(main.indexOf("I&apos;m done for now")).toBeGreaterThan(main.indexOf('<Pinned on={!desk}>'));
+    expect(main.indexOf("I&apos;m done for now")).toBeLessThan(main.indexOf('</Pinned>'));
+    expect(shell).toMatch(/onStop=\{stopWalking\} trail=\{search\.trail\}/);
+    expect(shell).toMatch(/viewer=\{viewer\} unit=\{unit\}/);
+  });
+
+  test('having had enough for now is a short card: thanks, the link to send on, and a quiet way back in', () => {
+    const helper = read('app/mission-control/steps/Helper.js');
+    const main = code(helper).slice(code(helper).indexOf('export function Main('), code(helper).indexOf('export function Join('));
+    expect(main).toMatch(/const closing = Boolean\(!ask && !done && stopped\);/);
+    expect(main).toMatch(/closing \? `Thank you for looking for \$\{name\}`/);
+    expect(main).toMatch(/closing \? \(\s*<Lead className="mt-1\.5">Send the link to neighbors\. It shows them where to look and how to send a sighting\.<\/Lead>/);
+    expect(main).toMatch(/<Primary onClick=\{closing \? onShare : onWalk\} busy=\{!closing && busy\} icon=\{closing \? Share2 : undefined\}>\s*\{closing \? 'Share the link' :/);
+    expect(main).toMatch(/closing && hasBoard \? <QuietLink onClick=\{onWalk\}>Search again<\/QuietLink>/);
+    // Not the card that asks people to help: no "Help look for" heading, no newcomer's line from Sarama, no trail.
+    expect(main).toMatch(/: ask \|\| done \|\| stopped \|\| trail\?\.mine\?\.paws > 0 \? null : brief\.own;/);
+    expect(main).toMatch(/\{!thanks && !closing && <Eyebrow>/);
   });
 
   test('"Before you go out" is shown to anyone who agreed and has not been through it, after a reload too, and the server refuses nobody for want of it', () => {
@@ -303,6 +336,8 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
   test('"I am stopping" is leaving: the card thanks them, and says nothing of an area just searched', () => {
     const stop = code(shell).slice(code(shell).indexOf('async function stopWalking('), code(shell).indexOf('async function cannot('));
     expect(stop).toMatch(/setDone\(null\);\s*setDoneId\(null\);\s*setStopped\(true\);\s*return go\('main'\);/);
+    // Ground they hold is handed back. From the thanks ("I'm done for now") they hold none, and only the card changes.
+    expect(stop).toMatch(/if \(mineRaw\) \{\s*setBusy\('stop'\);[\s\S]*?search\.act\(unit, mineRaw\.id, 'release'\)/);
     // Taking ground again, or searching it, is not having stopped.
     expect(code(shell).match(/setStopped\(false\);/g)).toHaveLength(2);
     expect(shell).toMatch(/stopped=\{stopped\}/);
@@ -361,10 +396,15 @@ describe('nothing is left wrong or stuck when a person does the ordinary thing',
     const drawn = map.match(/L\.(polyline|polygon|rectangle|circle|marker)\([^\n]*/g);
     expect(drawn.filter((line) => line.startsWith('L.polygon(')).length).toBeGreaterThanOrEqual(2);
     const taking = drawn.filter((line) => !/interactive: (false|desk)/.test(line));
-    // Two things do: a street's wide unseen line on a desk, and the pin of a sighting being placed, which is dragged.
-    expect(taking).toHaveLength(2);
+    // Three things do: a street's wide unseen line on a desk; a sighting drawn with no words beside it, which shows
+    // when it was to a tap or a pointer and does nothing else (2026-11-17: on a phone only the newest sighting is
+    // named, and the others are dots); and the pin of a sighting being placed, which is dragged.
+    expect(taking).toHaveLength(3);
     expect(taking[0]).toMatch(/^L\.polyline\(street\.path, \{ color: '#000000', weight: 20, opacity: 0/);
-    expect(taking[1]).toMatch(/^L\.marker\(\[pin\.lat, pin\.lng\], \{/);
+    expect(taking[1]).toMatch(/^L\.marker\(\[s\.lat, s\.lng\], \{ icon: tagged\(L, \{ dot, text: s\.label\b.*\}\), interactive: bare, keyboard: false, title: bare \? s\.title : ''/);
+    expect(map).toMatch(/const bare = !s\.label && Boolean\(s\.title\);/);
+    expect(map).toMatch(/if \(bare\) mark\.bindTooltip\(tip\(s\.title, ''\)/);
+    expect(taking[2]).toMatch(/^L\.marker\(\[pin\.lat, pin\.lng\], \{/);
     // The pin exists only while a place is being chosen, which only a desk's map is told.
     expect(map).toMatch(/if \(!pick \|\| !pin \|\| !Number\.isFinite\(pin\.lat\) \|\| !Number\.isFinite\(pin\.lng\)\) return;/);
     // And the phone's map is never told it is a desk, or given anything to call.
@@ -500,7 +540,8 @@ describe('three instruments: a desk is never asked where it is and is never hand
 
   test('the form does not offer "Use my location" on a desk', () => {
     expect(shell).toMatch(/<Seen\b.*canLocate=\{!desk\}/);
-    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{onWhere\} variant="lost" canLocate=\{canLocate\} search=\{typing \|\| !placed\} near=\{near\} maxAccuracy=\{SIGHTING_ACCURACY_METERS\} \/>/);
+    // What is typed is told to the form, which holds Send until a match is picked (2026-11-17).
+    expect(witness).toMatch(/<LocationPicker value=\{where\} onChange=\{onWhere\} variant="lost" canLocate=\{canLocate\} search=\{typing \|\| !placed \|\| unpicked\} near=\{near\} maxAccuracy=\{SIGHTING_ACCURACY_METERS\} onQuery=\{typed\} \/>/);
     // A typed street is looked for around the search, since a desk has no position of its own to lean on.
     expect(shell).toMatch(/<Seen\b.*near=\{hot \|\| picture\.lastSeen\}/);
     const picker = read('app/components/report/LocationPicker.js');
@@ -530,9 +571,12 @@ describe('three instruments: a desk is never asked where it is and is never hand
   test('a desk shows the code to scan in place of the button that hands out a street', () => {
     const main = helper.slice(helper.indexOf('export function Main'), helper.indexOf('export function Join'));
     expect(main).toMatch(/const desk = instrument === 'command';/);
-    expect(main.match(/onClick=\{onWalk\}/g)).toHaveLength(1);
-    // The walk button is in the branch a desk never takes.
-    expect(code(main)).toMatch(/\{desk \? \(\s*qr && \([\s\S]*?\)\s*\) : \(\s*hasBoard && \(\s*<Primary onClick=\{onWalk\}/);
+    // The walk button is in the branch a desk never takes. The same yellow button shares the link on the short card
+    // for someone who has had enough for now, whose quiet "Search again" is the one other way to ground: a desk is
+    // never handed ground, so never has that card.
+    expect(main.match(/onWalk\}/g)).toHaveLength(2);
+    expect(code(main)).toMatch(/\{desk \? \(\s*qr && \([\s\S]*?\)\s*\) : \(\s*\(closing \|\| hasBoard\) && \(\s*<Primary onClick=\{closing \? onShare : onWalk\}/);
+    expect(code(main)).toMatch(/closing && hasBoard \? <QuietLink onClick=\{onWalk\}>Search again<\/QuietLink>/);
   });
 });
 
@@ -678,7 +722,8 @@ describe('what a desk says about the search is a count, a time, a distance or a 
     expect(know).toMatch(/import \{ coverage, groundLines, missingFor, researchFor, sightingLines \} from '\.\.\/lib\/insight';/);
     // On ground the sentences are the ground's own tested file (lib/ground.js); on streets, the streets' (lib/insight.js).
     expect(know).toMatch(/import \{ groundCoverage, groundLines as areaLines \} from '\.\.\/lib\/ground';/);
-    expect(know).toMatch(/const ground = unit === 'area' \? areaLines\(\{ areas: items, circle, name, now \}\) : groundLines\(\{ items, unit, name \}\);/);
+    // The search's own time zone goes with it: a search in the US is said in feet and miles.
+    expect(know).toMatch(/const ground = unit === 'area' \? areaLines\(\{ areas: items, circle, name, timeZone: picture\.timeZone, now \}\) : groundLines\(\{ items, unit, name \}\);/);
     // The only number about people is how many are on ground right now, which the areas themselves say.
     expect(know).toMatch(/<Stat value=\{g\.people\} label="searching now" \/>/);
     expect(know).toMatch(/<Stat value=\{c\.walking\} label="walking now" \/>/);
@@ -793,9 +838,35 @@ describe('rule 3: advice is the site\'s own, word for word', () => {
 
   test('the owner\'s steps are the engine\'s own list, under the engine\'s own name for it', () => {
     const card = cardsOf(owner).find((c) => c.name === 'OwnerNow').source;
-    expect(card).toMatch(/const steps = \[\.\.\.advice\.steps, \.\.\.advice\.more\]\.slice\(0, 5\);/);
+    // Three, on the card itself: they were behind a "What to do now" link, and on a small phone the list ran off
+    // the bottom of the card with nothing to say it went on (2026-11-17).
+    expect(card).toMatch(/const steps = \[\.\.\.advice\.steps, \.\.\.advice\.more\]\.slice\(0, 3\);/);
     expect(card).toMatch(/<Eyebrow>\{advice\.source\}<\/Eyebrow>/);
     expect(card).toMatch(/\{item\.lead\}/);
+    // The engine's reasoning under a lead-in is its own words too, whole or not at all.
+    expect(card).toMatch(/\{item\.rest && item\.rest\.length <= REST_SHOWN && <span[^>]*>\{item\.rest\}<\/span>\}/);
+    expect(code(card)).not.toMatch(/What to do now|Hide the steps/);
+  });
+
+  test('the owner\'s card gives the owner something to do: the plan\'s next step, an area to search, the link', () => {
+    const card = cardsOf(owner).find((c) => c.name === 'OwnerNow').source;
+    // The next step is the plan's, the one the desk's Sarama says, with what the site made for it (gearFor).
+    expect(owner).toMatch(/import \{ nextStep, KEPT_KINDS \} from '@\/app\/lib\/searchPlan';/);
+    expect(card).toMatch(/const next = useMemo\(\(\) => \(plan \? nextStep\(plan\.kinds, plan\.tasks\) : null\), \[plan\]\);/);
+    expect(owner).toMatch(/\{SARAMA\.next\(step\.title\)\}/);
+    expect(owner).toMatch(/<Gear items=\{\(step\.gear \|\| \[\]\)\.slice\(0, 2\)\}/);
+    expect(read('app/mission-control/desktop/Command.js')).toMatch(/const next = nextStep\(plan\.kinds, plan\.tasks\);/);
+    // The owner searches through the same claim a helper makes: the middle of the circle, named and not ranked.
+    expect(card).toMatch(/const middle = ground \? items\.find\(\(i\) => i\.ring === RING\.MIDDLE\) \|\| null : null;/);
+    expect(code(shell)).toMatch(/onSearchHome=\{\(area\) => takeStreet\(null, area\)\}/);
+    expect(code(shell)).toMatch(/const ranked = chosen \? \[chosen\] : rank\(items, here \|\| position, unit\)/);
+    // No waiver step in between for the owner: the server lets the owner search their own pet's ground.
+    expect(read('app/lib/searcher.js')).toMatch(/waiver: waiverIsCurrent\(user\.waiverAcceptedAt, user\.waiverVersionAccepted\) \|\| isOwner,/);
+    // Nobody searches from a desk, and the desk has the next step in "Needs you".
+    expect(card).toMatch(/const canSearch = !desk && ground/);
+    expect(card).toMatch(/usePlan\(desk \? null : readPlan\)/);
+    // The buttons wait for the plan, so its next step arriving does not push them down under a finger.
+    expect(card).toMatch(/\{settled && \(/);
   });
 
   test('the line on the map is the brief\'s own first sentence', () => {
@@ -878,15 +949,18 @@ describe('the phone screen fits the phone', () => {
     expect(body).toMatch(/\.\.\.selfNear\(middle\)/);
   });
 
-  test('the screen is pinned to the window, only the card scrolls, and the page around it is the screen\'s own dark', () => {
-    expect(code(shell)).toMatch(/const pinned = 'mc-dark mc-screen fixed inset-0 /);
+  test('the screen is pinned to the window, only the card scrolls, and the page around it is the screen\'s own colour', () => {
+    // The phone screen is light (founder, 2026-11-17: "Light on phones"); the dark control room is the desk's.
+    expect(code(shell)).toMatch(/const pinned = 'mc-light mc-screen fixed inset-0 /);
+    expect(code(shell)).not.toMatch(/mc-dark mc-screen/);
+    expect(code(shell)).toMatch(/theme="light"/);
     expect(code(shell)).toMatch(/<div ref=\{sheetScroll\} data-sheet=\{sheetHeight\} className="min-h-0 overflow-y-auto overscroll-contain /);
     const css = read('app/globals.css');
-    expect(css).toMatch(/html:has\(\.mc-screen\),\s*html:has\(\.mc-screen\) body \{\s*background-color: #0f172a;/);
+    expect(css).toMatch(/html:has\(\.mc-screen\),\s*html:has\(\.mc-screen\) body \{\s*background-color: #ffffff;/);
   });
 
   test('the safe-area insets the screen pads with are switched on, for this route only', () => {
-    expect(code(read('app/mission-control/page.js'))).toMatch(/export const viewport = \{ viewportFit: 'cover' \};/);
+    expect(code(read('app/mission-control/page.js'))).toMatch(/export const viewport = \{ viewportFit: 'cover', themeColor: '#ffffff' \};/);
     expect(code(read('app/layout.js'))).not.toMatch(/viewportFit/);
     expect(read('app/mission-control/components/TopBar.js')).toMatch(/pt-\[env\(safe-area-inset-top\)\]/);
   });

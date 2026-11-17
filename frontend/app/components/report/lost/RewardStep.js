@@ -62,18 +62,18 @@ export default function RewardStep({ variant = 'lost', name, value, onChange, on
           }}
         >
           <span className="block font-bold text-midnight-900">No reward</span>
-          <span className="mt-1 block text-xs text-midnight-400">Most reunions happen without one</span>
+          <span className="mt-1 block text-[15px] leading-snug text-midnight-500">Most reunions happen without one</span>
         </button>
         <button type="button" aria-pressed={hasReward === true} className={card(hasReward === true)} onClick={() => onChange({ hasReward: true })}>
           <span className="block font-bold text-midnight-900">Yes, a reward</span>
-          <span className="mt-1 block text-xs text-midnight-400">Goes on the flyer as a tag</span>
+          <span className="mt-1 block text-[15px] leading-snug text-midnight-500">Goes on the flyer as a tag</span>
         </button>
       </div>
 
       {hasReward === true && (
         <>
           <div>
-            <p className="mb-2.5 text-sm font-semibold text-midnight-700">How much?</p>
+            <p className="mb-2.5 text-[15px] font-semibold text-midnight-700">How much?</p>
             <Chips variant={variant} options={amountChips} value={chipValue} onChange={pickAmount} ariaLabel="Reward amount" />
             {rewardMode === 'custom' && (
               <div className="mt-3 flex items-center gap-2">
@@ -100,7 +100,7 @@ export default function RewardStep({ variant = 'lost', name, value, onChange, on
               onChange={(e) => onChange({ scamAck: e.target.checked })}
               className="mt-1 h-5 w-5 shrink-0 accent-midnight-900"
             />
-            <span className="text-sm leading-relaxed text-midnight-800">
+            <span className="text-[15px] leading-relaxed text-midnight-800">
               <span className="block font-bold text-midnight-900">Read this before you offer money</span>
               {scamAcknowledgement(name)}
             </span>

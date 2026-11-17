@@ -1,10 +1,13 @@
 'use client';
 
 /**
- * DetailScreen - the body of one optional question from the checklist
- * (app/lib/caseDetails.js DETAIL_SCREENS): collar, microchip, facts,
- * marks, how they got out, what they come to, fears, places, notes.
- * Chips wherever a tap can answer; a line of text only where it cannot.
+ * DetailScreen - the body of one question from the checklist after posting
+ * (app/lib/caseDetails.js DETAIL_SCREENS): first the ones the report form
+ * no longer asks (size, indoor or outdoor, the other colors, health), then
+ * collar, microchip, facts, marks, how they got out, what they come to,
+ * fears, places, notes. The reward has its own screen (RewardStep, in
+ * DetailsHub). Chips wherever a tap can answer; a line of text only where
+ * it cannot.
  */
 
 import {
@@ -28,21 +31,24 @@ import {
 import BreedSelector from '../../BreedSelector';
 import Chips from '../Chips';
 import OnTheFlyer from '../OnTheFlyer';
-import { WIZARD_THEMES } from '../wizardTheme';
+import OptionCardGrid from '../OptionCardGrid';
+import CoatColors from './CoatColors';
+import HealthStep from './HealthStep';
+import { WIZARD_THEMES, DOG_SIZE_OPTIONS, CAT_LIVING_OPTIONS } from '../wizardTheme';
 
 function Field({ label, hint, children }) {
   return (
     <div>
-      {label && <p className="mb-2.5 text-sm font-semibold text-midnight-700">{label}</p>}
+      {label && <p className="mb-2.5 text-[15px] font-semibold text-midnight-700">{label}</p>}
       {children}
-      {hint && <p className="mt-1.5 text-xs text-midnight-400">{hint}</p>}
+      {hint && <p className="mt-1.5 text-[15px] leading-snug text-midnight-500">{hint}</p>}
     </div>
   );
 }
 
 function Check({ checked, onChange, children }) {
   return (
-    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm font-semibold text-midnight-800">
+    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-[15px] font-semibold text-midnight-800">
       <input type="checkbox" checked={Boolean(checked)} onChange={(e) => onChange(e.target.checked)} className="h-5 w-5 accent-midnight-900" />
       {children}
     </label>
@@ -56,6 +62,28 @@ export default function DetailScreen({ id, variant = 'lost', species, name, deta
   const d = details;
 
   switch (id) {
+    case 'size':
+      return (
+        <OptionCardGrid variant={variant} options={DOG_SIZE_OPTIONS} value={d.size || ''} columns={2} onSelect={(size) => onChange({ size })} />
+      );
+
+    case 'indoor':
+      return (
+        <OptionCardGrid
+          variant={variant}
+          options={CAT_LIVING_OPTIONS}
+          value={d.indoor === 'INDOOR' ? 'indoor' : d.indoor === 'OUTDOOR' ? 'outdoor' : ''}
+          columns={2}
+          onSelect={(v) => onChange({ indoor: v === 'indoor' ? 'INDOOR' : 'OUTDOOR' })}
+        />
+      );
+
+    case 'otherColors':
+      return <CoatColors multi value={d.otherColors || []} onPick={(otherColors) => onChange({ otherColors })} />;
+
+    case 'health':
+      return <HealthStep variant={variant} name={name} value={d} onChange={onChange} />;
+
     case 'collar':
       return (
         <div className="space-y-6">
@@ -105,7 +133,7 @@ export default function DetailScreen({ id, variant = 'lost', species, name, deta
               </Field>
             </>
           )}
-          {d.microchip === 'NO' && <p className="text-sm text-midnight-500">No problem. The photo, the collar and the markings are what a finder goes by.</p>}
+          {d.microchip === 'NO' && <p className="text-[15px] text-midnight-500">No problem. The photo, the collar and the markings are what a finder goes by.</p>}
         </div>
       );
 

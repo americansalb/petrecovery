@@ -114,13 +114,16 @@ export const CAT_LIVING_OPTIONS = [
 
 // Values are the exact enum both report APIs map through
 // calculateLastSeenTime / calculateFoundTime - do not rename.
+// `urgent` is what the create route does: only a pet missing under an hour
+// is posted as urgent (app/api/reports/create/route.js). `short` is the
+// chip's words on the report form's place screen.
 export const LOST_TIME_OPTIONS = [
-  { value: 'less_than_hour', label: 'Within the last hour', sublabel: 'They may still be close', urgent: true },
-  { value: '1_to_6_hours', label: 'A few hours ago', sublabel: '1–6 hours', urgent: true },
-  { value: '6_to_24_hours', label: 'Earlier today', sublabel: '6–24 hours' },
-  { value: '1_to_3_days', label: 'A day or two ago', sublabel: '1–3 days' },
-  { value: '3_to_7_days', label: 'This week', sublabel: '3–7 days' },
-  { value: 'more_than_2_weeks', label: 'Longer than a week', sublabel: 'Still worth reporting' },
+  { value: 'less_than_hour', label: 'Within the last hour', short: 'Under an hour', sublabel: 'They may still be close', urgent: true },
+  { value: '1_to_6_hours', label: 'A few hours ago', short: '1–6 hours', sublabel: '1–6 hours' },
+  { value: '6_to_24_hours', label: 'Earlier today', short: '6–24 hours', sublabel: '6–24 hours' },
+  { value: '1_to_3_days', label: 'A day or two ago', short: '1–3 days', sublabel: '1–3 days' },
+  { value: '3_to_7_days', label: 'This week', short: '3–7 days', sublabel: '3–7 days' },
+  { value: 'more_than_2_weeks', label: 'Longer than a week', short: 'Over a week', sublabel: 'Still worth reporting' },
 ];
 
 export const FOUND_TIME_OPTIONS = [

@@ -19,7 +19,7 @@ import { WIZARD_THEMES } from './wizardTheme';
 import { useWizardShell } from './WizardShell';
 
 const SIDE_BUTTON =
-  'shrink-0 max-w-[48%] min-h-[54px] px-3.5 rounded-xl border-2 border-midnight-300 bg-white text-[14px] leading-tight font-bold text-midnight-700 hover:border-midnight-500 transition-colors';
+  'shrink-0 max-w-[48%] min-h-[54px] px-3.5 rounded-xl border-2 border-midnight-300 bg-white text-[15px] leading-tight font-bold text-midnight-700 hover:border-midnight-500 transition-colors';
 
 export default function StepScreen({
   stepKey, // unique per step - remounts content so the entrance replays
@@ -32,6 +32,7 @@ export default function StepScreen({
   secondary, // { label, onClick }
   skip, // { label, onClick }
   footerNote, // one line under the buttons
+  footerLead, // { title, text }: the question the button answers, just above it (the place screen's "Is this where...")
   error,
   errorLink, // { href, label }: the one thing that resolves the error, e.g. sign in
   errorAction, // { label, onClick }: the other way out, e.g. change the number
@@ -68,6 +69,7 @@ export default function StepScreen({
 
   const measure = wide ? 'max-w-3xl' : 'max-w-xl';
   const hasFooter = Boolean(primary || secondary || skip);
+  // A step with no footer moves on at a tap; Back stays at the top left (WizardShell).
   const primaryOff = Boolean(primary && (primary.disabled || primary.loading));
 
   // The error used to sit at the end of the body, under the flyer: on a
@@ -86,7 +88,7 @@ export default function StepScreen({
       className="mb-3 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 outline-none"
     >
       <AlertTriangle size={19} className="mt-0.5 shrink-0 text-red-500" />
-      <div className="min-w-0 text-sm">
+      <div className="min-w-0 text-[15px]">
         <p className="font-semibold text-red-700">Not posted yet</p>
         <p className="mt-0.5 text-red-600">{error}</p>
         {(errorLink || errorAction) && (
@@ -94,7 +96,7 @@ export default function StepScreen({
             {errorLink && (
               <a
                 href={errorLink.href}
-                className="inline-flex min-h-[40px] items-center rounded-xl bg-red-600 px-3.5 text-[14px] font-bold text-white no-underline hover:bg-red-700"
+                className="inline-flex min-h-[44px] items-center rounded-xl bg-red-600 px-3.5 text-[15px] font-bold text-white no-underline hover:bg-red-700"
               >
                 {errorLink.label}
               </a>
@@ -103,7 +105,7 @@ export default function StepScreen({
               <button
                 type="button"
                 onClick={errorAction.onClick}
-                className="inline-flex min-h-[40px] items-center rounded-xl border-2 border-red-300 bg-white px-3.5 text-[14px] font-bold text-red-700 hover:border-red-500"
+                className="inline-flex min-h-[44px] items-center rounded-xl border-2 border-red-300 bg-white px-3.5 text-[15px] font-bold text-red-700 hover:border-red-500"
               >
                 {errorAction.label}
               </button>
@@ -141,7 +143,7 @@ export default function StepScreen({
           >
             {question}
           </h1>
-          {hint && <p className="text-midnight-500 mt-2 leading-relaxed">{hint}</p>}
+          {hint && <p className="text-[16px] text-midnight-600 mt-2 leading-relaxed">{hint}</p>}
 
           <div className={fillBody ? 'flex-1 flex flex-col min-h-0 mt-5' : 'mt-6 lg:mt-8'}>{children}</div>
 
@@ -162,6 +164,12 @@ export default function StepScreen({
         <footer className="shrink-0 border-t border-midnight-100 bg-white/95 backdrop-blur px-5 sm:px-8 pt-3 pb-[max(0.85rem,env(safe-area-inset-bottom))]">
           <div className={`w-full mx-auto ${measure}`}>
             {errorBox}
+            {footerLead && (
+              <div className="mb-3" role="status">
+                {footerLead.title && <p className="text-[17px] font-extrabold leading-snug text-midnight-900">{footerLead.title}</p>}
+                {footerLead.text && <p className="text-[15px] leading-snug text-midnight-600">{footerLead.text}</p>}
+              </div>
+            )}
             <div className="flex items-stretch gap-2.5">
               {secondary && (
                 <button type="button" onClick={secondary.onClick} className={SIDE_BUTTON}>
@@ -201,7 +209,7 @@ export default function StepScreen({
               )}
             </div>
             {footerNote && (
-              <p className="mt-2.5 text-center text-[13px] leading-snug text-midnight-500">{footerNote}</p>
+              <p className="mt-2.5 text-center text-[15px] leading-snug text-midnight-600">{footerNote}</p>
             )}
           </div>
         </footer>

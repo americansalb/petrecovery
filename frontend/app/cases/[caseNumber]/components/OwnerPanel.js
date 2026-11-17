@@ -22,7 +22,7 @@ const STATUSES = [
 ];
 
 const CHIP =
-  'inline-flex h-10 min-h-0 items-center rounded-full border-2 px-3.5 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 disabled:opacity-60';
+  'inline-flex h-10 min-h-0 items-center rounded-full border-2 px-3.5 text-sm font-bold transition max-md:h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 disabled:opacity-60';
 const DARK_INPUT =
   'min-w-0 flex-1 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2.5 text-[16px] text-white placeholder:text-midnight-400 focus:border-flash-400 focus:outline-none';
 const DARK_BUTTON =
@@ -35,7 +35,7 @@ async function send(url, method, body) {
   return data;
 }
 
-export default function OwnerPanel({ caseId, name, phone, ownerStatus, species, details, breed, onChanged, onReunited }) {
+export default function OwnerPanel({ caseId, name, phone, ownerStatus, species, details, breed, onChanged, onReunited, reunitedButton = true }) {
   const [status, setStatus] = useState(ownerStatus || null);
   const [statusBusy, setStatusBusy] = useState(false);
   const [update, setUpdate] = useState('');
@@ -124,14 +124,17 @@ export default function OwnerPanel({ caseId, name, phone, ownerStatus, species, 
           <h2 id="owner-heading" className="font-semibold">This is your report</h2>
           <p className="text-sm text-midnight-300">Everyone helping sees what you put here. When {name} is home, mark it.</p>
         </div>
-        <button type="button" onClick={onReunited} className={`${DARK_BUTTON} shrink-0`}>
-          <HeartHandshake className="h-4 w-4" aria-hidden="true" />
-          Mark as reunited
-        </button>
+        {/* On a phone the button is in the row at the top of the page ("Pip is home"). */}
+        {reunitedButton && (
+          <button type="button" onClick={onReunited} className={`${DARK_BUTTON} shrink-0`}>
+            <HeartHandshake className="h-4 w-4" aria-hidden="true" />
+            Mark as reunited
+          </button>
+        )}
       </div>
 
       <div className="mt-4">
-        <p className="text-xs font-extrabold uppercase tracking-wide text-midnight-300">Where are you?</p>
+        <p className="text-xs font-extrabold uppercase tracking-wide text-midnight-300 max-md:text-sm">Where are you?</p>
         <div role="radiogroup" aria-label="Where you are" className="mt-2 flex flex-wrap gap-2">
           {STATUSES.map((s) => {
             const on = s.id === status;
@@ -161,7 +164,7 @@ export default function OwnerPanel({ caseId, name, phone, ownerStatus, species, 
           postUpdate();
         }}
       >
-        <label htmlFor="owner-update" className="text-xs font-extrabold uppercase tracking-wide text-midnight-300">
+        <label htmlFor="owner-update" className="text-xs font-extrabold uppercase tracking-wide text-midnight-300 max-md:text-sm">
           Tell everyone helping
         </label>
         <div className="mt-2 flex gap-2">

@@ -21,7 +21,7 @@ jest.mock('@/app/lib/prisma', () => ({
 
 import prisma from '@/app/lib/prisma';
 import {
-  OWNER_KEY_DAYS, ownerCookieName, madeCookieName, madeCookie, hashOwnerKey, mintOwnerKey, keyMatches, keyIsFresh, cookiesOf, ownerKeyFrom, ownerCookie, holdsOwnerKey, ownerByKey, casesHeldBy,
+  OWNER_KEY_DAYS, ownerCookieName, madeCookieName, madeCookie, hashOwnerKey, mintOwnerKey, keyMatches, keyIsFresh, cookiesOf, ownerKeyFrom, ownerCookie, holdsOwnerKey, ownerByKey, casesHeldBy, openSearchesMadeHere,
 } from '@/app/lib/ownerKey';
 
 const NOW = new Date('2026-11-12T20:00:00Z').getTime();
@@ -171,5 +171,23 @@ describe('the searches a browser holds', () => {
     expect(await casesHeldBy(request('rp_made_case-2=1'), { madeHere: true, now: NOW })).toEqual([]);
     expect(madeCookieName('case-2')).toBe('rp_made_case-2');
     expect(madeCookie('case-2')).toMatchObject({ name: 'rp_made_case-2', value: '1', options: { httpOnly: true, sameSite: 'lax', path: '/' } });
+  });
+
+  test('the open searches this browser made come newest first, with when each pet was lost, for the strip under the top bar', async () => {
+    const a = mintOwnerKey();
+    const b = mintOwnerKey();
+    const c = mintOwnerKey();
+    const row = (id, key, made, extra = {}) => ({ id, caseNumber: `AUS-${id}`, petName: id, status: 'ACTIVE', reportType: 'LOST', expiresAt: null, createdAt: new Date(made), lastSeenAt: new Date(made - 3600000), ownerKeyHash: key.hash, ownerKeyAt: new Date(made), ...extra });
+    prisma.case.findMany.mockResolvedValue([
+      row('older', a, NOW - 5 * DAY),
+      row('newest', b, NOW - DAY),
+      row('closed', c, NOW - 1000, { status: 'REUNITED' }),
+    ]);
+    const cookie = `rp_owner_older=${a.key}; rp_made_older=1; rp_owner_newest=${b.key}; rp_made_newest=1; rp_owner_closed=${c.key}; rp_made_closed=1`;
+    const open = await openSearchesMadeHere(request(cookie), NOW);
+    expect(open.map((x) => x.id)).toEqual(['newest', 'older']);
+    expect(open[0].lastSeenAt).toEqual(new Date(NOW - DAY - 3600000));
+    expect(prisma.case.findMany.mock.calls[0][0].select).toMatchObject({ createdAt: true, lastSeenAt: true });
+    expect(JSON.stringify(open)).not.toMatch(/ownerKey/);
   });
 });

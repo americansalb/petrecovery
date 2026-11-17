@@ -1,62 +1,71 @@
 'use client';
 
 /**
- * Report Lost Pet - one-decision-at-a-time wizard.
+ * Report Lost Pet - seven screens for an owner in a panic on a phone
+ * (founder, 2026-11-17: "7 screens instead of 12"):
  *
- * Flow (guests): species → name → size → when → where → photo (skippable) →
- * colors → behaviour (how they act with strangers) → health (medication,
- * conditions) → contact (passwordless) → reward (with the scam note) →
- * review → the page after posting. Twelve screens for a guest with a dog,
- * seven of them a single tap. The nine finder questions (collar, microchip,
- * facts, markings, how they got out, what they come to, fears, places,
- * notes: app/lib/caseDetails.js, docs/REPORT_QUESTIONNAIRE.md) are asked
- * after posting, one tap each, on the page after posting and the pet's
- * page (founder, 2026-11-07: asking them before posting was too much
- * friction). Logged-in owners with saved pets start from a pet picker that
- * short-circuits straight to "when". A logged-in owner has no contact screen
- * (the email is the account's) but is asked the phone finders call, prefilled
- * with the account's: the flyer tells whoever sees the pet to call. A guest
- * whose browser already has a search open is told so before the first
- * question (one search at a time without signing in). Option taps advance
- * immediately; typed steps use the footer Continue. Geolocation is only requested from the
- * Where step's button.
+ *   1. photo    a photo (skippable)
+ *   2. pet      dog or cat (or another kind), and the name
+ *   3. color    the main color, so the flyer is recognisable (one tap)
+ *   4. place    when, and where: the spot the whole search circle is drawn
+ *               around, shown on the map with "Is this where {name} got
+ *               out?" and one Confirm, never taken from one tap on
+ *               "Use my location" without being shown
+ *   5. behaviour how the pet is with people (one tap): the search plan and
+ *               the helper brief follow it (app/lib/searchPlan.js,
+ *               app/lib/brief.js)
+ *   6. contact  how finders reach a guest (text or email, as before), or
+ *      phone    for a signed-in owner the phone finders call, prefilled
+ *   7. review   the flyer, a small map of the spot, and Post
  *
- * All UI comes from the shared primitives in app/components/report/.
+ * Size, the other colors, health and the reward are asked right after
+ * posting, on the page after posting and the pet's page (DetailsHub,
+ * app/lib/caseDetails.js DETAIL_SCREENS), and the flyer is drawn again once
+ * after the answers (app/lib/cascade/redrawLater.js). The finder questions
+ * (collar, microchip, facts...) are asked there too. A signed-in owner with
+ * saved pets starts from the pet picker instead of the photo; the count
+ * stays seven, and a saved pet's color screen is passed over.
+ *
+ * The count never changes once the first screen shows. The flyer is shown
+ * only on the review screen. A screen whose answer is a tap has no footer
+ * and moves on at the tap; Back is at the top left on every screen after
+ * the first. A guest whose browser already has a search open is told so
+ * before the first question. Geolocation is only requested from the place
+ * screen's "Use my location".
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import {
-  Heart, Clock, MapPin, Camera, Mail, Megaphone, HeartHandshake, Stethoscope, Gift, Phone,
+  Camera, MapPin, Mail, Megaphone, HeartHandshake, Phone, PawPrint, Palette, Clock,
 } from 'lucide-react';
 import WizardShell from '../../components/report/WizardShell';
 import StepScreen from '../../components/report/StepScreen';
-import OptionCardGrid from '../../components/report/OptionCardGrid';
 import LocationPicker from '../../components/report/LocationPicker';
 import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import PhotoStep from '../../components/report/PhotoStep';
 import ContactFields, { contactIsValid, OwnerPhoneField } from '../../components/report/ContactFields';
 import OpenSearchNotice from '../../components/report/OpenSearchNotice';
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
-import FlyerStrip from '../../components/report/FlyerStrip';
-import FlyerPreview, { formatPhone } from '../../components/report/FlyerPreview';
+import { formatPhone } from '../../components/report/FlyerPreview';
 import SuccessScreen from '../../components/report/SuccessScreen';
+import Chips from '../../components/report/Chips';
 import MyPetsStep from '../../components/report/lost/MyPetsStep';
+import PetStep from '../../components/report/lost/PetStep';
+import CoatColors from '../../components/report/lost/CoatColors';
+import SpotMap from '../../components/report/lost/SpotMap';
 import BehaviourStep from '../../components/report/lost/BehaviourStep';
-import HealthStep from '../../components/report/lost/HealthStep';
-import RewardStep, { rewardIsValid } from '../../components/report/lost/RewardStep';
+import { lostScreenOrder } from '../../components/report/lost/screens';
 import {
-  TEMPERAMENT_OPTIONS, HEALTH_OPTIONS, normalizeDetails, speciesKey,
-  approachLine, healthLine, needsMedication, lookForBits, factsBits,
+  TEMPERAMENT_OPTIONS, normalizeDetails, speciesKey, approachLine, factsBits,
 } from '@/app/lib/caseDetails';
+import { coatColorName } from '@/app/lib/coatColors';
 import DraftPrompt from '../../components/report/DraftPrompt';
 import SwitchReportLink from '../../components/report/SwitchReportLink';
 import useWizardHistory from '../../components/report/useWizardHistory';
 import { loadDraft, saveDraft, clearDraft } from '../../components/report/wizardDraft';
-import ColorSelector from '../../components/ColorSelector';
 import {
-  SPECIES_OPTIONS, DOG_SIZE_OPTIONS, CAT_LIVING_OPTIONS,
-  LOST_TIME_OPTIONS, WIZARD_THEMES, speciesToApi, isValidPhone,
+  SPECIES_OPTIONS, DOG_SIZE_OPTIONS, LOST_TIME_OPTIONS, WIZARD_THEMES, speciesToApi, isValidPhone,
 } from '../../components/report/wizardTheme';
 import { SARAMA_AVATAR } from '@/lib/brandAssets';
 import { captchaHeaders } from '@/app/lib/captchaClient';
@@ -67,22 +76,18 @@ const VARIANT = 'lost';
 const CONTACT_MODE = 'either';
 const LOCATION_STORAGE_KEY = 'reportLocation';
 const DRAFT_KEY = 'reportDraft:lost';
+const WHEN_CHIPS = LOST_TIME_OPTIONS.map((o) => ({ value: o.value, label: o.short || o.label }));
+// What the create route marks urgent (app/api/reports/create/route.js): a pet missing under an hour.
+const URGENT_WHEN = LOST_TIME_OPTIONS.filter((o) => o.urgent).map((o) => o.short || o.label);
 
-const GROUP_OF = {
-  pets: 'pet', species: 'pet', name: 'pet', size: 'pet',
-  when: 'whenwhere', where: 'whenwhere', photo: 'photo', colors: 'photo',
-  behaviour: 'help', health: 'help',
-  contact: 'contact', phone: 'contact', reward: 'post', review: 'post',
-};
-// What each screen is called in the sidebar's list of the current group.
 const SCREEN_LABEL = {
-  pets: 'Which pet', species: 'Kind of pet', name: 'Name', size: 'Size',
-  when: 'When', where: 'Where', photo: 'Photo', colors: 'Colors',
-  behaviour: 'With strangers', health: 'Medication and health',
-  contact: 'How finders reach you', phone: 'Phone finders call', reward: 'Reward', review: 'Review and post',
+  photo: 'Photo', pet: 'Your pet', color: 'Color', place: 'When and where',
+  behaviour: 'With people', contact: 'Contact', phone: 'Contact', review: 'Post it',
 };
-
-const NO_REWARD = { hasReward: null, rewardMode: null, rewardAmount: null, scamAck: false };
+const SCREEN_ICON = {
+  photo: Camera, pet: PawPrint, color: Palette, place: MapPin,
+  behaviour: HeartHandshake, contact: Mail, phone: Phone, review: Megaphone,
+};
 
 export default function ReportLostPet() {
   const { data: session, status: authStatus } = useSession();
@@ -96,10 +101,9 @@ export default function ReportLostPet() {
   // ── Report data ───────────────────────────────────────────────────
   const [myPets, setMyPets] = useState(null); // null = still loading (logged-in)
   const [selectedPet, setSelectedPet] = useState(null);
+  const [newPet, setNewPet] = useState(false); // "A different pet" chosen in the picker
   const [species, setSpecies] = useState('');
   const [petName, setPetName] = useState('');
-  const [petSize, setPetSize] = useState('');
-  const [isIndoorCat, setIsIndoorCat] = useState(null);
   const [timeElapsed, setTimeElapsed] = useState('');
   const [location, setLocation] = useState(null); // { lat, lng, address, city }
   const [photos, setPhotos] = useState([]);
@@ -107,16 +111,15 @@ export default function ReportLostPet() {
   const [color, setColor] = useState('');
   const [aiSuggested, setAiSuggested] = useState(false);
   const [contact, setContact] = useState({ firstName: '', method: 'phone', email: '', phone: '' });
-  const locationControl = useRef(null); // LocationPicker's locate(), for the footer button
-  // False once the browser has said no to location: the footer stops offering "Use my location".
-  const [canLocate, setCanLocate] = useState(true);
   const photoControl = useRef(null); // PhotoStep's openPicker(), for the footer button
+  const placeRef = useRef(null); // the map on the place screen, brought into view once it has a spot
   const [breed, setBreed] = useState('');
-  // The questionnaire (app/lib/caseDetails.js): behaviour, health and the
-  // optional checklist, as one object of answers; the reward beside it.
+  // How the pet is with people (app/lib/caseDetails.js): temperament and the owner's own line.
   const [details, setDetails] = useState({});
-  const [reward, setReward] = useState(NO_REWARD);
   const patchDetails = (patch) => setDetails((d) => ({ ...d, ...patch }));
+  // The answers as they are now, for the photo reading that lands a few seconds after the upload.
+  const latest = useRef({ species: '', color: '' });
+  latest.current = { species, color };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -155,10 +158,14 @@ export default function ReportLostPet() {
       .catch(() => {});
   }, [authStatus, isLoggedIn]);
 
+  // ── Every screen of this report, in order: fixed before the first one shows ──
+  const hasPets = isLoggedIn && (myPets?.length || 0) > 0;
+  const screenOrder = useMemo(() => lostScreenOrder({ isLoggedIn, hasPets }), [isLoggedIn, hasPets]);
+
   useEffect(() => {
     if (stepId || authStatus === 'loading' || myPets === null || openSearch === undefined) return;
-    setStepId(isLoggedIn && myPets.length > 0 ? 'pets' : 'species');
-  }, [stepId, authStatus, isLoggedIn, myPets, openSearch]);
+    setStepId(screenOrder[0]);
+  }, [stepId, authStatus, myPets, openSearch, screenOrder]);
 
   // ── Draft persistence (session-scoped, explicit restore) ──────────
   const dirty = Boolean(
@@ -177,8 +184,8 @@ export default function ReportLostPet() {
   useEffect(() => {
     if (!dirty || pendingDraft || result) return;
     saveDraft(DRAFT_KEY, {
-      species, petName, petSize, isIndoorCat, timeElapsed, location,
-      photos, displayIndex, color, contact, breed, details, reward,
+      species, petName, timeElapsed, location,
+      photos, displayIndex, color, contact, breed, details, newPet,
       selectedPet: selectedPet
         ? {
             id: selectedPet.id, name: selectedPet.name, species: selectedPet.species,
@@ -187,15 +194,13 @@ export default function ReportLostPet() {
           }
         : null,
     });
-  }, [dirty, pendingDraft, result, species, petName, petSize, isIndoorCat, timeElapsed,
-      location, photos, displayIndex, color, contact, breed, details, reward, selectedPet]);
+  }, [dirty, pendingDraft, result, species, petName, timeElapsed,
+      location, photos, displayIndex, color, contact, breed, details, newPet, selectedPet]);
 
   const resumeDraft = () => {
     const d = pendingDraft;
     setSpecies(d.species || '');
     setPetName(d.petName || '');
-    setPetSize(d.petSize || '');
-    setIsIndoorCat(d.isIndoorCat ?? null);
     setTimeElapsed(d.timeElapsed || '');
     setLocation(d.location || null);
     setPhotos(d.photos || []);
@@ -205,34 +210,22 @@ export default function ReportLostPet() {
     setContact((c) => ({ ...(d.contact || { firstName: '', method: 'phone', email: '', phone: '' }), phone: d.contact?.phone || c.phone || '' }));
     setBreed(d.breed || '');
     setDetails(d.details && typeof d.details === 'object' ? d.details : {});
-    setReward(d.reward && typeof d.reward === 'object' ? { ...NO_REWARD, ...d.reward } : NO_REWARD);
+    setNewPet(Boolean(d.newPet));
     if (d.selectedPet) setSelectedPet(d.selectedPet);
 
-    // Land on the first incomplete step, with a plausible back-stack.
+    // Land on the first unanswered screen, with a plausible back-stack.
     const done = {
-      species: !!d.species,
-      name: !!d.petName?.trim(),
-      size: d.species === 'dog' ? !!d.petSize : d.species === 'cat' ? d.isIndoorCat != null : true,
-      when: !!d.timeElapsed,
-      where: !!d.location,
       photo: true, // skippable - never blocks resume
-      colors: !!d.color,
+      pet: Boolean(d.species && d.petName?.trim()),
+      color: Boolean(d.color),
+      place: Boolean(d.location && d.timeElapsed),
       behaviour: Boolean(d.details?.temperament),
-      health: Array.isArray(d.details?.health) && d.details.health.length > 0,
-      contact: isLoggedIn || contactIsValid(d.contact || {}, CONTACT_MODE),
+      contact: contactIsValid(d.contact || {}, CONTACT_MODE),
       phone: isValidPhone(d.contact?.phone),
-      reward: rewardIsValid(d.reward || {}),
     };
-    const order = [
-      'species', 'name',
-      ...(d.species === 'dog' || d.species === 'cat' ? ['size'] : []),
-      'when', 'where', 'photo', 'colors', 'behaviour', 'health',
-      isLoggedIn ? 'phone' : 'contact',
-      'reward',
-    ];
     const chain = [];
     let resume = 'review';
-    for (const s of order) {
+    for (const s of screenOrder.filter((id) => id !== 'review')) {
       if (!done[s]) {
         resume = s;
         break;
@@ -277,7 +270,14 @@ export default function ReportLostPet() {
     go(target);
   };
 
-  /** Advance from `stepId` along the normal chain, honoring review edits. */
+  /** The screen after `from`: a saved pet that already has its color passes the color screen. */
+  const nextAfter = (from, { knownColor = Boolean(selectedPet && color) } = {}) => {
+    let i = screenOrder.indexOf(from) + 1;
+    if (screenOrder[i] === 'color' && knownColor) i += 1;
+    return screenOrder[i] || 'review';
+  };
+
+  /** Advance from `stepId` along the order, honoring review edits. */
   const advance = () => {
     if (returnToRef.current) {
       const back = returnToRef.current;
@@ -285,51 +285,59 @@ export default function ReportLostPet() {
       go(back);
       return;
     }
-    const needsSize = species === 'dog' || species === 'cat';
-    const needsColors = !color || !selectedPet;
-    const chain = {
-      species: 'name',
-      name: needsSize ? 'size' : 'when',
-      size: 'when',
-      when: 'where',
-      where: 'photo',
-      photo: needsColors ? 'colors' : 'behaviour',
-      colors: 'behaviour',
-      behaviour: 'health',
-      health: isLoggedIn ? 'phone' : 'contact',
-      contact: 'reward',
-      phone: 'reward',
-      reward: 'review',
-    };
-    if (chain[stepId]) go(chain[stepId]);
+    go(nextAfter(stepId));
   };
 
   // ── Selections ────────────────────────────────────────────────────
   const handleSelectPet = (pet) => {
     const typeMap = { DOG: 'dog', CAT: 'cat', BIRD: 'bird', RABBIT: 'rabbit' };
     setSelectedPet(pet);
+    setNewPet(false);
     setSpecies(typeMap[pet.species] || 'other');
     setPetName(pet.name || '');
-    if (pet.color) setColor(pet.color);
-    if (pet.breed) setBreed(pet.breed);
-    if (pet.size) setPetSize(pet.size);
-    if (pet.isIndoor !== undefined && pet.isIndoor !== null) setIsIndoorCat(pet.isIndoor);
+    setColor(pet.color || '');
+    setBreed(pet.breed || '');
     setPhotos(pet.primaryPhotoUrl ? [pet.primaryPhotoUrl] : []);
     setDisplayIndex(0);
-    go('when');
+    if (returnToRef.current) {
+      advance();
+      return;
+    }
+    go(nextAfter('pet', { knownColor: Boolean(pet.color) }));
   };
 
   const handleNewPet = () => {
+    if (selectedPet) setPhotos([]);
     setSelectedPet(null);
-    go('species');
+    setNewPet(true);
+    setSpecies('');
+    setPetName('');
+    setColor('');
+    setBreed('');
   };
 
+  // The photo is read for the kind of pet and its main color; the owner still sees both and can change them.
   const handleAnalysis = (analysis) => {
-    if (analysis?.colors?.length > 0 && !color) {
-      setColor(analysis.colors.join(', '));
+    const kind = String(analysis?.species || '').toLowerCase();
+    if (!latest.current.species && kind !== 'other' && SPECIES_OPTIONS.some((o) => o.value === kind) && Number(analysis?.confidence) >= 0.7) {
+      setSpecies(kind);
+    }
+    const main = coatColorName(analysis?.colors?.[0]);
+    if (main && !latest.current.color) {
+      setColor(main);
       setAiSuggested(true);
     }
   };
+
+  // The map comes into view once it has a spot, above the question that confirms it.
+  useEffect(() => {
+    if (stepId !== 'place' || !location) return;
+    const t = setTimeout(() => {
+      const scroller = placeRef.current?.closest('.overflow-y-auto');
+      scroller?.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [stepId, location?.lat, location?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Submit ────────────────────────────────────────────────────────
   const effectiveEmail = isLoggedIn
@@ -357,6 +365,8 @@ export default function ReportLostPet() {
       const orderedPhotos = photos.length
         ? [photos[displayIndex], ...photos.filter((_, i) => i !== displayIndex)]
         : [];
+      // Size, the other colors, health and the reward are asked after posting: none of them is sent here, so
+      // the report says nothing it was not told. A saved pet's size and indoor answer come from its record.
       const response = await fetch('/api/reports/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await captchaHeaders('report_create')) },
@@ -367,18 +377,14 @@ export default function ReportLostPet() {
           petName: petName.trim(),
           color,
           breed: breed || undefined,
-          escapeScenario: details.howOut || undefined,
           details: normalizeDetails(details),
-          hasReward: reward.hasReward === true,
-          rewardAmount: reward.hasReward === true && reward.rewardMode !== 'unstated' ? reward.rewardAmount : undefined,
-          rewardScamAcknowledged: reward.hasReward === true ? Boolean(reward.scamAck) : undefined,
           lastSeenAddress: location.address,
           center: [location.lat, location.lng],
           radiusMiles: 0.1,
           timeElapsed,
           petType: speciesToApi(species),
-          petSize: species === 'dog' ? petSize : undefined,
-          isIndoorCat: species === 'cat' ? isIndoorCat : undefined,
+          petSize: species === 'dog' && selectedPet?.size ? selectedPet.size : undefined,
+          isIndoorCat: species === 'cat' && typeof selectedPet?.isIndoor === 'boolean' ? selectedPet.isIndoor : undefined,
           photos: orderedPhotos,
           locationType: 'address',
           cityName: location.city,
@@ -418,136 +424,63 @@ export default function ReportLostPet() {
     }
   };
 
-  // ── Shell step groups (stable checklist) ──────────────────────────
+  // ── Shell: one group per screen, the count fixed ──────────────────
   const steps = useMemo(() => {
     const name = petName || 'your pet';
-    return [
-      {
-        id: 'pet',
-        label: 'Your pet',
-        sidebarIcon: Heart,
-        sidebarTitle: 'Who went missing?',
-        sidebarCopy: 'A few questions about your pet. Each answer goes on the report and the flyer.',
-      },
-      {
-        id: 'whenwhere',
-        label: 'When and where',
-        sidebarIcon: MapPin,
-        sidebarTitle: 'When and where',
-        sidebarCopy: `The report and the flyers show the spot, and the Rescue Force that covers it gets the report. A pet missing for less than an hour is marked urgent.`,
-      },
-      {
-        id: 'photo',
-        label: 'Photo and colors',
-        sidebarIcon: Camera,
-        sidebarTitle: 'A photo',
-        sidebarCopy: 'People recognize a pet from a photo much more easily than from a description. No photo handy? Skip it and add one from the page later.',
-      },
-      {
-        id: 'help',
-        label: 'For finders',
-        sidebarIcon: HeartHandshake,
-        sidebarTitle: 'What a finder should do',
-        sidebarCopy: `How ${name} acts with strangers, medication, and what to look for. These lines go on the flyer, where a stranger reads them first.`,
-      },
-      !isLoggedIn
-        ? {
-            id: 'contact',
-            label: 'Contact',
-            sidebarIcon: Mail,
-            sidebarTitle: 'Stay reachable',
-            sidebarCopy: `We send sightings of ${name} here. You don't need a password.`,
-          }
-        : {
-            id: 'contact',
-            label: 'Contact',
-            sidebarIcon: Phone,
-            sidebarTitle: 'Stay reachable',
-            sidebarCopy: `The flyer and ${name}'s page show this number, so whoever sees ${name} can call you.`,
-          },
-      {
-        id: 'post',
-        label: 'Post it',
-        sidebarIcon: Megaphone,
-        sidebarTitle: 'Post the report',
-        sidebarCopy: 'It goes on the public Lost and Found board and to the Rescue Forces that cover the spot.',
-      },
-    ];
-  }, [isLoggedIn, petName]);
+    const copy = {
+      photo: ['A photo', 'People recognize a pet from a photo much more easily than from a description. No photo handy? Skip it and add one from the page later.'],
+      pet: ['Who went missing?', 'The kind of pet and the name it answers to. Both go on the flyer.'],
+      color: ['The main color', 'The color most of the coat is. The other colors, the size and health are asked right after posting.'],
+      place: ['When and where', `The search circle is drawn around this spot, and the Rescue Force that covers it gets the report. ${URGENT_WHEN.join(', ')} is marked urgent.`],
+      behaviour: ['With people', `How ${name} is with people writes the "If you see ${name}" line on the flyer and decides how helpers search.`],
+      contact: ['Stay reachable', `We send sightings of ${name} here. You don't need a password.`],
+      phone: ['Stay reachable', `The flyer and ${name}'s page show this number, so whoever sees ${name} can call you.`],
+      review: ['Post the report', 'It goes on the public Lost and Found board and to the Rescue Forces that cover the spot.'],
+    };
+    return screenOrder.map((id) => ({
+      id,
+      label: SCREEN_LABEL[id],
+      sidebarIcon: SCREEN_ICON[id],
+      sidebarTitle: copy[id][0],
+      sidebarCopy: copy[id][1],
+    }));
+  }, [screenOrder, petName]);
 
-  // ── Progress: every screen of this report, in order ───────────────
-  const sizeAsked = species === 'dog' || species === 'cat';
-  const screenOrder = useMemo(
-    () => [
-      ...(isLoggedIn && (myPets?.length || 0) > 0 ? ['pets'] : []),
-      ...(selectedPet ? [] : ['species', 'name', ...(sizeAsked ? ['size'] : [])]),
-      'when', 'where', 'photo',
-      ...(!color || !selectedPet ? ['colors'] : []),
-      'behaviour', 'health',
-      isLoggedIn ? 'phone' : 'contact',
-      'reward', 'review',
-    ],
-    [isLoggedIn, myPets, selectedPet, sizeAsked, color]
-  );
   const screenIndex = Math.max(0, screenOrder.indexOf(stepId));
   const progress = { done: screenIndex + 1, total: screenOrder.length };
-  const groupScreens = screenOrder.filter((id) => GROUP_OF[id] === GROUP_OF[stepId]);
-  const position = { index: Math.max(1, groupScreens.indexOf(stepId) + 1), total: groupScreens.length };
-  const substeps = groupScreens.map((id) => ({
-    id,
-    label: SCREEN_LABEL[id] || id,
-    state: id === stepId ? 'current' : screenOrder.indexOf(id) < screenIndex ? 'done' : 'todo',
-  }));
 
-  // The sidebar's finished groups and screens are links back; a group opens
-  // at its first screen, and a jump from the review screen returns to it.
+  // The sidebar's finished screens are links back; a jump from the review screen returns to it.
   const jumpTo = (id) => {
-    const target = screenOrder.includes(id) ? id : screenOrder.find((s) => GROUP_OF[s] === id);
-    if (!target || target === stepId) return;
+    if (!screenOrder.includes(id) || id === stepId) return;
     if (stepId === 'review') returnToRef.current = 'review';
-    go(target);
+    go(id);
   };
 
-  // ── The flyer, drawn from the answers so far ──────────────────────
+  // ── The flyer, drawn from the answers (shown on the review screen only) ──
   const flyer = useMemo(() => {
     const sp = speciesToApi(species);
     const who = petName || 'our pet';
     const colorLine = color ? `${color.split(',').map((c) => c.trim()).filter(Boolean).join(', ')} coat.` : '';
+    // Only a size the report was told: a saved pet's.
     const sizeWord =
-      species === 'dog' && petSize
-        ? DOG_SIZE_OPTIONS.find((o) => o.value === petSize)?.label || ''
-        : species === 'cat' && isIndoorCat !== null
-          ? isIndoorCat ? 'Indoor cat' : 'Goes outside'
-          : '';
-    const facts = [
-      breed && breed !== 'Unknown' ? breed : '',
-      sizeWord,
-      ...factsBits(details, { species: sp }),
-      details.microchip === 'YES' ? 'Microchipped' : '',
-    ].filter(Boolean);
-    const money =
-      reward.hasReward === true
-        ? reward.rewardMode !== 'unstated' && reward.rewardAmount
-          ? `$${Number(reward.rewardAmount).toLocaleString('en-US')} reward`
-          : 'Reward'
-        : '';
+      species === 'dog' && selectedPet?.size ? DOG_SIZE_OPTIONS.find((o) => o.value === selectedPet.size)?.label || '' : '';
+    const facts = [breed && breed !== 'Unknown' ? breed : '', sizeWord, ...factsBits(details, { species: sp })].filter(Boolean);
     return {
       variant: 'lost',
       species: sp,
       petName,
       breed,
       photoUrl: photos[displayIndex] || photos[0] || '',
-      pills: [needsMedication(details) ? 'Needs medication' : '', money].filter(Boolean),
+      pills: [],
       when: LOST_TIME_OPTIONS.find((o) => o.value === timeElapsed)?.label || '',
       where: location ? location.city || (looksLikeCoordinates(location.address) ? 'the pinned spot' : location.address) : '',
-      lookFor: [colorLine, ...lookForBits(details), facts.length ? `${facts.join(', ')}.` : ''].filter(Boolean).join(' '),
-      urgent: healthLine(details, { name: who }),
+      lookFor: [colorLine, facts.length ? `${facts.join(', ')}.` : ''].filter(Boolean).join(' '),
+      urgent: '',
       approach: details.temperament || details.approachNote ? approachLine(details, { name: who, species: sp }) : '',
       phone: isLoggedIn || contact.method === 'phone' ? contact.phone : '',
       email: isLoggedIn ? session?.user?.email || '' : contact.method === 'phone' ? '' : contact.email,
     };
-  }, [species, petName, petSize, isIndoorCat, color, breed, details, reward, photos, displayIndex, timeElapsed, location, isLoggedIn, contact, session]);
-  const preview = species ? <FlyerPreview {...flyer} width={272} /> : null;
+  }, [species, petName, selectedPet, color, breed, details, photos, displayIndex, timeElapsed, location, isLoggedIn, contact, session]);
 
   const theme = WIZARD_THEMES[VARIANT];
 
@@ -621,177 +554,34 @@ export default function ReportLostPet() {
   }
 
   // ── Steps ─────────────────────────────────────────────────────────
-  const name = petName || 'your pet';
+  const name = petName.trim() || 'your pet';
+  const first = stepId === screenOrder[0];
+  const kindWord = SPECIES_OPTIONS.find((o) => o.value === species)?.label.toLowerCase() || 'pet';
+  const place = location
+    ? looksLikeCoordinates(location.address) || !location.address
+      ? location.city || 'The pinned spot'
+      : location.address
+    : '';
+  const temperamentLabel =
+    TEMPERAMENT_OPTIONS[speciesKey(speciesToApi(species))].find((o) => o.value === details.temperament)?.label || '';
 
   return (
     <WizardShell
       variant={VARIANT}
       steps={steps}
-      activeStepId={GROUP_OF[stepId] || 'pet'}
-      substeps={substeps}
+      activeStepId={stepId}
       onStepSelect={jumpTo}
       progress={progress}
-      position={position}
-      preview={stepId === 'review' ? null : preview}
-      strip={species && stepId !== 'review' ? <FlyerStrip flyer={flyer} label={petName ? `${petName}'s flyer so far` : 'The flyer so far'} /> : null}
-      previewLabel={petName ? `${petName}'s flyer so far` : 'The flyer so far'}
       onBack={history.length > 0 ? browserBack : null}
       closeHref={isLoggedIn ? '/dashboard' : '/'}
       dirty={dirty}
     >
-      {stepId === 'pets' && (
-        <StepScreen
-          stepKey="pets"
-          variant={VARIANT}
-          question="Which pet is missing?"
-          hint="We'll fill in their details for you."
-          wide
-        >
-          <MyPetsStep pets={myPets || []} onSelectPet={handleSelectPet} onNewPet={handleNewPet} />
-          <SwitchReportLink to="found" />
-        </StepScreen>
-      )}
-
-      {stepId === 'species' && (
-        <StepScreen
-          stepKey="species"
-          variant={VARIANT}
-          question="What kind of pet is missing?"
-          wide
-        >
-          <OptionCardGrid
-            variant={VARIANT}
-            options={SPECIES_OPTIONS}
-            value={species}
-            columns={5}
-            centered
-            onSelect={(value) => {
-              setSpecies(value);
-              if (value !== 'dog') setPetSize('');
-              if (value !== 'cat') setIsIndoorCat(null);
-              advance();
-            }}
-          />
-          <SwitchReportLink to="found" />
-        </StepScreen>
-      )}
-
-      {stepId === 'name' && (
-        <StepScreen
-          stepKey="name"
-          variant={VARIANT}
-          question="What's their name?"
-          hint="The name they answer to - it goes on the poster."
-          primary={{ label: 'Continue', onClick: advance, disabled: !petName.trim() }}
-        >
-          <input
-            type="text"
-            value={petName}
-            onChange={(e) => setPetName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && petName.trim()) advance();
-            }}
-            placeholder="Max, Bella, Charlie…"
-            aria-label="Your pet's name"
-            autoFocus
-            className={`w-full text-xl font-semibold px-5 py-4 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors placeholder:text-midnight-200 placeholder:font-normal ${theme.focusRing}`}
-          />
-        </StepScreen>
-      )}
-
-      {stepId === 'size' && species === 'dog' && (
-        <StepScreen stepKey="size-dog" variant={VARIANT} question={`How big is ${name}?`} wide>
-          <OptionCardGrid
-            variant={VARIANT}
-            options={DOG_SIZE_OPTIONS}
-            value={petSize}
-            columns={5}
-            onSelect={(value) => {
-              setPetSize(value);
-              advance();
-            }}
-          />
-        </StepScreen>
-      )}
-
-      {stepId === 'size' && species === 'cat' && (
-        <StepScreen
-          stepKey="size-cat"
-          variant={VARIANT}
-          question={`Is ${name} an indoor or outdoor cat?`}
-          hint="Indoor cats usually hide close by. Outdoor cats roam farther."
-        >
-          <OptionCardGrid
-            variant={VARIANT}
-            options={CAT_LIVING_OPTIONS}
-            value={isIndoorCat === true ? 'indoor' : isIndoorCat === false ? 'outdoor' : ''}
-            columns={2}
-            onSelect={(value) => {
-              setIsIndoorCat(value === 'indoor');
-              advance();
-            }}
-          />
-        </StepScreen>
-      )}
-
-      {stepId === 'when' && (
-        <StepScreen
-          stepKey="when"
-          variant={VARIANT}
-          question={`When did ${name} go missing?`}
-          hint="A pet missing for less than an hour is marked urgent."
-          wide
-        >
-          <OptionCardGrid
-            variant={VARIANT}
-            options={LOST_TIME_OPTIONS}
-            value={timeElapsed}
-            columns={3}
-            onSelect={(value) => {
-              setTimeElapsed(value);
-              advance();
-            }}
-          />
-        </StepScreen>
-      )}
-
-      {stepId === 'where' && (
-        <StepScreen
-          stepKey="where"
-          variant={VARIANT}
-          question={`Where was ${name} last seen?`}
-          wide
-          fillBody
-          primary={
-            location
-              ? { label: 'Confirm this spot', onClick: advance }
-              : canLocate
-                ? { label: 'Use my location', onClick: () => locationControl.current?.locate() }
-                : { label: 'Confirm this spot', onClick: advance, disabled: true }
-          }
-        >
-          <LocationPicker
-            variant={VARIANT}
-            value={location}
-            onChange={setLocation}
-            onLocated={(spot) => {
-              // The device's fix is the answer for most people: no second tap.
-              setLocation(spot);
-              advance();
-            }}
-            controlRef={locationControl}
-            onLocateOffer={setCanLocate}
-            storageKey={LOCATION_STORAGE_KEY}
-          />
-        </StepScreen>
-      )}
-
       {stepId === 'photo' && (
         <StepScreen
           stepKey="photo"
           variant={VARIANT}
-          question={`Add a photo of ${name}`}
-          hint={`A clear photo helps people recognize ${name}.`}
+          question={petName.trim() ? `Add a photo of ${name}` : 'Add a photo of your pet'}
+          hint="A clear photo helps people recognize them. It goes on the flyer."
           primary={
             photos.length
               ? { label: 'Continue', onClick: advance }
@@ -808,23 +598,138 @@ export default function ReportLostPet() {
             onPhotosChange={setPhotos}
             onDisplayChange={setDisplayIndex}
             onAnalysis={handleAnalysis}
+            analyzedNote="Got it. What the photo shows is filled in on the next screens."
+          />
+          {first && <SwitchReportLink to="found" />}
+        </StepScreen>
+      )}
+
+      {stepId === 'pet' && hasPets && !newPet && (
+        <StepScreen
+          stepKey="pets"
+          variant={VARIANT}
+          question="Which pet is missing?"
+          hint="Their photo, color and size are filled in from what you saved."
+          wide
+        >
+          <MyPetsStep pets={myPets || []} onSelectPet={handleSelectPet} onNewPet={handleNewPet} />
+          {first && <SwitchReportLink to="found" />}
+        </StepScreen>
+      )}
+
+      {stepId === 'pet' && (!hasPets || newPet) && (
+        <StepScreen
+          stepKey="pet"
+          variant={VARIANT}
+          question="What kind of pet is missing?"
+          primary={{ label: 'Continue', onClick: advance, disabled: !species || !petName.trim() }}
+        >
+          <PetStep
+            variant={VARIANT}
+            species={species}
+            onSpecies={setSpecies}
+            name={petName}
+            onName={setPetName}
+            onSubmit={advance}
+          />
+          {hasPets && (
+            <button
+              type="button"
+              onClick={() => setNewPet(false)}
+              className="mt-5 min-h-[44px] text-[15px] font-semibold text-midnight-700 underline underline-offset-4"
+            >
+              Pick one of your saved pets instead
+            </button>
+          )}
+          {first && <SwitchReportLink to="found" />}
+        </StepScreen>
+      )}
+
+      {stepId === 'color' && (
+        <StepScreen
+          stepKey="color"
+          variant={VARIANT}
+          question={`What color is ${name} mostly?`}
+          hint={
+            aiSuggested && color
+              ? 'Picked from the photo. Tap it to go on, or tap the right one.'
+              : 'The color most of the coat is. You can add the others after posting.'
+          }
+        >
+          <CoatColors
+            value={color}
+            onPick={(value) => {
+              setColor(value);
+              setAiSuggested(false);
+              advance();
+            }}
           />
         </StepScreen>
       )}
 
-      {stepId === 'colors' && (
+      {stepId === 'place' && (
         <StepScreen
-          stepKey="colors"
+          stepKey="place"
           variant={VARIANT}
-          question={`What colors is ${name}?`}
-          hint={
-            aiSuggested
-              ? 'We spotted these in the photo - tap to adjust, then continue.'
-              : 'Pick every color that fits.'
+          question={`When and where did ${name} get out?`}
+          primary={location ? { label: 'Confirm', onClick: advance, disabled: !timeElapsed } : null}
+          footerLead={
+            location
+              ? timeElapsed
+                ? { title: `Is this where ${name} got out?`, text: 'Drag the pin to fix it.' }
+                : { title: `When did ${name} get out?`, text: 'Pick a time above, then confirm the spot.' }
+              : null
           }
-          primary={{ label: 'Continue', onClick: advance, disabled: !color }}
         >
-          <ColorSelector value={color} onChange={setColor} />
+          <div>
+            <p className="text-[16px] font-bold text-midnight-900">When</p>
+            <p className="mb-2.5 text-[15px] text-midnight-600">{URGENT_WHEN.join(', ')} is marked urgent.</p>
+            <Chips
+              variant={VARIANT}
+              options={WHEN_CHIPS}
+              value={timeElapsed || null}
+              onChange={(value) => {
+                if (!value) return;
+                setTimeElapsed(value);
+                // On a small phone "Use my location" is under the fold: the answer brings the place into view.
+                if (!location) setTimeout(() => placeRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
+              }}
+              ariaLabel={`When ${name} got out`}
+            />
+          </div>
+          <div ref={placeRef} className="mt-6 flex flex-col">
+            <p className="mb-2.5 text-[16px] font-bold text-midnight-900">Where</p>
+            {/* Use my location sets the pin and stops there: the spot is shown on the map and confirmed below. */}
+            <LocationPicker
+              variant={VARIANT}
+              value={location}
+              onChange={setLocation}
+              storageKey={LOCATION_STORAGE_KEY}
+            />
+          </div>
+        </StepScreen>
+      )}
+
+      {stepId === 'behaviour' && (
+        <StepScreen
+          stepKey="behaviour"
+          variant={VARIANT}
+          question={`How is ${name} with people?`}
+          hint="This writes the line on the flyer that says what to do on seeing them, and how helpers search."
+          wide
+          // A tap answers it and moves on; back on this screen with an answer, Continue keeps it.
+          primary={details.temperament ? { label: 'Continue', onClick: advance } : null}
+        >
+          <BehaviourStep
+            variant={VARIANT}
+            species={speciesToApi(species)}
+            name={name}
+            value={details}
+            onChange={(patch) => {
+              patchDetails(patch);
+              if (patch.temperament && patch.temperament !== details.temperament) advance();
+            }}
+          />
         </StepScreen>
       )}
 
@@ -874,7 +779,7 @@ export default function ReportLostPet() {
           stepKey="review"
           variant={VARIANT}
           question={`Here is ${name}'s flyer.`}
-          hint="This is what gets printed and posted. Tap anything below to change it."
+          hint="Tap anything below to change it. Size, other colors, health and a reward are asked right after posting."
           error={error}
           errorLink={errorLink}
           errorAction={errorAction}
@@ -890,6 +795,18 @@ export default function ReportLostPet() {
           <ReviewPosterCard
             variant={VARIANT}
             flyer={flyer}
+            between={
+              location ? (
+                <SpotMap
+                  lat={location.lat}
+                  lng={location.lng}
+                  label={`Where ${name} got out`}
+                  place={place}
+                  pinColor={theme.mapHex}
+                  onEdit={() => editFromReview('place')}
+                />
+              ) : null
+            }
             rows={[
               {
                 id: 'photo',
@@ -898,16 +815,14 @@ export default function ReportLostPet() {
                 value: photos.length ? `${photos.length} photo${photos.length > 1 ? 's' : ''}` : 'No photo yet',
               },
               {
-                id: 'where',
-                icon: MapPin,
-                label: 'Last seen',
-                value: location
-                  ? location.city ||
-                    (looksLikeCoordinates(location.address) ? 'Pinned on the map' : location.address)
-                  : '',
+                id: 'pet',
+                icon: PawPrint,
+                label: 'Pet',
+                value: petName.trim() ? `${petName.trim()}, ${kindWord === 'other' ? 'pet' : kindWord}` : '',
               },
+              { id: 'color', icon: Palette, label: 'Main color', value: color },
               {
-                id: 'when',
+                id: 'place',
                 icon: Clock,
                 label: 'Missing since',
                 value: LOST_TIME_OPTIONS.find((o) => o.value === timeElapsed)?.label || '',
@@ -915,20 +830,8 @@ export default function ReportLostPet() {
               {
                 id: 'behaviour',
                 icon: HeartHandshake,
-                label: 'With strangers',
-                value: TEMPERAMENT_OPTIONS[speciesKey(speciesToApi(species))].find((o) => o.value === details.temperament)?.label || 'Not sure',
-              },
-              {
-                id: 'health',
-                icon: Stethoscope,
-                label: 'Health',
-                value: (details.health || []).map((h) => HEALTH_OPTIONS.find((o) => o.value === h)?.label).filter(Boolean).join(', ') || 'Not answered',
-              },
-              {
-                id: 'reward',
-                icon: Gift,
-                label: 'Reward',
-                value: reward.hasReward ? (reward.rewardMode === 'unstated' || !reward.rewardAmount ? 'Yes, amount not printed' : `$${Number(reward.rewardAmount).toLocaleString('en-US')}`) : 'None',
+                label: 'With people',
+                value: temperamentLabel || 'Not sure',
               },
               !isLoggedIn
                 ? {
@@ -950,66 +853,6 @@ export default function ReportLostPet() {
           />
         </StepScreen>
       )}
-
-      {stepId === 'behaviour' && (
-        <StepScreen
-          stepKey="behaviour"
-          variant={VARIANT}
-          question={`How does ${name} act around strangers?`}
-          hint="This writes the most important line on the flyer: what someone should do when they see them."
-          wide
-          primary={{ label: 'Continue', onClick: advance, disabled: !details.temperament }}
-          skip={
-            !details.temperament
-              ? {
-                  label: 'Not sure, skip',
-                  onClick: () => {
-                    patchDetails({ temperament: 'UNKNOWN' });
-                    advance();
-                  },
-                }
-              : null
-          }
-        >
-          <BehaviourStep
-            variant={VARIANT}
-            species={speciesToApi(species)}
-            name={name}
-            value={details}
-            onChange={(patch) => {
-              patchDetails(patch);
-              // One tap answers it; the line it writes is on the review flyer.
-              if (patch.temperament && patch.temperament !== details.temperament) advance();
-            }}
-          />
-        </StepScreen>
-      )}
-
-      {stepId === 'health' && (
-        <StepScreen
-          stepKey="health"
-          variant={VARIANT}
-          question={`Does ${name} take medication or have a health condition?`}
-          hint="Tap all that apply. Medication makes the search urgent and goes on the flyer."
-          wide
-          primary={{ label: 'Continue', onClick: advance, disabled: !(Array.isArray(details.health) && details.health.length) }}
-        >
-          <HealthStep variant={VARIANT} name={name} value={details} onChange={patchDetails} onNone={advance} />
-        </StepScreen>
-      )}
-
-      {stepId === 'reward' && (
-        <StepScreen
-          stepKey="reward"
-          variant={VARIANT}
-          question="Offering a reward?"
-          hint="Either answer is fine. A reward goes on the flyer as a tag."
-          primary={{ label: 'Continue', onClick: advance, disabled: !rewardIsValid(reward) }}
-        >
-          <RewardStep variant={VARIANT} name={name} value={reward} onChange={(patch) => setReward((r) => ({ ...r, ...patch }))} onNo={advance} />
-        </StepScreen>
-      )}
-
     </WizardShell>
   );
 }

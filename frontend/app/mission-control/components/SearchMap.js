@@ -19,6 +19,17 @@
  * ground, not people: no dot of any helper is ever on it. The only
  * person shown is the one holding the phone, to themselves.
  *
+ * On a phone (`tidy`) the words are few and always readable: the screen
+ * names only where the pet was lost and the newest sighting, and an older
+ * sighting is a dot whose time shows when it is tapped. Each label is
+ * moved to the side of its mark where it fits inside the map, clear of
+ * every other label and of what the screen lays over the map (anything
+ * marked `data-map-cover`: the line at the top, the key, the card, and
+ * the map's own credit). One that fits nowhere is left off, the most
+ * needed kept first (2026-11-17: on a 375 px phone nine labels shared a
+ * strip of map, seven pairs on top of each other, and "Lost here" ran off
+ * the screen).
+ *
  * On a phone the map is looked at, not tapped: the card's one button does
  * the choosing. On a desk (`desk`) it is the instrument: every area of
  * the search is drawn, outlined heaviest where the search goes next, and
@@ -82,37 +93,107 @@ const TAG_TONES = {
   flash: { dark: `background:${FLASH};color:#0f172a;border:1px solid ${FLASH}`, light: `background:${FLASH};color:#0f172a;border:1px solid #0f172a` },
 };
 
+/**
+ * Where a label sits from its point: beside it, or centred above or below it where a line runs through the point
+ * sideways. Every one of the four box offsets is set, so a label can be moved from one side to another.
+ */
+const SIDE = {
+  right: { top: '-13px', right: '', bottom: '', left: '16px', transform: '' },
+  left: { top: '-13px', right: '16px', bottom: '', left: '', transform: '' },
+  center: { top: '-13px', right: '', bottom: '', left: '0', transform: 'translateX(-50%)' },
+  under: { top: '10px', right: '', bottom: '', left: '0', transform: 'translateX(-50%)' },
+  above: { top: '', right: '', bottom: '14px', left: '0', transform: 'translateX(-50%)' },
+  below: { top: '14px', right: '', bottom: '', left: '0', transform: 'translateX(-50%)' },
+};
+/** The sides a label beside a mark may be moved to when its own does not fit, in order. An area's name stays put. */
+const SIDES_TO_TRY = {
+  right: ['right', 'left', 'above', 'below'],
+  left: ['left', 'right', 'above', 'below'],
+  above: ['above', 'below', 'right', 'left'],
+  below: ['below', 'above', 'right', 'left'],
+};
+/** Which labels are kept first when they cannot all fit: the higher, the more needed. */
+const RANK = { end: 70, lost: 60, seen: 50, you: 40, ring: 30, who: 20, area: 10 };
+
+function putSide(words, side) {
+  Object.assign(words.style, SIDE[side] || SIDE.right);
+}
+
 /** A marker that is a dot (or nothing) with a word tag beside it. */
-function tagged(L, { dot = null, text, tone = 'plain', theme = 'dark', side = 'right', cls = '' }) {
+function tagged(L, { dot = null, text, tone = 'plain', theme = 'dark', side = 'right', cls = '', rank = RANK.area }) {
   const root = node('div', 'position:relative;width:0;height:0');
   if (dot) root.appendChild(dot);
   if (text) {
-    // Beside the point, or centred above or below it where a line runs through the point sideways.
-    const place =
-      side === 'left'
-        ? 'top:-13px;right:16px;'
-        : side === 'center'
-          ? 'top:-13px;left:0;transform:translateX(-50%);'
-          : side === 'under'
-            ? 'top:10px;left:0;transform:translateX(-50%);'
-        : side === 'above'
-          ? 'bottom:14px;left:0;transform:translateX(-50%);'
-          : side === 'below'
-            ? 'top:14px;left:0;transform:translateX(-50%);'
-            : 'top:-13px;left:16px;';
     const words = node(
       'span',
-      `position:absolute;${place}white-space:nowrap;padding:2px 7px;border-radius:4px;font:600 13px/19px Inter,system-ui,sans-serif;box-shadow:0 1px 3px rgba(2,6,23,0.3);${TAG_TONES[tone][theme]}`,
+      `position:absolute;white-space:nowrap;padding:2px 7px;border-radius:4px;font:600 13px/19px Inter,system-ui,sans-serif;box-shadow:0 1px 3px rgba(2,6,23,0.3);${TAG_TONES[tone][theme]}`,
       text
     );
+    putSide(words, side);
+    // What a tidy map reads to place it (see tidyWords).
+    words.dataset.words = side;
+    words.dataset.rank = String(rank);
     if (cls) words.className = cls;
     root.appendChild(words);
   }
   return L.divIcon({ className: '', html: root, iconSize: [0, 0], iconAnchor: [0, 0] });
 }
 
-function disc(color, size, { ring = '#ffffff', pulse = false, text = null } = {}) {
+/**
+ * Each label on the map moved to a side of its mark where it fits: inside the map, clear of the labels already
+ * placed, and clear of what the screen lays over the map (`[data-map-cover]`) and of the map's credit. Clear of
+ * other marks' dots too where it can be. The most needed are placed first; one that fits nowhere is hidden.
+ */
+export function tidyWords(holder, map) {
+  const box = holder.getBoundingClientRect();
+  if (!box.width || !box.height) return;
+  const edge = 4;
+  const inside = (r) => r.left >= box.left + edge && r.right <= box.right - edge && r.top >= box.top + edge && r.bottom <= box.bottom - edge;
+  const meets = (a, b, gap = 0) => a.left < b.right + gap && b.left < a.right + gap && a.top < b.bottom + gap && b.top < a.bottom + gap;
+  const covers = [...document.querySelectorAll('[data-map-cover]')].map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0 && meets(r, box));
+  const credit = map?.attributionControl?.getContainer();
+  if (credit) {
+    const r = credit.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) covers.push(r);
+  }
+  const dots = [...holder.querySelectorAll('[data-dot]')].map((el) => ({ el, r: el.getBoundingClientRect() }));
+  const words = [...holder.querySelectorAll('[data-words]')].sort((a, b) => Number(b.dataset.rank) - Number(a.dataset.rank));
+  const placed = [];
+  for (const label of words) {
+    label.style.visibility = '';
+    const own = label.dataset.words;
+    const mark = label.parentElement?.querySelector('[data-dot]') || null;
+    let fits = null;
+    // First clear of every other dot as well; then, if nowhere is, over a dot but never over words or a cover.
+    for (const strict of [true, false]) {
+      for (const side of SIDES_TO_TRY[own] || [own]) {
+        putSide(label, side);
+        const r = label.getBoundingClientRect();
+        // Hidden by the stylesheet (an area's name with the map zoomed far out): nothing to place.
+        if (!r.width) {
+          fits = 'hidden';
+          break;
+        }
+        if (!inside(r) || covers.some((c) => meets(r, c)) || placed.some((p) => meets(r, p, 2))) continue;
+        if (strict && dots.some((d) => d.el !== mark && meets(r, d.r))) continue;
+        fits = r;
+        break;
+      }
+      if (fits) break;
+    }
+    if (fits && fits !== 'hidden') placed.push(fits);
+    if (!fits) {
+      putSide(label, own);
+      label.style.visibility = 'hidden';
+    }
+  }
+}
+
+function disc(color, size, { ring = '#ffffff', pulse = false, text = null, reach = 0 } = {}) {
   const wrap = node('span', `position:absolute;left:${-size / 2}px;top:${-size / 2}px;width:${size}px;height:${size}px`);
+  wrap.dataset.dot = '';
+  // A mark that answers a tap is easier to hit than it is to see: an unseen ring `reach` across round it.
+  if (reach > size) wrap.appendChild(node('span', `position:absolute;left:${(size - reach) / 2}px;top:${(size - reach) / 2}px;width:${reach}px;height:${reach}px;border-radius:9999px`));
   if (pulse) {
     const halo = node('span', `position:absolute;inset:-10px;border-radius:9999px;background:${color};opacity:0.28`);
     halo.className = 'animate-pulse';
@@ -136,7 +217,9 @@ function tip(title, words) {
 export default function SearchMap({
   theme = 'dark',
   lastSeen = null, // { lat, lng, label }
-  sightings = NONE, // [{ id, lat, lng, label, hot, n }]: `n` numbers them in the order they happened
+  // [{ id, lat, lng, label, title, hot, n }]: `n` numbers them in the order they happened. One with a `title` and no
+  // `label` is a bare dot that shows its title when tapped or pointed at.
+  sightings = NONE,
   // The search's ground: [{ id, outline, ring, status, searchCount, on, mine, next, label, center, who, title, words }].
   // `outline` is a closed [[lat, lng], ...], `label` the short name written on it, `who` the first names of the people on it.
   areas = NONE,
@@ -164,6 +247,8 @@ export default function SearchMap({
   pick = false, // a place is being chosen: a click anywhere on the map puts the pin there
   pin = null, // { lat, lng }: the place chosen so far, which can be dragged
   onPick = null, // ({ lat, lng }) => void
+  tidy = false, // a phone: every label is placed where it fits and can be read, or left off (tidyWords)
+  coverKey = '', // changes when what the screen lays over the map changes, so the labels are placed again
 }) {
   const holder = useRef(null);
   const state = useRef({ map: null, L: null, layers: null, focus: null, tiles: {} });
@@ -179,6 +264,19 @@ export default function SearchMap({
   layerNow.current = layer;
   const themeNow = useRef(theme);
   themeNow.current = theme;
+  const tidyNow = useRef(tidy);
+  tidyNow.current = tidy;
+  // The labels placed again, once a frame at most, after anything that moves them or what covers the map.
+  const tidyFrame = useRef(0);
+  const placeWords = () => {
+    if (!tidyNow.current || typeof requestAnimationFrame !== 'function') return;
+    cancelAnimationFrame(tidyFrame.current);
+    tidyFrame.current = requestAnimationFrame(() => {
+      const { map } = state.current;
+      // In the middle of a zoom the marks are scaled: they are placed when it ends.
+      if (holder.current && map && !map._animatingZoom) tidyWords(holder.current, map);
+    });
+  };
 
   // How far apart the names of the areas are on the ground, in metres: the widest gap between two of them.
   const nameSpan = useRef(0);
@@ -238,6 +336,8 @@ export default function SearchMap({
       if (desk) map.on('click', (event) => (picking.current ? putPin.current?.({ lat: event.latlng.lat, lng: event.latlng.lng }) : select.current?.(null)));
       // Far out, the areas are a few pixels across and their names would lie on top of each other: they are left off.
       map.on('zoomend', () => crowd());
+      // On a phone the labels are placed again wherever the map is moved to.
+      map.on('zoomend moveend move resize', placeWords);
       // The zoom, readable from outside, so a test can tell what is in view.
       const note = () => {
         if (holder.current) holder.current.dataset.zoom = String(map.getZoom());
@@ -249,6 +349,7 @@ export default function SearchMap({
     });
     return () => {
       cancelled = true;
+      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(tidyFrame.current);
       if (state.current.map) state.current.map.remove();
       state.current = { map: null, L: null, layers: null, focus: null, tiles: {} };
     };
@@ -342,9 +443,9 @@ export default function SearchMap({
           const at = [area.center.lat, area.center.lng];
           // Its name on the ground. A sighting's circle is named by the sighting's own mark.
           // The middle's name sits under the mark of where the pet was lost, which is at its centre.
-          if (area.label && !sightingCircle) L.marker(at, { icon: tagged(L, { text: area.label, tone: lit ? 'flash' : 'bare', theme, side: area.ring === 0 ? 'below' : 'center', cls: 'mc-area-name' }), interactive: false, keyboard: false, zIndexOffset: 100 }).addTo(layers);
+          if (area.label && !sightingCircle) L.marker(at, { icon: tagged(L, { text: area.label, tone: lit ? 'flash' : 'bare', theme, side: area.ring === 0 ? 'below' : 'center', cls: 'mc-area-name', rank: RANK.area }), interactive: false, keyboard: false, zIndexOffset: 100 }).addTo(layers);
           // Who is on it, for the people who may know: first names, under the area's own.
-          if (area.who && !lit) L.marker(at, { icon: tagged(L, { text: area.who, tone: 'on', theme, side: sightingCircle ? 'below' : 'under', cls: 'mc-area-name' }), interactive: false, keyboard: false, zIndexOffset: 150 }).addTo(layers);
+          if (area.who && !lit) L.marker(at, { icon: tagged(L, { text: area.who, tone: 'on', theme, side: sightingCircle ? 'below' : 'under', cls: 'mc-area-name', rank: RANK.who }), interactive: false, keyboard: false, zIndexOffset: 150 }).addTo(layers);
           // When it was last searched, under its name: the age is what the search is run on.
           else if (area.age && !sightingCircle && area.ring !== 0) L.marker(at, { icon: tagged(L, { text: area.age, tone: 'bare', theme, side: 'under', cls: 'mc-area-name mc-area-age' }), interactive: false, keyboard: false, zIndexOffset: 90 }).addTo(layers);
         }
@@ -420,7 +521,7 @@ export default function SearchMap({
           // where it reads as the whole street's.
           const share = !walking ? 0.5 : from ? (away(path[0]) > away(path[path.length - 1]) ? 0.2 : 0.8) : 0.5;
           const at = path[Math.round((path.length - 1) * share)];
-          L.marker(at, { icon: tagged(L, walking ? { text: street.who, theme, side: 'right' } : { text: `For ${street.keptFor}`, tone: 'flash', theme, side: 'right' }), interactive: false, keyboard: false }).addTo(layers);
+          L.marker(at, { icon: tagged(L, walking ? { text: street.who, theme, side: 'right', rank: RANK.who } : { text: `For ${street.keptFor}`, tone: 'flash', theme, side: 'right', rank: RANK.who }), interactive: false, keyboard: false }).addTo(layers);
         }
       }
 
@@ -434,13 +535,16 @@ export default function SearchMap({
         if (!Number.isFinite(s.lat) || !Number.isFinite(s.lng)) continue;
         const numbered = Number.isFinite(s.n);
         // A numbered mark carries a white figure, so its orange is the deeper one: 5.2 to 1, where the brighter gives 3.6.
-        const dot = disc(numbered ? '#c2410c' : PET_COLOR.seen, numbered ? 24 : s.hot ? 22 : 14, { pulse: Boolean(s.hot), ring: dark ? '#0f172a' : '#ffffff', text: numbered ? s.n : null });
-        L.marker([s.lat, s.lng], { icon: tagged(L, { dot, text: s.label, tone: 'seen', theme, side: s.side || 'right' }), interactive: false, keyboard: false, zIndexOffset: s.hot ? 900 : 300 }).addTo(layers);
+        const dot = disc(numbered ? '#c2410c' : PET_COLOR.seen, numbered ? 24 : s.hot ? 22 : 14, { pulse: Boolean(s.hot), ring: dark ? '#0f172a' : '#ffffff', text: numbered ? s.n : null, reach: !s.label && s.title ? 36 : 0 });
+        // A sighting with no words beside it says when it was, to a tap or a pointer, and does nothing else.
+        const bare = !s.label && Boolean(s.title);
+        const mark = L.marker([s.lat, s.lng], { icon: tagged(L, { dot, text: s.label, tone: 'seen', theme, side: s.side || 'right', rank: RANK.seen }), interactive: bare, keyboard: false, title: bare ? s.title : '', zIndexOffset: s.hot ? 900 : 300 }).addTo(layers);
+        if (bare) mark.bindTooltip(tip(s.title, ''), { direction: 'top', offset: [0, -10], opacity: 1 });
       }
 
       if (lastSeen && Number.isFinite(lastSeen.lat) && Number.isFinite(lastSeen.lng)) {
         const dot = disc(PET_COLOR.lost, 18, { pulse: !sightings.some((s) => s.hot), ring: dark ? '#0f172a' : '#ffffff' });
-        L.marker([lastSeen.lat, lastSeen.lng], { icon: tagged(L, { dot, text: lastSeen.label, theme, side: lastSeen.side || 'right' }), interactive: false, keyboard: false, zIndexOffset: 600 }).addTo(layers);
+        L.marker([lastSeen.lat, lastSeen.lng], { icon: tagged(L, { dot, text: lastSeen.label, theme, side: lastSeen.side || 'right', rank: RANK.lost }), interactive: false, keyboard: false, zIndexOffset: 600 }).addTo(layers);
       }
 
       if (lastSeen && Number.isFinite(lastSeen.lat) && Number.isFinite(lastSeen.lng)) {
@@ -448,13 +552,13 @@ export default function SearchMap({
           if (!Number.isFinite(ring.meters)) continue;
           L.circle([lastSeen.lat, lastSeen.lng], { radius: ring.meters, color: dark ? '#e2e8f0' : '#334155', weight: 1.5, opacity: 0.7, dashArray: '2 8', fill: false, interactive: false }).addTo(layers);
           // Its words sit on the ring's north point.
-          L.marker([lastSeen.lat + ring.meters / 111320, lastSeen.lng], { icon: tagged(L, { text: ring.label, theme, side: 'above' }), interactive: false, keyboard: false, zIndexOffset: 200 }).addTo(layers);
+          L.marker([lastSeen.lat + ring.meters / 111320, lastSeen.lng], { icon: tagged(L, { text: ring.label, theme, side: 'above', rank: RANK.ring }), interactive: false, keyboard: false, zIndexOffset: 200 }).addTo(layers);
         }
       }
 
       for (const tag of tags) {
         if (!Number.isFinite(tag.lat) || !Number.isFinite(tag.lng)) continue;
-        L.marker([tag.lat, tag.lng], { icon: tagged(L, { text: tag.text, tone: tag.tone || 'plain', theme, side: tag.side || 'right' }), interactive: false, keyboard: false, zIndexOffset: 700 }).addTo(layers);
+        L.marker([tag.lat, tag.lng], { icon: tagged(L, { text: tag.text, tone: tag.tone || 'plain', theme, side: tag.side || 'right', rank: RANK.end }), interactive: false, keyboard: false, zIndexOffset: 700 }).addTo(layers);
       }
 
       const walked = track.filter((p) => p && Number.isFinite(p.lat) && Number.isFinite(p.lng)).map((p) => [p.lat, p.lng]);
@@ -465,8 +569,9 @@ export default function SearchMap({
 
       if (me && Number.isFinite(me.lat) && Number.isFinite(me.lng)) {
         const dot = disc(dark ? '#f8fafc' : '#0f172a', 16, { ring: dark ? '#0f172a' : '#ffffff' });
-        L.marker([me.lat, me.lng], { icon: tagged(L, { dot, text: 'You', theme, side: 'left' }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(layers);
+        L.marker([me.lat, me.lng], { icon: tagged(L, { dot, text: 'You', theme, side: 'left', rank: RANK.you }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(layers);
       }
+      placeWords();
     };
     draw();
     el?.addEventListener('searchmap:ready', draw);
@@ -557,11 +662,14 @@ export default function SearchMap({
     const place = () => {
       const credit = state.current.map?.attributionControl?.getContainer();
       if (credit) credit.style.marginBottom = `${Math.max(0, Math.round(creditBottom))}px`;
+      // The credit, the key or the card moved: the labels are placed clear of them again.
+      placeWords();
     };
     place();
     el?.addEventListener('searchmap:ready', place);
     return () => el?.removeEventListener('searchmap:ready', place);
-  }, [creditBottom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creditBottom, coverKey, tidy]);
 
   // A place being chosen: the pointer is a cross, and the pin stands where the last click was. It can be dragged.
   // The pin is its own layer, so the rest of the map being drawn again leaves it where it is.

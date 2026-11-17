@@ -23,16 +23,16 @@ const PHONE = { contactPhone: '5125550142', phoneLabel: '(512) 555-0142', name: 
 describe('the link line', () => {
   test('a text is said to have gone only when it went', () => {
     expect(text(lostLinkLine({ ...PHONE, told: { text: 'sent' } }))).toBe("We texted (512) 555-0142 the link that runs Max's search. When someone reports seeing Max, we text you there.");
-    expect(text(lostLinkLine({ ...PHONE, told: { text: 'failed' } }))).toBe('We could not text (512) 555-0142. Copy the link above and keep it.');
+    expect(text(lostLinkLine({ ...PHONE, told: { text: 'failed' } }))).toBe('We could not text (512) 555-0142. Copy the link below and keep it.');
     expect(text(lostLinkLine({ ...PHONE, told: { text: 'sending' } }))).toBe('We are texting the link to (512) 555-0142.');
     // Not told at all: no claim either way.
-    expect(text(lostLinkLine({ ...PHONE }))).toBe('Copy the link above and keep it.');
+    expect(text(lostLinkLine({ ...PHONE }))).toBe('Copy the link below and keep it.');
   });
 
   test('an email the same', () => {
     const guest = { contactEmail: 'avery@example.com', name: 'Max' };
     expect(text(lostLinkLine({ ...guest, told: { email: 'sent' } }))).toBe('We emailed this link to avery@example.com. Sightings are emailed there too.');
-    expect(text(lostLinkLine({ ...guest, told: { email: 'failed' } }))).toBe('We could not email the link to avery@example.com. Copy it above and keep it.');
+    expect(text(lostLinkLine({ ...guest, told: { email: 'failed' } }))).toBe('We could not email the link to avery@example.com. Copy it below and keep it.');
     expect(text(lostLinkLine({ ...guest, isLoggedIn: true }))).toBe('Sightings are emailed to avery@example.com.');
   });
 });

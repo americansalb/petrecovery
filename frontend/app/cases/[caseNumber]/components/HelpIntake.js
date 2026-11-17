@@ -49,7 +49,7 @@ const WHENS = [
 const WAY_BUTTON =
   'flex min-h-[72px] flex-col items-start gap-0.5 rounded-2xl border-2 px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
 const CHIP =
-  'inline-flex h-10 min-h-0 items-center rounded-full border-2 px-3.5 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
+  'inline-flex h-10 min-h-0 items-center rounded-full border-2 px-3.5 text-sm font-bold transition max-md:h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400';
 const PRIMARY =
   'inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-flash-400 px-5 text-base font-bold text-midnight-900 shadow-sm transition hover:bg-flash-500 disabled:opacity-60';
 const QUIET =
@@ -204,7 +204,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
             >
               <w.icon size={20} className={on ? 'text-flash-400' : 'text-midnight-700'} aria-hidden="true" />
               <span className="text-[15px] font-bold leading-tight">{w.label}</span>
-              <span className={`text-xs leading-snug ${on ? 'text-midnight-200' : 'text-midnight-500'}`}>{w.sub}</span>
+              <span className={`text-xs leading-snug max-md:text-sm ${on ? 'text-midnight-200' : 'text-midnight-500'}`}>{w.sub}</span>
             </button>
           );
         })}
@@ -234,7 +234,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
             {stage === 'loading' ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-5 w-5" aria-hidden="true" />}
             {stage === 'loading' ? 'Finding your job' : 'Give me a job'}
           </button>
-          <p className="mt-2 text-center text-xs text-midnight-500">
+          <p className="mt-2 text-center text-xs text-midnight-500 max-md:text-sm">
             Every job is a real need or ground that needs searching. Nothing is made up to keep you busy.
           </p>
         </div>
@@ -258,7 +258,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
 
       {stage === 'job' && job && (
         <div className="mt-4 rounded-2xl border-2 border-flash-400 bg-white p-4">
-          <p className="text-xs font-extrabold uppercase tracking-wide text-midnight-500">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-midnight-500 max-md:text-sm">
             Your job · {wayLabel.toLowerCase()} · about {job.minutes} min
           </p>
           <p className="mt-1 text-lg font-bold leading-snug text-midnight-900">{job.title}</p>
@@ -299,7 +299,7 @@ export default function HelpIntake({ name, caseId, caseNumber, signedIn, member,
             )}
           </div>
           {job.kind === 'block' && (
-            <p className="mt-2 text-xs text-midnight-500">{job.unit === 'area' ? 'The map opens on it.' : 'The map opens on it. Nobody else is sent there while you have it.'}</p>
+            <p className="mt-2 text-xs text-midnight-500 max-md:text-sm">{job.unit === 'area' ? 'The map opens on it.' : 'The map opens on it. Nobody else is sent there while you have it.'}</p>
           )}
         </div>
       )}

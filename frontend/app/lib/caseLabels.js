@@ -11,6 +11,7 @@ import { speciesLabel } from '@/app/lib/species';
 import { PIN_ONLY_LABEL } from '@/app/lib/maps/reverseLabel';
 import { isCaseOpen } from '@/app/lib/caseStatus';
 import { wholeDays } from '@/app/lib/elapsed';
+import { answerOf } from '@/app/lib/lastSeenAnswer';
 
 const HOUR = 3600000;
 
@@ -93,6 +94,18 @@ export function caseTimeline(c, now = Date.now()) {
   return key === 'found' ? `Found ${span(now - start)} ago` : `Missing ${span(now - start)}`;
 }
 
+/**
+ * The status as the photo on a phone carries it: "Lost · 3 days",
+ * "Found · 2 days ago", "Reunited", "Closed".
+ */
+export function caseBadge(c, now = Date.now()) {
+  const { key, label } = caseStatus(c);
+  if (key !== 'lost' && key !== 'found') return label;
+  const start = new Date(c.lastSeenAt || c.createdAt).getTime();
+  if (!Number.isFinite(start)) return label;
+  return key === 'found' ? `${label} · ${span(now - start)} ago` : `${label} · ${span(now - start)}`;
+}
+
 /** "Medium", "Extra large": the size enum as a word, or '' when unknown. */
 export function caseSize(c) {
   const v = known(c.petSize);
@@ -172,4 +185,35 @@ export function timeAgo(date, now = Date.now()) {
   const days = wholeDays(now - t);
   if (days < 30) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
   return shortDate(t, now);
+}
+
+/**
+ * The day the pet was last seen (or found), and the time when the report
+ * has a real one: "Thu, Nov 13, 6:30 pm". The report wizards ask how long
+ * ago in bands and store the band's middle (app/lib/lastSeenAnswer.js), so
+ * a band of hours gives the day alone ("Thu, Nov 13") and a band of days
+ * "about Nov 14", or "before Nov 9" for more than a week, as the flyer
+ * does. In `zone` (the pet's own) when the caller knows it.
+ */
+export function lastSeenDay(c, now = Date.now(), zone = undefined) {
+  const at = c?.lastSeenAt || c?.createdAt;
+  const d = at == null || at === '' ? new Date(NaN) : new Date(at);
+  if (!Number.isFinite(d.getTime())) return '';
+  const fmt = (date, options) => {
+    try {
+      return date.toLocaleString('en-US', { ...(zone ? { timeZone: zone } : {}), ...options });
+    } catch {
+      return date.toLocaleString('en-US', options); // an unknown zone name: the reader's own clock
+    }
+  };
+  const year = fmt(d, { year: 'numeric' }) === fmt(new Date(now), { year: 'numeric' }) ? {} : { year: 'numeric' };
+  const band = c.lastSeenAt ? answerOf(c) : null;
+  if (band?.days) return `${band.atLeast ? 'before' : 'about'} ${fmt(d, { month: 'short', day: 'numeric', ...year })}`;
+  const day = fmt(d, { weekday: 'short', month: 'short', day: 'numeric', ...year });
+  if (band || !c.lastSeenAt) return day;
+  // "6:30 PM", with whatever space the runtime puts before the PM, as "6:30 pm".
+  const time = fmt(d, { hour: 'numeric', minute: '2-digit' })
+    .replace(/\s+/g, ' ')
+    .replace(/ (AM|PM)$/, (m, half) => ` ${half.toLowerCase()}`);
+  return `${day}, ${time}`;
 }

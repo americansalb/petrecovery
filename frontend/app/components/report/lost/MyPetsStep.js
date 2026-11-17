@@ -3,8 +3,8 @@
 /**
  * MyPetsStep - logged-in owners pick which pet is missing.
  *
- * Selecting a saved pet short-circuits the name/size/colors steps (data comes
- * from the Pet record); "A different pet" falls through to the species step.
+ * Selecting a saved pet fills in the kind, the name, the color and the size
+ * from the Pet record; "A different pet" opens the kind and name in place.
  */
 
 import { PawPrint, ChevronRight } from 'lucide-react';
@@ -37,7 +37,7 @@ export default function MyPetsStep({ pets = [], onSelectPet, onNewPet }) {
                 )}
               </div>
               <p className="font-bold text-midnight-900 truncate">{pet.name}</p>
-              <p className="text-xs text-midnight-400 capitalize">{(pet.species || '').toLowerCase()}</p>
+              <p className="text-[15px] text-midnight-500 capitalize">{(pet.species || '').toLowerCase()}</p>
             </button>
           );
         })}

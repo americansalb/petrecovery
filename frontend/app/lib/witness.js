@@ -22,7 +22,8 @@ import prisma from '@/app/lib/prisma';
 import { missionWhere } from '@/app/lib/shareMetadata';
 import { placeFromStreets } from '@/app/lib/streetWalks';
 import { distanceMeters } from '@/app/lib/searchGrid';
-import { distanceWords } from '@/app/lib/searchCircle';
+import { distanceWords, unitsForZone } from '@/app/lib/searchCircle';
+import { zoneFor } from '@/app/lib/caseZone';
 import { placeOnly } from '@/app/lib/needOptions';
 import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
@@ -145,7 +146,8 @@ export async function recordWitnessSighting(caseParam, value, { userId = null, n
       error: 'TOO_FAR',
       caseNumber: pet.caseNumber,
       meters: Math.round(away),
-      words: `That spot is ${distanceWords(away)} from where ${pet.petName || 'the pet'} was lost, too far to send to the search. Check the pin or the street, and send it again.`,
+      // In miles for a search in the US, kilometres elsewhere.
+      words: `That spot is ${distanceWords(away, unitsForZone(zoneFor(pet)))} from where ${pet.petName || 'the pet'} was lost, too far to send to the search. Check the pin or the street, and send it again.`,
     };
   }
   // The board knows the streets, so its corner ("Ramsey Ave and W 40th St") names the place where the

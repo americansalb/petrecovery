@@ -35,7 +35,7 @@ export function OwnerPhoneField({ value, onChange, onSubmit, variant = 'lost', h
   const ok = isValidPhone(value);
   return (
     <div>
-      <label htmlFor="owner-phone" className="block text-sm font-semibold text-midnight-700 mb-1.5">
+      <label htmlFor="owner-phone" className="block text-[15px] font-semibold text-midnight-700 mb-1.5">
         Phone
       </label>
       <div className="relative">
@@ -62,7 +62,7 @@ export function OwnerPhoneField({ value, onChange, onSubmit, variant = 'lost', h
         />
         {ok && <Check size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500" />}
       </div>
-      {hint && <p className="text-xs text-midnight-400 mt-1.5">{hint}</p>}
+      {hint && <p className="text-[15px] leading-snug text-midnight-600 mt-1.5">{hint}</p>}
     </div>
   );
 }
@@ -91,7 +91,7 @@ export default function ContactFields({
 
   const emailField = (required) => (
     <div>
-      <label htmlFor="contact-email" className="block text-sm font-semibold text-midnight-700 mb-1.5">
+      <label htmlFor="contact-email" className="block text-[15px] font-semibold text-midnight-700 mb-1.5">
         Email{required ? '' : ' (optional)'}
       </label>
       <div className="relative">
@@ -112,13 +112,13 @@ export default function ContactFields({
         />
         {emailOk && <Check size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500" />}
       </div>
-      {emailHint && <p className="text-xs text-midnight-400 mt-1.5">{emailHint}</p>}
+      {emailHint && <p className="text-[15px] leading-snug text-midnight-600 mt-1.5">{emailHint}</p>}
     </div>
   );
 
   const phoneField = (required) => (
     <div>
-      <label htmlFor="contact-phone" className="block text-sm font-semibold text-midnight-700 mb-1.5">
+      <label htmlFor="contact-phone" className="block text-[15px] font-semibold text-midnight-700 mb-1.5">
         Phone{required ? '' : ' (optional)'}
       </label>
       <div className="relative">
@@ -139,14 +139,14 @@ export default function ContactFields({
         />
         {phoneOk && <Check size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500" />}
       </div>
-      {phoneHint && <p className="text-xs text-midnight-400 mt-1.5">{phoneHint}</p>}
+      {phoneHint && <p className="text-[15px] leading-snug text-midnight-600 mt-1.5">{phoneHint}</p>}
     </div>
   );
 
   return (
     <div className="space-y-5">
       <div>
-        <label htmlFor="contact-name" className="block text-sm font-semibold text-midnight-700 mb-1.5">
+        <label htmlFor="contact-name" className="block text-[15px] font-semibold text-midnight-700 mb-1.5">
           Your first name
         </label>
         <div className="relative">
@@ -182,7 +182,7 @@ export default function ContactFields({
                   role="tab"
                   aria-selected={active}
                   onClick={() => set({ method: opt.key })}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-2 min-h-[44px] py-2.5 rounded-xl text-[15px] font-semibold transition-all ${
                     active ? 'bg-white text-midnight-900 shadow-card' : 'text-midnight-500 hover:text-midnight-700'
                   }`}
                 >
@@ -201,7 +201,7 @@ export default function ContactFields({
         </>
       )}
 
-      <p className="text-sm text-midnight-400 leading-relaxed">
+      <p className="text-[15px] text-midnight-600 leading-relaxed">
         No password. We {mode === 'either' && method === 'phone' ? 'text' : 'email'} you a link to your report.
       </p>
     </div>

@@ -131,7 +131,7 @@ describe('what the game never pays for', () => {
 describe('Sarama', () => {
   const helper = read('app/mission-control/steps/Helper.js');
   const needs = read('app/mission-control/desktop/Needs.js');
-  const lines = [SARAMA.stopped('Max'), SARAMA.done(3), SARAMA.short(45), SARAMA.next('Flyers'), SARAMA.nobodyOut('Max'), SARAMA.nextArea('the west side')];
+  const lines = [SARAMA.done(3), SARAMA.next('Flyers'), SARAMA.nobodyOut('Max'), SARAMA.nextArea('the west side')];
 
   test('she speaks as herself, short and plain', () => {
     expect(SARAMA.done(3)).toBe('Well done. That is 3 paw prints on this search.');
@@ -154,22 +154,18 @@ describe('Sarama', () => {
     // phone: "saRama keeps getting in the way". She tells a newcomer where to look first, the brief word for word;
     // what to do on seeing the pet is the map's line above the card (brief.neverFirst). No greeting, no "who asked"
     // (the card's own line says it), nothing to someone coming back, and nothing on joining or "Before you go out",
-    // whose headings say what she said.
+    // whose headings say what she said. Nor on the card that thanks someone who has had enough for now: its heading
+    // is "Thank you for looking for Max", and her own thanks under it said it twice.
     const says = helper.slice(helper.indexOf('const saramaSays ='), helper.indexOf('brief.own;', helper.indexOf('const saramaSays =')) + 10);
-    expect(says).toMatch(/cheer\s+\? SARAMA\.done\(donePaws\)/);
-    expect(says).toMatch(/done && ground\s+\? SARAMA\.short\(doneTakes\)/);
-    expect(says).toMatch(/ask\s+\? null/);
-    expect(says).toMatch(/stopped\s+\? SARAMA\.stopped\(name\)/);
-    expect(says).toMatch(/trail\?\.mine\?\.paws > 0 \|\| done\s+\? null\s+: brief\.own;$/);
+    expect(says).toMatch(/^const saramaSays = cheer \? SARAMA\.done\(donePaws\) : ask \|\| done \|\| stopped \|\| trail\?\.mine\?\.paws > 0 \? null : brief\.own;$/);
     expect(SARAMA).not.toHaveProperty('hello');
     expect(SARAMA).not.toHaveProperty('join');
     expect(SARAMA).not.toHaveProperty('training');
-    expect(helper).not.toMatch(/SARAMA\.(hello|back|join|training|asked)\(/);
+    expect(SARAMA).not.toHaveProperty('stopped');
+    expect(helper).not.toMatch(/SARAMA\.(hello|back|join|training|asked|stopped)\(/);
     // Under the card's own heading, never above it, and small.
     expect(helper.indexOf('<Sarama className="mt-3" pose={cheer')).toBeGreaterThan(helper.indexOf('<Heading className="mt-1">{ask ?'));
     expect(read('app/mission-control/components/Sarama.js')).toMatch(/size = 36,/);
-    expect(SARAMA.stopped('Max')).toBe('Thank you for your time looking for Max.');
-    expect(SARAMA.stopped('Max')).not.toMatch(/again|back/i);
     const { briefFor } = require('@/app/lib/brief');
     expect(briefFor({ way: 'own', pet: { petName: 'Max', petSpecies: 'DOG' } })).toEqual(['First look around your own home: your yard, under your porch or deck, your shed and your garage.']);
     expect(briefFor({ way: 'own', pet: { petName: 'Milo', petSpecies: 'CAT' } })[0]).toMatch(/under your porch or deck, in your shed and garage, and in thick bushes\. A scared cat hides within a few houses\./);
@@ -187,9 +183,11 @@ describe('Sarama', () => {
     expect(helper).toMatch(/pose=\{cheer \? 'cheer' : saramaSays === brief\.own \? 'sniff' : 'sit'\}/);
     expect(helper).toMatch(/\{cheer && <Paws count=\{donePaws\} className="mt-2" \/>\}/);
     expect(helper).toMatch(/\{told && <Paws count=\{paws\} className="mt-1\.5" \/>\}/);
-    // A search far shorter than the area takes: no cheer and no prints, and she says why and how long the area takes.
-    expect(helper).toMatch(/cheer\s+\? SARAMA\.done\(donePaws\)\s+: done && ground\s+\? SARAMA\.short\(doneTakes\)/);
-    expect(SARAMA.short(45)).toBe('A search this short leaves no paw prints. This area takes one person about 45 minutes.');
+    // A search far shorter than the area takes: no cheer and no prints, and she says nothing of it (2026-11-17: no
+    // prints is enough, without "A search this short leaves no paw prints" on the card that says thank you).
+    expect(helper).toMatch(/const saramaSays = cheer \? SARAMA\.done\(donePaws\) : ask \|\| done \|\|/);
+    expect(SARAMA).not.toHaveProperty('short');
+    expect(helper).not.toMatch(/SARAMA\.short\(/);
     // The prints shown are the ones the server counted for that search.
     const shell = read('app/mission-control/SearchScreen.js');
     expect(shell).toMatch(/setDonePaws\(typeof result\.paws === 'number' \? result\.paws : PAWS\.SEARCH\);/);
@@ -210,7 +208,15 @@ describe('Sarama', () => {
     expect(needs).toMatch(/\{guide\.next\.lead\}/);
     expect(needs).toMatch(/Set it up in Tasks/);
     const command = read('app/mission-control/desktop/Command.js');
-    expect(command).toMatch(/const next = \(plan\.kinds \|\| \[\]\)\.find\(\(k\) => k\.kind !== 'OTHER' && !have\.has\(k\.kind\)\) \|\| null;/);
+    // The next step is the plan's first task nobody has set up (app/lib/searchPlan.js, nextStep): the owner's phone
+    // card reads the same one.
+    expect(command).toMatch(/const next = nextStep\(plan\.kinds, plan\.tasks\);/);
+    const { nextStep } = require('@/app/lib/searchPlan');
+    const kinds = [{ kind: 'FLYERS' }, { kind: 'OTHER' }, { kind: 'POSTS' }];
+    expect(nextStep(kinds, [])).toEqual({ kind: 'FLYERS' });
+    expect(nextStep(kinds, [{ kind: 'FLYERS', status: 'DONE' }])).toEqual({ kind: 'POSTS' });
+    expect(nextStep(kinds, [{ kind: 'FLYERS', status: 'OPEN' }, { kind: 'POSTS', status: 'OPEN' }])).toBeNull();
+    expect(read('app/mission-control/steps/Owner.js')).toMatch(/nextStep\(plan\.kinds, plan\.tasks\)/);
     expect(command).toMatch(/onTasks=\{guide\?\.next \? \(\) => setTab\('tasks'\) : null\}/);
     expect(SARAMA.nobodyOut('Max')).toBe('Nobody is searching right now. Text the link to neighbors so more people are watching for Max.');
     expect(SARAMA.nextArea('the west side')).toBe('When a neighbor offers to search, they are sent to the west side first.');
@@ -222,6 +228,11 @@ describe('Sarama', () => {
     expect(needs).not.toMatch(/SaramaPose|<Sarama /);
     expect(needs).toMatch(/guide\.next\.lead/);
     expect(needs).not.toMatch(/pose=|<Paws/);
+    // The owner's phone card says her next step in words too, and nothing on it cheers: no picture, no paw prints,
+    // not even for the owner's own search of an area.
+    const ownerCard = read('app/mission-control/steps/Owner.js');
+    expect(ownerCard).toMatch(/\{SARAMA\.next\(step\.title\)\}/);
+    expect(ownerCard).not.toMatch(/SaramaPose|<Sarama |pose=|<Paws|SARAMA\.done/);
     expect(read('app/globals.css')).toMatch(/\.sarama-still \.sarama-tail \{ animation: none; \}/);
   });
 

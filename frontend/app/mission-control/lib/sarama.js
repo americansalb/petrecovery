@@ -20,15 +20,12 @@
  */
 
 export const SARAMA = {
-  /** Someone who has just said "I am stopping": thanked, and not greeted as if they had just come back. */
-  stopped: (name) => `Thank you for your time looking for ${name}.`,
-  /** An area searched. */
-  done: (paws) => `Well done. That is ${paws} paw prints on this search.`,
   /**
-   * An area said to be searched far sooner than it takes (app/lib/trail.js): it leaves no paw prints, and she says
-   * why, and how long the area takes, without cheering. `minutes` is how long the area takes one person.
+   * An area searched that left paw prints. One said to be searched far sooner than it takes leaves none
+   * (app/lib/trail.js), and she says nothing of it: no prints is enough. Someone who has had enough for now is
+   * thanked by the card's own heading, so she does not thank them again.
    */
-  short: (minutes) => `A search this short leaves no paw prints. This area takes one person about ${minutes} minutes.`,
+  done: (paws) => `Well done. That is ${paws} paw prints on this search.`,
   /** To the person running the search, when nothing is waiting on a decision: what to do next. */
   next: (title) => `Next: ${title}.`,
   nobodyOut: (name) => `Nobody is searching right now. Text the link to neighbors so more people are watching for ${name}.`,

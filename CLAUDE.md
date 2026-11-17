@@ -43,6 +43,21 @@ route must ship a visible way back out. That list lives in ONE place:
 `frontend/app/lib/navChrome.js`. Full policy: `docs/APP_MAP.md` §8.2.
 Enforced by `frontend/__tests__/global-chrome.test.js`.
 
+One approved exception sits UNDER the bar, never in it. Founder,
+2026-11-17, saying yes to: "show a slim '<Pet>'s search' banner under
+the top bar on every page, only in the browser that reported it. ...
+The bar itself stays identical; a strip below it links to their
+search." That strip is `frontend/app/components/OwnerSearchStrip.js`,
+mounted in the root layout right after `<Navigation />`: "Rufus's search
+· Missing 3 days", linking to `/mission-control?mission=<caseNumber>`.
+It shows only to a browser that is signed out and holds the owner's key
+to an open lost search it reported itself, from the answer of
+`GET /api/owner/open-search` for that browser's own cookies; never on an
+immersive route. It is the only addition: the bar's code does not know
+it exists, nothing else person-specific goes beside it, and a signed-in
+owner reaches their search from the account menu instead. Enforced by
+the same test and `frontend/__tests__/owner-search-strip.test.js`.
+
 Related trap: `overflow-x` on `html`/`body` must stay `clip` — `hidden`
 silently breaks `position: sticky` site-wide, including the navbar.
 
@@ -187,7 +202,9 @@ map opens on the photo from above and its lines are thin; the case number
 and the lost point's coordinates are in the top bar. Do not bring back
 large round corners, heavy type, thick outlines or a mascot's picture
 there: Sarama's picture is for the people helping, and on the desk her
-next step is words. The phone's cards keep their own palette. Enforced by
+next step is words. On a phone the search screen is light, the same look
+as the pet's page it is opened from (founder, 2026-11-17: "Light on
+phones"); the dark control room is the desk's alone. Enforced by
 `frontend/__tests__/search-colors.test.js`.
 
 ### The search never sends anyone into danger without saying so
