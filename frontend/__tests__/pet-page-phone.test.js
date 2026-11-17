@@ -50,11 +50,12 @@ describe('"If you see Max" on a phone', () => {
     expect(screen.getByText(guide.approach)).toBeTruthy();
     const more = screen.getByRole('button', { name: 'More about Max' });
     expect(more.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.getByText('Needs insulin twice a day.').closest('[hidden]')).not.toBeNull();
+    // A medical need is in sight from the start: it changes how fast a finder should call.
+    expect(screen.getByText('Needs insulin twice a day.').closest('[hidden]')).toBeNull();
+    expect(screen.getByText('Friendly golden.').closest('[hidden]')).not.toBeNull();
     fireEvent.click(more);
     expect(more.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByText('Needs insulin twice a day.').closest('[hidden]')).toBeNull();
-    expect(screen.getByText('Friendly golden.')).toBeTruthy();
+    expect(screen.getByText('Friendly golden.').closest('[hidden]')).toBeNull();
     expect(screen.getByText('$500 reward, paid once Max is home.')).toBeTruthy();
   });
 

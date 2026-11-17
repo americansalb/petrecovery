@@ -73,9 +73,10 @@ export default function FinderGuide({ name, guide, hasReward, rewardAmount }) {
 }
 
 /**
- * The phone's version: "If you see {name}" and the owner's approach line
- * only, then "More about {name}" for the health line, the reward, the
- * description, the details and the rest of the guide. With no approach
+ * The phone's version: "If you see {name}", the owner's approach line and,
+ * where there is one, the health line (a medical need changes how fast a
+ * finder should call, so it is never folded away), then "More about {name}"
+ * for the reward, the description, the details and the rest of the guide. With no approach
  * line (a found pet, a pet home) it is "More about {name}" alone, and
  * nothing at all when there is nothing more to say.
  */
@@ -85,8 +86,8 @@ export function IfYouSee({ name, Name, guide, hasReward, rewardAmount, descripti
   const approach = guide?.approach || '';
   const rows = guideRows(guide, name);
   const reward = rewardWords(hasReward, rewardAmount);
-  const more = Boolean(guide?.health || reward || description || looks || rows.length || guide?.microchipped || postedBy);
-  if (!approach && !more) return null;
+  const more = Boolean(reward || description || looks || rows.length || guide?.microchipped || postedBy);
+  if (!approach && !more && !guide?.health) return null;
 
   return (
     <section
@@ -98,6 +99,13 @@ export function IfYouSee({ name, Name, guide, hasReward, rewardAmount, descripti
           <h2 className="text-lg font-bold text-midnight-900">If you see {name}</h2>
           <p className="mt-1 text-base font-semibold leading-snug text-midnight-900">{approach}</p>
         </>
+      )}
+      {/* A medical need is in sight, not folded under "More about": it changes how fast a finder should call. */}
+      {guide?.health && (
+        <p className={`flex items-start gap-2 text-base font-semibold text-red-700 ${approach ? 'mt-2' : 'py-2'}`}>
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>{guide.health}</span>
+        </p>
       )}
       {more && (
         <button
@@ -112,12 +120,6 @@ export function IfYouSee({ name, Name, guide, hasReward, rewardAmount, descripti
         </button>
       )}
       <div id={bodyId} hidden={!open} className="space-y-3 pb-3 text-base text-midnight-800">
-        {guide?.health && (
-          <p className="flex items-start gap-2 font-semibold text-red-700">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
-            <span>{guide.health}</span>
-          </p>
-        )}
         {reward && <p className="font-semibold">{reward}, paid once {name} is home.</p>}
         {description && <p className="whitespace-pre-line break-words leading-relaxed">{description}</p>}
         {(looks || rows.length > 0) && (
