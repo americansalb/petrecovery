@@ -131,10 +131,9 @@ describe('what the game never pays for', () => {
 describe('Sarama', () => {
   const helper = read('app/mission-control/steps/Helper.js');
   const needs = read('app/mission-control/desktop/Needs.js');
-  const lines = [SARAMA.hello('Max', '5 days'), SARAMA.hello('Max', ''), SARAMA.back('Max'), SARAMA.stopped('Max'), SARAMA.join(), SARAMA.training(), SARAMA.asked('Avery'), SARAMA.asked(null), SARAMA.done(3), SARAMA.short(45), SARAMA.next('Flyers'), SARAMA.nobodyOut('Max'), SARAMA.nextArea('the west side')];
+  const lines = [SARAMA.stopped('Max'), SARAMA.done(3), SARAMA.short(45), SARAMA.next('Flyers'), SARAMA.nobodyOut('Max'), SARAMA.nextArea('the west side')];
 
   test('she speaks as herself, short and plain', () => {
-    expect(SARAMA.hello('Max', '5 days')).toBe("I'm Sarama, and I'm looking for Max, missing 5 days. Here is how to help right now.");
     expect(SARAMA.done(3)).toBe('Well done. That is 3 paw prints on this search.');
     for (const line of lines) {
       expect(line.length).toBeLessThanOrEqual(130);
@@ -150,10 +149,25 @@ describe('Sarama', () => {
     }
   });
 
-  test('what she says is useful: to someone new, their own home first and what to do on seeing the pet', () => {
-    // Founder, 2026-11-13: "make the text actually useful and teaches people where to look".
-    // Someone who has just said "I am stopping" is thanked, and not greeted "Good to see you again".
-    expect(helper).toMatch(/\[stopped \? SARAMA\.stopped\(name\) : trail\?\.mine\?\.paws > 0 \? SARAMA\.back\(name\) : SARAMA\.hello\(name, missingFor\(picture\.lastSeen\?\.at, now\)\), brief\.own, brief\.never\]/);
+  test('what she says is useful, and only what the card does not already say', () => {
+    // Founder, 2026-11-13: "make the text actually useful and teaches people where to look"; and 2026-11-17, on the
+    // phone: "saRama keeps getting in the way". She tells a newcomer where to look first, the brief word for word;
+    // what to do on seeing the pet is the map's line above the card (brief.neverFirst). No greeting, no "who asked"
+    // (the card's own line says it), nothing to someone coming back, and nothing on joining or "Before you go out",
+    // whose headings say what she said.
+    const says = helper.slice(helper.indexOf('const saramaSays ='), helper.indexOf('brief.own;', helper.indexOf('const saramaSays =')) + 10);
+    expect(says).toMatch(/cheer\s+\? SARAMA\.done\(donePaws\)/);
+    expect(says).toMatch(/done && ground\s+\? SARAMA\.short\(doneTakes\)/);
+    expect(says).toMatch(/ask\s+\? null/);
+    expect(says).toMatch(/stopped\s+\? SARAMA\.stopped\(name\)/);
+    expect(says).toMatch(/trail\?\.mine\?\.paws > 0 \|\| done\s+\? null\s+: brief\.own;$/);
+    expect(SARAMA).not.toHaveProperty('hello');
+    expect(SARAMA).not.toHaveProperty('join');
+    expect(SARAMA).not.toHaveProperty('training');
+    expect(helper).not.toMatch(/SARAMA\.(hello|back|join|training|asked)\(/);
+    // Under the card's own heading, never above it, and small.
+    expect(helper.indexOf('<Sarama className="mt-3" pose={cheer')).toBeGreaterThan(helper.indexOf('<Heading className="mt-1">{ask ?'));
+    expect(read('app/mission-control/components/Sarama.js')).toMatch(/size = 36,/);
     expect(SARAMA.stopped('Max')).toBe('Thank you for your time looking for Max.');
     expect(SARAMA.stopped('Max')).not.toMatch(/again|back/i);
     const { briefFor } = require('@/app/lib/brief');
@@ -170,8 +184,8 @@ describe('Sarama', () => {
 
   test('she cheers only an area searched that left paw prints, and they land with her', () => {
     expect(helper).toMatch(/const cheer = Boolean\(done && ground && donePaws > 0\);/);
-    expect(helper).toMatch(/pose=\{cheer \? 'cheer' : ask \? 'point' : 'sit'\}/);
-    expect(helper).toMatch(/\{cheer && <Paws count=\{donePaws\} className="mb-2" \/>\}/);
+    expect(helper).toMatch(/pose=\{cheer \? 'cheer' : saramaSays === brief\.own \? 'sniff' : 'sit'\}/);
+    expect(helper).toMatch(/\{cheer && <Paws count=\{donePaws\} className="mt-2" \/>\}/);
     expect(helper).toMatch(/\{told && <Paws count=\{paws\} className="mt-1\.5" \/>\}/);
     // A search far shorter than the area takes: no cheer and no prints, and she says why and how long the area takes.
     expect(helper).toMatch(/cheer\s+\? SARAMA\.done\(donePaws\)\s+: done && ground\s+\? SARAMA\.short\(doneTakes\)/);
@@ -184,7 +198,7 @@ describe('Sarama', () => {
   });
 
   test('she does not greet a desk: whoever runs the search is not asked to come and look', () => {
-    expect(helper).toMatch(/\{!desk && \(\s+<Sarama/);
+    expect(helper).toMatch(/\{!desk && saramaSays && \(\s+<Sarama/);
   });
 
   test('the person running the search is never told nothing is waiting: she says the next thing to do', () => {
@@ -262,8 +276,7 @@ describe('Sarama, drawn', () => {
   });
 
   test('the pose says what she is doing: asking, sending, searching, cheering', () => {
-    expect(helper).toMatch(/pose=\{cheer \? 'cheer' : ask \? 'point' : 'sit'\}/);
-    expect(helper).toMatch(/<Sarama className="mb-3" pose="ask" say=\{SARAMA\.join\(\)\} \/>/);
+    expect(helper).toMatch(/pose=\{cheer \? 'cheer' : saramaSays === brief\.own \? 'sniff' : 'sit'\}/);
     expect(helper).toMatch(/pose=\{sighting \? 'point' : 'sniff'\}/);
   });
 });

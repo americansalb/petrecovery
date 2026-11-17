@@ -20,19 +20,8 @@
  */
 
 export const SARAMA = {
-  /**
-   * To someone who has opened the link: who she is and how long the pet has been gone. What follows it on the card
-   * is the brief, word for word: their own home first, and what to do on seeing the pet.
-   */
-  hello: (name, missing = '') => (missing ? `I'm Sarama, and I'm looking for ${name}, missing ${missing}. Here is how to help right now.` : `I'm Sarama, and I'm looking for ${name}. Here is how to help right now.`),
-  /** Back again, with prints already on this search. */
-  back: (name) => `Good to see you again. ${name} still needs us.`,
   /** Someone who has just said "I am stopping": thanked, and not greeted as if they had just come back. */
   stopped: (name) => `Thank you for your time looking for ${name}.`,
-  join: () => 'Tell me your name and read the rules. Then I will give you some ground.',
-  training: () => 'Seven things I want you to know before we go out.',
-  /** Someone the owner asked by name. */
-  asked: (owner) => `${owner || 'The owner'} asked for you by name.`,
   /** An area searched. */
   done: (paws) => `Well done. That is ${paws} paw prints on this search.`,
   /**

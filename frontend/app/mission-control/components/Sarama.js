@@ -37,7 +37,13 @@ export function SaramaPose({ pose = 'sit', size = 64, still = false, className =
   );
 }
 
-export default function Sarama({ say = '', pose = 'sit', size = 64, className = '' }) {
+/**
+ * Sarama with what she says: a small picture beside a few lines. Small on purpose: on a phone she sat at 64 px over a
+ * three-paragraph bubble on every card, pushed the card's own heading under the buttons and said again what the
+ * card said (founder, 2026-11-17: "saRama keeps getting in the way"). A card shows her only where she says something
+ * the card does not.
+ */
+export default function Sarama({ say = '', pose = 'sit', size = 36, className = '' }) {
   // One thing or several: each is a line of its own in the bubble.
   const said = (Array.isArray(say) ? say : [say]).filter(Boolean);
   return (
@@ -45,10 +51,10 @@ export default function Sarama({ say = '', pose = 'sit', size = 64, className = 
       {/* A new pose is a new picture, so a hop starts again each time something is done. */}
       <SaramaPose key={pose} pose={pose} size={size} />
       {said.length > 0 && (
-        <div key={said.join('|')} className="mc-sarama-says mt-1.5 flex min-w-0 flex-col gap-1.5 rounded-2xl rounded-tl-md bg-[var(--mc-raised)] px-3.5 py-2.5">
+        <div key={said.join('|')} className="mc-sarama-says flex min-w-0 flex-col gap-1 rounded-2xl rounded-tl-md bg-[var(--mc-raised)] px-3 py-2">
           <span className="sr-only">Sarama says: </span>
-          {said.map((line, i) => (
-            <p key={line} className={`text-[15px] leading-[21px] text-[var(--mc-ink)] ${i === 0 ? 'font-semibold' : 'font-medium'}`}>
+          {said.map((line) => (
+            <p key={line} className="text-[14px] font-medium leading-[20px] text-[var(--mc-ink)]">
               {line}
             </p>
           ))}
