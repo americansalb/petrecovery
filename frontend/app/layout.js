@@ -4,6 +4,7 @@ import localFont from 'next/font/local';
 import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
 import Navigation from './components/Navigation';
+import OwnerSearchStrip from './components/OwnerSearchStrip';
 import SiteFooter from './components/SiteFooter';
 import GlobalBottomNav from './components/GlobalBottomNav';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -91,6 +92,10 @@ export default function RootLayout({ children }) {
                   <ClientProviders>
                     <OfflineBanner />
                     <Navigation />
+                    {/* Under the bar, never inside it: the guest owner's way back
+                        to their own search, shown only to the browser holding
+                        the owner's key (founder, 2026-11-17; docs/APP_MAP.md 8.2). */}
+                    <OwnerSearchStrip />
                     {/* No bottom padding for the phone tab bar here: SiteFooter
                         clears it (pb-24), and routes without the footer hide
                         the tab bar too. Padding main drew a pale band between

@@ -96,7 +96,21 @@ describe("a guest is told at the start that a search is already open", () => {
   test('the search this browser made is named, with the link to it', async () => {
     const res = await ask(made);
     expect(res.headers.get('cache-control')).toBe('no-store');
-    expect(await res.json()).toEqual({ open: { caseNumber: 'AUS-2026-0001', petName: 'Mia', url: '/mission-control?mission=AUS-2026-0001', hasEmail: true } });
+    expect(await res.json()).toEqual({ open: { caseNumber: 'AUS-2026-0001', petName: 'Mia', url: '/mission-control?mission=AUS-2026-0001', hasEmail: true, lostAt: null } });
+  });
+
+  test('it says when the pet was lost, for the strip under the top bar, and names the newest search', async () => {
+    const other = mintOwnerKey();
+    const lost = new Date('2026-11-14T18:30:00Z');
+    prisma.case.findMany.mockResolvedValue([
+      { ...OPEN, createdAt: new Date('2026-11-14T19:00:00Z'), lastSeenAt: lost },
+      { ...OPEN, id: 'case-0', caseNumber: 'AUS-2026-0000', petName: 'Old', createdAt: new Date('2026-11-01T10:00:00Z'), lastSeenAt: new Date('2026-11-01T09:00:00Z'), ownerKeyHash: other.hash },
+    ]);
+    const body = await (await ask(`rp_owner_case-0=${other.key}; rp_made_case-0=1; ${made}`)).json();
+    expect(body.open).toMatchObject({ caseNumber: 'AUS-2026-0001', petName: 'Mia', lostAt: lost.toISOString() });
+    // Without a last-seen time, when the report was made.
+    prisma.case.findMany.mockResolvedValue([{ ...OPEN, createdAt: new Date('2026-11-14T19:00:00Z'), lastSeenAt: null }]);
+    expect((await (await ask(made)).json()).open.lostAt).toBe('2026-11-14T19:00:00.000Z');
   });
 
   test('it says whether the search has an email mail can go to, never the address', async () => {
