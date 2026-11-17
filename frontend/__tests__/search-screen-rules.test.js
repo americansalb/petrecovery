@@ -949,15 +949,18 @@ describe('the phone screen fits the phone', () => {
     expect(body).toMatch(/\.\.\.selfNear\(middle\)/);
   });
 
-  test('the screen is pinned to the window, only the card scrolls, and the page around it is the screen\'s own dark', () => {
-    expect(code(shell)).toMatch(/const pinned = 'mc-dark mc-screen fixed inset-0 /);
+  test('the screen is pinned to the window, only the card scrolls, and the page around it is the screen\'s own colour', () => {
+    // The phone screen is light (founder, 2026-11-17: "Light on phones"); the dark control room is the desk's.
+    expect(code(shell)).toMatch(/const pinned = 'mc-light mc-screen fixed inset-0 /);
+    expect(code(shell)).not.toMatch(/mc-dark mc-screen/);
+    expect(code(shell)).toMatch(/theme="light"/);
     expect(code(shell)).toMatch(/<div ref=\{sheetScroll\} data-sheet=\{sheetHeight\} className="min-h-0 overflow-y-auto overscroll-contain /);
     const css = read('app/globals.css');
-    expect(css).toMatch(/html:has\(\.mc-screen\),\s*html:has\(\.mc-screen\) body \{\s*background-color: #0f172a;/);
+    expect(css).toMatch(/html:has\(\.mc-screen\),\s*html:has\(\.mc-screen\) body \{\s*background-color: #ffffff;/);
   });
 
   test('the safe-area insets the screen pads with are switched on, for this route only', () => {
-    expect(code(read('app/mission-control/page.js'))).toMatch(/export const viewport = \{ viewportFit: 'cover' \};/);
+    expect(code(read('app/mission-control/page.js'))).toMatch(/export const viewport = \{ viewportFit: 'cover', themeColor: '#ffffff' \};/);
     expect(code(read('app/layout.js'))).not.toMatch(/viewportFit/);
     expect(read('app/mission-control/components/TopBar.js')).toMatch(/pt-\[env\(safe-area-inset-top\)\]/);
   });

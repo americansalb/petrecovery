@@ -84,7 +84,7 @@ export default function ReadSheet({ rules = [], waiver = null, onClose }) {
   if (typeof document === 'undefined') return null;
   const blocks = legalBlocks(waiver?.content || '');
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-labelledby="mc-read-title" className="mc-dark fixed inset-0 z-[900] flex flex-col bg-[var(--mc-surface)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    <div role="dialog" aria-modal="true" aria-labelledby="mc-read-title" className="mc-light fixed inset-0 z-[900] flex flex-col bg-[var(--mc-surface)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <header className="shrink-0 border-b border-[var(--mc-line)] pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-[60px] w-full max-w-2xl items-center justify-between gap-3 px-4">
           <h2 id="mc-read-title" className="min-w-0 truncate text-[19px] font-bold leading-6 text-[var(--mc-ink)]">

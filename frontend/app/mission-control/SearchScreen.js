@@ -103,7 +103,7 @@ const NO_WORDS = [];
 
 function Centered({ children }) {
   return (
-    <div className="mc-dark mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)] px-5">
+    <div className="mc-light mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)] px-5">
       <div className="w-full max-w-md text-center">{children}</div>
     </div>
   );
@@ -804,7 +804,7 @@ function Screen({ mission }) {
   // The search is over: one screen for everyone.
   if (!picture.open) {
     return (
-      <div className="mc-dark mc-screen flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
+      <div className="mc-light mc-screen flex h-[100dvh] flex-col overflow-y-auto bg-[var(--mc-surface)]">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
           <Home picture={picture} name={name} owner={owner} petHref={petHref} now={now} />
         </div>
@@ -935,7 +935,7 @@ function Screen({ mission }) {
   ].filter(Boolean);
   const map = (
     <SearchMap
-      theme="dark"
+      theme="light"
       lastSeen={mapLastSeen}
       sightings={mapSightings}
       areas={mapAreas}
@@ -982,7 +982,7 @@ function Screen({ mission }) {
   // does not drag the page. The page moving under it is what put the top bar under the phone's clock and showed the
   // site's pale background beneath the buttons (2026-11-14, iOS Safari). The insets keep the bar and the buttons
   // clear of the clock, the notch and the browser's own bars (viewportFit in page.js).
-  const pinned = 'mc-dark mc-screen fixed inset-0 flex flex-col overflow-hidden pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]';
+  const pinned = 'mc-light mc-screen fixed inset-0 flex flex-col overflow-hidden pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]';
   if (full) {
     return (
       <div className={`${pinned} bg-[var(--mc-surface)]`}>
@@ -1075,7 +1075,7 @@ export default function SearchScreen({ mission = null }) {
   return (
     <Suspense
       fallback={
-        <div className="mc-dark mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)]">
+        <div className="mc-light mc-screen flex h-[100dvh] items-center justify-center bg-[var(--mc-ground)]">
           <Loader2 size={36} className="animate-spin text-flash-400" aria-hidden="true" />
         </div>
       }

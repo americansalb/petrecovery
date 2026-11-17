@@ -202,7 +202,9 @@ map opens on the photo from above and its lines are thin; the case number
 and the lost point's coordinates are in the top bar. Do not bring back
 large round corners, heavy type, thick outlines or a mascot's picture
 there: Sarama's picture is for the people helping, and on the desk her
-next step is words. The phone's cards keep their own palette. Enforced by
+next step is words. On a phone the search screen is light, the same look
+as the pet's page it is opened from (founder, 2026-11-17: "Light on
+phones"); the dark control room is the desk's alone. Enforced by
 `frontend/__tests__/search-colors.test.js`.
 
 ### The search never sends anyone into danger without saying so
